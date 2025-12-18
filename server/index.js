@@ -12,6 +12,7 @@ const gymRoutes = require('./routes/gymRoutes');
 const nutritionRoutes = require('./routes/nutritionRoutes');
 const habitRoutes = require('./routes/habitRoutes');
 const styleRoutes = require('./routes/styleRoutes');
+const longTermGoalRoutes = require('./routes/longTermGoalRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -34,6 +35,7 @@ app.use('/api/gym', gymRoutes);
 app.use('/api/nutrition', nutritionRoutes);
 app.use('/api/habits', habitRoutes);
 app.use('/api/style', styleRoutes);
+app.use('/api/long-term-goals', longTermGoalRoutes);
 
 async function start() {
   try {

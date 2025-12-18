@@ -64,7 +64,7 @@ router.post('/login', async (req, res) => {
 
     // Find user
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
+    if (!user || !user.password) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 

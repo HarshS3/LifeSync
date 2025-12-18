@@ -30,6 +30,9 @@ import BarChartIcon from '@mui/icons-material/BarChart'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import NotesIcon from '@mui/icons-material/Notes'
+import FlagIcon from '@mui/icons-material/Flag'
+import ArchiveIcon from '@mui/icons-material/Archive'
+import LongTermGoalsTab from './LongTermGoalsTab'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart
@@ -325,6 +328,7 @@ function HabitTracker() {
           <Tab label="Week View" />
           <Tab label="Stats" icon={<BarChartIcon sx={{ fontSize: 18 }} />} iconPosition="start" />
           <Tab label="All Habits" />
+          <Tab label="Long Term Goals" icon={<FlagIcon sx={{ fontSize: 18 }} />} iconPosition="start" />
         </Tabs>
       </Box>
 
@@ -500,6 +504,25 @@ function HabitTracker() {
                           }}
                         >
                           Save Note
+                        </Button>
+                      </Box>
+                      {/* Quick actions */}
+                      <Box sx={{ display: 'flex', gap: 1, mt: 2, pt: 2, borderTop: '1px dashed #e5e7eb' }}>
+                        <Button
+                          size="small"
+                          startIcon={<EditIcon />}
+                          onClick={() => openEditDialog(habit)}
+                          sx={{ color: '#6b7280', textTransform: 'none' }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="small"
+                          startIcon={<ArchiveIcon />}
+                          onClick={() => handleDeleteHabit(habit._id)}
+                          sx={{ color: '#ef4444', textTransform: 'none' }}
+                        >
+                          Archive
                         </Button>
                       </Box>
                     </Box>
@@ -995,13 +1018,20 @@ function HabitTracker() {
                 <IconButton size="small" onClick={() => openEditDialog(habit)}>
                   <EditIcon fontSize="small" />
                 </IconButton>
-                <IconButton size="small" onClick={() => handleDeleteHabit(habit._id)} sx={{ color: '#ef4444' }}>
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
+                <Tooltip title="Archive habit">
+                  <IconButton size="small" onClick={() => handleDeleteHabit(habit._id)} sx={{ color: '#6b7280' }}>
+                    <ArchiveIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </Box>
             ))
           )}
         </Box>
+      )}
+
+      {/* Long Term Goals Tab */}
+      {activeTab === 4 && (
+        <LongTermGoalsTab />
       )}
 
       {/* Create/Edit Habit Dialog */}

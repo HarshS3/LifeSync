@@ -27,6 +27,7 @@ import WhatshotIcon from '@mui/icons-material/Whatshot'
 import CloseIcon from '@mui/icons-material/Close'
 import Calendar from './Calendar'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../config'
 
 // Exercise Library with muscle groups
 const EXERCISE_LIBRARY = {
@@ -115,7 +116,7 @@ function GymTracker() {
   const loadWorkouts = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/gym/workouts', {
+      const res = await fetch(`${API_BASE}/api/gym/workouts`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       if (res.ok) {
@@ -270,7 +271,7 @@ function GymTracker() {
     }
 
     try {
-      const res = await fetch('/api/gym/workouts', {
+      const res = await fetch(`${API_BASE}/api/gym/workouts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

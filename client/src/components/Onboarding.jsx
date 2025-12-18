@@ -19,6 +19,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../config'
 
 const GOALS = [
   { id: 'lose-weight', label: 'Lose Weight', icon: '🏃' },
@@ -152,7 +153,7 @@ function Onboarding({ onComplete }) {
         onboardingCompleted: true,
       }
 
-      const res = await fetch('/api/users/profile', {
+      const res = await fetch(`${API_BASE}/api/users/profile`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

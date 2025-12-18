@@ -17,6 +17,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import Calendar from './Calendar'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../config'
 
 function GlobalCalendar() {
   const { token } = useAuth()
@@ -40,10 +41,10 @@ function GlobalCalendar() {
       const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString()
 
       const [workouts, mental, nutrition, habits] = await Promise.all([
-        fetchJson('/api/gym/workouts'),
-        fetchJson('/api/logs/mental'),
-        fetchJson('/api/logs/nutrition'),
-        fetchJson(`/api/habits/logs/range?start=${startDate}&end=${endDate}`),
+        fetchJson(`${API_BASE}/api/gym/workouts`),
+        fetchJson(`${API_BASE}/api/logs/mental`),
+        fetchJson(`${API_BASE}/api/logs/nutrition`),
+        fetchJson(`${API_BASE}/api/habits/logs/range?start=${startDate}&end=${endDate}`),
       ])
 
       const allEvents = []

@@ -15,6 +15,7 @@ import IconButton from '@mui/material/IconButton'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../config'
 import ChipListInput from './ChipListInput'
 
 const inputSx = {
@@ -113,7 +114,7 @@ function ProfilePanel() {
       return
     }
     try {
-      const res = await fetch('/api/users/profile', {
+      const res = await fetch(`${API_BASE}/api/users/profile`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (res.ok) {
@@ -150,7 +151,7 @@ function ProfilePanel() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const res = await fetch('/api/users/profile', {
+      const res = await fetch(`${API_BASE}/api/users/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -6,8 +6,7 @@ import IconButton from '@mui/material/IconButton'
 import Avatar from '@mui/material/Avatar'
 import SendIcon from '@mui/icons-material/Send'
 import { useAuth } from '../context/AuthContext'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+import { API_BASE } from '../config'
 
 function ChatPanel() {
   const { token } = useAuth()

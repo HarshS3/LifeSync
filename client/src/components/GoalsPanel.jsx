@@ -5,6 +5,7 @@ import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import LinearProgress from '@mui/material/LinearProgress'
+import { API_BASE } from '../config'
 
 function GoalsPanel() {
   const [newGoal, setNewGoal] = useState({
@@ -32,7 +33,7 @@ function GoalsPanel() {
 
   const handleCreate = async () => {
     try {
-      await fetch('/api/goals', {
+      await fetch(`${API_BASE}/api/goals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

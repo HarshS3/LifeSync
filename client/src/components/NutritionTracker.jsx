@@ -16,6 +16,7 @@ import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew'
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos'
 import TodayIcon from '@mui/icons-material/Today'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../config'
 
 const MEAL_TYPES = [
   'breakfast',
@@ -85,7 +86,7 @@ function NutritionTracker() {
     setLoading(true)
     try {
       const dateStr = selectedDate.toISOString()
-      const res = await fetch(`/api/nutrition/logs/date/${encodeURIComponent(dateStr)}`, {
+      const res = await fetch(`${API_BASE}/api/nutrition/logs/date/${encodeURIComponent(dateStr)}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       if (res.ok) {
@@ -189,7 +190,7 @@ function NutritionTracker() {
       setFoodSearchLoading(true)
       setFoodResults([])
       const params = new URLSearchParams({ q: foodSearchQuery.trim() })
-      const res = await fetch(`/api/nutrition/search?${params.toString()}`, {
+      const res = await fetch(`${API_BASE}/api/nutrition/search?${params.toString()}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       if (res.ok) {
@@ -280,7 +281,7 @@ function NutritionTracker() {
         notes: log.notes,
       }
 
-      const res = await fetch('/api/nutrition/logs', {
+      const res = await fetch(`${API_BASE}/api/nutrition/logs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

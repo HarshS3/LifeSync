@@ -35,6 +35,7 @@ import {
   Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart
 } from 'recharts'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../config'
 
 const HABIT_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6']
 const CATEGORIES = [
@@ -78,10 +79,10 @@ function HabitTracker() {
     setLoading(true)
     try {
       const [habitsRes, weekRes, todayRes, analyticsRes] = await Promise.all([
-        fetch('/api/habits', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`/api/habits/week?date=${getWeekDate()}`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`/api/habits/logs?start=${new Date().toISOString()}`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/habits/analytics', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/habits`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/habits/week?date=${getWeekDate()}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/habits/logs?start=${new Date().toISOString()}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/habits/analytics`, { headers: { Authorization: `Bearer ${token}` } }),
       ])
 
       if (habitsRes.ok) setHabits(await habitsRes.json())
@@ -112,7 +113,7 @@ function HabitTracker() {
 
   const handleToggleHabit = async (habitId, date, currentStatus) => {
     try {
-      const res = await fetch('/api/habits/toggle', {
+      const res = await fetch(`${API_BASE}/api/habits/toggle`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -135,7 +136,7 @@ function HabitTracker() {
 
   const handleSaveNote = async (habitId) => {
     try {
-      const res = await fetch('/api/habits/note', {
+      const res = await fetch(`${API_BASE}/api/habits/note`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -168,7 +169,7 @@ function HabitTracker() {
 
   const handleSaveHabit = async () => {
     try {
-      const url = editingHabit ? `/api/habits/${editingHabit._id}` : '/api/habits'
+      const url = editingHabit ? `${API_BASE}/api/habits/${editingHabit._id}` : `${API_BASE}/api/habits`
       const method = editingHabit ? 'PUT' : 'POST'
 
       const res = await fetch(url, {
@@ -202,7 +203,7 @@ function HabitTracker() {
   const handleDeleteHabit = async (habitId) => {
     if (!confirm('Archive this habit?')) return
     try {
-      const res = await fetch(`/api/habits/${habitId}`, {
+      const res = await fetch(`${API_BASE}/api/habits/${habitId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })

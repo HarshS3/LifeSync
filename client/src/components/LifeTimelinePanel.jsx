@@ -5,8 +5,7 @@ import Chip from '@mui/material/Chip'
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter'
 import SpaIcon from '@mui/icons-material/Spa'
 import RestaurantIcon from '@mui/icons-material/Restaurant'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+import { API_BASE } from '../config'
 
 function buildEvents(fitness, mental, nutrition) {
   const events = []

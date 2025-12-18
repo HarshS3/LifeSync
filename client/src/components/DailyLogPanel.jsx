@@ -8,6 +8,7 @@ import Checkbox from '@mui/material/Checkbox'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import MedicationIcon from '@mui/icons-material/Medication'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../config'
 
 function DailyLogPanel() {
   const { user, token } = useAuth()
@@ -33,7 +34,7 @@ function DailyLogPanel() {
   }
 
   const handleSubmit = async () => {
-    const endpoint = '/api/logs/mental'
+    const endpoint = `${API_BASE}/api/logs/mental`
     const body = {
       moodScore: mentalData.mood,
       energyLevel: mentalData.energy,

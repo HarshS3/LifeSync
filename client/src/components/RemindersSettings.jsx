@@ -14,6 +14,7 @@ import SpaIcon from '@mui/icons-material/Spa'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import AssessmentIcon from '@mui/icons-material/Assessment'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../config'
 
 function RemindersSettings() {
   const { user, token, refreshUser } = useAuth()
@@ -57,7 +58,7 @@ function RemindersSettings() {
     setSaving(true)
     setSaved(false)
     try {
-      const res = await fetch('/api/users/profile', {
+      const res = await fetch(`${API_BASE}/api/users/profile`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

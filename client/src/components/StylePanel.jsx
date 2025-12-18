@@ -33,6 +33,7 @@ import FavoriteIcon from '@mui/icons-material/Favorite'
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../config'
 
 const CATEGORIES = [
   'tops', 'bottoms', 'dresses', 'outerwear', 'shoes', 'accessories', 'activewear', 'formal'
@@ -90,7 +91,7 @@ function StylePanel() {
     if (!token) return
     setLoading(true)
     try {
-      const res = await fetch('/api/style/wardrobe', {
+      const res = await fetch(`${API_BASE}/api/style/wardrobe`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (res.ok) {
@@ -108,8 +109,8 @@ function StylePanel() {
     
     try {
       const url = editingItem 
-        ? `/api/style/wardrobe/${editingItem._id}`
-        : '/api/style/wardrobe'
+        ? `${API_BASE}/api/style/wardrobe/${editingItem._id}`
+        : `${API_BASE}/api/style/wardrobe`
       const method = editingItem ? 'PUT' : 'POST'
       
       const res = await fetch(url, {
@@ -133,7 +134,7 @@ function StylePanel() {
   const handleDeleteItem = async (id) => {
     if (!confirm('Delete this item?')) return
     try {
-      await fetch(`/api/style/wardrobe/${id}`, {
+      await fetch(`${API_BASE}/api/style/wardrobe/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -145,7 +146,7 @@ function StylePanel() {
 
   const handleToggleFavorite = async (item) => {
     try {
-      await fetch(`/api/style/wardrobe/${item._id}`, {
+      await fetch(`${API_BASE}/api/style/wardrobe/${item._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -194,7 +195,7 @@ function StylePanel() {
   const getOutfitSuggestion = async () => {
     setSuggestingOutfit(true)
     try {
-      const res = await fetch('/api/style/suggest', {
+      const res = await fetch(`${API_BASE}/api/style/suggest`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -15,6 +15,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
 import LockIcon from '@mui/icons-material/Lock'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../config'
 
 const PLANS = [
   {
@@ -137,7 +138,7 @@ function PremiumPage() {
     setProcessing(true)
     try {
       // In production, this would integrate with Stripe
-      const res = await fetch('/api/users/subscription', {
+      const res = await fetch(`${API_BASE}/api/users/subscription`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

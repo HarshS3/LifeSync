@@ -18,6 +18,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../config'
 
 function Dashboard() {
   const { user, token } = useAuth()
@@ -52,9 +53,9 @@ function Dashboard() {
     try {
       // Fetch recent logs
       const [fitness, mental, nutrition] = await Promise.all([
-        fetchJson('/api/logs/fitness'),
-        fetchJson('/api/logs/mental'),
-        fetchJson('/api/logs/nutrition'),
+        fetchJson(`${API_BASE}/api/logs/fitness`),
+        fetchJson(`${API_BASE}/api/logs/mental`),
+        fetchJson(`${API_BASE}/api/logs/nutrition`),
       ])
       
       setRecentLogs({ fitness, mental, nutrition })
@@ -265,7 +266,7 @@ function Dashboard() {
   const handleQuickCheckIn = async () => {
     setSubmitting(true)
     try {
-      await fetch('/api/logs/mental', {
+      await fetch(`${API_BASE}/api/logs/mental`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -292,7 +293,7 @@ function Dashboard() {
       if (token) {
         headers['Authorization'] = `Bearer ${token}`
       }
-      const res = await fetch('/api/ai/chat', {
+      const res = await fetch(`${API_BASE}/api/ai/chat`, {
         method: 'POST',
         headers,
         body: JSON.stringify({

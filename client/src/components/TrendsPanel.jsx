@@ -4,6 +4,7 @@ import Typography from '@mui/material/Typography'
 import Tabs from '@mui/material/Tabs'
 import Tab from '@mui/material/Tab'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../config'
 
 function TrendsPanel() {
   const [activeTab, setActiveTab] = useState(0)
@@ -26,9 +27,9 @@ function TrendsPanel() {
           }
         }
         const [fit, nut, men] = await Promise.all([
-          fetchJson('/api/fitness'),
-          fetchJson('/api/nutrition/logs'),
-          fetchJson('/api/mental'),
+          fetchJson(`${API_BASE}/api/fitness`),
+          fetchJson(`${API_BASE}/api/nutrition/logs`),
+          fetchJson(`${API_BASE}/api/mental`),
         ])
 
         const normalizedNutrition = Array.isArray(nut)

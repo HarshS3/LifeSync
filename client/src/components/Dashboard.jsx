@@ -52,10 +52,12 @@ function Dashboard() {
     setLoading(true)
     try {
       // Fetch recent logs
+      if (!user || !user._id) throw new Error('User not found')
+      const userId = user._id
       const [fitness, mental, nutrition] = await Promise.all([
-        fetchJson(`${API_BASE}/api/logs/fitness`),
-        fetchJson(`${API_BASE}/api/logs/mental`),
-        fetchJson(`${API_BASE}/api/logs/nutrition`),
+        fetchJson(`${API_BASE}/api/logs/fitness/${userId}`),
+        fetchJson(`${API_BASE}/api/logs/mental/${userId}`),
+        fetchJson(`${API_BASE}/api/logs/nutrition/${userId}`),
       ])
       
       setRecentLogs({ fitness, mental, nutrition })

@@ -20,7 +20,7 @@ import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
 
 function GlobalCalendar() {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState(null)
@@ -40,10 +40,16 @@ function GlobalCalendar() {
       const startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
       const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString()
 
+      if (!user || !user._id) {
+        setEvents([])
+        setLoading(false)
+        return
+      }
+      const userId = user._id
       const [workouts, mental, nutrition, habits] = await Promise.all([
-        fetchJson(`${API_BASE}/api/gym/workouts`),
-        fetchJson(`${API_BASE}/api/logs/mental`),
-        fetchJson(`${API_BASE}/api/logs/nutrition`),
+        fetchJson(`${API_BASE}/api/gym/workouts`), // already user-specific in backend
+        fetchJson(`${API_BASE}/api/logs/mental/${userId}`),
+        fetchJson(`${API_BASE}/api/logs/nutrition/${userId}`),
         fetchJson(`${API_BASE}/api/habits/logs/range?start=${startDate}&end=${endDate}`),
       ])
 

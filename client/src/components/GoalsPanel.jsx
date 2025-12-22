@@ -5,9 +5,12 @@ import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import LinearProgress from '@mui/material/LinearProgress'
+
 import { API_BASE } from '../config'
+import { useAuth } from '../context/AuthContext'
 
 function GoalsPanel() {
+  const { user, token } = useAuth()
   const [newGoal, setNewGoal] = useState({
     title: '',
     category: 'fitness',
@@ -32,15 +35,23 @@ function GoalsPanel() {
   }
 
   const handleCreate = async () => {
+    if (!user || !user._id) {
+      alert('User not found!')
+      return
+    }
     try {
       await fetch(`${API_BASE}/api/goals`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           title: newGoal.title,
           category: newGoal.category,
           targetValue: Number(newGoal.target) || 100,
           deadline: newGoal.deadline || undefined,
+          userId: user._id,
         }),
       })
       setNewGoal({ title: '', category: 'fitness', target: '', deadline: '' })

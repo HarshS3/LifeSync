@@ -268,7 +268,12 @@ function Dashboard() {
   const handleQuickCheckIn = async () => {
     setSubmitting(true)
     try {
-      await fetch(`${API_BASE}/api/logs/mental`, {
+      if (!user || !user._id) {
+        alert('User not found!')
+        setSubmitting(false)
+        return
+      }
+      await fetch(`${API_BASE}/api/logs/mental/${user._id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

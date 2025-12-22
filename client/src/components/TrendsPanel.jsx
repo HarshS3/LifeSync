@@ -9,7 +9,7 @@ import { API_BASE } from '../config'
 function TrendsPanel() {
   const [activeTab, setActiveTab] = useState(0)
   const [data, setData] = useState({ fitness: [], nutrition: [], mental: [] })
-  const { token } = useAuth()
+  const { token, user } = useAuth()
 
   useEffect(() => {
     const fetchData = async () => {
@@ -26,10 +26,15 @@ function TrendsPanel() {
             return []
           }
         }
+        if (!user || !user._id) {
+          setData({ fitness: [], nutrition: [], mental: [] })
+          return
+        }
+        const userId = user._id
         const [fit, nut, men] = await Promise.all([
-          fetchJson(`${API_BASE}/api/fitness`),
-          fetchJson(`${API_BASE}/api/nutrition/logs`),
-          fetchJson(`${API_BASE}/api/mental`),
+          fetchJson(`${API_BASE}/api/logs/fitness/${userId}`),
+          fetchJson(`${API_BASE}/api/logs/nutrition/${userId}`),
+          fetchJson(`${API_BASE}/api/logs/mental/${userId}`),
         ])
 
         const normalizedNutrition = Array.isArray(nut)

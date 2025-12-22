@@ -34,7 +34,11 @@ function DailyLogPanel() {
   }
 
   const handleSubmit = async () => {
-    const endpoint = `${API_BASE}/api/logs/mental`
+    if (!user || !user._id) {
+      alert('User not found!')
+      return
+    }
+    const endpoint = `${API_BASE}/api/logs/mental/${user._id}`
     const body = {
       moodScore: mentalData.mood,
       energyLevel: mentalData.energy,

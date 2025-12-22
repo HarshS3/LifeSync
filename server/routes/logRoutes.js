@@ -18,10 +18,27 @@ const getUserIdFromToken = (req) => {
   }
 };
 
-// GET all logs (MVP - no auth)
-router.get('/fitness', async (req, res) => {
+// Auth middleware for log routes
+const authMiddleware = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
   try {
-    const logs = await FitnessLog.find().sort({ date: -1 }).limit(30);
+    const token = authHeader.split(' ')[1];
+    const secret = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
+    const decoded = jwt.verify(token, secret);
+    req.userId = decoded.userId;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+// GET all logs for authenticated user
+router.get('/fitness', authMiddleware, async (req, res) => {
+  try {
+    const logs = await FitnessLog.find({ user: req.userId }).sort({ date: -1 }).limit(30);
     res.json(logs);
   } catch (err) {
     console.error(err);
@@ -29,9 +46,9 @@ router.get('/fitness', async (req, res) => {
   }
 });
 
-router.get('/nutrition', async (req, res) => {
+router.get('/nutrition', authMiddleware, async (req, res) => {
   try {
-    const logs = await NutritionLog.find().sort({ date: -1 }).limit(30);
+    const logs = await NutritionLog.find({ user: req.userId }).sort({ date: -1 }).limit(30);
     res.json(logs);
   } catch (err) {
     console.error(err);
@@ -39,9 +56,9 @@ router.get('/nutrition', async (req, res) => {
   }
 });
 
-router.get('/mental', async (req, res) => {
+router.get('/mental', authMiddleware, async (req, res) => {
   try {
-    const logs = await MentalLog.find().sort({ date: -1 }).limit(30);
+    const logs = await MentalLog.find({ user: req.userId }).sort({ date: -1 }).limit(30);
     res.json(logs);
   } catch (err) {
     console.error(err);
@@ -100,6 +117,18 @@ router.get('/nutrition/:userId', async (req, res) => {
 router.post('/mental', async (req, res) => {
   try {
     const userId = getUserIdFromToken(req);
+    // Check if a log already exists for today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const existingLog = await MentalLog.findOne({
+      user: userId,
+      date: { $gte: today, $lt: tomorrow },
+    });
+    if (existingLog) {
+      return res.status(409).json({ error: 'Already checked in today', log: existingLog });
+    }
     const log = await MentalLog.create({
       ...req.body,
       user: userId,

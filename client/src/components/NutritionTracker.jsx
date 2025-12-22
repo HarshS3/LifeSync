@@ -86,7 +86,11 @@ function NutritionTracker() {
     setLoading(true)
     try {
       const dateStr = selectedDate.toISOString()
-      const res = await fetch(`${API_BASE}/api/nutrition/logs/date/${encodeURIComponent(dateStr)}`, {
+      if (!user || !user._id) {
+        setLog({ meals: [], waterIntake: 0, dailyTotals: { ...EMPTY_TOTALS }, notes: '' })
+        return
+      }
+      const res = await fetch(`${API_BASE}/api/nutrition/logs/date/${user._id}/${encodeURIComponent(dateStr)}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       if (res.ok) {
@@ -281,7 +285,11 @@ function NutritionTracker() {
         notes: log.notes,
       }
 
-      const res = await fetch(`${API_BASE}/api/nutrition/logs`, {
+      if (!user || !user._id) {
+        alert('User not found!')
+        return
+      }
+      const res = await fetch(`${API_BASE}/api/nutrition/logs/${user._id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -38,7 +38,7 @@ import GymTracker from './components/GymTracker.jsx'
 import GlobalCalendar from './components/GlobalCalendar.jsx'
 import NutritionTracker from './components/NutritionTracker.jsx'
 import RemindersSettings from './components/RemindersSettings.jsx'
-import PremiumPage from './components/PremiumPage.jsx'
+// import PremiumPage from './components/PremiumPage.jsx'
 
 const navItems = [
   { id: 'home', label: 'Home', icon: <HomeOutlinedIcon fontSize="small" /> },
@@ -52,7 +52,7 @@ const navItems = [
   { id: 'trends', label: 'Insights', icon: <InsightsIcon fontSize="small" /> },
   { id: 'style', label: 'Style', icon: <AutoAwesomeOutlinedIcon fontSize="small" /> },
   { id: 'reminders', label: 'Reminders', icon: <NotificationsIcon fontSize="small" /> },
-  { id: 'premium', label: 'Premium', icon: <StarIcon fontSize="small" /> },
+  // { id: 'premium', label: 'Premium', icon: <StarIcon fontSize="small" /> },
 ]
 
 function App() {
@@ -183,7 +183,7 @@ function AppContent() {
       case 'style': return <StylePanel />
       case 'chat': return <ChatExperience />
       case 'reminders': return <RemindersSettings />
-      case 'premium': return <PremiumPage />
+      // case 'premium': return <PremiumPage />
       default: return <Dashboard />
     }
   }

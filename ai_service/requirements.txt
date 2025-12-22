@@ -1,0 +1,5 @@
+fastapi
+openai
+langchain
+chromadb
+python-dotenv

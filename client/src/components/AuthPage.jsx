@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import ForgotPassword from './ForgotPassword'
+import ResetPassword from './ResetPassword'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import TextField from '@mui/material/TextField'
@@ -7,6 +9,8 @@ import CircularProgress from '@mui/material/CircularProgress'
 import { useAuth } from '../context/AuthContext'
 
 function AuthPage() {
+  const [showForgot, setShowForgot] = useState(false);
+  const [showReset, setShowReset] = useState(false);
   const [isLogin, setIsLogin] = useState(true)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -44,6 +48,10 @@ function AuthPage() {
     },
     '& .MuiInputLabel-root.Mui-focused': { color: '#171717' },
   }
+
+  // Show forgot/reset password pages
+  if (showForgot) return <ForgotPassword />;
+  if (showReset) return <ResetPassword />;
 
   return (
     <Box
@@ -100,6 +108,7 @@ function AuthPage() {
               sx={inputSx}
             />
 
+
             <TextField
               label="Password"
               type="password"
@@ -110,6 +119,16 @@ function AuthPage() {
               helperText={!isLogin ? 'At least 6 characters' : ''}
               sx={inputSx}
             />
+            {isLogin && (
+              <Box sx={{ textAlign: 'right' }}>
+                <span
+                  style={{ color: '#6366f1', cursor: 'pointer', fontSize: 13 }}
+                  onClick={() => setShowForgot(true)}
+                >
+                  Forgot password?
+                </span>
+              </Box>
+            )}
 
             {error && (
               <Typography
@@ -166,6 +185,12 @@ function AuthPage() {
             </Box>
           </Typography>
         </Box>
+        {/* Optionally, add a way to show reset page directly for testing */}
+        {/* <Box sx={{ mt: 1, textAlign: 'center' }}>
+          <span style={{ color: '#6366f1', cursor: 'pointer', fontSize: 13 }} onClick={() => setShowReset(true)}>
+            Reset password (dev)
+          </span>
+        </Box> */}
       </Box>
     </Box>
   )

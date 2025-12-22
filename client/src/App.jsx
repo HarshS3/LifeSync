@@ -24,6 +24,8 @@ import StarIcon from '@mui/icons-material/Star'
 
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import AuthPage from './components/AuthPage.jsx'
+import ForgotPassword from './components/ForgotPassword.jsx'
+import ResetPassword from './components/ResetPassword.jsx'
 import Onboarding from './components/Onboarding.jsx'
 import Dashboard from './components/Dashboard.jsx'
 import ChatExperience from './components/ChatExperience.jsx'
@@ -203,12 +205,23 @@ function AppContent() {
 
   // Show auth page if not logged in
   if (!user) {
+    // Show reset password page if token in URL
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      return (
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <ResetPassword />
+        </ThemeProvider>
+      );
+    }
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <AuthPage />
       </ThemeProvider>
-    )
+    );
   }
 
   // Show onboarding for new users

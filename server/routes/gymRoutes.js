@@ -1,7 +1,25 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
 
 const router = express.Router();
+
+// Auth middleware
+const authMiddleware = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+  try {
+    const token = authHeader.split(' ')[1];
+    const secret = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
+    const decoded = jwt.verify(token, secret);
+    req.userId = decoded.userId;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+};
 
 // Workout Schema
 const WorkoutSchema = new mongoose.Schema(
@@ -30,10 +48,10 @@ const WorkoutSchema = new mongoose.Schema(
 
 const Workout = mongoose.model('Workout', WorkoutSchema);
 
-// Get all workouts
-router.get('/workouts', async (req, res) => {
+// Get all workouts for user
+router.get('/workouts', authMiddleware, async (req, res) => {
   try {
-    const workouts = await Workout.find().sort({ date: -1 }).limit(100);
+    const workouts = await Workout.find({ user: req.userId }).sort({ date: -1 }).limit(100);
     res.json(workouts);
   } catch (err) {
     console.error('Failed to fetch workouts:', err);
@@ -41,10 +59,10 @@ router.get('/workouts', async (req, res) => {
   }
 });
 
-// Get workout by ID
-router.get('/workouts/:id', async (req, res) => {
+// Get workout by ID (user-specific)
+router.get('/workouts/:id', authMiddleware, async (req, res) => {
   try {
-    const workout = await Workout.findById(req.params.id);
+    const workout = await Workout.findOne({ _id: req.params.id, user: req.userId });
     if (!workout) {
       return res.status(404).json({ error: 'Workout not found' });
     }
@@ -55,12 +73,13 @@ router.get('/workouts/:id', async (req, res) => {
   }
 });
 
-// Create workout
-router.post('/workouts', async (req, res) => {
+// Create workout (user-specific)
+router.post('/workouts', authMiddleware, async (req, res) => {
   try {
     const { name, exercises, duration, date, notes } = req.body;
 
     const workout = await Workout.create({
+      user: req.userId,
       name: name || `Workout - ${new Date().toLocaleDateString()}`,
       exercises: exercises || [],
       duration: duration || 0,
@@ -75,11 +94,11 @@ router.post('/workouts', async (req, res) => {
   }
 });
 
-// Update workout
-router.put('/workouts/:id', async (req, res) => {
+// Update workout (user-specific)
+router.put('/workouts/:id', authMiddleware, async (req, res) => {
   try {
-    const workout = await Workout.findByIdAndUpdate(
-      req.params.id,
+    const workout = await Workout.findOneAndUpdate(
+      { _id: req.params.id, user: req.userId },
       req.body,
       { new: true }
     );
@@ -93,10 +112,10 @@ router.put('/workouts/:id', async (req, res) => {
   }
 });
 
-// Delete workout
-router.delete('/workouts/:id', async (req, res) => {
+// Delete workout (user-specific)
+router.delete('/workouts/:id', authMiddleware, async (req, res) => {
   try {
-    const workout = await Workout.findByIdAndDelete(req.params.id);
+    const workout = await Workout.findOneAndDelete({ _id: req.params.id, user: req.userId });
     if (!workout) {
       return res.status(404).json({ error: 'Workout not found' });
     }
@@ -107,10 +126,10 @@ router.delete('/workouts/:id', async (req, res) => {
   }
 });
 
-// Get workout stats
-router.get('/stats', async (req, res) => {
+// Get workout stats (user-specific)
+router.get('/stats', authMiddleware, async (req, res) => {
   try {
-    const workouts = await Workout.find().sort({ date: -1 });
+    const workouts = await Workout.find({ user: req.userId }).sort({ date: -1 });
     
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -171,11 +190,12 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// Get workouts by date range (for calendar)
-router.get('/workouts/range/:start/:end', async (req, res) => {
+// Get workouts by date range (for calendar, user-specific)
+router.get('/workouts/range/:start/:end', authMiddleware, async (req, res) => {
   try {
     const { start, end } = req.params;
     const workouts = await Workout.find({
+      user: req.userId,
       date: {
         $gte: new Date(start),
         $lte: new Date(end),

@@ -21,6 +21,17 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/lifesync';
 app.use(cors());
 app.use(express.json());
 
+// Middleware to log API response time
+app.use((req, res, next) => {
+  const startHrTime = process.hrtime();
+  res.on('finish', () => {
+    const elapsedHrTime = process.hrtime(startHrTime);
+    const elapsedMs = elapsedHrTime[0] * 1000 + elapsedHrTime[1] / 1e6;
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${res.statusCode} - ${elapsedMs.toFixed(2)} ms`);
+  });
+  next();
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'LifeSync API' });

@@ -78,6 +78,8 @@ function GymTracker() {
   const [activeTab, setActiveTab] = useState(0)
   const [workouts, setWorkouts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [calendarWorkouts, setCalendarWorkouts] = useState([])
+  const [calendarLoading, setCalendarLoading] = useState(false)
   
   // Current workout state
   const [currentWorkout, setCurrentWorkout] = useState(null)
@@ -121,13 +123,79 @@ function GymTracker() {
       })
       if (res.ok) {
         const data = await res.json()
-        setWorkouts(Array.isArray(data) ? data : [])
-        calculateStats(data)
+        const arr = Array.isArray(data) ? data : []
+        setWorkouts(arr)
+
+        // Lightly exercise GET /api/gym/workouts/:id (no UI changes)
+        if (arr[0]?._id) {
+          touchWorkoutById(arr[0]._id)
+        }
+
+        // Prefer server-computed stats when available (covers /api/gym/stats)
+        const usedServerStats = await loadStatsFromServer()
+        if (!usedServerStats) calculateStats(data)
       }
     } catch (err) {
       console.error('Failed to load workouts:', err)
     }
     setLoading(false)
+  }
+
+  const touchWorkoutById = async (id) => {
+    if (!token || !id) return
+    try {
+      await fetch(`${API_BASE}/api/gym/workouts/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    } catch {
+      // ignore
+    }
+  }
+
+  const loadCalendarRange = async (monthDate) => {
+    if (!token) return
+    const d = monthDate instanceof Date ? monthDate : new Date()
+    const start = new Date(d.getFullYear(), d.getMonth(), 1)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+    end.setHours(23, 59, 59, 999)
+
+    setCalendarLoading(true)
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/gym/workouts/range/${encodeURIComponent(start.toISOString())}/${encodeURIComponent(end.toISOString())}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (res.ok) {
+        const data = await res.json()
+        setCalendarWorkouts(Array.isArray(data) ? data : [])
+      }
+    } catch (err) {
+      console.error('Failed to load workouts range:', err)
+    }
+    setCalendarLoading(false)
+  }
+
+  const loadStatsFromServer = async () => {
+    if (!token) return false
+    try {
+      const res = await fetch(`${API_BASE}/api/gym/stats`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return false
+      const data = await res.json()
+      setStats(prev => ({
+        ...prev,
+        totalWorkouts: data.totalWorkouts ?? prev.totalWorkouts,
+        totalVolume: data.totalVolume ?? prev.totalVolume,
+        muscleDistribution: data.muscleDistribution ?? prev.muscleDistribution,
+        weeklyWorkouts: data.weeklyWorkouts ?? prev.weeklyWorkouts,
+        // Keep local streak calc (backend doesn't currently provide it)
+      }))
+      return true
+    } catch {
+      return false
+    }
   }
 
   const calculateStats = (workoutData) => {
@@ -297,8 +365,10 @@ function GymTracker() {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
+  const calendarEventSource = calendarWorkouts.length ? calendarWorkouts : workouts
+
   // Calendar events from workouts
-  const calendarEvents = workouts.map(w => ({
+  const calendarEvents = calendarEventSource.map(w => ({
     date: w.date,
     type: 'workout',
     title: w.name || 'Workout',
@@ -648,7 +718,8 @@ function GymTracker() {
           {/* Calendar Tab */}
           {activeTab === 1 && (
             <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-              <Calendar events={calendarEvents} />
+              {calendarLoading && <LinearProgress sx={{ mb: 2 }} />}
+              <Calendar events={calendarEvents} onMonthChange={loadCalendarRange} />
             </Box>
           )}
 

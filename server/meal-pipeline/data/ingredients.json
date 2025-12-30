@@ -1,0 +1,13 @@
+{
+  "rice": { "carbs": 28, "protein": 2.7, "fat": 0.3, "fiber": 0.4, "calories": 130, "sugar": 0.1, "sodium": 1 },
+  "wheat_flour": { "carbs": 72, "protein": 13, "fat": 2, "fiber": 11, "calories": 340, "sugar": 0.3, "sodium": 5 },
+  "whole_wheat_flour": { "carbs": 72, "protein": 13, "fat": 2, "fiber": 11, "calories": 340, "sugar": 0.3, "sodium": 5 },
+  "potato": { "carbs": 17, "protein": 2, "fat": 0.1, "fiber": 2.2, "calories": 77, "sugar": 0.8, "sodium": 6 },
+  "lentils": { "carbs": 20, "protein": 9, "fat": 0.4, "fiber": 8, "calories": 116, "sugar": 1.8, "sodium": 2 },
+  "toor_dal": { "carbs": 20, "protein": 9, "fat": 0.4, "fiber": 8, "calories": 116, "sugar": 1.8, "sodium": 2 },
+  "moong_dal": { "carbs": 19, "protein": 7.5, "fat": 0.4, "fiber": 7.6, "calories": 105, "sugar": 1.2, "sodium": 2 },
+  "mixed_vegetables": { "carbs": 7, "protein": 2, "fat": 0.2, "fiber": 3, "calories": 45, "sugar": 3, "sodium": 30 },
+  "paneer": { "carbs": 1.2, "protein": 18, "fat": 20, "fiber": 0, "calories": 265, "sugar": 1.2, "sodium": 22 },
+  "oil": { "carbs": 0, "protein": 0, "fat": 100, "fiber": 0, "calories": 900, "sugar": 0, "sodium": 0 },
+  "spices": { "carbs": 30, "protein": 10, "fat": 10, "fiber": 25, "calories": 250, "sugar": 2, "sodium": 30 }
+}

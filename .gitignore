@@ -1,1 +1,63 @@
-.github
+# LifeSync .gitignore (root)
+
+# --- Secrets / environment files ---
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
+# --- Node / JS ---
+**/node_modules/
+**/.npm/
+**/.pnpm-store/
+**/.yarn/
+
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+**/dist/
+**/build/
+**/.next/
+**/.nuxt/
+**/.vite/
+
+# Coverage
+**/coverage/
+**/.nyc_output/
+
+# --- Python ---
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.tox/
+
+# Virtual environments
+**/.venv/
+**/.venv*/
+**/venv/
+**/ENV/
+
+# Jupyter
+**/.ipynb_checkpoints/
+
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# --- Local data / caches (optional) ---
+**/.cache/

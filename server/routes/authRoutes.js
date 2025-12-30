@@ -137,8 +137,6 @@ router.post('/direct-reset', async (req, res) => {
   }
 });
 
-module.exports = router;
-
 // --- Forgot Password ---
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
@@ -180,3 +178,5 @@ router.post('/reset-password', async (req, res) => {
 
   res.json({ message: 'Password has been reset successfully.' });
 });
+
+module.exports = router;

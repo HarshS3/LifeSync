@@ -13,6 +13,10 @@ const nutritionRoutes = require('./routes/nutritionRoutes');
 const habitRoutes = require('./routes/habitRoutes');
 const styleRoutes = require('./routes/styleRoutes');
 const longTermGoalRoutes = require('./routes/longTermGoalRoutes');
+const journalRoutes = require('./routes/journalRoutes');
+const symptomRoutes = require('./routes/symptomRoutes');
+const labRoutes = require('./routes/labRoutes');
+const insightRoutes = require('./routes/insightRoutes');
 
 // Start reminder scheduler
 require('./services/reminderScheduler');
@@ -50,6 +54,10 @@ app.use('/api/nutrition', nutritionRoutes);
 app.use('/api/habits', habitRoutes);
 app.use('/api/style', styleRoutes);
 app.use('/api/long-term-goals', longTermGoalRoutes);
+app.use('/api/journal', journalRoutes);
+app.use('/api/symptoms', symptomRoutes);
+app.use('/api/labs', labRoutes);
+app.use('/api/insights', insightRoutes);
 
 async function start() {
   try {

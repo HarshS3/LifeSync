@@ -203,7 +203,29 @@ function LongTermGoalsTab() {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (res.ok) {
-        setAnalytics(await res.json())
+        const analyticsData = await res.json()
+
+        // Also fetch raw logs (covers /api/long-term-goals/logs/:goalId)
+        // Use as recent log source when available, keeping UI the same.
+        let logs = null
+        try {
+          const logsRes = await fetch(`${API_BASE}/api/long-term-goals/logs/${goal._id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          if (logsRes.ok) {
+            const data = await logsRes.json()
+            logs = Array.isArray(data) ? data : null
+          }
+        } catch (e) {
+          // ignore; analytics endpoint already succeeded
+        }
+
+        const merged = {
+          ...analyticsData,
+          recentLogs: logs ? logs.slice(0, 14) : analyticsData.recentLogs,
+        }
+
+        setAnalytics(merged)
         setSelectedGoal(goal)
         setAnalyticsDialogOpen(true)
       }

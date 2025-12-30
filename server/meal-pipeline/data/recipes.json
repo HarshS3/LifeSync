@@ -1,0 +1,81 @@
+[
+  {
+    "meal_id": "meal_aloo_paratha",
+    "name": "aloo paratha",
+    "display_name": "Aloo Paratha",
+    "category": "indian_veg_meal",
+    "serving": { "description": "1 medium paratha", "weight_g": 120 },
+    "serving_size_g": 120,
+    "recipe": { "cooking_method": "pan_roasted" },
+    "ingredients": [
+      { "item": "whole_wheat_flour", "grams": 60 },
+      { "item": "potato", "grams": 80 },
+      { "item": "oil", "grams": 5 },
+      { "item": "spices", "grams": 5 }
+    ],
+    "cooking_adjustments": { "oilAbsorptionFactor": 1.1 },
+    "contextual_notes": {
+      "best_time": ["breakfast", "lunch"],
+      "pairing_suggestions": ["curd", "vegetable sabzi"],
+      "caution": ["large portions may spike blood sugar"]
+    }
+  },
+  {
+    "meal_id": "meal_plain_dal",
+    "name": "plain dal",
+    "display_name": "Plain Dal",
+    "category": "indian_veg_meal",
+    "serving": { "description": "1 bowl", "weight_g": 180 },
+    "serving_size_g": 180,
+    "recipe": { "cooking_method": "boiled" },
+    "ingredients": [
+      { "item": "toor_dal", "grams": 150 },
+      { "item": "oil", "grams": 5 },
+      { "item": "spices", "grams": 5 }
+    ],
+    "contextual_notes": {
+      "best_time": ["lunch", "dinner"],
+      "pairing_suggestions": ["roti", "rice", "vegetable sabzi"],
+      "caution": ["excess oil tempering increases calories"]
+    }
+  },
+  {
+    "meal_id": "meal_veg_khichdi",
+    "name": "vegetable khichdi",
+    "display_name": "Vegetable Khichdi",
+    "category": "indian_veg_meal",
+    "serving": { "description": "1 medium bowl", "weight_g": 250 },
+    "serving_size_g": 250,
+    "recipe": { "cooking_method": "pressure_cooked" },
+    "ingredients": [
+      { "item": "rice", "grams": 80 },
+      { "item": "moong_dal", "grams": 60 },
+      { "item": "mixed_vegetables", "grams": 60 },
+      { "item": "oil", "grams": 5 },
+      { "item": "spices", "grams": 5 }
+    ],
+    "contextual_notes": {
+      "best_time": ["lunch", "dinner"],
+      "pairing_suggestions": ["curd", "ghee (small amount)"],
+      "caution": ["large rice proportion raises carb load"]
+    }
+  },
+  {
+    "name": "plain rice",
+    "display_name": "Plain Rice",
+    "serving_size_g": 150,
+    "ingredients": [
+      { "item": "rice", "grams": 150 }
+    ]
+  },
+  {
+    "name": "paneer sabzi",
+    "display_name": "Paneer Sabzi",
+    "serving_size_g": 200,
+    "ingredients": [
+      { "item": "paneer", "grams": 100 },
+      { "item": "oil", "grams": 10 },
+      { "item": "spices", "grams": 5 }
+    ]
+  }
+]

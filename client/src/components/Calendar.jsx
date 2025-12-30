@@ -16,7 +16,7 @@ import CloseIcon from '@mui/icons-material/Close'
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
-function Calendar({ events = [], onDateClick, compact = false }) {
+function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(null)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -31,6 +31,10 @@ function Calendar({ events = [], onDateClick, compact = false }) {
   const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1))
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1))
   const goToToday = () => setCurrentDate(new Date())
+
+  useEffect(() => {
+    if (typeof onMonthChange === 'function') onMonthChange(currentDate)
+  }, [currentDate, onMonthChange])
 
   // Group events by date
   const eventsByDate = {}

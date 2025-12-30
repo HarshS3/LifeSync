@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import TextField from '@mui/material/TextField'
@@ -9,6 +9,7 @@ import FormControlLabel from '@mui/material/FormControlLabel'
 import MedicationIcon from '@mui/icons-material/Medication'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
+import JournalPanel from './JournalPanel'
 
 function DailyLogPanel() {
   const { user, token } = useAuth()
@@ -20,6 +21,8 @@ function DailyLogPanel() {
     notes: '',
     medsTaken: [], // Track which medications were taken
   })
+  const [journal, setJournal] = useState('')
+  const [journalSaved, setJournalSaved] = useState(false)
 
   // Get user's medications from profile
   const userMedications = user?.medications || []
@@ -34,11 +37,11 @@ function DailyLogPanel() {
   }
 
   const handleSubmit = async () => {
-    if (!user || !user._id) {
-      alert('User not found!')
+    if (!token) {
+      alert('Please log in to submit a check-in.')
       return
     }
-    const endpoint = `${API_BASE}/api/logs/mental/${user._id}`
+    const endpoint = `${API_BASE}/api/logs/mental`
     const body = {
       moodScore: mentalData.mood,
       energyLevel: mentalData.energy,
@@ -53,7 +56,7 @@ function DailyLogPanel() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(body),
       })
@@ -63,6 +66,50 @@ function DailyLogPanel() {
     } catch (err) {
       console.error(err)
     }
+  }
+
+  // Fetch today's journal entry on mount
+  useEffect(() => {
+    const fetchJournal = async () => {
+      if (!user || !token) return
+      const res = await fetch(`${API_BASE}/api/journal`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const entries = await res.json()
+        const today = new Date().toDateString()
+        const todayEntry = entries.find(e => new Date(e.date).toDateString() === today)
+        if (todayEntry) setJournal(todayEntry.text)
+      }
+    }
+    fetchJournal()
+  }, [user, token])
+
+  // Save journal entry to backend
+  const handleSaveJournal = async (text) => {
+    if (!user || !token) return
+    const res = await fetch(`${API_BASE}/api/journal`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ text }),
+    })
+    if (res.ok) {
+      setJournalSaved(true)
+      setTimeout(() => setJournalSaved(false), 2000)
+      setJournal(text)
+    }
+  }
+
+  const openInsights = () => {
+    try {
+      localStorage.setItem('lifesync:insights:activeTab', '2')
+    } catch {
+      // ignore
+    }
+    window.dispatchEvent(new CustomEvent('lifesync:navigate', { detail: { section: 'trends' } }))
   }
 
   return (
@@ -246,6 +293,12 @@ function DailyLogPanel() {
         }}
       >
         Save Entry
+      </Button>
+
+      {/* Journal Section */}
+      <JournalPanel onSave={handleSaveJournal} initialValue={journal} />
+      <Button variant="outlined" onClick={openInsights} sx={{ mb: 2 }}>
+        Open Insights
       </Button>
     </Box>
   )

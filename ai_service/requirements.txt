@@ -1,5 +1,6 @@
 fastapi
-openai
-langchain
-chromadb
+uvicorn[standard]
 python-dotenv
+chromadb
+pypdf
+openai

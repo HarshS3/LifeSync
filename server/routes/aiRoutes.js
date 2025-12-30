@@ -1,10 +1,18 @@
 const express = require('express');
 const { FitnessLog, NutritionLog, MentalLog, MemorySummary } = require('../models/Logs');
+const JournalEntry = require('../models/JournalEntry');
 const { Habit, HabitLog } = require('../models/Habit');
 const { WardrobeItem } = require('../models/Wardrobe');
 const User = require('../models/User');
+const SymptomLog = require('../models/SymptomLog');
+const LabReport = require('../models/LabReport');
 const { generateLLMReply } = require('../aiClient');
 const jwt = require('jsonwebtoken');
+const { runHealthTriage, riskRank } = require('../services/safety/healthTriageEngine');
+const { detectAssistantMode } = require('../services/assistant/router');
+const { buildSystemPrompt } = require('../services/assistant/prompts');
+const { fetchTextbookRag } = require('../services/ragClient');
+const { buildSupplementAdvice, buildSupplementAdvisorContext } = require('../services/supplements/advisor');
 
 const router = express.Router();
 
@@ -28,15 +36,17 @@ const getUserFromToken = async (req) => {
 // AI endpoint: memory-aware summary with optional LLM layer
 router.post('/chat', async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, history } = req.body;
     if (!message) {
       return res.status(400).json({ error: 'message is required' });
     }
 
+    const mode = detectAssistantMode({ message });
+
     // Get user profile if authenticated
     const user = await getUserFromToken(req);
     const userId = user?._id;
-    console.log('[AI Chat] User found:', user ? `${user.name} (${user.email}), diet: ${user.dietType}` : 'NO USER - token missing or invalid');
+    console.log('[AI Chat] Mode:', mode, '| User:', user ? `${user.name} (${user.email}), diet: ${user.dietType}` : 'NO USER - token missing or invalid');
 
     // Fetch recent logs - filter by user if authenticated
     const userFilter = userId ? { user: userId } : {};
@@ -47,7 +57,7 @@ router.post('/chat', async (req, res) => {
     const weekAgo = new Date(today);
     weekAgo.setDate(weekAgo.getDate() - 7);
 
-    const [fitness, nutrition, mental, habits, habitLogs, wardrobeItems] = await Promise.all([
+    const [fitness, nutrition, mental, habits, habitLogs, wardrobeItems, journalEntries, symptomLogs, labReports] = await Promise.all([
       FitnessLog.find(userFilter).sort({ date: -1 }).limit(10),
       NutritionLog.find(userFilter).sort({ date: -1 }).limit(10),
       MentalLog.find(userFilter).sort({ date: -1 }).limit(10),
@@ -57,11 +67,79 @@ router.post('/chat', async (req, res) => {
         date: { $gte: weekAgo, $lte: today }
       }).populate('habit', 'name category') : [],
       userId ? WardrobeItem.find({ user: userId }).limit(50) : [],
+      userId ? JournalEntry.find({ user: userId }).sort({ date: -1 }).limit(3) : [],
+      userId && mode === 'medical' ? SymptomLog.find({ user: userId }).sort({ date: -1 }).limit(12) : [],
+      userId && mode === 'medical' ? LabReport.find({ user: userId }).sort({ date: -1 }).limit(3) : [],
     ]);
+
+    // Phase 4: Optional textbook RAG (permissioned) for medical mode.
+    // If the service is unavailable, proceed without it.
+    let rag = null;
+    if (mode === 'medical') {
+      try {
+        rag = await fetchTextbookRag({
+          question: message,
+          userProfile: user
+            ? {
+                age: user.age,
+                gender: user.gender,
+                allergies: user.allergies,
+                conditions: user.conditions,
+                medications: user.medications,
+              }
+            : null,
+          allowedScope: 'medical-textbook',
+        });
+      } catch (e) {
+        console.log('[AI Chat] RAG service unavailable:', e.message);
+        rag = null;
+      }
+    }
+
+    const requireRag = String(process.env.MEDICAL_REQUIRE_RAG || '').trim() === '1';
+    const ragOk = !!(rag?.ok && Array.isArray(rag?.citations) && rag.citations.length > 0 && typeof rag?.confidence === 'number' && rag.confidence >= 0.25);
+    if (mode === 'medical' && requireRag && !ragOk) {
+      const safety = runHealthTriage({ message, user });
+      const shouldAppendTriage = riskRank(safety.risk_level) >= 1 || (safety.red_flags || []).length > 0;
+
+      let reply =
+        'I can’t provide textbook-grounded medical guidance right now because the textbook RAG service is unavailable or did not retrieve relevant citations. ' +
+        'To keep this safe, I’m not going to guess.\n\n' +
+        'You can try:\n' +
+        '- Rephrasing the question more specifically\n' +
+        '- Ingesting the relevant textbook PDFs into the RAG index\n' +
+        '- Ensuring the ai_service is running and AI_SERVICE_URL is set\n\n' +
+        'If you want, tell me your key symptoms + timeline + any meds/conditions, and I can help you structure what to track and which clarifying questions to answer.';
+
+      if (shouldAppendTriage) {
+        const lines = [];
+        lines.push('');
+        lines.push('Safety triage (not diagnosis):');
+        lines.push(`- Risk level: ${safety.risk_level} (${Math.round((safety.confidence || 0) * 100)}% confidence)`);
+        lines.push(`- Reason: ${safety.reason}`);
+        if (safety.red_flags?.length) lines.push(`- Red flags: ${safety.red_flags.join('; ')}`);
+        if (safety.doctor_discussion_points?.length) lines.push(`- Questions to ask a clinician: ${safety.doctor_discussion_points.join(' | ')}`);
+        if (safety.medication_awareness?.length) lines.push(`- Medication awareness: ${safety.medication_awareness.join(' | ')}`);
+        lines.push(safety.disclaimer);
+        reply = `${reply}\n${lines.join('\n')}`;
+      }
+
+      return res.json({
+        message,
+        mode,
+        reply,
+        safety,
+        memorySnapshot: {
+          ragConfidence: typeof rag?.confidence === 'number' ? rag.confidence : 0,
+          ragCitationsCount: Array.isArray(rag?.citations) ? rag.citations.length : 0,
+        },
+      });
+    }
 
     const latestMental = mental[0];
     const latestFitness = fitness[0];
     const latestNutrition = nutrition[0];
+    const latestJournal = journalEntries?.[0];
 
     // Build habit context
     const habitContext = habits.length > 0 ? (() => {
@@ -127,9 +205,60 @@ router.post('/chat', async (req, res) => {
       latestMental.notes ? `Wellness notes: "${latestMental.notes.slice(0, 150)}"` : null,
     ].filter(Boolean).join(' ') : '';
 
+    const journalContext = latestJournal?.text
+      ? `Latest journal entry: "${latestJournal.text.slice(0, 700)}"`
+      : '';
+
     // Build fitness context
     const fitnessContext = latestFitness 
       ? `Last workout: ${latestFitness.focus || latestFitness.type}, intensity ${latestFitness.intensity}/10, fatigue ${latestFitness.fatigue}/10.${latestFitness.notes ? ` Notes: ${latestFitness.notes}` : ''}`
+      : '';
+
+    const symptomsContext = mode === 'medical' && Array.isArray(symptomLogs) && symptomLogs.length
+      ? (() => {
+        const items = symptomLogs.slice(0, 8).map((s) => {
+          const d = s.date ? new Date(s.date) : null;
+          const day = d ? d.toISOString().slice(0, 10) : 'unknown-date';
+          const sev = s.severity == null ? 'n/a' : `${s.severity}/10`;
+          const tags = Array.isArray(s.tags) && s.tags.length ? ` [tags: ${s.tags.slice(0, 6).join(', ')}]` : '';
+          const note = s.notes ? ` Notes: ${String(s.notes).slice(0, 120)}` : '';
+          return `${day}: ${s.symptomName} (severity ${sev}).${tags}${note}`;
+        });
+        return `Recent symptom logs: ${items.join(' | ')}.`;
+      })()
+      : '';
+
+    const labsContext = mode === 'medical' && Array.isArray(labReports) && labReports.length
+      ? (() => {
+        const latest = labReports[0];
+        const d = latest?.date ? new Date(latest.date) : null;
+        const day = d ? d.toISOString().slice(0, 10) : 'unknown-date';
+
+        const abnormal = (latest?.results || [])
+          .filter((r) => r && (r.flag === 'high' || r.flag === 'low'))
+          .slice(0, 6)
+          .map((r) => `${r.name}: ${r.value}${r.unit ? ` ${r.unit}` : ''} (${r.flag})`);
+
+        const top = (latest?.results || [])
+          .slice(0, 6)
+          .map((r) => `${r.name}: ${r.value}${r.unit ? ` ${r.unit}` : ''}`);
+
+        const highlights = abnormal.length ? `Highlights: ${abnormal.join(', ')}.` : (top.length ? `Top results: ${top.join(', ')}.` : '');
+        return `Latest lab report: ${latest?.panelName || 'Panel'} on ${day}. ${highlights}`.trim();
+      })()
+      : '';
+
+    const supplementAdvisorEnabled = String(process.env.MEDICAL_SUPPLEMENT_ADVISOR || '1').trim() !== '0';
+    const supplementAdvice = mode === 'medical' && supplementAdvisorEnabled
+      ? buildSupplementAdvice({ user, symptomLogs, labReports })
+      : null;
+
+    const supplementAdvisorContext = mode === 'medical' && supplementAdvice
+      ? buildSupplementAdvisorContext(supplementAdvice)
+      : '';
+
+    const ragContext = mode === 'medical' && rag?.ok && rag?.ragContext
+      ? rag.ragContext
       : '';
 
     // Build wardrobe context (for style questions)
@@ -146,22 +275,71 @@ router.post('/chat', async (req, res) => {
       ].filter(Boolean).join(' ');
     })() : '';
 
-    const memoryContext = [
-      // Profile first - most important for personalization
-      profileContext,
-      // Current state
-      wellnessContext,
-      nutritionContext,
-      fitnessContext,
-      habitContext,
-      wardrobeContext,
-      // Summary counts
-      `Data available: ${fitness.length} workouts, ${nutrition.length} nutrition logs, ${mental.length} wellness logs, ${habits.length} active habits, ${wardrobeItems.length} wardrobe items.`,
-    ]
-      .filter(Boolean)
-      .join(' ');
+    const dataCounts = `Data available: ${fitness.length} workouts, ${nutrition.length} nutrition logs, ${mental.length} wellness logs, ${journalEntries.length} journal entries, ${habits.length} active habits, ${wardrobeItems.length} wardrobe items.`;
 
-    let llmReply = await generateLLMReply({ message, memoryContext });
+    const buildMemoryContextForMode = () => {
+      // Keep this intentionally simple. We'll tighten further once we have dedicated symptom/labs models.
+      if (mode === 'therapy') {
+        return [
+          profileContext,
+          wellnessContext,
+          journalContext,
+          habitContext,
+          dataCounts,
+        ].filter(Boolean).join(' ');
+      }
+
+      if (mode === 'fitness') {
+        return [
+          profileContext,
+          fitnessContext,
+          habitContext,
+          wellnessContext,
+          dataCounts,
+        ].filter(Boolean).join(' ');
+      }
+
+      if (mode === 'medical') {
+        return [
+          profileContext,
+          ragContext,
+          supplementAdvisorContext,
+          symptomsContext,
+          labsContext,
+          wellnessContext,
+          nutritionContext,
+          fitnessContext,
+          habitContext,
+          dataCounts,
+        ].filter(Boolean).join(' ');
+      }
+
+      // general
+      return [
+        profileContext,
+        wellnessContext,
+        journalContext,
+        nutritionContext,
+        fitnessContext,
+        habitContext,
+        wardrobeContext,
+        dataCounts,
+      ].filter(Boolean).join(' ');
+    };
+
+    const memoryContext = buildMemoryContextForMode();
+
+    const safety = runHealthTriage({ message, user });
+    const safetyContext = `Safety triage (rules, not diagnosis): ${JSON.stringify(safety)}`;
+
+    const systemPrompt = buildSystemPrompt({ mode });
+
+    let llmReply = await generateLLMReply({
+      message,
+      memoryContext: `${memoryContext} ${safetyContext}`,
+      systemPrompt,
+      history,
+    });
 
     if (!llmReply) {
       llmReply =
@@ -175,15 +353,37 @@ router.post('/chat', async (req, res) => {
         'As we evolve the AI layer, this response will become more personalized and explanatory.';
     }
 
+    // Only surface triage in the plain-text reply when relevant (keeps dashboard-style prompts clean).
+    const shouldAppendTriage = riskRank(safety.risk_level) >= 1 || (safety.red_flags || []).length > 0;
+    if (shouldAppendTriage) {
+      const lines = [];
+      lines.push('');
+      lines.push('Safety triage (not diagnosis):');
+      lines.push(`- Risk level: ${safety.risk_level} (${Math.round((safety.confidence || 0) * 100)}% confidence)`);
+      lines.push(`- Reason: ${safety.reason}`);
+      if (safety.red_flags?.length) lines.push(`- Red flags: ${safety.red_flags.join('; ')}`);
+      if (safety.doctor_discussion_points?.length) lines.push(`- Questions to ask a clinician: ${safety.doctor_discussion_points.join(' | ')}`);
+      if (safety.medication_awareness?.length) lines.push(`- Medication awareness: ${safety.medication_awareness.join(' | ')}`);
+      lines.push(safety.disclaimer);
+      llmReply = `${llmReply}\n${lines.join('\n')}`;
+    }
+
     const response = {
       message,
+      mode,
       reply: llmReply,
+      safety,
+      supplementAdvisor: supplementAdvice,
       memorySnapshot: {
         fitnessCount: fitness.length,
         nutritionCount: nutrition.length,
         mentalCount: mental.length,
         habitCount: habits.length,
         habitLogsCount: habitLogs.length,
+        symptomLogsCount: Array.isArray(symptomLogs) ? symptomLogs.length : 0,
+        labReportsCount: Array.isArray(labReports) ? labReports.length : 0,
+        ragConfidence: typeof rag?.confidence === 'number' ? rag.confidence : 0,
+        ragCitationsCount: Array.isArray(rag?.citations) ? rag.citations.length : 0,
       },
     };
 

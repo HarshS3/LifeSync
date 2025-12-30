@@ -19,6 +19,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
+import { GlowingEffect } from './ui/glowing-effect.jsx'
 
 function Dashboard() {
   const { user, token } = useAuth()
@@ -31,8 +32,6 @@ function Dashboard() {
   })
   const [hasCheckedIn, setHasCheckedIn] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [insight, setInsight] = useState(null)
-  const [loadingInsight, setLoadingInsight] = useState(false)
   const [recentLogs, setRecentLogs] = useState({ fitness: [], mental: [], nutrition: [] })
   const [weeklyStats, setWeeklyStats] = useState({
     avgEnergy: 0,
@@ -41,7 +40,6 @@ function Dashboard() {
     workouts: 0,
     streak: 0,
   })
-  const [patterns, setPatterns] = useState([])
   const [timeline, setTimeline] = useState([])
 
   useEffect(() => {
@@ -80,10 +78,6 @@ function Dashboard() {
       // Build timeline events
       const timelineEvents = buildTimeline(fitness, mental, nutrition)
       setTimeline(timelineEvents)
-
-      // Detect patterns from data
-      const detectedPatterns = detectPatterns(mental, fitness, nutrition)
-      setPatterns(detectedPatterns)
 
       // Check if already checked in today
       const today = new Date().toDateString()
@@ -268,14 +262,18 @@ function Dashboard() {
   const handleQuickCheckIn = async () => {
     setSubmitting(true)
     try {
-      if (!user || !user._id) {
-        alert('User not found!')
+      if (!token) {
+        alert('Please log in to check in.')
         setSubmitting(false)
         return
       }
-      await fetch(`${API_BASE}/api/logs/mental/${user._id}`, {
+
+      await fetch(`${API_BASE}/api/logs/mental`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           moodScore: todayState.mood,
           energyLevel: todayState.energy,
@@ -285,36 +283,11 @@ function Dashboard() {
         }),
       })
       setHasCheckedIn(true)
-      // Fetch AI insight after check-in
-      fetchInsight()
+      // Insights are centralized in the Insights tab.
     } catch (err) {
       console.error(err)
     }
     setSubmitting(false)
-  }
-
-  const fetchInsight = async () => {
-    setLoadingInsight(true)
-    try {
-      const headers = { 'Content-Type': 'application/json' }
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-      const res = await fetch(`${API_BASE}/api/ai/chat`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          message: `Based on my current state (energy: ${todayState.energy}/10, mood: ${todayState.mood}/10, body feel: ${todayState.bodyFeel}/10, sleep: ${todayState.sleep}h) and my recent patterns, give me ONE key insight and ONE specific action I should take today. Be concise and personal. Format: "Insight: [insight]" then "Action: [action]"`,
-        }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setInsight(data.reply || data.message)
-      }
-    } catch (err) {
-      console.error(err)
-    }
-    setLoadingInsight(false)
   }
 
   const getStateColor = (value) => {
@@ -353,7 +326,15 @@ function Dashboard() {
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '280px 1fr 320px' }, gap: 3 }}>
       {/* LEFT: Life Summary */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', position: 'relative', overflow: 'hidden' }}>
+          <GlowingEffect
+            spread={40}
+            glow={true}
+            disabled={false}
+            proximity={64}
+            inactiveZone={0.01}
+            borderWidth={3}
+          />
           <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 2 }}>
             This Week
           </Typography>
@@ -430,7 +411,15 @@ function Dashboard() {
 
       {/* CENTER: Today's State */}
       <Box>
-        <Box sx={{ p: 4, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+        <Box sx={{ p: 4, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3, position: 'relative', overflow: 'hidden' }}>
+          <GlowingEffect
+            spread={40}
+            glow={true}
+            disabled={false}
+            proximity={64}
+            inactiveZone={0.01}
+            borderWidth={3}
+          />
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Box>
               <Typography variant="h5" sx={{ fontWeight: 600, color: '#171717' }}>
@@ -595,45 +584,68 @@ function Dashboard() {
 
       {/* RIGHT: AI Reasoning */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', position: 'relative', overflow: 'hidden' }}>
+          <GlowingEffect
+            spread={40}
+            glow={true}
+            disabled={false}
+            proximity={64}
+            inactiveZone={0.01}
+            borderWidth={3}
+          />
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             <TipsAndUpdatesIcon sx={{ color: '#f59e0b', fontSize: 20 }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#171717' }}>
-              Today's Insight
+              Insights
             </Typography>
           </Box>
 
-          {loadingInsight ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress size={24} sx={{ color: '#6b7280' }} />
-            </Box>
-          ) : insight ? (
-            <Typography variant="body2" sx={{ color: '#374151', lineHeight: 1.7, whiteSpace: 'pre-line' }}>
-              {insight}
-            </Typography>
-          ) : hasCheckedIn ? (
-            <Box>
-              <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
-                Get personalized insights based on your check-in.
-              </Typography>
-              <Button
-                fullWidth
-                variant="outlined"
-                onClick={fetchInsight}
-                sx={{
-                  textTransform: 'none',
-                  borderColor: '#e5e7eb',
-                  color: '#374151',
-                  '&:hover': { borderColor: '#d1d5db', bgcolor: '#f9fafb' },
-                }}
-              >
-                Generate Insight
-              </Button>
-            </Box>
+          <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+            Insights are now centralized in the Insights tab.
+          </Typography>
+
+          {hasCheckedIn ? (
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={() => {
+                try {
+                  localStorage.setItem('lifesync:insights:activeTab', '2')
+                } catch {
+                  // ignore
+                }
+                window.dispatchEvent(new CustomEvent('lifesync:navigate', { detail: { section: 'trends' } }))
+              }}
+              sx={{
+                textTransform: 'none',
+                borderColor: '#e5e7eb',
+                color: '#374151',
+                '&:hover': { borderColor: '#d1d5db', bgcolor: '#f9fafb' },
+              }}
+            >
+              Open Insights
+            </Button>
           ) : (
-            <Typography variant="body2" sx={{ color: '#9ca3af' }}>
-              Check in first to get AI insights about your day.
-            </Typography>
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={() => {
+                try {
+                  localStorage.setItem('lifesync:insights:activeTab', '2')
+                } catch {
+                  // ignore
+                }
+                window.dispatchEvent(new CustomEvent('lifesync:navigate', { detail: { section: 'trends' } }))
+              }}
+              sx={{
+                textTransform: 'none',
+                borderColor: '#e5e7eb',
+                color: '#374151',
+                '&:hover': { borderColor: '#d1d5db', bgcolor: '#f9fafb' },
+              }}
+            >
+              Open Insights
+            </Button>
           )}
         </Box>
 
@@ -660,92 +672,35 @@ function Dashboard() {
         </Box>
 
         <Box sx={{ p: 3, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <TimelineIcon sx={{ fontSize: 18, color: '#6366f1' }} />
             <Typography variant="subtitle2" sx={{ color: '#171717', fontWeight: 600 }}>
-              Pattern Detection
+              Patterns
             </Typography>
           </Box>
-          
-          {patterns.length > 0 ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {patterns.map((pattern, idx) => (
-                <Box
-                  key={idx}
-                  sx={{
-                    p: 2,
-                    borderRadius: 1.5,
-                    bgcolor: pattern.type === 'negative' ? '#fef2f2' 
-                           : pattern.type === 'positive' ? '#f0fdf4'
-                           : pattern.type === 'warning' ? '#fffbeb'
-                           : '#eff6ff',
-                    border: `1px solid ${
-                      pattern.type === 'negative' ? '#fecaca'
-                      : pattern.type === 'positive' ? '#bbf7d0'
-                      : pattern.type === 'warning' ? '#fde68a'
-                      : '#bfdbfe'
-                    }`,
-                  }}
-                >
-                  {/* Pattern Chain Visualization */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5, mb: 1.5 }}>
-                    {pattern.chain.map((step, i) => (
-                      <Box key={i} sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Chip
-                          label={step}
-                          size="small"
-                          sx={{
-                            height: 24,
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            bgcolor: pattern.type === 'negative' ? '#fee2e2'
-                                   : pattern.type === 'positive' ? '#dcfce7'
-                                   : pattern.type === 'warning' ? '#fef3c7'
-                                   : '#dbeafe',
-                            color: pattern.type === 'negative' ? '#dc2626'
-                                 : pattern.type === 'positive' ? '#15803d'
-                                 : pattern.type === 'warning' ? '#b45309'
-                                 : '#2563eb',
-                          }}
-                        />
-                        {i < pattern.chain.length - 1 && (
-                          <ArrowForwardIcon sx={{ 
-                            fontSize: 14, 
-                            mx: 0.5,
-                            color: pattern.type === 'negative' ? '#f87171'
-                                 : pattern.type === 'positive' ? '#4ade80'
-                                 : pattern.type === 'warning' ? '#fbbf24'
-                                 : '#60a5fa',
-                          }} />
-                        )}
-                      </Box>
-                    ))}
-                  </Box>
-                  
-                  <Typography variant="body2" sx={{ 
-                    color: '#374151', 
-                    fontWeight: 500,
-                    mb: 0.5,
-                  }}>
-                    {pattern.insight}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: '#6b7280' }}>
-                    💡 {pattern.action}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-          ) : (
-            <Box sx={{ textAlign: 'center', py: 2 }}>
-              <AutoAwesomeIcon sx={{ fontSize: 32, color: '#d1d5db', mb: 1 }} />
-              <Typography variant="body2" sx={{ color: '#9ca3af' }}>
-                Keep logging to discover your patterns
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#d1d5db' }}>
-                AI needs more data to detect cycles
-              </Typography>
-            </Box>
-          )}
+          <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+            Pattern insights now live in the Insights tab.
+          </Typography>
+          <Button
+            fullWidth
+            variant="outlined"
+            onClick={() => {
+              try {
+                localStorage.setItem('lifesync:insights:activeTab', '2')
+              } catch {
+                // ignore
+              }
+              window.dispatchEvent(new CustomEvent('lifesync:navigate', { detail: { section: 'trends' } }))
+            }}
+            sx={{
+              textTransform: 'none',
+              borderColor: '#e5e7eb',
+              color: '#374151',
+              '&:hover': { borderColor: '#d1d5db', bgcolor: '#fff' },
+            }}
+          >
+            Open Insights
+          </Button>
         </Box>
 
         {/* Mini Timeline */}

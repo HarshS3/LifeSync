@@ -58,6 +58,7 @@ function HabitTracker() {
   const [weekData, setWeekData] = useState(null)
   const [todayLogs, setTodayLogs] = useState([])
   const [loading, setLoading] = useState(true)
+  const [habitStats, setHabitStats] = useState(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingHabit, setEditingHabit] = useState(null)
   const [weekOffset, setWeekOffset] = useState(0)
@@ -81,11 +82,12 @@ function HabitTracker() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [habitsRes, weekRes, todayRes, analyticsRes] = await Promise.all([
+      const [habitsRes, weekRes, todayRes, analyticsRes, statsRes] = await Promise.all([
         fetch(`${API_BASE}/api/habits`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/habits/week?date=${getWeekDate()}`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/habits/logs?start=${new Date().toISOString()}`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/habits/analytics`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/habits/stats`, { headers: { Authorization: `Bearer ${token}` } }),
       ])
 
       if (habitsRes.ok) setHabits(await habitsRes.json())
@@ -102,6 +104,7 @@ function HabitTracker() {
         setHabitNotes(prev => ({ ...prev, ...notesMap }))
       }
       if (analyticsRes.ok) setAnalytics(await analyticsRes.json())
+      if (statsRes.ok) setHabitStats(await statsRes.json())
     } catch (err) {
       console.error('Failed to load habits:', err)
     }
@@ -722,13 +725,13 @@ function HabitTracker() {
             <Box sx={{ p: 2, bgcolor: '#eef2ff', borderRadius: 2, textAlign: 'center' }}>
               <EmojiEventsIcon sx={{ color: '#6366f1', fontSize: 28 }} />
               <Typography variant="h5" sx={{ fontWeight: 700, color: '#4f46e5' }}>
-                {analytics.summary.longestStreak}
+                {habitStats?.longestStreak ?? analytics.summary.longestStreak}
               </Typography>
               <Typography variant="caption" sx={{ color: '#6b7280' }}>Longest Streak</Typography>
             </Box>
             <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, textAlign: 'center' }}>
               <Typography variant="h4" sx={{ fontWeight: 700, color: '#171717' }}>
-                {analytics.summary.totalCompletions}
+                {habitStats?.totalCompletionsLast30Days ?? analytics.summary.totalCompletions}
               </Typography>
               <Typography variant="caption" sx={{ color: '#6b7280' }}>Total (30 days)</Typography>
             </Box>

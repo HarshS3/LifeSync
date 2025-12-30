@@ -65,6 +65,8 @@ function StylePanel() {
   const [wardrobe, setWardrobe] = useState([])
   const [outfitSuggestions, setOutfitSuggestions] = useState([])
   const [loading, setLoading] = useState(false)
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [serverStats, setServerStats] = useState(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
   const [filterCategory, setFilterCategory] = useState('all')
@@ -87,6 +89,13 @@ function StylePanel() {
     loadWardrobe()
   }, [token])
 
+  useEffect(() => {
+    if (!token) return
+    if (activeTab !== 2) return
+    loadStyleStats()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, activeTab])
+
   const loadWardrobe = async () => {
     if (!token) return
     setLoading(true)
@@ -102,6 +111,23 @@ function StylePanel() {
       console.error('Failed to load wardrobe:', err)
     }
     setLoading(false)
+  }
+
+  const loadStyleStats = async () => {
+    if (!token) return
+    setStatsLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/style/stats`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setServerStats(data)
+      }
+    } catch (err) {
+      console.error('Failed to load style stats:', err)
+    }
+    setStatsLoading(false)
   }
 
   const handleSaveItem = async () => {
@@ -228,6 +254,8 @@ function StylePanel() {
       return acc
     }, {})
   }
+
+  const stats = serverStats || wardrobeStats
 
   return (
     <Box sx={{ maxWidth: 900 }}>
@@ -506,11 +534,12 @@ function StylePanel() {
       {/* Stats Tab */}
       {activeTab === 2 && (
         <Box>
+          {statsLoading && <LinearProgress sx={{ mb: 2 }} />}
           <Grid container spacing={3}>
             <Grid item xs={6} sm={3}>
               <Box sx={{ p: 3, bgcolor: '#f9fafb', borderRadius: 2, textAlign: 'center' }}>
                 <Typography variant="h4" sx={{ fontWeight: 600, color: '#171717' }}>
-                  {wardrobeStats.total}
+                  {stats.total}
                 </Typography>
                 <Typography variant="caption" sx={{ color: '#6b7280' }}>
                   Total Items
@@ -520,7 +549,7 @@ function StylePanel() {
             <Grid item xs={6} sm={3}>
               <Box sx={{ p: 3, bgcolor: '#fef2f2', borderRadius: 2, textAlign: 'center' }}>
                 <Typography variant="h4" sx={{ fontWeight: 600, color: '#ef4444' }}>
-                  {wardrobeStats.favorites}
+                  {stats.favorites}
                 </Typography>
                 <Typography variant="caption" sx={{ color: '#6b7280' }}>
                   Favorites
@@ -540,12 +569,12 @@ function StylePanel() {
                     {cat}
                   </Typography>
                   <Typography variant="body2" sx={{ color: '#6b7280' }}>
-                    {wardrobeStats.byCategory[cat] || 0}
+                    {stats.byCategory?.[cat] || 0}
                   </Typography>
                 </Box>
                 <LinearProgress
                   variant="determinate"
-                  value={wardrobeStats.total ? (wardrobeStats.byCategory[cat] / wardrobeStats.total) * 100 : 0}
+                  value={stats.total ? ((stats.byCategory?.[cat] || 0) / stats.total) * 100 : 0}
                   sx={{
                     height: 8,
                     borderRadius: 4,

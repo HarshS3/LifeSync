@@ -8,31 +8,46 @@ const { Habit, HabitLog } = require('./models/Habit');
 const { FitnessLog, NutritionLog, MentalLog, Goal, MemorySummary } = require('./models/Logs');
 const { LongTermGoal, LongTermGoalLog } = require('./models/LongTermGoal');
 const { WardrobeItem, Outfit } = require('./models/Wardrobe');
+const SymptomLog = require('./models/SymptomLog');
+const LabReport = require('./models/LabReport');
+require('dotenv').config();
+const MONGO_URI = process.env.MONGO_URI;
+const SEED_TEST_EMAIL = process.env.SEED_TEST_EMAIL || 'testuser@example.com';
 
-MONGO_URI='mongodb+srv://harsh_shah:HarshS3@cluster0.tfzcvvo.mongodb.net/LifeSync?retryWrites=true&w=majority&appName=Cluster0'
+if (!MONGO_URI) {
+  console.error('Missing MONGO_URI. Set MONGO_URI in your environment before running seed.js');
+  process.exit(1);
+}
 
 async function seed() {
   await mongoose.connect(MONGO_URI);
 
-  // Remove previous test user and logs
-  await User.deleteMany({ email: 'testuser@example.com' });
-  await Habit.deleteMany({});
-  await HabitLog.deleteMany({});
-  await FitnessLog.deleteMany({});
-  await NutritionLog.deleteMany({});
-  await MentalLog.deleteMany({});
-  await Goal.deleteMany({});
-  await MemorySummary.deleteMany({});
-  await LongTermGoal.deleteMany({});
-  await LongTermGoalLog.deleteMany({});
-  await WardrobeItem.deleteMany({});
-  await Outfit.deleteMany({});
+  // IMPORTANT: Only wipe data for the seed test user.
+  // Never delete entire collections, or you'll wipe real user data.
+  const existingUser = await User.findOne({ email: SEED_TEST_EMAIL });
+  if (existingUser?._id) {
+    const userId = existingUser._id;
+    await HabitLog.deleteMany({ user: userId });
+    await Habit.deleteMany({ user: userId });
+    await FitnessLog.deleteMany({ user: userId });
+    await NutritionLog.deleteMany({ user: userId });
+    await MentalLog.deleteMany({ user: userId });
+    await Goal.deleteMany({ user: userId });
+    await MemorySummary.deleteMany({ user: userId });
+    await SymptomLog.deleteMany({ user: userId });
+    await LabReport.deleteMany({ user: userId });
+    await LongTermGoal.deleteMany({ user: userId });
+    await LongTermGoalLog.deleteMany({ user: userId });
+    await WardrobeItem.deleteMany({ user: userId });
+    await Outfit.deleteMany({ user: userId });
+    await User.deleteOne({ _id: userId });
+  }
 
   // Create user with all fields
   const passwordHash = await bcrypt.hash('testpassword', 10);
   const user = await User.create({
     name: 'Test User',
-    email: 'testuser@example.com',
+    email: SEED_TEST_EMAIL,
     password: passwordHash,
     age: 28,
     gender: 'male',
@@ -234,6 +249,32 @@ async function seed() {
     });
   }
 
+  // Phase 3: Create sample symptom logs + a lab report
+  for (let i = 0; i < 10; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - i);
+    await SymptomLog.create({
+      user: user._id,
+      date,
+      symptomName: i % 2 === 0 ? 'headache' : 'nausea',
+      severity: i % 2 === 0 ? 5 + (i % 4) : 2 + (i % 3),
+      tags: i % 2 === 0 ? ['screen', 'stress'] : ['stomach'],
+      notes: `Seed symptom log for day ${i + 1}`,
+    });
+  }
+
+  await LabReport.create({
+    user: user._id,
+    date: new Date(today.getTime() - 5 * 24 * 60 * 60 * 1000),
+    panelName: 'CBC',
+    source: 'seed',
+    notes: 'Seed lab report',
+    results: [
+      { name: 'Hemoglobin', value: 12.1, unit: 'g/dL', refRangeLow: 13.5, refRangeHigh: 17.5, flag: 'low' },
+      { name: 'WBC', value: 6.2, unit: 'x10^9/L', refRangeLow: 4.0, refRangeHigh: 11.0, flag: 'normal' },
+    ],
+  });
+
   // Create a goal
   const goal = await Goal.create({
     user: user._id,
@@ -258,8 +299,8 @@ async function seed() {
   // Create a long term goal and logs
   const ltGoal = await LongTermGoal.create({
     user: user._id,
-    name: 'NoFap 30 Days',
-    description: 'Abstain for 30 days',
+    name: '30 Days Abstinence',
+    description: 'Maintain abstinence for 30 days',
     category: 'addiction',
     goalType: 'abstain',
     color: '#8b5cf6',
@@ -335,7 +376,7 @@ async function seed() {
     timesWorn: 3,
   });
 
-  console.log('Full seed data created for testuser@example.com');
+  console.log(`Full seed data created for ${SEED_TEST_EMAIL}`);
   mongoose.disconnect();
 }
 

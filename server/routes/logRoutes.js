@@ -114,9 +114,12 @@ router.get('/nutrition/:userId', async (req, res) => {
   }
 });
 
-router.post('/mental', async (req, res) => {
+async function createMentalLog(req, res, userId) {
   try {
-    const userId = getUserIdFromToken(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
     // Check if a log already exists for today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -129,6 +132,7 @@ router.post('/mental', async (req, res) => {
     if (existingLog) {
       return res.status(409).json({ error: 'Already checked in today', log: existingLog });
     }
+
     const log = await MentalLog.create({
       ...req.body,
       user: userId,
@@ -138,6 +142,18 @@ router.post('/mental', async (req, res) => {
     console.error(err);
     res.status(500).json({ error: 'Failed to save mental health log' });
   }
+}
+
+// Canonical (token-based)
+router.post('/mental', async (req, res) => {
+  const userId = getUserIdFromToken(req);
+  return createMentalLog(req, res, userId);
+});
+
+// Back-compat: older client called /mental/:userId
+router.post('/mental/:userId', async (req, res) => {
+  const userId = getUserIdFromToken(req) || req.params.userId;
+  return createMentalLog(req, res, userId);
 });
 
 router.get('/mental/:userId', async (req, res) => {

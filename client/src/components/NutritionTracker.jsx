@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -52,6 +52,26 @@ function NutritionTracker() {
   const [foodResults, setFoodResults] = useState([])
   const [foodSearchLoading, setFoodSearchLoading] = useState(false)
 
+  const [selectedFoodForAnalysis, setSelectedFoodForAnalysis] = useState('')
+  const [foodAnalysis, setFoodAnalysis] = useState(null)
+  const [foodAnalysisLoading, setFoodAnalysisLoading] = useState(false)
+  const [foodAnalysisError, setFoodAnalysisError] = useState('')
+
+  const [nutritionStats, setNutritionStats] = useState(null)
+  const [nutritionStatsLoading, setNutritionStatsLoading] = useState(false)
+  const [rangeDaysLogged, setRangeDaysLogged] = useState(null)
+
+  const [resolvedFood, setResolvedFood] = useState(null)
+  const [resolvedFoodLoading, setResolvedFoodLoading] = useState(false)
+  const [foodGraph, setFoodGraph] = useState(null)
+  const [foodGraphLoading, setFoodGraphLoading] = useState(false)
+  const [foodCausal, setFoodCausal] = useState(null)
+  const [foodCausalLoading, setFoodCausalLoading] = useState(false)
+  const [hypothesesCount, setHypothesesCount] = useState(null)
+  const [hypothesesLoading, setHypothesesLoading] = useState(false)
+
+  const foodPipelineRunIdRef = useRef(0)
+
   const [newMeal, setNewMeal] = useState({
     name: '',
     mealType: 'breakfast',
@@ -82,6 +102,69 @@ function NutritionTracker() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, selectedDate])
 
+  useEffect(() => {
+    if (!token) return
+    if (activeTab !== 1) return
+    loadSummaryStats()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, activeTab])
+
+  const getAuthHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {})
+
+  const safeReadJson = async (res) => {
+    try {
+      return await res.json()
+    } catch {
+      return null
+    }
+  }
+
+  const loadSummaryStats = async () => {
+    setNutritionStatsLoading(true)
+    try {
+      const headers = getAuthHeaders()
+
+      const [statsRes, rangeRes] = await Promise.allSettled([
+        fetch(`${API_BASE}/api/nutrition/stats`, { headers }),
+        (() => {
+          const end = new Date()
+          end.setHours(23, 59, 59, 999)
+          const start = new Date(end)
+          start.setDate(start.getDate() - 30)
+          start.setHours(0, 0, 0, 0)
+          return fetch(
+            `${API_BASE}/api/nutrition/logs/range/${encodeURIComponent(start.toISOString())}/${encodeURIComponent(end.toISOString())}`,
+            { headers }
+          )
+        })(),
+      ])
+
+      if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
+        const data = await safeReadJson(statsRes.value)
+        setNutritionStats(data)
+      }
+
+      if (rangeRes.status === 'fulfilled' && rangeRes.value.ok) {
+        const logs = await safeReadJson(rangeRes.value)
+        setRangeDaysLogged(Array.isArray(logs) ? logs.length : null)
+      }
+    } catch (err) {
+      console.error('Failed to load nutrition summary stats:', err)
+    } finally {
+      setNutritionStatsLoading(false)
+    }
+  }
+
+
+  const navigateToInsights = (tabIndex = 1) => {
+    try {
+      localStorage.setItem('lifesync:insights:activeTab', String(tabIndex))
+    } catch {
+      // ignore
+    }
+    window.dispatchEvent(new CustomEvent('lifesync:navigate', { detail: { section: 'trends' } }))
+  }
+
   const loadDay = async () => {
     setLoading(true)
     try {
@@ -90,7 +173,7 @@ function NutritionTracker() {
         setLog({ meals: [], waterIntake: 0, dailyTotals: { ...EMPTY_TOTALS }, notes: '' })
         return
       }
-      const res = await fetch(`${API_BASE}/api/nutrition/logs/date/${user._id}/${encodeURIComponent(dateStr)}`, {
+      const res = await fetch(`${API_BASE}/api/nutrition/logs/date/${encodeURIComponent(dateStr)}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       if (res.ok) {
@@ -193,18 +276,128 @@ function NutritionTracker() {
     try {
       setFoodSearchLoading(true)
       setFoodResults([])
+      setSelectedFoodForAnalysis('')
+      setFoodAnalysis(null)
+      setFoodAnalysisError('')
       const params = new URLSearchParams({ q: foodSearchQuery.trim() })
       const res = await fetch(`${API_BASE}/api/nutrition/search?${params.toString()}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: getAuthHeaders(),
       })
       if (res.ok) {
         const data = await res.json()
         setFoodResults(Array.isArray(data) ? data.slice(0, 10) : [])
+        if (Array.isArray(data) && data[0]?.name) setSelectedFoodForAnalysis(String(data[0].name))
       }
     } catch (err) {
       console.error('Food search failed:', err)
     } finally {
       setFoodSearchLoading(false)
+    }
+  }
+
+  const queueAdvancedFoodFetches = async ({ q, canonicalId }) => {
+    if (!token) return
+    const runId = ++foodPipelineRunIdRef.current
+    const headers = getAuthHeaders()
+
+    setResolvedFoodLoading(true)
+    setFoodGraphLoading(true)
+    setFoodCausalLoading(true)
+    setHypothesesLoading(true)
+
+    try {
+      const resolveParams = new URLSearchParams({ q })
+      const graphParams = new URLSearchParams({ canonical_id: canonicalId || '' })
+      const causalParams = new URLSearchParams({ canonical_id: canonicalId || '' })
+
+      const [resolveRes, graphRes, causalRes, hypoRes] = await Promise.allSettled([
+        fetch(`${API_BASE}/api/nutrition/food/resolve?${resolveParams.toString()}`, { headers }),
+        canonicalId ? fetch(`${API_BASE}/api/nutrition/food/graph?${graphParams.toString()}`, { headers }) : Promise.resolve(null),
+        canonicalId ? fetch(`${API_BASE}/api/nutrition/food/causal?${causalParams.toString()}`, { headers }) : Promise.resolve(null),
+        fetch(`${API_BASE}/api/nutrition/hypotheses`, { headers }),
+      ])
+
+      if (foodPipelineRunIdRef.current !== runId) return
+
+      if (resolveRes.status === 'fulfilled' && resolveRes.value?.ok) {
+        setResolvedFood(await safeReadJson(resolveRes.value))
+      } else {
+        setResolvedFood(null)
+      }
+
+      if (graphRes.status === 'fulfilled' && graphRes.value?.ok) {
+        setFoodGraph(await safeReadJson(graphRes.value))
+      } else {
+        setFoodGraph(null)
+      }
+
+      if (causalRes.status === 'fulfilled' && causalRes.value?.ok) {
+        setFoodCausal(await safeReadJson(causalRes.value))
+      } else {
+        setFoodCausal(null)
+      }
+
+      if (hypoRes.status === 'fulfilled' && hypoRes.value?.ok) {
+        const hypos = await safeReadJson(hypoRes.value)
+        setHypothesesCount(Array.isArray(hypos) ? hypos.length : null)
+      } else {
+        setHypothesesCount(null)
+      }
+    } catch (err) {
+      console.error('Advanced nutrition pipeline fetch failed:', err)
+    } finally {
+      if (foodPipelineRunIdRef.current === runId) {
+        setResolvedFoodLoading(false)
+        setFoodGraphLoading(false)
+        setFoodCausalLoading(false)
+        setHypothesesLoading(false)
+      }
+    }
+  }
+
+  const analyzeSelectedFood = async ({ includeLLM = false } = {}) => {
+    const q = (selectedFoodForAnalysis || foodSearchQuery || '').trim()
+    if (!q) return
+    try {
+      setFoodAnalysisLoading(true)
+      setFoodAnalysis(null)
+      setFoodAnalysisError('')
+      const params = new URLSearchParams({ q })
+      if (includeLLM) params.set('includeLLM', '1')
+
+      const headers = getAuthHeaders()
+
+      // Primary: GET
+      const res = await fetch(`${API_BASE}/api/nutrition/food/analyze?${params.toString()}`, { headers })
+      if (res.ok) {
+        const data = await res.json()
+        setFoodAnalysis(data)
+        queueAdvancedFoodFetches({ q, canonicalId: data?.canonical_id })
+        return
+      }
+
+      // Fallback: POST (covers backend POST /food/analyze)
+      const postRes = await fetch(`${API_BASE}/api/nutrition/food/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify({ foodName: q, includeLLM }),
+      })
+      if (!postRes.ok) {
+        const errJson = await postRes.json().catch(() => null)
+        setFoodAnalysisError(errJson?.error || 'Food analysis failed')
+        return
+      }
+      const data = await postRes.json()
+      setFoodAnalysis(data)
+      queueAdvancedFoodFetches({ q, canonicalId: data?.canonical_id })
+    } catch (err) {
+      console.error('Food analysis failed:', err)
+      setFoodAnalysisError('Food analysis failed')
+    } finally {
+      setFoodAnalysisLoading(false)
     }
   }
 
@@ -285,11 +478,12 @@ function NutritionTracker() {
         notes: log.notes,
       }
 
-      if (!user || !user._id) {
-        alert('User not found!')
+      if (!token) {
+        alert('Please log in to save your nutrition log.')
         return
       }
-      const res = await fetch(`${API_BASE}/api/nutrition/logs/${user._id}`, {
+
+      const res = await fetch(`${API_BASE}/api/nutrition/logs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -317,6 +511,8 @@ function NutritionTracker() {
         notes: saved.notes || '',
         _id: saved._id,
       })
+
+      // Insights are centralized in the Insights tab.
     } catch (err) {
       console.error('Failed to save nutrition log:', err)
       alert('An unexpected error occurred while saving this day.')
@@ -579,7 +775,10 @@ function NutritionTracker() {
                           cursor: 'pointer',
                           '&:hover': { bgcolor: '#e5e7eb' },
                         }}
-                        onClick={() => applyFoodResultToRow(f, 0)}
+                        onClick={() => {
+                          applyFoodResultToRow(f, 0)
+                          setSelectedFoodForAnalysis(String(f.name || ''))
+                        }}
                       >
                         <Box sx={{ mr: 1 }}>
                           <Typography variant="caption" sx={{ fontWeight: 500 }}>
@@ -594,6 +793,220 @@ function NutritionTracker() {
                         </Typography>
                       </Box>
                     ))}
+                  </Box>
+                )}
+
+                {/* Advanced pipeline: analysis preview */}
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
+                  <TextField
+                    label="Analyze food"
+                    value={selectedFoodForAnalysis}
+                    onChange={(e) => setSelectedFoodForAnalysis(e.target.value)}
+                    size="small"
+                    fullWidth
+                  />
+                  <Button
+                    size="small"
+                    variant="contained"
+                    onClick={() => analyzeSelectedFood({ includeLLM: false })}
+                    disabled={foodAnalysisLoading}
+                    sx={{ whiteSpace: 'nowrap' }}
+                  >
+                    {foodAnalysisLoading ? 'Analyzing…' : 'Analyze'}
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => analyzeSelectedFood({ includeLLM: true })}
+                    disabled={foodAnalysisLoading}
+                    sx={{ whiteSpace: 'nowrap' }}
+                  >
+                    + LLM
+                  </Button>
+                </Box>
+
+                {foodAnalysisError && (
+                  <Typography variant="caption" sx={{ color: '#b91c1c', display: 'block', mb: 1 }}>
+                    {foodAnalysisError}
+                  </Typography>
+                )}
+
+                {foodAnalysis && (
+                  <Box sx={{
+                    borderRadius: 1,
+                    border: '1px solid #e5e7eb',
+                    bgcolor: '#ffffff',
+                    p: 1.5,
+                    mb: 1,
+                  }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, display: 'block' }}>
+                      Canonical: {foodAnalysis.canonical_id || '—'} ({Math.round((foodAnalysis.resolver?.confidence || 0) * 100)}%)
+                    </Typography>
+
+                    <Typography variant="caption" sx={{ display: 'block', color: '#6b7280' }}>
+                      Resolve: {resolvedFoodLoading ? '…' : (resolvedFood?.canonical_id || resolvedFood?.canonicalId || '—')}
+                      {resolvedFood?.confidence != null ? ` (${Math.round((resolvedFood.confidence || 0) * 100)}%)` : ''}
+                    </Typography>
+
+                    <Typography variant="caption" sx={{ display: 'block', color: '#6b7280' }}>
+                      Graph edges: {foodGraphLoading ? '…' : (Array.isArray(foodGraph?.edges) ? foodGraph.edges.length : '—')}
+                      {' · '}
+                      Causal links: {foodCausalLoading ? '…' : (Array.isArray(foodCausal?.causal_links) ? foodCausal.causal_links.length : '—')}
+                      {' · '}
+                      Hypotheses: {hypothesesLoading ? '…' : (hypothesesCount ?? '—')}
+                    </Typography>
+
+                    {foodAnalysis.meal_object && (
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                          Meal object (local recipe)
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          {foodAnalysis.meal_object.name} · {foodAnalysis.meal_object.category || '—'}
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          Serving: {foodAnalysis.meal_object.serving?.description || '—'} ({foodAnalysis.meal_object.serving?.weight_g || '—'} g)
+                        </Typography>
+                        {Array.isArray(foodAnalysis.meal_object.recipe?.ingredients) && foodAnalysis.meal_object.recipe.ingredients.length > 0 && (
+                          <Typography variant="caption" sx={{ display: 'block' }}>
+                            Ingredients: {foodAnalysis.meal_object.recipe.ingredients.slice(0, 6).map((x) => `${x.item} ${x.grams}g`).join(', ')}
+                            {foodAnalysis.meal_object.recipe.ingredients.length > 6 ? '…' : ''}
+                          </Typography>
+                        )}
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          Source: {foodAnalysis.meal_object.source || '—'} · Status: {foodAnalysis.meal_object.status || '—'}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {foodAnalysis.dish_breakdown?.missing_ingredients?.length > 0 && (
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="caption" sx={{ color: '#b45309', display: 'block' }}>
+                          Missing ingredients in local DB: {foodAnalysis.dish_breakdown.missing_ingredients.join(', ')}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {!!foodAnalysis.derived_metrics && (
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                          Derived metrics
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          Glycemic pressure: {foodAnalysis.derived_metrics.glycemic_pressure?.label} ({Math.round((foodAnalysis.derived_metrics.glycemic_pressure?.score || 0) * 100)}%)
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          Satiety index: {foodAnalysis.derived_metrics.satiety_index?.label} ({Math.round((foodAnalysis.derived_metrics.satiety_index?.score || 0) * 100)}%)
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          Inflammatory potential: {foodAnalysis.derived_metrics.inflammatory_potential?.label} ({Math.round((foodAnalysis.derived_metrics.inflammatory_potential?.score || 0) * 100)}%)
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {!!foodAnalysis.uncertainty && (
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                          Uncertainty
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          Nutrient accuracy: {Math.round((foodAnalysis.uncertainty.nutrient_accuracy || 0) * 100)}%
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          Interaction estimate: {Math.round((foodAnalysis.uncertainty.interaction_estimate || 0) * 100)}%
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          Population variance: {foodAnalysis.uncertainty.population_variance}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {Array.isArray(foodAnalysis.interactions) && foodAnalysis.interactions.length > 0 && (
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                          Interactions (rule-driven)
+                        </Typography>
+                        {foodAnalysis.interactions.slice(0, 4).map((it, i) => (
+                          <Typography key={i} variant="caption" sx={{ display: 'block' }}>
+                            {it.targetKind}: {it.targetKey} · {it.interactionType} · risk {it.riskLevel}
+                          </Typography>
+                        ))}
+                      </Box>
+                    )}
+
+                    {Array.isArray(foodAnalysis.disease_analysis) && foodAnalysis.disease_analysis.length > 0 && (
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                          Disease analysis (mechanical, non-diagnostic)
+                        </Typography>
+                        {foodAnalysis.disease_analysis.slice(0, 2).map((d, i) => (
+                          <Box key={i} sx={{ mb: 0.75 }}>
+                            <Typography variant="caption" sx={{ display: 'block', fontWeight: 600 }}>
+                              {d?.disease?.name || d?.disease?.disease_id}
+                            </Typography>
+                            <Typography variant="caption" sx={{ display: 'block' }}>
+                              {d?.safe_output?.headline}
+                            </Typography>
+                            <Typography variant="caption" sx={{ display: 'block' }}>
+                              Risk contribution: {Math.round((d?.computed?.risk_contribution_score01 || 0) * 100)}% · Highest trigger: {d?.computed?.highest_trigger?.pattern || '—'} ({d?.computed?.highest_trigger?.risk_level || 'low'})
+                            </Typography>
+                            {Array.isArray(d?.sensitivities) && d.sensitivities.length > 0 && (
+                              <Typography variant="caption" sx={{ display: 'block' }}>
+                                Top sensitivities: {d.sensitivities
+                                  .filter((s) => typeof s?.contribution === 'number')
+                                  .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+                                  .slice(0, 3)
+                                  .map((s) => `${s.sensitivity} (${s.interpretation})`)
+                                  .join(' · ')}
+                              </Typography>
+                            )}
+                            <Typography variant="caption" sx={{ display: 'block', color: '#6b7280' }}>
+                              Limits: no diagnosis · no medication advice · no dosage suggestions
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
+
+                    {foodAnalysis.llm?.narrative && (
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                          LLM summary
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          {foodAnalysis.llm.narrative}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {foodAnalysis.explanation?.narrative && (
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                          Personalized explanation
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          {foodAnalysis.explanation.narrative}
+                        </Typography>
+
+                        {Array.isArray(foodAnalysis.explanation.bullets) && foodAnalysis.explanation.bullets.length > 0 && (
+                          <Box sx={{ mt: 0.75 }}>
+                            {foodAnalysis.explanation.bullets.slice(0, 6).map((b, i) => (
+                              <Typography key={i} variant="caption" sx={{ display: 'block' }}>
+                                • {b}
+                              </Typography>
+                            ))}
+                          </Box>
+                        )}
+
+                        {Array.isArray(foodAnalysis.explanation.cautions) && foodAnalysis.explanation.cautions.length > 0 && (
+                          <Box sx={{ mt: 0.75 }}>
+                            <Typography variant="caption" sx={{ color: '#b45309', display: 'block' }}>
+                              Caution: {foodAnalysis.explanation.cautions.join(' ')}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    )}
                   </Box>
                 )}
               </Box>
@@ -849,6 +1262,43 @@ function NutritionTracker() {
 
               <Typography variant="caption" sx={{ color: '#9ca3af' }}>
                 Based on logged macros. Calories from alcohol or unlogged foods are not included.
+              </Typography>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#171717', mb: 0.5 }}>
+                  Deep Insights moved
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 1 }}>
+                  Daily insights now live in the Insights tab.
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => navigateToInsights(1)}
+                  sx={{ textTransform: 'none', borderColor: '#e5e7eb', color: '#374151' }}
+                >
+                  Open Insights
+                </Button>
+              </Box>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                Trends (server)
+              </Typography>
+
+              {nutritionStatsLoading && <LinearProgress sx={{ height: 6, borderRadius: 99, mb: 1 }} />}
+
+              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                7d avg: {nutritionStats?.weeklyAvg?.calories ?? '—'} kcal · P {nutritionStats?.weeklyAvg?.protein ?? '—'}g · Water {nutritionStats?.weeklyAvg?.water ?? '—'} ml
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                30d avg: {nutritionStats?.monthlyAvg?.calories ?? '—'} kcal · P {nutritionStats?.monthlyAvg?.protein ?? '—'}g · Water {nutritionStats?.monthlyAvg?.water ?? '—'} ml
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block', mt: 0.5 }}>
+                Days logged: 7d {nutritionStats?.weeklyAvg?.daysLogged ?? '—'} · 30d {nutritionStats?.monthlyAvg?.daysLogged ?? '—'} · 30d range {rangeDaysLogged ?? '—'}
               </Typography>
             </Box>
           </Box>

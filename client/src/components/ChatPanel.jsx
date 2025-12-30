@@ -28,6 +28,14 @@ function ChatPanel() {
     setIsSending(true)
 
     try {
+      const history = [...messages, { from: 'user', text: trimmed }]
+        .filter((m) => m && (m.from === 'user' || m.from === 'ai') && typeof m.text === 'string')
+        .slice(-12)
+        .map((m) => ({
+          role: m.from === 'user' ? 'user' : 'assistant',
+          content: m.text,
+        }))
+
       const headers = { 'Content-Type': 'application/json' }
       if (token) {
         headers['Authorization'] = `Bearer ${token}`
@@ -36,7 +44,7 @@ function ChatPanel() {
       const res = await fetch(`${API_BASE}/api/ai/chat`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ message: trimmed }),
+        body: JSON.stringify({ message: trimmed, history }),
       })
       const data = await res.json()
       setMessages((prev) => [...prev, { from: 'ai', text: data.reply || 'Let me think about that...' }])

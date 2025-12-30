@@ -3,9 +3,15 @@ const jwt = require('jsonwebtoken');
 const { NutritionLog } = require('../models/Logs');
 const User = require('../models/User');
 const { searchFoods } = require('../services/nutritionProvider');
+const { searchLocalFoods } = require('../services/mealPipeline/aggregator');
+const { analyzeFood } = require('../services/nutritionPipeline/orchestrator');
+const { resolveCanonicalFood } = require('../services/nutritionPipeline/canonicalFoodResolver');
+const { proposeHypothesis, recordHypothesisFeedback } = require('../services/nutritionPipeline/hypothesisEngine');
+const { KnowledgeEdge, Hypothesis, CausalLink } = require('../models/nutritionKnowledge');
+const { upsertDailyInsightForDate, ensureDailyInsightNarrative } = require('../services/insights/dailyInsightEngine');
 
 const router = express.Router();
-const JWT_SECRET = 'lifesync-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
 
 // Auth middleware
 const authMiddleware = (req, res, next) => {
@@ -36,10 +42,9 @@ router.get('/logs', authMiddleware, async (req, res) => {
   }
 });
 
-// Get nutrition log for specific date
-router.get('/logs/date/:date', authMiddleware, async (req, res) => {
+async function getLogForDate(req, res, dateStr) {
   try {
-    const startDate = new Date(req.params.date);
+    const startDate = new Date(dateStr);
     startDate.setHours(0, 0, 0, 0);
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + 1);
@@ -50,7 +55,6 @@ router.get('/logs/date/:date', authMiddleware, async (req, res) => {
     });
 
     if (!log) {
-      // Return empty structure for the day
       log = {
         date: startDate,
         meals: [],
@@ -64,10 +68,134 @@ router.get('/logs/date/:date', authMiddleware, async (req, res) => {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch nutrition log' });
   }
+}
+
+// Get nutrition log for specific date (canonical)
+router.get('/logs/date/:date', authMiddleware, async (req, res) => {
+  return getLogForDate(req, res, req.params.date);
+});
+
+// Back-compat: client previously called /logs/date/:userId/:date
+router.get('/logs/date/:userId/:date', authMiddleware, async (req, res) => {
+  return getLogForDate(req, res, req.params.date);
+});
+
+// Advanced pipeline: resolve canonical food
+router.get('/food/resolve', authMiddleware, async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (!q) return res.status(400).json({ error: 'q is required' });
+    const resolved = await resolveCanonicalFood({ input: q, allowProvisional: true });
+    res.json(resolved);
+  } catch (err) {
+    console.error('[NutritionRoutes] /food/resolve error:', err);
+    res.status(500).json({ error: 'Failed to resolve food' });
+  }
+});
+
+// Advanced pipeline: analyze food (resolver + nutrient graph + metrics + interactions + uncertainty + optional LLM)
+router.get('/food/analyze', authMiddleware, async (req, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const includeLLM = String(req.query.includeLLM || '0') === '1';
+    if (!q) return res.status(400).json({ error: 'q is required' });
+    const user = await User.findById(req.userId);
+    const analysis = await analyzeFood({ input: q, user, includeLLM });
+    res.json(analysis);
+  } catch (err) {
+    console.error('[NutritionRoutes] /food/analyze error:', err);
+    res.status(500).json({ error: 'Failed to analyze food' });
+  }
+});
+
+router.post('/food/analyze', authMiddleware, async (req, res) => {
+  try {
+    const foodName = String(req.body.foodName || '').trim();
+    const includeLLM = Boolean(req.body.includeLLM);
+    if (!foodName) return res.status(400).json({ error: 'foodName is required' });
+    const user = await User.findById(req.userId);
+    const analysis = await analyzeFood({ input: foodName, user, includeLLM });
+    res.json(analysis);
+  } catch (err) {
+    console.error('[NutritionRoutes] POST /food/analyze error:', err);
+    res.status(500).json({ error: 'Failed to analyze food' });
+  }
+});
+
+// Knowledge graph: outgoing edges from a food node
+router.get('/food/graph', authMiddleware, async (req, res) => {
+  try {
+    const canonicalId = String(req.query.canonical_id || '').trim();
+    if (!canonicalId) return res.status(400).json({ error: 'canonical_id is required' });
+    const edges = await KnowledgeEdge.find({ fromKind: 'food', fromKey: canonicalId }).sort({ predicate: 1, toKind: 1, toKey: 1 });
+    res.json({ canonical_id: canonicalId, edges });
+  } catch (err) {
+    console.error('[NutritionRoutes] /food/graph error:', err);
+    res.status(500).json({ error: 'Failed to fetch food graph' });
+  }
+});
+
+router.get('/food/causal', authMiddleware, async (req, res) => {
+  try {
+    const canonicalId = String(req.query.canonical_id || '').trim();
+    if (!canonicalId) return res.status(400).json({ error: 'canonical_id is required' });
+    const links = await CausalLink.find({ subjectKind: 'food', subjectKey: canonicalId }).sort({ cause: 1, effect: 1 });
+    res.json({ canonical_id: canonicalId, causal_links: links });
+  } catch (err) {
+    console.error('[NutritionRoutes] /food/causal error:', err);
+    res.status(500).json({ error: 'Failed to fetch causal links' });
+  }
+});
+
+// Hypothesis lifecycle
+router.get('/hypotheses', authMiddleware, async (req, res) => {
+  try {
+    const docs = await Hypothesis.find({ user: req.userId }).sort({ createdAt: -1 }).limit(50);
+    res.json(docs);
+  } catch (err) {
+    console.error('[NutritionRoutes] /hypotheses error:', err);
+    res.status(500).json({ error: 'Failed to fetch hypotheses' });
+  }
+});
+
+router.post('/hypotheses/generate', authMiddleware, async (req, res) => {
+  try {
+    const foodName = String(req.body.foodName || '').trim();
+    const includeLLM = Boolean(req.body.includeLLM);
+    if (!foodName) return res.status(400).json({ error: 'foodName is required' });
+    const user = await User.findById(req.userId);
+    const analysis = await analyzeFood({ input: foodName, user, includeLLM });
+    const doc = await proposeHypothesis({ user, analysis });
+    res.status(201).json({ hypothesis: doc, analysis });
+  } catch (err) {
+    console.error('[NutritionRoutes] /hypotheses/generate error:', err);
+    res.status(500).json({ error: 'Failed to generate hypothesis' });
+  }
+});
+
+router.patch('/hypotheses/:id/feedback', authMiddleware, async (req, res) => {
+  try {
+    const outcome = String(req.body.outcome || '').trim();
+    const note = req.body.note;
+    if (outcome !== 'support' && outcome !== 'refute') {
+      return res.status(400).json({ error: 'outcome must be support or refute' });
+    }
+    const updated = await recordHypothesisFeedback({
+      userId: req.userId,
+      hypothesisId: req.params.id,
+      outcome,
+      note,
+    });
+    if (!updated) return res.status(404).json({ error: 'Hypothesis not found' });
+    res.json(updated);
+  } catch (err) {
+    console.error('[NutritionRoutes] /hypotheses/:id/feedback error:', err);
+    res.status(500).json({ error: 'Failed to update hypothesis' });
+  }
 });
 
 // Create or update nutrition log for a date
-router.post('/logs', authMiddleware, async (req, res) => {
+async function upsertNutritionLog(req, res) {
   try {
     const { date, meals, waterIntake, notes } = req.body;
 
@@ -126,13 +254,27 @@ router.post('/logs', authMiddleware, async (req, res) => {
       });
     }
 
+    // Fire-and-forget: keep daily insights up-to-date without blocking the request.
+    Promise.resolve()
+      .then(async () => {
+        await upsertDailyInsightForDate({ userId: req.userId, date: logDate, force: true })
+        await ensureDailyInsightNarrative({ userId: req.userId, date: logDate, force: false })
+      })
+      .catch((e) => console.error('[NutritionRoutes] daily insight recompute failed:', e));
+
     console.log('[NutritionRoutes] Saved nutrition log for user', req.userId, 'on', logDate.toISOString(), 'totals', dailyTotals);
     res.status(201).json(log);
   } catch (err) {
     console.error('[NutritionRoutes] Error in POST /api/nutrition/logs:', err);
     res.status(500).json({ error: 'Failed to save nutrition log' });
   }
-});
+}
+
+// Canonical
+router.post('/logs', authMiddleware, upsertNutritionLog);
+
+// Back-compat: older client called /logs/:userId
+router.post('/logs/:userId', authMiddleware, upsertNutritionLog);
 
 // Add a meal to today's log
 router.post('/meals', authMiddleware, async (req, res) => {
@@ -183,6 +325,13 @@ router.post('/meals', authMiddleware, async (req, res) => {
     log.dailyTotals = dailyTotals;
 
     await log.save();
+
+    Promise.resolve()
+      .then(async () => {
+        await upsertDailyInsightForDate({ userId: req.userId, date: logDate, force: true })
+        await ensureDailyInsightNarrative({ userId: req.userId, date: logDate, force: false })
+      })
+      .catch((e) => console.error('[NutritionRoutes] daily insight recompute failed:', e));
     res.status(201).json(log);
   } catch (err) {
     console.error(err);
@@ -217,6 +366,13 @@ router.patch('/water', authMiddleware, async (req, res) => {
         dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 },
       });
     }
+
+    Promise.resolve()
+      .then(async () => {
+        await upsertDailyInsightForDate({ userId: req.userId, date: logDate, force: true })
+        await ensureDailyInsightNarrative({ userId: req.userId, date: logDate, force: false })
+      })
+      .catch((e) => console.error('[NutritionRoutes] daily insight recompute failed:', e));
 
     res.json(log);
   } catch (err) {
@@ -253,6 +409,13 @@ router.delete('/meals/:logId/:mealIndex', authMiddleware, async (req, res) => {
     log.dailyTotals = dailyTotals;
 
     await log.save();
+
+    Promise.resolve()
+      .then(async () => {
+        await upsertDailyInsightForDate({ userId: req.userId, date: log.date, force: true })
+        await ensureDailyInsightNarrative({ userId: req.userId, date: log.date, force: false })
+      })
+      .catch((e) => console.error('[NutritionRoutes] daily insight recompute failed:', e));
     res.json(log);
   } catch (err) {
     console.error(err);
@@ -368,9 +531,15 @@ router.get('/search', authMiddleware, async (req, res) => {
   try {
     const { q } = req.query;
     console.log('[NutritionRoutes] /api/nutrition/search called by user', req.userId, 'with query:', q);
-    const results = await searchFoods(q || '');
-    console.log('[NutritionRoutes] returning', Array.isArray(results) ? results.length : 0, 'results');
-    res.json(results);
+    const local = await searchLocalFoods({ q: q || '' });
+    let external = [];
+    // Only call external provider if local results are insufficient.
+    if (local.length < 10) {
+      external = await searchFoods(q || '');
+    }
+    const merged = [...local, ...(Array.isArray(external) ? external : [])].slice(0, 10);
+    console.log('[NutritionRoutes] returning', merged.length, 'results (local', local.length, 'external', Array.isArray(external) ? external.length : 0, ')');
+    res.json(merged);
   } catch (err) {
     console.error('[NutritionRoutes] search error:', err);
     res.status(500).json({ error: 'Failed to search foods' });

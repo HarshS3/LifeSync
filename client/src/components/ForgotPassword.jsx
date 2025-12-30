@@ -1,48 +1,40 @@
-import { useState } from 'react';
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
-import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
+import { useState } from 'react'
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
+import TextField from '@mui/material/TextField'
+import Button from '@mui/material/Button'
+import CircularProgress from '@mui/material/CircularProgress'
+
+import { API_BASE } from '../config'
 
 const ForgotPassword = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('')
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setMessage('');
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
-    if (password !== confirm) {
-      setError('Passwords do not match.');
-      return;
-    }
-    setLoading(true);
+    e.preventDefault()
+    setError('')
+    setMessage('')
+    setLoading(true)
     try {
-      const res = await fetch('/api/auth/direct-reset', {
+      const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json().catch(() => ({}))
       if (res.ok) {
-        setMessage(data.message || 'Password updated successfully.');
+        setMessage(data.message || 'If that email is registered, a reset link has been sent.')
       } else {
-        setError(data.error || 'Something went wrong.');
+        setError(data.error || 'Something went wrong.')
       }
     } catch (err) {
-      setError('Network error.');
+      setError('Network error.')
     }
-    setLoading(false);
-  };
+    setLoading(false)
+  }
 
   return (
     <Box
@@ -70,7 +62,7 @@ const ForgotPassword = () => {
             Forgot Password
           </Typography>
           <Typography variant="body2" sx={{ color: '#6b7280' }}>
-            Enter your email and new password
+            Enter your email to get a reset link
           </Typography>
         </Box>
         <form onSubmit={handleSubmit}>
@@ -81,25 +73,6 @@ const ForgotPassword = () => {
               fullWidth
               value={email}
               onChange={e => setEmail(e.target.value)}
-              required
-              sx={{ '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: '#e5e7eb' }, '&:hover fieldset': { borderColor: '#d1d5db' }, '&.Mui-focused fieldset': { borderColor: '#171717' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#171717' } }}
-            />
-            <TextField
-              label="New Password"
-              type="password"
-              fullWidth
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              helperText={'At least 6 characters'}
-              sx={{ '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: '#e5e7eb' }, '&:hover fieldset': { borderColor: '#d1d5db' }, '&.Mui-focused fieldset': { borderColor: '#171717' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#171717' } }}
-            />
-            <TextField
-              label="Confirm Password"
-              type="password"
-              fullWidth
-              value={confirm}
-              onChange={e => setConfirm(e.target.value)}
               required
               sx={{ '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: '#e5e7eb' }, '&:hover fieldset': { borderColor: '#d1d5db' }, '&.Mui-focused fieldset': { borderColor: '#171717' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#171717' } }}
             />
@@ -128,7 +101,7 @@ const ForgotPassword = () => {
                 '&:hover': { bgcolor: '#374151', boxShadow: 'none' },
               }}
             >
-              {loading ? <CircularProgress size={24} sx={{ color: '#fff' }} /> : 'Update Password'}
+              {loading ? <CircularProgress size={24} sx={{ color: '#fff' }} /> : 'Send Reset Link'}
             </Button>
             <Button
               variant="outlined"
@@ -138,6 +111,9 @@ const ForgotPassword = () => {
             >
               Return to Sign In
             </Button>
+            <Typography variant="caption" sx={{ color: '#9ca3af', textAlign: 'center' }}>
+              In dev, the reset link is printed in the server console.
+            </Typography>
           </Box>
         </form>
       </Box>

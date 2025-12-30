@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -21,6 +21,8 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import LogoutIcon from '@mui/icons-material/Logout'
 import NotificationsIcon from '@mui/icons-material/Notifications'
 import StarIcon from '@mui/icons-material/Star'
+import HealingIcon from '@mui/icons-material/Healing'
+import BiotechIcon from '@mui/icons-material/Biotech'
 
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import AuthPage from './components/AuthPage.jsx'
@@ -38,6 +40,8 @@ import GymTracker from './components/GymTracker.jsx'
 import GlobalCalendar from './components/GlobalCalendar.jsx'
 import NutritionTracker from './components/NutritionTracker.jsx'
 import RemindersSettings from './components/RemindersSettings.jsx'
+import SymptomsPanel from './components/SymptomsPanel.jsx'
+import LabsPanel from './components/LabsPanel.jsx'
 // import PremiumPage from './components/PremiumPage.jsx'
 
 const navItems = [
@@ -47,6 +51,8 @@ const navItems = [
   { id: 'logs', label: 'Training', icon: <FitnessCenterIcon fontSize="small" /> },
   { id: 'nutrition', label: 'Nutrition', icon: <RestaurantOutlinedIcon fontSize="small" /> },
   { id: 'mental', label: 'Wellness', icon: <SpaOutlinedIcon fontSize="small" /> },
+  { id: 'symptoms', label: 'Symptoms', icon: <HealingIcon fontSize="small" /> },
+  { id: 'labs', label: 'Labs', icon: <BiotechIcon fontSize="small" /> },
   { id: 'calendar', label: 'Calendar', icon: <CalendarMonthIcon fontSize="small" /> },
   { id: 'goals', label: 'Habits', icon: <FlagOutlinedIcon fontSize="small" /> },
   { id: 'trends', label: 'Insights', icon: <InsightsIcon fontSize="small" /> },
@@ -68,6 +74,18 @@ function AppContent() {
   const [activeSection, setActiveSection] = useState('home')
   const [anchorEl, setAnchorEl] = useState(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
+
+  useEffect(() => {
+    const handler = (e) => {
+      const next = e?.detail?.section
+      if (typeof next === 'string' && next.length > 0) {
+        setActiveSection(next)
+      }
+    }
+
+    window.addEventListener('lifesync:navigate', handler)
+    return () => window.removeEventListener('lifesync:navigate', handler)
+  }, [])
 
   const theme = useMemo(
     () =>
@@ -177,6 +195,8 @@ function AppContent() {
       case 'logs': return <GymTracker />
       case 'nutrition': return <NutritionTracker />
       case 'mental': return <DailyLogPanel />
+      case 'symptoms': return <SymptomsPanel />
+      case 'labs': return <LabsPanel />
       case 'calendar': return <GlobalCalendar />
       case 'goals': return <HabitTracker />
       case 'trends': return <TrendsPanel />

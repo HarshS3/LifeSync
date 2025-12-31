@@ -1,6 +1,8 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const SymptomLog = require('../models/SymptomLog');
+const { dayKeyFromDate } = require('../services/dailyLifeState/dayKey');
+const { triggerDailyLifeStateRecompute } = require('../services/dailyLifeState/triggerDailyLifeStateRecompute');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
@@ -75,6 +77,8 @@ router.post('/', authMiddleware, async (req, res) => {
       tags: Array.isArray(tags) ? tags.map((t) => String(t).trim()).filter(Boolean).slice(0, 20) : [],
     });
 
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: doc?.date, reason: 'symptomRoutes create' });
+
     res.status(201).json(doc);
   } catch (err) {
     console.error(err);
@@ -85,6 +89,8 @@ router.post('/', authMiddleware, async (req, res) => {
 // Update symptom log
 router.patch('/:id', authMiddleware, async (req, res) => {
   try {
+    const before = await SymptomLog.findOne({ _id: req.params.id, user: req.userId }).select('date');
+
     const updates = {};
     if (req.body.date != null) updates.date = new Date(req.body.date);
     if (req.body.symptomName != null) updates.symptomName = String(req.body.symptomName).trim();
@@ -99,6 +105,12 @@ router.patch('/:id', authMiddleware, async (req, res) => {
     );
 
     if (!doc) return res.status(404).json({ error: 'Not found' });
+
+    const beforeKey = before?.date ? dayKeyFromDate(before.date) : null;
+    const afterKey = doc?.date ? dayKeyFromDate(doc.date) : null;
+    if (beforeKey) triggerDailyLifeStateRecompute({ userId: req.userId, dayKey: beforeKey, reason: 'symptomRoutes update (before)' });
+    if (afterKey && afterKey !== beforeKey) triggerDailyLifeStateRecompute({ userId: req.userId, dayKey: afterKey, reason: 'symptomRoutes update (after)' });
+
     res.json(doc);
   } catch (err) {
     console.error(err);
@@ -111,6 +123,9 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const doc = await SymptomLog.findOneAndDelete({ _id: req.params.id, user: req.userId });
     if (!doc) return res.status(404).json({ error: 'Not found' });
+
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: doc?.date, reason: 'symptomRoutes delete' });
+
     res.json({ ok: true });
   } catch (err) {
     console.error(err);

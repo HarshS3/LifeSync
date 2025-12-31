@@ -1,6 +1,8 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const LabReport = require('../models/LabReport');
+const { dayKeyFromDate } = require('../services/dailyLifeState/dayKey');
+const { triggerDailyLifeStateRecompute } = require('../services/dailyLifeState/triggerDailyLifeStateRecompute');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
@@ -117,6 +119,8 @@ router.post('/', authMiddleware, async (req, res) => {
       source: source ? String(source) : 'manual',
     });
 
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: doc?.date, reason: 'labRoutes create' });
+
     res.status(201).json(doc);
   } catch (err) {
     console.error(err);
@@ -127,6 +131,8 @@ router.post('/', authMiddleware, async (req, res) => {
 // Update lab report
 router.patch('/:id', authMiddleware, async (req, res) => {
   try {
+    const before = await LabReport.findOne({ _id: req.params.id, user: req.userId }).select('date');
+
     const updates = {};
     if (req.body.date != null) updates.date = new Date(req.body.date);
     if (req.body.panelName != null) updates.panelName = String(req.body.panelName).trim();
@@ -167,6 +173,12 @@ router.patch('/:id', authMiddleware, async (req, res) => {
     );
 
     if (!doc) return res.status(404).json({ error: 'Not found' });
+
+    const beforeKey = before?.date ? dayKeyFromDate(before.date) : null;
+    const afterKey = doc?.date ? dayKeyFromDate(doc.date) : null;
+    if (beforeKey) triggerDailyLifeStateRecompute({ userId: req.userId, dayKey: beforeKey, reason: 'labRoutes update (before)' });
+    if (afterKey && afterKey !== beforeKey) triggerDailyLifeStateRecompute({ userId: req.userId, dayKey: afterKey, reason: 'labRoutes update (after)' });
+
     res.json(doc);
   } catch (err) {
     console.error(err);
@@ -179,6 +191,9 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const doc = await LabReport.findOneAndDelete({ _id: req.params.id, user: req.userId });
     if (!doc) return res.status(404).json({ error: 'Not found' });
+
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: doc?.date, reason: 'labRoutes delete' });
+
     res.json({ ok: true });
   } catch (err) {
     console.error(err);

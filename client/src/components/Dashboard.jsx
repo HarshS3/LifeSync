@@ -24,6 +24,8 @@ import { GlowingEffect } from './ui/glowing-effect.jsx'
 function Dashboard() {
   const { user, token } = useAuth()
   const [loading, setLoading] = useState(true)
+  const [dailyLifeState, setDailyLifeState] = useState(null)
+  const [stateReflection, setStateReflection] = useState(null)
   const [todayState, setTodayState] = useState({
     energy: 5,
     mood: 5,
@@ -46,19 +48,48 @@ function Dashboard() {
     loadData()
   }, [token])
 
+  const dayKeyFromDate = (d) => {
+    const date = new Date(d)
+    if (Number.isNaN(date.getTime())) return null
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
+  const fetchDailyLifeState = async (dayKey) => {
+    if (!token || !dayKey) return null
+    try {
+      const res = await fetch(`${API_BASE}/api/daily-life-state/${dayKey}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return null
+      const reflectionHeader = res.headers.get('X-LifeSync-State-Reflection')
+      const data = await res.json()
+      return { data: data || null, reflection: reflectionHeader || null }
+    } catch {
+      return null
+    }
+  }
+
   const loadData = async () => {
     setLoading(true)
     try {
       // Fetch recent logs
       if (!user || !user._id) throw new Error('User not found')
       const userId = user._id
-      const [fitness, mental, nutrition] = await Promise.all([
+      const todayKey = dayKeyFromDate(new Date())
+
+      const [fitness, mental, nutrition, dlsResult] = await Promise.all([
         fetchJson(`${API_BASE}/api/logs/fitness/${userId}`),
         fetchJson(`${API_BASE}/api/logs/mental/${userId}`),
         fetchJson(`${API_BASE}/api/logs/nutrition/${userId}`),
+        fetchDailyLifeState(todayKey),
       ])
       
       setRecentLogs({ fitness, mental, nutrition })
+      setDailyLifeState(dlsResult?.data || null)
+      setStateReflection(dlsResult?.reflection || null)
       
       // Calculate weekly stats
       const weekAgo = new Date()
@@ -322,6 +353,8 @@ function Dashboard() {
     </Box>
   )
 
+  const dayTone = stateReflection
+
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '280px 1fr 320px' }, gap: 3 }}>
       {/* LEFT: Life Summary */}
@@ -428,6 +461,11 @@ function Dashboard() {
               <Typography variant="body2" sx={{ color: '#6b7280' }}>
                 {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </Typography>
+              {dayTone && (
+                <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#6b7280' }}>
+                  {dayTone}
+                </Typography>
+              )}
             </Box>
             {hasCheckedIn && (
               <Chip

@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { FitnessLog, NutritionLog, MentalLog } = require('../models/Logs');
+const { triggerDailyLifeStateRecompute } = require('../services/dailyLifeState/triggerDailyLifeStateRecompute');
 
 const router = express.Router();
 
@@ -73,6 +74,7 @@ router.post('/fitness', async (req, res) => {
       ...req.body,
       user: userId,
     });
+    triggerDailyLifeStateRecompute({ userId, date: log?.date, reason: 'logRoutes fitness' });
     res.status(201).json(log);
   } catch (err) {
     console.error(err);
@@ -97,6 +99,7 @@ router.post('/nutrition', async (req, res) => {
       ...req.body,
       user: userId,
     });
+    triggerDailyLifeStateRecompute({ userId, date: log?.date, reason: 'logRoutes nutrition' });
     res.status(201).json(log);
   } catch (err) {
     console.error(err);
@@ -137,6 +140,7 @@ async function createMentalLog(req, res, userId) {
       ...req.body,
       user: userId,
     });
+    triggerDailyLifeStateRecompute({ userId, date: log?.date, reason: 'logRoutes mental' });
     res.status(201).json(log);
   } catch (err) {
     console.error(err);

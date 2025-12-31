@@ -4,13 +4,25 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const transporter = require('../services/emailTransporter');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
 
 // In-memory store for reset tokens (for demo; use DB in production)
 const resetTokens = {};
+
+function getClientBaseUrl() {
+  return (
+    String(process.env.CLIENT_URL || '').trim() ||
+    String(process.env.FRONTEND_URL || '').trim() ||
+    'http://localhost:5173'
+  ).replace(/\/$/, '');
+}
+
+function hashResetToken(token) {
+  return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
 
 // Register
 router.post('/register', async (req, res) => {
@@ -139,44 +151,85 @@ router.post('/direct-reset', async (req, res) => {
 
 // --- Forgot Password ---
 router.post('/forgot-password', async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Email is required' });
-  const user = await User.findOne({ email: email.toLowerCase() });
-  if (!user) return res.status(404).json({ error: 'User not found' });
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
 
-  // Generate token
-  const token = crypto.randomBytes(32).toString('hex');
-  resetTokens[token] = { userId: user._id, expires: Date.now() + 3600 * 1000 };
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail });
 
-  // Mock email sending (log to console)
-  const resetLink = `http://localhost:5173/reset-password?token=${token}`;
-  console.log(`Password reset link for ${email}: ${resetLink}`);
+    // Always return 200 to avoid email enumeration.
+    const generic = { message: 'If that email is registered, a reset link has been sent.' };
+    if (!user) return res.json(generic);
 
-  // Optionally, send real email using nodemailer here
-  // ...
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashResetToken(token);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
-  res.json({ message: 'If that email is registered, a reset link has been sent.' });
+    user.resetPasswordTokenHash = tokenHash;
+    user.resetPasswordExpiresAt = expiresAt;
+    await user.save();
+
+    const resetLink = `${getClientBaseUrl()}/reset-password?token=${token}`;
+
+    // Dev fallback: log the link for local testing.
+    if (String(process.env.NODE_ENV || '').trim() !== 'production') {
+      console.log(`Password reset link for ${normalizedEmail}: ${resetLink}`);
+    }
+
+    try {
+      await transporter.sendMail({
+        from: process.env.GMAIL_USER,
+        to: normalizedEmail,
+        subject: 'Reset your LifeSync password',
+        text: `We received a request to reset your LifeSync password.\n\nReset link (valid for 1 hour):\n${resetLink}\n\nIf you did not request this, you can ignore this email.`,
+      });
+    } catch (mailErr) {
+      // Keep response generic; log for diagnostics.
+      console.warn('[auth/forgot-password] email send failed:', mailErr?.message || mailErr);
+    }
+
+    return res.json(generic);
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    return res.status(500).json({ error: 'Request failed' });
+  }
 });
 
 // --- Reset Password ---
 router.post('/reset-password', async (req, res) => {
-  const { token, password } = req.body;
-  if (!token || !password) return res.status(400).json({ error: 'Token and new password are required' });
-  const data = resetTokens[token];
-  if (!data || data.expires < Date.now()) return res.status(400).json({ error: 'Invalid or expired token' });
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: 'Token and new password are required' });
+    if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
 
-  const user = await User.findById(data.userId);
-  if (!user) return res.status(404).json({ error: 'User not found' });
+    // Prefer DB-backed tokens.
+    const tokenHash = hashResetToken(token);
+    let user = await User.findOne({
+      resetPasswordTokenHash: tokenHash,
+      resetPasswordExpiresAt: { $gt: new Date() },
+    });
 
-  // Hash new password
-  const salt = await bcrypt.genSalt(10);
-  user.password = await bcrypt.hash(password, salt);
-  await user.save();
+    // Back-compat: accept in-memory tokens issued by older dev flow.
+    if (!user) {
+      const data = resetTokens[token];
+      if (!data || data.expires < Date.now()) return res.status(400).json({ error: 'Invalid or expired token' });
+      user = await User.findById(data.userId);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      delete resetTokens[token];
+    }
 
-  // Remove token
-  delete resetTokens[token];
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    user.resetPasswordTokenHash = undefined;
+    user.resetPasswordExpiresAt = undefined;
+    await user.save();
 
-  res.json({ message: 'Password has been reset successfully.' });
+    return res.json({ message: 'Password has been reset successfully.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    return res.status(500).json({ error: 'Password reset failed' });
+  }
 });
 
 module.exports = router;

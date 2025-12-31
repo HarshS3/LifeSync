@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const JournalEntry = require('../models/JournalEntry');
+const { triggerDailyLifeStateRecompute } = require('../services/dailyLifeState/triggerDailyLifeStateRecompute');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
@@ -32,6 +33,7 @@ router.post('/', async (req, res) => {
       text,
       date: new Date(),
     });
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: entry?.date, reason: 'journalRoutes create' });
     res.status(201).json(entry);
   } catch (err) {
     res.status(500).json({ error: err.message });

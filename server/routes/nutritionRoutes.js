@@ -8,7 +8,7 @@ const { analyzeFood } = require('../services/nutritionPipeline/orchestrator');
 const { resolveCanonicalFood } = require('../services/nutritionPipeline/canonicalFoodResolver');
 const { proposeHypothesis, recordHypothesisFeedback } = require('../services/nutritionPipeline/hypothesisEngine');
 const { KnowledgeEdge, Hypothesis, CausalLink } = require('../models/nutritionKnowledge');
-const { upsertDailyInsightForDate, ensureDailyInsightNarrative } = require('../services/insights/dailyInsightEngine');
+const { triggerDailyLifeStateRecompute } = require('../services/dailyLifeState/triggerDailyLifeStateRecompute');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
@@ -254,13 +254,7 @@ async function upsertNutritionLog(req, res) {
       });
     }
 
-    // Fire-and-forget: keep daily insights up-to-date without blocking the request.
-    Promise.resolve()
-      .then(async () => {
-        await upsertDailyInsightForDate({ userId: req.userId, date: logDate, force: true })
-        await ensureDailyInsightNarrative({ userId: req.userId, date: logDate, force: false })
-      })
-      .catch((e) => console.error('[NutritionRoutes] daily insight recompute failed:', e));
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: logDate, reason: 'nutritionRoutes upsert log' });
 
     console.log('[NutritionRoutes] Saved nutrition log for user', req.userId, 'on', logDate.toISOString(), 'totals', dailyTotals);
     res.status(201).json(log);
@@ -326,12 +320,7 @@ router.post('/meals', authMiddleware, async (req, res) => {
 
     await log.save();
 
-    Promise.resolve()
-      .then(async () => {
-        await upsertDailyInsightForDate({ userId: req.userId, date: logDate, force: true })
-        await ensureDailyInsightNarrative({ userId: req.userId, date: logDate, force: false })
-      })
-      .catch((e) => console.error('[NutritionRoutes] daily insight recompute failed:', e));
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: logDate, reason: 'nutritionRoutes add meal' });
     res.status(201).json(log);
   } catch (err) {
     console.error(err);
@@ -367,12 +356,7 @@ router.patch('/water', authMiddleware, async (req, res) => {
       });
     }
 
-    Promise.resolve()
-      .then(async () => {
-        await upsertDailyInsightForDate({ userId: req.userId, date: logDate, force: true })
-        await ensureDailyInsightNarrative({ userId: req.userId, date: logDate, force: false })
-      })
-      .catch((e) => console.error('[NutritionRoutes] daily insight recompute failed:', e));
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: logDate, reason: 'nutritionRoutes water' });
 
     res.json(log);
   } catch (err) {
@@ -410,12 +394,7 @@ router.delete('/meals/:logId/:mealIndex', authMiddleware, async (req, res) => {
 
     await log.save();
 
-    Promise.resolve()
-      .then(async () => {
-        await upsertDailyInsightForDate({ userId: req.userId, date: log.date, force: true })
-        await ensureDailyInsightNarrative({ userId: req.userId, date: log.date, force: false })
-      })
-      .catch((e) => console.error('[NutritionRoutes] daily insight recompute failed:', e));
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: log?.date, reason: 'nutritionRoutes delete meal' });
     res.json(log);
   } catch (err) {
     console.error(err);

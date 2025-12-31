@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { Habit, HabitLog } = require('../models/Habit');
+const { triggerDailyLifeStateRecompute } = require('../services/dailyLifeState/triggerDailyLifeStateRecompute');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
@@ -155,6 +156,8 @@ router.post('/toggle', async (req, res) => {
     // Update streak
     await updateStreak(habitId);
 
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: normalizedDate, reason: 'habitRoutes toggle' });
+
     // Populate habit info before returning
     await log.populate('habit');
     res.json(log);
@@ -191,6 +194,7 @@ router.post('/note', async (req, res) => {
     }
 
     await log.populate('habit');
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: normalizedDate, reason: 'habitRoutes note' });
     res.json(log);
   } catch (err) {
     res.status(500).json({ error: err.message });

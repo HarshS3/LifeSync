@@ -1,6 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { upsertDailyInsightForDate, ensureDailyInsightNarrative } = require('../services/insights/dailyInsightEngine');
+const DailyInsight = require('../models/DailyInsight');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
@@ -24,15 +24,41 @@ const authMiddleware = (req, res, next) => {
 router.get('/daily', authMiddleware, async (req, res) => {
   try {
     const date = req.query.date || new Date().toISOString();
-    const force = String(req.query.refresh || '0') === '1';
-    const includeNarrative = String(req.query.includeNarrative || '0') === '1';
-    const narrativeForce = String(req.query.narrativeRefresh || '0') === '1';
-
-    let doc = await upsertDailyInsightForDate({ userId: req.userId, date, force });
-    if (includeNarrative) {
-      doc = (await ensureDailyInsightNarrative({ userId: req.userId, date, force: narrativeForce || force })) || doc;
+    const start = new Date(date);
+    if (Number.isNaN(start.getTime())) {
+      return res.status(400).json({ error: 'Invalid date' });
     }
-    res.json(doc);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+
+    const doc = await DailyInsight.findOne({ user: req.userId, date: { $gte: start, $lt: end } });
+    if (doc) return res.json(doc);
+
+    // Deprecated behavior: do not compute. Return a stable no_data-shaped payload.
+    return res.json({
+      user: req.userId,
+      date: start,
+      status: 'no_data',
+      inputsUpdatedAt: null,
+      computedAt: new Date(),
+      version: 1,
+      nutrition: {
+        logId: null,
+        mealsCount: 0,
+        foodsCount: 0,
+        waterIntake: 0,
+        dailyTotalsLogged: null,
+        mealSignals: null,
+        foods: [],
+        aggregate: null,
+        bullets: [],
+      },
+      symptoms: { windowDays: 2, items: [] },
+      labs: { windowDays: 14, items: [] },
+      narrative: { text: '', hash: '', model: '', updatedAt: null },
+      errors: [],
+    });
   } catch (err) {
     console.error('[InsightRoutes] GET /daily error:', err);
     res.status(500).json({ error: 'Failed to compute daily insight' });
@@ -43,13 +69,41 @@ router.get('/daily', authMiddleware, async (req, res) => {
 router.post('/daily/recompute', authMiddleware, async (req, res) => {
   try {
     const date = req.body?.date || new Date().toISOString();
-    const includeNarrative = Boolean(req.body?.includeNarrative);
-
-    let doc = await upsertDailyInsightForDate({ userId: req.userId, date, force: true });
-    if (includeNarrative) {
-      doc = (await ensureDailyInsightNarrative({ userId: req.userId, date, force: true })) || doc;
+    const start = new Date(date);
+    if (Number.isNaN(start.getTime())) {
+      return res.status(400).json({ error: 'Invalid date' });
     }
-    res.status(201).json(doc);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+
+    // Deprecated behavior: do not compute. Return existing doc if present, else no_data.
+    const doc = await DailyInsight.findOne({ user: req.userId, date: { $gte: start, $lt: end } });
+    if (doc) return res.status(201).json(doc);
+
+    return res.status(201).json({
+      user: req.userId,
+      date: start,
+      status: 'no_data',
+      inputsUpdatedAt: null,
+      computedAt: new Date(),
+      version: 1,
+      nutrition: {
+        logId: null,
+        mealsCount: 0,
+        foodsCount: 0,
+        waterIntake: 0,
+        dailyTotalsLogged: null,
+        mealSignals: null,
+        foods: [],
+        aggregate: null,
+        bullets: [],
+      },
+      symptoms: { windowDays: 2, items: [] },
+      labs: { windowDays: 14, items: [] },
+      narrative: { text: '', hash: '', model: '', updatedAt: null },
+      errors: [],
+    });
   } catch (err) {
     console.error('[InsightRoutes] POST /daily/recompute error:', err);
     res.status(500).json({ error: 'Failed to recompute daily insight' });

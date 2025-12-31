@@ -92,6 +92,10 @@ const UserSchema = new mongoose.Schema(
       email: { type: Boolean, default: true },
       push: { type: Boolean, default: true },
     },
+
+    // Password reset (forgot-password)
+    resetPasswordTokenHash: String,
+    resetPasswordExpiresAt: Date,
     
     // Premium / Subscription
     subscription: {

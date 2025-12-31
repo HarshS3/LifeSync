@@ -1,8 +1,28 @@
 const GROQ_API_KEY = process.env.GROQ_API_KEY
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash'
 
-async function callChatApi({
+const LLM_PROVIDER = String(process.env.LLM_PROVIDER || 'auto').trim().toLowerCase()
+
+function providerOrder() {
+  // Allowed: auto|groq|gemini|openai|none
+  if (LLM_PROVIDER === 'none') return []
+  if (LLM_PROVIDER === 'groq') return ['groq']
+  if (LLM_PROVIDER === 'gemini') return ['gemini']
+  if (LLM_PROVIDER === 'openai') return ['openai']
+  return ['groq', 'gemini', 'openai']
+}
+
+function hasKey(provider) {
+  if (provider === 'groq') return Boolean(GROQ_API_KEY)
+  if (provider === 'openai') return Boolean(OPENAI_API_KEY)
+  if (provider === 'gemini') return Boolean(GEMINI_API_KEY)
+  return false
+}
+
+async function callOpenAICompatibleChat({
   apiKey,
   baseUrl,
   model,
@@ -46,6 +66,95 @@ async function callChatApi({
   }
 }
 
+async function callGeminiGenerateContent({ apiKey, model, system, user, messages }) {
+  try {
+    const payloadMessages = Array.isArray(messages) && messages.length
+      ? messages
+      : [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ]
+
+    // Gemini uses roles: user | model. Use system_instruction for system prompt.
+    const systemText = String(system || '').trim()
+    const contents = payloadMessages
+      .filter((m) => m && typeof m.content === 'string')
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .map((m) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      }))
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+      model
+    )}:generateContent?key=${encodeURIComponent(apiKey)}`
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...(systemText ? { system_instruction: { parts: [{ text: systemText }] } } : {}),
+        contents,
+        generationConfig: {
+          temperature: 0.5,
+          maxOutputTokens: 350,
+        },
+      }),
+    })
+
+    if (!res.ok) {
+      console.error('Gemini API error', await res.text())
+      return null
+    }
+
+    const data = await res.json()
+    const parts = data?.candidates?.[0]?.content?.parts
+    if (!Array.isArray(parts) || !parts.length) return null
+    return parts.map((p) => p?.text).filter(Boolean).join('').trim() || null
+  } catch (err) {
+    console.error('Failed to call Gemini', err)
+    return null
+  }
+}
+
+async function callProvider({ provider, system, user, messages, modelOverride }) {
+  if (provider === 'groq' && GROQ_API_KEY) {
+    return callOpenAICompatibleChat({
+      apiKey: GROQ_API_KEY,
+      baseUrl: 'https://api.groq.com/openai/v1',
+      model: modelOverride || GROQ_MODEL,
+      system,
+      user,
+      messages,
+      providerLabel: 'Groq',
+    })
+  }
+
+  if (provider === 'openai' && OPENAI_API_KEY) {
+    return callOpenAICompatibleChat({
+      apiKey: OPENAI_API_KEY,
+      baseUrl: 'https://api.openai.com/v1',
+      model: modelOverride || 'gpt-4o-mini',
+      system,
+      user,
+      messages,
+      providerLabel: 'OpenAI',
+    })
+  }
+
+  if (provider === 'gemini' && GEMINI_API_KEY) {
+    return callGeminiGenerateContent({
+      apiKey: GEMINI_API_KEY,
+      model: modelOverride || GEMINI_MODEL,
+      system,
+      user,
+      messages,
+    })
+  }
+
+  return null
+}
+
 async function generateLLMReply({ message, memoryContext, systemPrompt, history }) {
   const defaultSystem = [
     'You are LifeSync, a personal wellness companion.',
@@ -80,30 +189,9 @@ async function generateLLMReply({ message, memoryContext, systemPrompt, history 
 
   const user = `Question: ${message}\n\nRecent context: ${memoryContext}`
 
-  // Prefer Groq if configured, otherwise fall back to OpenAI
-  if (GROQ_API_KEY) {
-    const reply = await callChatApi({
-      apiKey: GROQ_API_KEY,
-      baseUrl: 'https://api.groq.com/openai/v1',
-      model: GROQ_MODEL,
-      system,
-      user,
-      messages,
-      providerLabel: 'Groq',
-    })
-    if (reply) return reply
-  }
-
-  if (OPENAI_API_KEY) {
-    const reply = await callChatApi({
-      apiKey: OPENAI_API_KEY,
-      baseUrl: 'https://api.openai.com/v1',
-      model: 'gpt-4o-mini',
-      system,
-      user,
-      messages,
-      providerLabel: 'OpenAI',
-    })
+  for (const p of providerOrder()) {
+    if (!hasKey(p)) continue
+    const reply = await callProvider({ provider: p, system, user, messages })
     if (reply) return reply
   }
 
@@ -120,7 +208,7 @@ async function generateNutritionSemanticJson({
   userProfile,
 }) {
   // If no provider key is configured, skip semantic layer.
-  if (!GROQ_API_KEY && !OPENAI_API_KEY) return null
+  if (!GROQ_API_KEY && !OPENAI_API_KEY && !GEMINI_API_KEY) return null
 
   const system = [
     'You are LifeSync Nutrition Semantic Layer.',
@@ -172,29 +260,9 @@ async function generateNutritionSemanticJson({
     }
   }
 
-  // Prefer Groq if configured, otherwise fall back to OpenAI.
-  if (GROQ_API_KEY) {
-    const reply = await callChatApi({
-      apiKey: GROQ_API_KEY,
-      baseUrl: 'https://api.groq.com/openai/v1',
-      model: GROQ_MODEL,
-      system,
-      user,
-      providerLabel: 'Groq',
-    })
-    const parsed = parseJson(reply)
-    if (parsed) return parsed
-  }
-
-  if (OPENAI_API_KEY) {
-    const reply = await callChatApi({
-      apiKey: OPENAI_API_KEY,
-      baseUrl: 'https://api.openai.com/v1',
-      model: 'gpt-4o-mini',
-      system,
-      user,
-      providerLabel: 'OpenAI',
-    })
+  for (const p of providerOrder()) {
+    if (!hasKey(p)) continue
+    const reply = await callProvider({ provider: p, system, user })
     const parsed = parseJson(reply)
     if (parsed) return parsed
   }
@@ -210,7 +278,7 @@ async function generateNutritionHypothesisJson({
   uncertainty,
   userProfile,
 }) {
-  if (!GROQ_API_KEY && !OPENAI_API_KEY) return null
+  if (!GROQ_API_KEY && !OPENAI_API_KEY && !GEMINI_API_KEY) return null
 
   const system = [
     'You are LifeSync Hypothesis Generator.',
@@ -253,28 +321,9 @@ async function generateNutritionHypothesisJson({
     }
   }
 
-  if (GROQ_API_KEY) {
-    const reply = await callChatApi({
-      apiKey: GROQ_API_KEY,
-      baseUrl: 'https://api.groq.com/openai/v1',
-      model: GROQ_MODEL,
-      system,
-      user,
-      providerLabel: 'Groq',
-    })
-    const parsed = parseJson(reply)
-    if (parsed) return parsed
-  }
-
-  if (OPENAI_API_KEY) {
-    const reply = await callChatApi({
-      apiKey: OPENAI_API_KEY,
-      baseUrl: 'https://api.openai.com/v1',
-      model: 'gpt-4o-mini',
-      system,
-      user,
-      providerLabel: 'OpenAI',
-    })
+  for (const p of providerOrder()) {
+    if (!hasKey(p)) continue
+    const reply = await callProvider({ provider: p, system, user })
     const parsed = parseJson(reply)
     if (parsed) return parsed
   }

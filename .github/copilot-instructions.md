@@ -1,4 +1,4 @@
-Master UI Design System Prompt
+<!-- Master UI Design System Prompt
 Final Master UI Prompt
 
 Master UI Design System Prompt by OKAashish
@@ -64,4 +64,88 @@ When interpreting instructions, default to originality over safety. If the resul
 
 Design with conviction. Tell stories worth experiencing. Create interfaces that feel unmistakably human.
 
-</UI_aesthetics>
+</UI_aesthetics> -->
+
+You are working on an existing MERN-based project called LifeSync.
+The current system is a multi-module wellness tracker.
+
+Your task is NOT to add more features.
+Your task is to refactor the system into a Personal Life OS.
+
+HIGH-LEVEL GOAL:
+Transform LifeSync from a feature-driven tracker into a meaning-driven system that:
+- Treats a day as a holistic state, not isolated logs
+- Builds layered memory (raw → patterns → identity)
+- Produces fewer but higher-confidence insights
+- Uses chat as a primary low-friction input channel
+- Defaults to silence and reflection over advice
+
+CORE CONSTRAINTS:
+- Do NOT break existing APIs immediately; extend gradually
+- Deterministic logic first, LLM only for narration
+- No medical diagnosis or prescriptive behavior
+- Respect user autonomy and low-energy days
+
+IMPLEMENTATION TASKS (CONCEPTUAL FIRST):
+
+1. Introduce a new derived model called DailyLifeState:
+   - One per user per day
+   - Derived from logs, chat, habits, symptoms, labs
+   - Stores normalized signals (sleep, nutrition, stress, training, mood)
+   - Includes a summaryState (stable / overloaded / depleted / recovering)
+   - Includes confidence scores per signal
+   - This model becomes the main source for insights and dashboards
+
+2. Refactor logging pipelines so:
+   - Fitness, nutrition, mental, symptoms, habits update DailyLifeState
+   - Dashboards read from DailyLifeState, not raw logs
+
+3. Introduce Memory Layers:
+   a) PatternMemory:
+      - Stores repeated correlations across days
+      - Example: low sleep → next day low energy
+      - Includes confidence, frequency, lastObserved
+   b) IdentityMemory:
+      - Stores stable personal truths
+      - Example: "Sleep is a keystone habit for this user"
+
+4. Implement an Insight Gatekeeper:
+   - All insights must pass through it
+   - It decides between:
+     - silence
+     - gentle reflection
+     - insight
+     - guidance (only if user explicitly asks)
+   - Low confidence → silence
+
+5. Refactor AI Chat:
+   - Chat input must be able to:
+     - Create or update logs implicitly
+     - Update DailyLifeState
+     - Feed PatternMemory and IdentityMemory silently
+   - Support modes:
+     - vent (default)
+     - reflect
+     - insight
+     - fix-it (explicit user permission)
+   - Never give unsolicited advice
+
+6. Replace DailyInsights with StateReflections:
+   - Centered around DailyLifeState
+   - Nutrition, labs, symptoms are supporting evidence
+   - Fewer insights, higher confidence
+
+
+8. Add user memory control:
+   - Allow marking periods as temporary
+   - Allow forgetting or downgrading past signals
+
+IMPORTANT BEHAVIORAL RULES:
+- Silence is the default
+- The system should speak less as it gets smarter
+- The assistant should feel calm, reflective, and non-judgmental
+- Never explain internal mechanics unless asked
+
+Work step-by-step.
+Start by proposing the DailyLifeState model and how existing modules feed into it.
+Do NOT implement everything at once.

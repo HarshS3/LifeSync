@@ -1,8 +1,26 @@
 # LifeSync
 
-LifeSync is a personal wellness + lifestyle tracking app (MERN-style) with an AI assistant and an “advanced nutrition” pipeline.
+LifeSync is a Personal Life OS (MERN-style) built around *daily state* rather than isolated logs. It includes an AI assistant, an “advanced nutrition” pipeline, and a deterministic derived layer that produces fewer, higher-confidence reflections.
+
+**Key idea:** raw logs → `DailyLifeState` → memory layers → gated reflections (silence by default).
 
 This README is intended to be a *developer handbook*: how the system is wired, what each module does, every API endpoint, and the data model behind it.
+
+---
+
+## Life OS architecture (high level)
+
+- `DailyLifeState` (derived, one per user per day): normalized signals (sleep/nutrition/stress/training/mood) + `summaryState`.
+- `PatternMemory` (derived, across days): repeated correlations (confidence + decay).
+- `IdentityMemory` (derived, slow): stable personal truths (conservative confidence + stability).
+- `MemoryOverride` (internal control): attenuates reinforcement for specified day ranges/scopes (lets temporary phases matter less).
+- `StateReflections` (replaces “DailyInsights” UX): transient, gated text delivered via `X-LifeSync-State-Reflection` response header on `GET /api/daily-life-state/:dayKey`.
+
+Important behavioral rules:
+
+- Silence is the default.
+- Deterministic logic first; LLM only for narration when allowed.
+- No medical diagnosis or unsolicited advice.
 
 ---
 
@@ -32,6 +50,8 @@ ai_service/ Optional Python microservice for Medical Textbook RAG
 - Node.js 18+ (server uses global `fetch`)
 - MongoDB running locally (or MongoDB Atlas URI)
 
+Tip (VS Code): use tasks `lifesync: server dev` and `lifesync: client dev` from the Command Palette.
+
 ### Start the server
 
 ```bash
@@ -44,6 +64,11 @@ Create `server/.env` (copy from `server/.env.example`):
 ```dotenv
 MONGO_URI=mongodb://localhost:27017/lifesync
 JWT_SECRET=your_jwt_secret
+
+# Optional: if MONGO_URI is an Atlas mongodb+srv URI and SRV DNS is blocked,
+# the server will fall back to local MongoDB in dev.
+MONGO_URI_LOCAL=mongodb://localhost:27017/lifesync
+MONGO_URI_FALLBACK_LOCAL=1
 
 # Email reminders (optional)
 GMAIL_USER=your_gmail_address@gmail.com
@@ -69,6 +94,11 @@ FATSECRET_API_BASE=https://platform.fatsecret.com/rest/server.api
 # Daily insights LLM narrative (optional)
 DAILY_INSIGHTS_LLM=0
 ```
+
+MongoDB note (Windows / restricted DNS):
+
+- If you see `querySrv ECONNREFUSED _mongodb._tcp...`, Atlas SRV lookup is blocked.
+- In dev, the server retries with `MONGO_URI_LOCAL` when that happens.
 
 Run:
 
@@ -106,6 +136,17 @@ VITE_API_BASE_URL=http://localhost:5000
 ```
 
 ---
+
+## Dev scripts (repeatable + non-destructive)
+
+These scripts are intended for deterministic end-to-end validation without wiping existing data.
+
+- `node server/scripts/test_cycle_run.js`: seeds two isolated test users (control vs override), triggers recompute through real routes, and prints PatternMemory + chat outputs.
+- `node server/scripts/test_create_user.js`: creates a unique test user per run (defaults to *no deletes*).
+
+Optional flags:
+
+- `LIFESYNC_TEST_CLEAR=1`: allow destructive clearing for that specific test user (off by default).
 
 ## Client modules (what’s in the UI)
 

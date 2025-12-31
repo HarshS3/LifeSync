@@ -112,7 +112,7 @@ const ForgotPassword = () => {
               Return to Sign In
             </Button>
             <Typography variant="caption" sx={{ color: '#9ca3af', textAlign: 'center' }}>
-              In dev, the reset link is printed in the server console.
+              In dev, if email sending fails, the reset link is printed in the server console.
             </Typography>
           </Box>
         </form>

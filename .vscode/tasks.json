@@ -4,14 +4,20 @@
     {
       "label": "lifesync: server dev",
       "type": "shell",
-      "command": "cd server && npm run dev",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      },
       "group": "build",
       "problemMatcher": []
     },
     {
       "label": "lifesync: client dev",
       "type": "shell",
-      "command": "cd client && npm run dev",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/client"
+      },
       "group": "build",
       "problemMatcher": []
     }

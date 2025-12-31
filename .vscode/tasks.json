@@ -1,25 +1,65 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "lifesync: server dev",
-      "type": "shell",
-      "command": "npm run dev",
-      "options": {
-        "cwd": "${workspaceFolder}/server"
-      },
-      "group": "build",
-      "problemMatcher": []
-    },
-    {
-      "label": "lifesync: client dev",
-      "type": "shell",
-      "command": "npm run dev",
-      "options": {
-        "cwd": "${workspaceFolder}/client"
-      },
-      "group": "build",
-      "problemMatcher": []
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "lifesync: server dev",
+			"type": "shell",
+			"command": "npm run dev",
+			"options": {
+				"cwd": "${workspaceFolder}/server"
+			},
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "lifesync: client dev",
+			"type": "shell",
+			"command": "npm run dev",
+			"options": {
+				"cwd": "${workspaceFolder}/client"
+			},
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "lifesync: seed demo showcase",
+			"type": "shell",
+			"command": "cd server; node .\\scripts\\seed_demo_showcase.js",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "lifesync: seed demo showcase",
+			"type": "shell",
+			"command": "cd server; node .\\scripts\\seed_demo_showcase.js",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "lifesync: seed demo showcase (print patterns)",
+			"type": "shell",
+			"command": "cd server; node .\\scripts\\seed_demo_showcase.js",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "lifesync: seed demo showcase (verify low_sleep pattern)",
+			"type": "shell",
+			"command": "cd server; node .\\scripts\\seed_demo_showcase.js",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "lifesync: seed demo showcase (tail output)",
+			"type": "shell",
+			"command": "cd server; node .\\scripts\\seed_demo_showcase.js",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
 }

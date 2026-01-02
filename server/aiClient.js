@@ -4,6 +4,12 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash'
 
+const LLM_MAX_OUTPUT_TOKENS = (() => {
+  const raw = Number.parseInt(String(process.env.LLM_MAX_OUTPUT_TOKENS || '700').trim(), 10)
+  if (!Number.isFinite(raw)) return 700
+  return Math.max(128, Math.min(2048, raw))
+})()
+
 const LLM_PROVIDER = String(process.env.LLM_PROVIDER || 'auto').trim().toLowerCase()
 
 function providerOrder() {
@@ -49,7 +55,7 @@ async function callOpenAICompatibleChat({
         model,
         messages: payloadMessages,
         temperature: 0.5,
-        max_tokens: 350,
+        max_tokens: LLM_MAX_OUTPUT_TOKENS,
       }),
     })
 
@@ -97,13 +103,44 @@ async function callGeminiGenerateContent({ apiKey, model, system, user, messages
         contents,
         generationConfig: {
           temperature: 0.5,
-          maxOutputTokens: 350,
+          maxOutputTokens: LLM_MAX_OUTPUT_TOKENS,
         },
       }),
     })
 
     if (!res.ok) {
-      console.error('Gemini API error', await res.text())
+      const errText = await res.text()
+      console.error('Gemini API error', errText)
+
+      // User-friendly rate limit handling.
+      {
+        const lowered = String(errText || '').toLowerCase()
+        const isRateLimit = res.status === 429 || lowered.includes('resource_exhausted') || lowered.includes('quota')
+        if (isRateLimit) {
+          let retrySeconds = null
+          const m = lowered.match(/retry in\s+([0-9]+\.?[0-9]*)s/)
+          if (m && m[1]) {
+            const n = Number.parseFloat(m[1])
+            if (Number.isFinite(n)) retrySeconds = n
+          }
+
+          if (retrySeconds != null) {
+            return `I\'m temporarily rate-limited. Please try again in about ${Math.ceil(
+              retrySeconds
+            )} seconds.`
+          }
+          return "I'm temporarily rate-limited. Please try again in about a minute."
+        }
+      }
+
+      // Dev-friendly message when the key is present but invalid.
+      if (String(process.env.NODE_ENV || '').trim() !== 'production') {
+        const lowered = String(errText || '').toLowerCase()
+        if (lowered.includes('api key not valid') || lowered.includes('api_key_invalid')) {
+          return 'AI provider configuration error: GEMINI_API_KEY is invalid. Update server/.env with a valid key and restart the server.'
+        }
+      }
+
       return null
     }
 
@@ -155,12 +192,12 @@ async function callProvider({ provider, system, user, messages, modelOverride })
   return null
 }
 
-async function generateLLMReply({ message, memoryContext, systemPrompt, history }) {
+async function generateLLMReply({ message, memoryContext, systemPrompt, history, providerOverride, modelOverride }) {
   const defaultSystem = [
     'You are LifeSync, a personal wellness companion.',
     'You have access to the user\'s fitness, nutrition, sleep, mental health, medications, and habit data.',
     'IMPORTANT: Only mention data that is DIRECTLY relevant to the user\'s question.',
-    'Do NOT list all their stats or data in every response - be concise and natural.',
+    'Do NOT list all their stats or data in every response. Stay focused, natural, and avoid data-dumps.',
     'If they ask about sleep, focus on sleep. If they ask about habits, focus on habits.',
     'Be conversational and human, not a data dump.',
     'Avoid medical diagnosis. You may describe symptom patterns and risk levels, but do not label diseases.',
@@ -168,7 +205,7 @@ async function generateLLMReply({ message, memoryContext, systemPrompt, history 
     'You must NOT do: prescriptions, medication dosing, starting/stopping meds, deterministic medical claims.',
     'Use uncertainty-aware language (e.g., "may", "could", "can be worth checking").',
     'If red flags are present, advise urgent professional evaluation (without prescribing a treatment).',
-    'Keep responses brief unless they ask for detail.',
+    'Default to 1–2 short paragraphs. Be concise, but not overly short unless the user asks for brevity.',
   ].join(' ')
 
   const system = (systemPrompt && String(systemPrompt).trim()) ? String(systemPrompt).trim() : defaultSystem
@@ -189,9 +226,15 @@ async function generateLLMReply({ message, memoryContext, systemPrompt, history 
 
   const user = `Question: ${message}\n\nRecent context: ${memoryContext}`
 
-  for (const p of providerOrder()) {
+  const order = (() => {
+    const po = providerOverride ? String(providerOverride).trim().toLowerCase() : ''
+    if (!po) return providerOrder()
+    return [po]
+  })()
+
+  for (const p of order) {
     if (!hasKey(p)) continue
-    const reply = await callProvider({ provider: p, system, user, messages })
+    const reply = await callProvider({ provider: p, system, user, messages, modelOverride })
     if (reply) return reply
   }
 

@@ -9,6 +9,14 @@ const MedicationSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const LabValueSchema = new mongoose.Schema(
+  {
+    value: Number,
+    unit: String,
+  },
+  { _id: false }
+);
+
 const UserSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
@@ -32,6 +40,27 @@ const UserSchema = new mongoose.Schema(
     injuries: [String],
     medications: [MedicationSchema],
     supplements: [String],
+
+    // Key Lab Markers (manual entry or OCR import)
+    labMarkers: {
+      hemoglobin: LabValueSchema,
+      ferritin: LabValueSchema,
+      iron: LabValueSchema,
+      vitaminB12: LabValueSchema,
+      vitaminD: LabValueSchema,
+      tsh: LabValueSchema,
+      crp: LabValueSchema,
+      fastingGlucose: LabValueSchema,
+      hba1c: LabValueSchema,
+      lipids: {
+        totalCholesterol: LabValueSchema,
+        ldl: LabValueSchema,
+        hdl: LabValueSchema,
+        triglycerides: LabValueSchema,
+      },
+      updatedAt: Date,
+      source: { type: String, enum: ['manual', 'ocr'], default: 'manual' },
+    },
     
     // Diet Preferences
     dietType: { type: String, default: 'omnivore' },

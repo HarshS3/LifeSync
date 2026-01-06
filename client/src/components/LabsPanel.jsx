@@ -72,6 +72,11 @@ function LabsPanel() {
     results: [newResultRow(), newResultRow(), newResultRow()],
   })
 
+  const [ocrFile, setOcrFile] = useState(null)
+  const [ocrText, setOcrText] = useState('')
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [ocrError, setOcrError] = useState('')
+
   const headers = useMemo(() => {
     const h = { 'Content-Type': 'application/json' }
     if (token) h.Authorization = `Bearer ${token}`
@@ -102,6 +107,47 @@ function LabsPanel() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
+
+  const runOcr = async () => {
+    if (!token) {
+      setOcrError('Please sign in to use OCR.')
+      return
+    }
+    if (!ocrFile) {
+      setOcrError('Please choose an image first.')
+      return
+    }
+
+    setOcrLoading(true)
+    setOcrError('')
+    try {
+      const fd = new FormData()
+      fd.append('image', ocrFile)
+
+      const res = await fetch(`${API_BASE}/api/labs/ocr`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      })
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null)
+        throw new Error(errJson?.error || `OCR failed (${res.status})`)
+      }
+
+      const data = await res.json().catch(() => null)
+      const text = String(data?.text || '')
+      setOcrText(text)
+      // For now: print OCR output in console (as requested)
+      // Server also prints it.
+      // eslint-disable-next-line no-console
+      console.log('[Lab OCR] Extracted text:\n' + text)
+    } catch (e) {
+      setOcrError(e.message || 'OCR failed')
+    } finally {
+      setOcrLoading(false)
+    }
+  }
 
   const resetForm = () => {
     setEditingId(null)
@@ -237,6 +283,56 @@ function LabsPanel() {
           {error}
         </Alert>
       )}
+
+      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#171717', mb: 1 }}>
+          OCR (image → text)
+        </Typography>
+        <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+          Upload a lab image to extract text. (Temporary: prints OCR output to console.)
+        </Typography>
+
+        {ocrError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {ocrError}
+          </Alert>
+        )}
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 2, alignItems: { sm: 'center' } }}>
+          <Button variant="outlined" component="label" disabled={!token || ocrLoading}>
+            Choose image
+            <input
+              hidden
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={(e) => {
+                const f = e.target.files?.[0] || null
+                setOcrFile(f)
+                setOcrText('')
+                setOcrError('')
+              }}
+            />
+          </Button>
+
+          <Typography variant="body2" sx={{ color: '#6b7280', flex: 1 }} noWrap>
+            {ocrFile ? ocrFile.name : 'No file selected'}
+          </Typography>
+
+          <Button variant="contained" onClick={runOcr} disabled={!token || !ocrFile || ocrLoading}>
+            {ocrLoading ? 'Running…' : 'Run OCR'}
+          </Button>
+        </Stack>
+
+        <TextField
+          label="Extracted text"
+          value={ocrText}
+          onChange={(e) => setOcrText(e.target.value)}
+          placeholder="OCR output will appear here…"
+          fullWidth
+          multiline
+          minRows={4}
+        />
+      </Box>
 
       <Box
         sx={{

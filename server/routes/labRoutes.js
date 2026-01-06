@@ -1,11 +1,64 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const pdfParse = require('pdf-parse');
 const LabReport = require('../models/LabReport');
 const { dayKeyFromDate } = require('../services/dailyLifeState/dayKey');
 const { triggerDailyLifeStateRecompute } = require('../services/dailyLifeState/triggerDailyLifeStateRecompute');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 8 * 1024 * 1024,
+  },
+});
+
+let ocrWorkerPromise = null;
+let ocrQueue = Promise.resolve();
+
+function enqueueOcr(task) {
+  const run = () => Promise.resolve().then(task);
+  const p = ocrQueue.then(run, run);
+  ocrQueue = p.catch(() => {});
+  return p;
+}
+
+async function getOcrWorker() {
+  if (ocrWorkerPromise) return ocrWorkerPromise;
+  ocrWorkerPromise = (async () => {
+    const mod = await import('tesseract.js');
+    const createWorker = mod?.createWorker || mod?.default?.createWorker;
+    if (typeof createWorker !== 'function') {
+      throw new Error('tesseract.js createWorker() not available');
+    }
+
+    // NOTE: Don't pass functions (like logger callbacks) into worker options.
+    // Node's structured clone (Node 24+) will throw DataCloneError.
+    const worker = await createWorker();
+    if (typeof worker.loadLanguage === 'function' && typeof worker.initialize === 'function') {
+      await worker.loadLanguage('eng');
+      await worker.initialize('eng');
+    }
+    return worker;
+  })();
+  return ocrWorkerPromise;
+}
+
+async function ocrImageBuffer(buffer) {
+  const worker = await getOcrWorker();
+  const result = await worker.recognize(buffer);
+  const text = result?.data?.text ? String(result.data.text) : '';
+  return text;
+}
+
+async function extractTextFromPdfBuffer(buffer) {
+  const data = await pdfParse(buffer);
+  const text = data?.text ? String(data.text) : '';
+  return text;
+}
 
 const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -21,6 +74,44 @@ const authMiddleware = (req, res, next) => {
     return res.status(401).json({ error: 'Invalid token' });
   }
 };
+
+// OCR an uploaded lab image (temporary feature: prints OCR output to server console)
+// POST /api/labs/ocr (multipart/form-data: image=<file>)
+router.post('/ocr', authMiddleware, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file?.buffer) {
+      return res.status(400).json({ error: 'image file is required' });
+    }
+
+    const { originalname, mimetype, size } = req.file;
+    console.log('[Lab OCR] start', { userId: req.userId, originalname, mimetype, size });
+
+    const name = String(originalname || '').toLowerCase();
+    const isPdf = mimetype === 'application/pdf' || name.endsWith('.pdf');
+    const isImage = typeof mimetype === 'string' && mimetype.startsWith('image/');
+    if (!isPdf && !isImage) {
+      return res.status(400).json({
+        error: 'Unsupported file type. Upload an image (PNG/JPG) or a PDF.',
+      });
+    }
+
+    // PDFs: attempt direct text extraction (works for text-based lab PDFs).
+    // Images: use OCR.
+    if (isPdf) {
+      const text = await extractTextFromPdfBuffer(req.file.buffer);
+      console.log('[Lab OCR] extracted text (pdf):\n' + text);
+      return res.json({ text });
+    }
+
+    const text = await enqueueOcr(() => ocrImageBuffer(req.file.buffer));
+
+    console.log('[Lab OCR] extracted text:\n' + text);
+    res.json({ text });
+  } catch (err) {
+    console.error('[Lab OCR] failed:', err);
+    res.status(500).json({ error: 'Failed to OCR image' });
+  }
+});
 
 function parseDateParam(s) {
   if (!s) return null;

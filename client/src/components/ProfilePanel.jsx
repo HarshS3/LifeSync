@@ -39,6 +39,9 @@ function ProfilePanel() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [newMedication, setNewMedication] = useState({ name: '', dosage: '', schedule: '' })
+  const [ocrFile, setOcrFile] = useState(null)
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [ocrError, setOcrError] = useState('')
 
   const [profile, setProfile] = useState({
     // Basic Info
@@ -62,6 +65,27 @@ function ProfilePanel() {
     // Medicines
     medications: [],
     supplements: [],
+
+    // Key Lab Markers
+    labMarkers: {
+      hemoglobin: { value: '', unit: '' },
+      ferritin: { value: '', unit: '' },
+      iron: { value: '', unit: '' },
+      vitaminB12: { value: '', unit: '' },
+      vitaminD: { value: '', unit: '' },
+      tsh: { value: '', unit: '' },
+      crp: { value: '', unit: '' },
+      fastingGlucose: { value: '', unit: '' },
+      hba1c: { value: '', unit: '' },
+      lipids: {
+        totalCholesterol: { value: '', unit: '' },
+        ldl: { value: '', unit: '' },
+        hdl: { value: '', unit: '' },
+        triglycerides: { value: '', unit: '' },
+      },
+      updatedAt: '',
+      source: 'manual',
+    },
     
     // Diet Preferences
     dietType: 'omnivore',
@@ -140,6 +164,34 @@ function ProfilePanel() {
           favoriteColors: data.favoriteColors || [],
           avoidColors: data.avoidColors || [],
           styleGoals: data.styleGoals || [],
+
+          labMarkers: {
+            ...prev.labMarkers,
+            ...(data.labMarkers || {}),
+            hemoglobin: { ...prev.labMarkers.hemoglobin, ...(data.labMarkers?.hemoglobin || {}) },
+            ferritin: { ...prev.labMarkers.ferritin, ...(data.labMarkers?.ferritin || {}) },
+            iron: { ...prev.labMarkers.iron, ...(data.labMarkers?.iron || {}) },
+            vitaminB12: { ...prev.labMarkers.vitaminB12, ...(data.labMarkers?.vitaminB12 || {}) },
+            vitaminD: { ...prev.labMarkers.vitaminD, ...(data.labMarkers?.vitaminD || {}) },
+            tsh: { ...prev.labMarkers.tsh, ...(data.labMarkers?.tsh || {}) },
+            crp: { ...prev.labMarkers.crp, ...(data.labMarkers?.crp || {}) },
+            fastingGlucose: { ...prev.labMarkers.fastingGlucose, ...(data.labMarkers?.fastingGlucose || {}) },
+            hba1c: { ...prev.labMarkers.hba1c, ...(data.labMarkers?.hba1c || {}) },
+            lipids: {
+              ...prev.labMarkers.lipids,
+              ...(data.labMarkers?.lipids || {}),
+              totalCholesterol: {
+                ...prev.labMarkers.lipids.totalCholesterol,
+                ...(data.labMarkers?.lipids?.totalCholesterol || {}),
+              },
+              ldl: { ...prev.labMarkers.lipids.ldl, ...(data.labMarkers?.lipids?.ldl || {}) },
+              hdl: { ...prev.labMarkers.lipids.hdl, ...(data.labMarkers?.lipids?.hdl || {}) },
+              triglycerides: {
+                ...prev.labMarkers.lipids.triglycerides,
+                ...(data.labMarkers?.lipids?.triglycerides || {}),
+              },
+            },
+          },
         }))
       }
     } catch (err) {
@@ -150,6 +202,55 @@ function ProfilePanel() {
 
   const handleSave = async () => {
     setSaving(true)
+
+    const normalizeLabMarkersForSave = (labMarkers) => {
+      const normalizeValue = (obj) => {
+        if (!obj || obj.value === '' || obj.value == null) return undefined
+        const n = Number(obj.value)
+        if (!Number.isFinite(n)) return undefined
+        return { value: n, unit: obj.unit ? String(obj.unit) : '' }
+      }
+
+      const lipids = labMarkers?.lipids || {}
+      const normalized = {
+        hemoglobin: normalizeValue(labMarkers?.hemoglobin),
+        ferritin: normalizeValue(labMarkers?.ferritin),
+        iron: normalizeValue(labMarkers?.iron),
+        vitaminB12: normalizeValue(labMarkers?.vitaminB12),
+        vitaminD: normalizeValue(labMarkers?.vitaminD),
+        tsh: normalizeValue(labMarkers?.tsh),
+        crp: normalizeValue(labMarkers?.crp),
+        fastingGlucose: normalizeValue(labMarkers?.fastingGlucose),
+        hba1c: normalizeValue(labMarkers?.hba1c),
+        lipids: {
+          totalCholesterol: normalizeValue(lipids?.totalCholesterol),
+          ldl: normalizeValue(lipids?.ldl),
+          hdl: normalizeValue(lipids?.hdl),
+          triglycerides: normalizeValue(lipids?.triglycerides),
+        },
+        source: labMarkers?.source || 'manual',
+        updatedAt: labMarkers?.updatedAt ? new Date(labMarkers.updatedAt) : undefined,
+      }
+
+      const pruneUndefined = (o) => {
+        if (!o || typeof o !== 'object') return o
+        const out = Array.isArray(o) ? [] : {}
+        for (const [k, v] of Object.entries(o)) {
+          if (v === undefined) continue
+          if (v && typeof v === 'object' && !Array.isArray(v)) {
+            const child = pruneUndefined(v)
+            if (child && typeof child === 'object' && Object.keys(child).length === 0) continue
+            out[k] = child
+          } else {
+            out[k] = v
+          }
+        }
+        return out
+      }
+
+      return pruneUndefined(normalized)
+    }
+
     try {
       const res = await fetch(`${API_BASE}/api/users/profile`, {
         method: 'PUT',
@@ -157,7 +258,10 @@ function ProfilePanel() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(profile),
+        body: JSON.stringify({
+          ...profile,
+          labMarkers: normalizeLabMarkersForSave(profile.labMarkers),
+        }),
       })
       if (res.ok) {
         alert('Profile saved!')
@@ -174,6 +278,204 @@ function ProfilePanel() {
 
   const updateField = (field, value) => {
     setProfile(prev => ({ ...prev, [field]: value }))
+  }
+
+  const updateLabMarker = (key, value) => {
+    setProfile(prev => ({
+      ...prev,
+      labMarkers: {
+        ...prev.labMarkers,
+        [key]: { ...(prev.labMarkers?.[key] || {}), value },
+        source: 'manual',
+        updatedAt: new Date().toISOString(),
+      },
+    }))
+  }
+
+  const updateLipidMarker = (key, value) => {
+    setProfile(prev => ({
+      ...prev,
+      labMarkers: {
+        ...prev.labMarkers,
+        lipids: {
+          ...(prev.labMarkers?.lipids || {}),
+          [key]: { ...((prev.labMarkers?.lipids || {})[key] || {}), value },
+        },
+        source: 'manual',
+        updatedAt: new Date().toISOString(),
+      },
+    }))
+  }
+
+  const parseMarkersFromOcrText = (rawText) => {
+    const text = String(rawText || '')
+      .replace(/\r/g, '\n')
+      .replace(/[\t\u00A0]+/g, ' ')
+      .replace(/\s+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+
+    const lines = text
+      .split('\n')
+      .map((l) => l.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+
+    const parseNumberFromString = (s) => {
+      const m = String(s || '').match(/(-?\d+(?:[\.,]\d+)?)/)
+      if (!m) return null
+      const n = Number(String(m[1]).replace(',', '.'))
+      return Number.isFinite(n) ? n : null
+    }
+
+    const findNumberAfterMatch = (s, matchIndex, matchText) => {
+      const start = Math.max(0, (matchIndex || 0) + String(matchText || '').length)
+      const window = String(s || '').slice(start, start + 140)
+      return parseNumberFromString(window)
+    }
+
+    // Prefer a line-based parse (common for PDFs / tables). If the line has no number, look at the next line.
+    const findNumberFor = (labelRegexes) => {
+      // 1) Try per-line: extract number AFTER the label match on that line
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        for (const re of labelRegexes) {
+          const m = re.exec(line)
+          if (!m) continue
+          const sameLineAfter = findNumberAfterMatch(line, m.index, m[0])
+          if (sameLineAfter != null) return sameLineAfter
+
+          const next = lines[i + 1] || ''
+          const nextLineAny = parseNumberFromString(next)
+          if (nextLineAny != null) return nextLineAny
+        }
+      }
+
+      // 2) Fallback: search whole text and extract number AFTER label match
+      for (const re of labelRegexes) {
+        const m = re.exec(text)
+        if (!m) continue
+        const after = findNumberAfterMatch(text, m.index, m[0])
+        if (after != null) return after
+      }
+
+      return null
+    }
+
+    return {
+      hemoglobin: findNumberFor([/hemoglobin/i]),
+      ferritin: findNumberFor([/ferritin/i]),
+      iron: findNumberFor([/serum\s*iron/i, /\biron/i]),
+      vitaminB12: findNumberFor([/vitamin\s*b\s*12/i, /\bb\s*12/i, /cobalamin/i]),
+      vitaminD: findNumberFor([
+        /vitamin\s*d/i,
+        /25\s*\(?oh\)?\s*d/i,
+        /25\s*[-\s]*hydroxy(?:vitamin)?\s*d/i,
+      ]),
+      tsh: findNumberFor([/\btsh/i, /thyroid\s*stimulating\s*hormone/i]),
+      crp: findNumberFor([/\bcrp/i, /c\s*-?reactive\s*protein/i]),
+      fastingGlucose: findNumberFor([/fasting\s*glucose/i, /glucose\s*\(\s*fasting\s*\)/i]),
+      hba1c: findNumberFor([/hba1c/i, /\ba1c/i, /glycated\s*hemoglobin/i]),
+      lipids: {
+        totalCholesterol: findNumberFor([/total\s*cholesterol/i]),
+        ldl: findNumberFor([/\bldl/i, /low\s*density\s*lipoprotein/i]),
+        hdl: findNumberFor([/\bhdl/i, /high\s*density\s*lipoprotein/i]),
+        triglycerides: findNumberFor([/triglycerides?/i, /\btg/i]),
+      },
+    }
+  }
+
+  const importLabMarkersFromOcr = async () => {
+    if (!ocrFile || !token) return
+    setOcrError('')
+    setOcrLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append('image', ocrFile)
+
+      const res = await fetch(`${API_BASE}/api/labs/ocr`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(payload?.error || 'OCR failed')
+      }
+
+      const rawText = payload?.text || ''
+      console.log('[Lab OCR] Extracted text:\n' + rawText)
+
+      const extracted = parseMarkersFromOcrText(rawText)
+      console.log('[Profile Lab Markers] extracted', extracted)
+      setProfile(prev => ({
+        ...prev,
+        labMarkers: {
+          ...(prev.labMarkers || {}),
+          hemoglobin:
+            extracted.hemoglobin == null
+              ? prev.labMarkers?.hemoglobin
+              : { ...(prev.labMarkers?.hemoglobin || {}), value: String(extracted.hemoglobin) },
+          ferritin:
+            extracted.ferritin == null
+              ? prev.labMarkers?.ferritin
+              : { ...(prev.labMarkers?.ferritin || {}), value: String(extracted.ferritin) },
+          iron:
+            extracted.iron == null
+              ? prev.labMarkers?.iron
+              : { ...(prev.labMarkers?.iron || {}), value: String(extracted.iron) },
+          vitaminB12:
+            extracted.vitaminB12 == null
+              ? prev.labMarkers?.vitaminB12
+              : { ...(prev.labMarkers?.vitaminB12 || {}), value: String(extracted.vitaminB12) },
+          vitaminD:
+            extracted.vitaminD == null
+              ? prev.labMarkers?.vitaminD
+              : { ...(prev.labMarkers?.vitaminD || {}), value: String(extracted.vitaminD) },
+          tsh:
+            extracted.tsh == null
+              ? prev.labMarkers?.tsh
+              : { ...(prev.labMarkers?.tsh || {}), value: String(extracted.tsh) },
+          crp:
+            extracted.crp == null
+              ? prev.labMarkers?.crp
+              : { ...(prev.labMarkers?.crp || {}), value: String(extracted.crp) },
+          fastingGlucose:
+            extracted.fastingGlucose == null
+              ? prev.labMarkers?.fastingGlucose
+              : { ...(prev.labMarkers?.fastingGlucose || {}), value: String(extracted.fastingGlucose) },
+          hba1c:
+            extracted.hba1c == null
+              ? prev.labMarkers?.hba1c
+              : { ...(prev.labMarkers?.hba1c || {}), value: String(extracted.hba1c) },
+          lipids: {
+            ...(prev.labMarkers?.lipids || {}),
+            totalCholesterol:
+              extracted.lipids.totalCholesterol == null
+                ? prev.labMarkers?.lipids?.totalCholesterol
+                : { ...(prev.labMarkers?.lipids?.totalCholesterol || {}), value: String(extracted.lipids.totalCholesterol) },
+            ldl:
+              extracted.lipids.ldl == null
+                ? prev.labMarkers?.lipids?.ldl
+                : { ...(prev.labMarkers?.lipids?.ldl || {}), value: String(extracted.lipids.ldl) },
+            hdl:
+              extracted.lipids.hdl == null
+                ? prev.labMarkers?.lipids?.hdl
+                : { ...(prev.labMarkers?.lipids?.hdl || {}), value: String(extracted.lipids.hdl) },
+            triglycerides:
+              extracted.lipids.triglycerides == null
+                ? prev.labMarkers?.lipids?.triglycerides
+                : { ...(prev.labMarkers?.lipids?.triglycerides || {}), value: String(extracted.lipids.triglycerides) },
+          },
+          source: 'ocr',
+          updatedAt: new Date().toISOString(),
+        },
+      }))
+    } catch (e) {
+      setOcrError(e?.message || 'OCR failed')
+    } finally {
+      setOcrLoading(false)
+    }
   }
 
   const addMedication = () => {
@@ -419,6 +721,157 @@ function ProfilePanel() {
                 onChange={(items) => updateField('supplements', items)}
                 placeholder="Add supplement (e.g., Vitamin D, Creatine)"
               />
+            </Box>
+
+            <Box>
+              <SectionTitle>Key Lab Markers</SectionTitle>
+              <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+                Track a small set of labs that explain most fatigue, mood, recovery, and metabolic stability signals.
+              </Typography>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextField
+                    label="Hemoglobin"
+                    type="number"
+                    value={profile.labMarkers?.hemoglobin?.value ?? ''}
+                    onChange={(e) => updateLabMarker('hemoglobin', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                  <TextField
+                    label="Ferritin"
+                    type="number"
+                    value={profile.labMarkers?.ferritin?.value ?? ''}
+                    onChange={(e) => updateLabMarker('ferritin', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextField
+                    label="Iron"
+                    type="number"
+                    value={profile.labMarkers?.iron?.value ?? ''}
+                    onChange={(e) => updateLabMarker('iron', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                  <TextField
+                    label="Vitamin B12"
+                    type="number"
+                    value={profile.labMarkers?.vitaminB12?.value ?? ''}
+                    onChange={(e) => updateLabMarker('vitaminB12', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextField
+                    label="Vitamin D"
+                    type="number"
+                    value={profile.labMarkers?.vitaminD?.value ?? ''}
+                    onChange={(e) => updateLabMarker('vitaminD', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                  <TextField
+                    label="TSH"
+                    type="number"
+                    value={profile.labMarkers?.tsh?.value ?? ''}
+                    onChange={(e) => updateLabMarker('tsh', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextField
+                    label="CRP (optional)"
+                    type="number"
+                    value={profile.labMarkers?.crp?.value ?? ''}
+                    onChange={(e) => updateLabMarker('crp', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                  <TextField
+                    label="Fasting Glucose"
+                    type="number"
+                    value={profile.labMarkers?.fastingGlucose?.value ?? ''}
+                    onChange={(e) => updateLabMarker('fastingGlucose', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextField
+                    label="HbA1c"
+                    type="number"
+                    value={profile.labMarkers?.hba1c?.value ?? ''}
+                    onChange={(e) => updateLabMarker('hba1c', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                  <TextField
+                    label="Total Cholesterol"
+                    type="number"
+                    value={profile.labMarkers?.lipids?.totalCholesterol?.value ?? ''}
+                    onChange={(e) => updateLipidMarker('totalCholesterol', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextField
+                    label="LDL"
+                    type="number"
+                    value={profile.labMarkers?.lipids?.ldl?.value ?? ''}
+                    onChange={(e) => updateLipidMarker('ldl', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                  <TextField
+                    label="HDL"
+                    type="number"
+                    value={profile.labMarkers?.lipids?.hdl?.value ?? ''}
+                    onChange={(e) => updateLipidMarker('hdl', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextField
+                    label="Triglycerides"
+                    type="number"
+                    value={profile.labMarkers?.lipids?.triglycerides?.value ?? ''}
+                    onChange={(e) => updateLipidMarker('triglycerides', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                  <Box sx={{ flex: 1 }} />
+                </Box>
+
+                <Box sx={{ mt: 1, p: 2, bgcolor: '#f9fafb', borderRadius: 1, border: '1px solid #e5e7eb' }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1, color: '#374151', fontWeight: 600 }}>
+                    Update from Lab Report (OCR)
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={(e) => setOcrFile(e.target.files?.[0] || null)}
+                    />
+                    <Button
+                      variant="outlined"
+                      disabled={!ocrFile || ocrLoading}
+                      onClick={importLabMarkersFromOcr}
+                      sx={{ textTransform: 'none', borderColor: '#171717', color: '#171717', '&:hover': { borderColor: '#374151' } }}
+                    >
+                      {ocrLoading ? 'Reading...' : 'Import from Image'}
+                    </Button>
+                    {ocrError ? (
+                      <Typography variant="body2" sx={{ color: '#b91c1c' }}>
+                        {ocrError}
+                      </Typography>
+                    ) : null}
+                  </Box>
+                  <Typography variant="body2" sx={{ color: '#6b7280', mt: 1 }}>
+                    This will auto-fill the fields above; click “Save All” to persist.
+                  </Typography>
+                </Box>
+              </Box>
             </Box>
           </Box>
         )}

@@ -187,6 +187,265 @@ function detectExplicitInsightRequest(message) {
   return keywordMatchers.some((re) => re.test(s));
 }
 
+function detectDirectAnswerMode(message) {
+  const s = normalizeForIntent(message);
+  if (!s) return false;
+  return Boolean(
+    s.includes('just tell me') ||
+      s.includes('stop asking') ||
+      s.includes('dont ask') ||
+      s.includes("don't ask") ||
+      s.includes('no questions') ||
+      s.includes('you keep asking') ||
+      s.includes('why you keep asking') ||
+      s.includes('you keep repeating')
+  );
+}
+
+function detectDegradedState(message) {
+  const s = normalizeForIntent(message);
+  if (!s) return false;
+  return Boolean(
+    s.includes('feel off') ||
+      s.includes('off again') ||
+      s.includes('not myself') ||
+      s.includes('feel weird') ||
+      s.includes('something feels wrong')
+  );
+}
+
+function isMedicalConditionsQuestion(message) {
+  const s = normalizeForIntent(message);
+  if (!s) return false;
+  if (!isQuestionLike(message)) return false;
+  return Boolean(
+    (s.includes('my') && (s.includes('medical condition') || s.includes('health condition') || s.includes('conditions') || s.includes('diagnosis') || s.includes('diagnoses')))
+  );
+}
+
+function recentAssistantTurns(history, maxTurns = 3) {
+  if (!Array.isArray(history) || history.length === 0) return [];
+  const out = [];
+  for (let i = history.length - 1; i >= 0; i--) {
+    const h = history[i];
+    const role = String(h?.role || '').toLowerCase();
+    if (role !== 'assistant') continue;
+    const txt = String(h?.content || h?.message || '').trim();
+    if (!txt) continue;
+    out.push(txt);
+    if (out.length >= maxTurns) break;
+  }
+  return out;
+}
+
+function classifyFollowUpPattern(text) {
+  const s = normalizeForIntent(text);
+  if (!s) return 'generic';
+  if (s.includes('morning') && s.includes('afternoon') && s.includes('evening')) return 'timing';
+  if (s.includes('trigger') || s.includes('set off')) return 'triggers';
+  if (s.includes('workload') || s.includes('mentally heavy') || s.includes('socially heavy')) return 'workload';
+  if (s.includes('emotion') || s.includes('worry') || s.includes('frustration') || s.includes('pressure')) return 'emotional';
+  if (s.includes('restless') || (s.includes('sleep') && s.includes('quality'))) return 'sleep_quality';
+  return 'generic';
+}
+
+function extractFeelingWord(message) {
+  const lower = String(message || '').trim().toLowerCase();
+  const m = lower.match(/\bfeel(?:ing)?\s+([a-z][a-z\-]*)/i);
+  const feeling = m?.[1] ? m[1].replace(/[^a-z\-]/gi, '') : null;
+  return feeling || null;
+}
+
+function mentionsRoutineOrWeekday(message) {
+  const s = normalizeForIntent(message);
+  if (!s) return false;
+  return Boolean(
+    s.includes('weekday') ||
+      s.includes('weekdays') ||
+      s.includes('workday') ||
+      s.includes('workdays') ||
+      s.includes('routine') ||
+      s.includes('schedule') ||
+      s.includes('9 to 5') ||
+      s.includes('nine to five') ||
+      s.includes('commute')
+  );
+}
+
+function explanationVariantKeyFromText(text) {
+  const s = normalizeForIntent(text);
+  if (!s) return null;
+  if (s.includes('incomplete recovery')) return 'sleep_led';
+  if (s.includes('stress feel heavier') || s.includes('very low mood')) return 'mood_led';
+  if (s.includes('decision fatigue') || s.includes('schedule compression') || s.includes('workday structure')) return 'routine_led';
+  if (s.includes('recovery not effort') || s.includes('hasnt fully rebounded') || s.includes('rebounded between days')) return 'recovery_led';
+  return null;
+}
+
+function pickExplanationVariantKey({ message, history, preferred }) {
+  const recent = recentAssistantTurns(history, 3);
+  const used = new Set(recent.map(explanationVariantKeyFromText).filter(Boolean));
+  if (preferred && !used.has(preferred)) return preferred;
+
+  const order = ['sleep_led', 'mood_led', 'routine_led', 'recovery_led'];
+  const next = order.find((k) => !used.has(k));
+  if (next) return next;
+
+  // Deterministic fallback (keeps responses stable per prompt).
+  const s = normalizeForIntent(message);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return order[h % order.length];
+}
+
+function enforceOneUncertaintyPhrase(text) {
+  const s0 = String(text || '').trim();
+  if (!s0) return s0;
+
+  // We keep at most one uncertainty marker in the entire reply.
+  // Keep the first one we encounter; neutralize the rest.
+  const patterns = [
+    { re: /\bmay\b/gi, keep: 'may' },
+    { re: /\bmight\b/gi, keep: 'might' },
+    { re: /\bcould\b/gi, keep: 'could' },
+    { re: /\bso\s+far\b/gi, keep: 'so far' },
+    { re: /\bbased\s+on\s+limited\s+data\b/gi, keep: 'based on limited data' },
+    { re: /\bit\s+appears\b/gi, keep: 'it appears' },
+    { re: /\bpossible\b/gi, keep: 'possible' },
+  ];
+
+  let kept = null;
+  let out = s0;
+
+  for (const p of patterns) {
+    out = out.replace(p.re, (m) => {
+      if (!kept) {
+        kept = p.keep;
+        return m;
+      }
+      // Remove extra uncertainty words; replace with nothing or a neutral join.
+      return '';
+    });
+  }
+
+  // Clean up double spaces / awkward punctuation.
+  out = out
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+,/g, ',')
+    .replace(/\s+\./g, '.')
+    .replace(/\s+—\s+/g, ' — ')
+    .trim();
+
+  return out;
+}
+
+function buildRotatedFollowUpQuestion({ message, history }) {
+  const feeling = extractFeelingWord(message);
+  const recent = recentAssistantTurns(history, 3);
+  const recentPatterns = new Set(recent.map(classifyFollowUpPattern));
+
+  const templates = {
+    timing: () => (feeling ? `When do you notice feeling ${feeling} the most—morning, afternoon, or evening?` : 'When do you notice it the most—morning, afternoon, or evening?'),
+    triggers: () => (feeling ? `What tends to trigger feeling ${feeling}—a task, a person, a place, or a thought loop?` : 'What tends to trigger it— a task, a person, a place, or a thought loop?'),
+    workload: () => 'Does it show up more after mentally heavy days, socially heavy days, or decision-heavy days?',
+    emotional: () => (feeling ? `What emotion sits closest to ${feeling} right now—pressure, worry, frustration, or sadness?` : 'What emotion sits closest right now—pressure, worry, frustration, or sadness?'),
+    sleep_quality: () => 'Did your sleep feel more short, or more restless/light than usual?',
+    generic: () => 'What feels most relevant to check first—sleep, stress load, recovery, or something situational?',
+  };
+
+  const order = ['timing', 'triggers', 'workload', 'emotional', 'sleep_quality', 'generic'];
+  const pick = order.find((k) => !recentPatterns.has(k)) || 'generic';
+  return templates[pick]();
+}
+
+function countRecentSignals(recentMental = []) {
+  const last = Array.isArray(recentMental) ? recentMental.slice(0, 7) : [];
+  let shortSleep = 0;
+  let highStress = 0;
+  let lowMood = 0;
+  let lowEnergy = 0;
+
+  for (const m of last) {
+    const sleep = Number(m?.sleepHours);
+    const stress = Number(m?.stressLevel);
+    const energy = Number(m?.energyLevel);
+    const mood = String(m?.mood || '').toLowerCase();
+
+    if (Number.isFinite(sleep) && sleep > 0 && sleep < 7) shortSleep++;
+    if (Number.isFinite(stress) && stress >= 6) highStress++;
+    if (mood && (mood.includes('low') || mood.includes('down'))) lowMood++;
+    if (Number.isFinite(energy) && energy <= 4) lowEnergy++;
+  }
+
+  const items = [
+    { key: 'short_sleep', count: shortSleep, label: 'shorter sleep (<7h)' },
+    { key: 'high_stress', count: highStress, label: 'higher stress (≥6/10)' },
+    { key: 'low_mood', count: lowMood, label: 'lower mood' },
+    { key: 'low_energy', count: lowEnergy, label: 'lower energy (≤4/10)' },
+  ].sort((a, b) => b.count - a.count);
+
+  const top = items[0];
+  if (!top || top.count < 3) return null;
+  return top.label;
+}
+
+function limitQuestions(reply, maxQuestions) {
+  const s = String(reply || '').trim();
+  if (!s) return s;
+  const qCount = (s.match(/\?/g) || []).length;
+  if (qCount <= maxQuestions) return s;
+  const firstQ = s.indexOf('?');
+  if (firstQ === -1) return s;
+  const head = s.slice(0, firstQ + 1);
+  const tail = s.slice(firstQ + 1).replace(/\?/g, '.');
+  return `${head}${tail}`.replace(/\s+/g, ' ').trim();
+}
+
+function ensureExplanationFirst(reply, { mode }) {
+  const s = String(reply || '').trim();
+  if (!s) return s;
+
+  // If the first sentence is a question, prepend a short declarative explanation.
+  const firstQ = s.indexOf('?');
+  const firstStop = (() => {
+    const idxs = [s.indexOf('.'), s.indexOf('!')].filter((n) => n >= 0);
+    return idxs.length ? Math.min(...idxs) : -1;
+  })();
+  const startsWithQuestion = firstQ === 0 || (firstQ > -1 && (firstStop === -1 || firstQ < firstStop));
+  if (startsWithQuestion) {
+    const prefix = mode === 'therapy'
+      ? 'Here’s what I can say so far: this is worth exploring gently.'
+      : 'Here’s what I can say so far based on what’s available.';
+    return `${prefix} ${s}`;
+  }
+
+  // Avoid "I don't have enough data" as the only value.
+  if (/^i\s+don\'?t\s+have\s+enough\s+/i.test(s) && !s.includes('.') && !s.includes('—')) {
+    const prefix = 'Here’s what I can still do: offer a tentative, general explanation and what to check next.';
+    return `${prefix} ${s}`;
+  }
+
+  return s;
+}
+
+function compressForDirectAnswer(reply, { mode }) {
+  const s = String(reply || '').replace(/\s+/g, ' ').trim();
+  if (!s) return s;
+
+  // Keep it short: first ~2 sentences is usually enough.
+  const parts = s.split(/(?<=[.!])\s+/).filter(Boolean);
+  const head = parts.slice(0, 2).join(' ').trim();
+
+  // Add a single gentle suggestion (no question mark).
+  const suggestion = mode === 'therapy'
+    ? 'One small suggestion: do a 30-second check-in—name the main stressor and where you feel it in your body.'
+    : 'One small suggestion: do a quick check-in on sleep, workload, and recovery to see what shifted most.';
+
+  // If the head already contains a suggestion-like cue, don’t add another.
+  if (/\b(one small suggestion|suggestion:|you can|consider)\b/i.test(head)) return head;
+  return `${head} ${suggestion}`.replace(/\s+/g, ' ').trim();
+}
+
 function buildExplanatoryInsightFromReasonKey(reasonKey) {
   const k = String(reasonKey || '').trim().toLowerCase();
 
@@ -211,11 +470,16 @@ function buildDeterministicReflectQuestion(message, history) {
   const s = String(message || '').trim();
   const lower = s.toLowerCase();
 
+  const directAnswer = detectDirectAnswerMode(s);
+  const followUp = buildRotatedFollowUpQuestion({ message: s, history });
+
   // Meta: user is explicitly asking about the assistant repeating itself.
   if (isMetaRepeatingResponseQuestion(s)) {
     return (
-      'Because your messages were short greetings, I stayed in “reflect by default” mode and asked the same grounding question. ' +
-      'If you want patterns, ask a “why” question (e.g., “Why am I tired?”) or name what you’re feeling right now.'
+      'Here’s what I can say so far: I was stuck in a repetitive question pattern because your recent inputs were very short. ' +
+      (directAnswer
+        ? 'If you want, share one detail (sleep, stress, or workload) and I’ll give a tentative explanation.'
+        : 'If you want patterns, ask a “why” question (e.g., “Why am I tired?”) and I’ll answer first, then ask one gentle follow-up.' )
     );
   }
 
@@ -224,21 +488,31 @@ function buildDeterministicReflectQuestion(message, history) {
     const prev = lastAssistantText(history);
     // If we already asked the default grounding question, vary the response.
     if (prev === 'What would feel most supportive to name right now?') {
-      return 'Hi — I’m here. Do you want to vent, reflect, or ask a “why/pattern” question?';
+      return directAnswer
+        ? 'Hi — I’m here. Here’s what I can do: I can look at your recent logs and give a tentative explanation.'
+        : `Hi — I’m here. ${followUp}`;
     }
-    return 'Hi — what feels most important to name right now?';
+    return directAnswer
+      ? 'Hi — I’m here. Here’s what I can do: I can look at your recent logs and give a tentative explanation.'
+      : `Hi — I’m here. ${followUp}`;
   }
 
   // Keep to ONE sentence, end with '?', no advice/directives, no medical claims.
   if (lower.includes('tired') || lower.includes('fatigue') || lower.includes('exhaust')) {
-    return 'Does it show up more after short sleep, higher-stress days, or heavier training?';
+    return directAnswer
+      ? 'Here’s what I can say so far: fatigue often links to sleep, stress load, recovery, and recent activity.'
+      : `Here’s what I can say so far: fatigue often links to sleep, stress load, recovery, and recent activity. ${followUp}`;
   }
 
   if (isQuestionLike(s)) {
-    return 'What feels most important about that question right now?';
+    return directAnswer
+      ? 'Here’s what I can say so far: I can answer with a tentative explanation from your recent logs and context.'
+      : `Here’s what I can say so far: I can answer with a tentative explanation from your recent logs and context. ${followUp}`;
   }
 
-  return 'What would feel most supportive to name right now?';
+  return directAnswer
+    ? 'Here’s what I can say so far: I can help you make sense of what you’re experiencing, even with limited data.'
+    : `Here’s what I can say so far: I can help you make sense of what you’re experiencing, even with limited data. ${followUp}`;
 }
 
 /**
@@ -248,7 +522,8 @@ function buildDeterministicReflectQuestion(message, history) {
  * Goal: provide value first, then ask a gentle follow-up question.
  * Language: "based on limited data", "may", "so far", "I notice"
  */
-function buildLowConfidenceExplanation({ message, latestMental, latestFitness, user, mode }) {
+function buildLowConfidenceExplanation({ message, history, recentMental, latestMental, latestFitness, mode }) {
+  const repeated = countRecentSignals(recentMental);
   const observations = [];
 
   if (typeof latestMental?.sleepHours === 'number' && Number.isFinite(latestMental.sleepHours)) {
@@ -271,37 +546,83 @@ function buildLowConfidenceExplanation({ message, latestMental, latestFitness, u
 
   if (observations.length === 0) return null;
 
-  // Keep it neutral: observational + uncertainty; avoid strong causality claims.
-  return `Based on your most recent logs, I see: ${observations.slice(0, 4).join(', ')}. This may be related, but it could also be situational.`;
+  const routineMentioned = mentionsRoutineOrWeekday(message);
+  const mood = String(latestMental?.mood || '').toLowerCase();
+  const sleep = Number(latestMental?.sleepHours);
+
+  // Pick a single explanation variant (rotate across recent turns).
+  let preferred = null;
+  if (routineMentioned) preferred = 'routine_led';
+  else if (mood && (mood.includes('very') || mood.includes('low'))) preferred = 'mood_led';
+  else if (Number.isFinite(sleep) && sleep > 0 && sleep < 7) preferred = 'sleep_led';
+  else preferred = 'recovery_led';
+
+  // Variant rotation should be driven by actual recent assistant replies (to avoid template lock-in).
+  // We don't have history here, so the caller should provide it via outer composition when possible.
+  // Fallback remains deterministic by message hash.
+  const variantKey = pickExplanationVariantKey({ message, history, preferred });
+
+  // Note: we intentionally avoid stacking uncertainty words here. We keep the stance calm + decisive.
+  const variants = {
+    sleep_led: () => {
+      const sleepPart = Number.isFinite(sleep) ? `With sleep around ${sleep}h` : 'With sleep on the shorter side';
+      return `${sleepPart}, the strongest read is incomplete recovery rather than a single dramatic trigger.`;
+    },
+    mood_led: () => {
+      const moodPart = mood ? `Very low mood (${mood})` : 'Low mood';
+      return `${moodPart} alone can make stress feel heavier even when other signals look moderate.`;
+    },
+    routine_led: () => {
+      return 'If this is happening on workdays/within your routine, the likely driver is schedule compression and decision fatigue — structure can raise stress even when the numbers look “fine”.';
+    },
+    recovery_led: () => {
+      return 'Your day-to-day signals suggest recovery is lagging behind demand — it’s more about rebound than effort right now.';
+    },
+  };
+
+  const line = variants[variantKey] ? variants[variantKey]() : variants.recovery_led();
+
+  // Medium confidence add-on: reference repeated signal once, using non-repetitive phrasing.
+  if (repeated) {
+    return `${line} A repeating signal in the last week is ${repeated}.`;
+  }
+
+  // Low confidence add-on: anchor to what we actually saw.
+  return `${line} Recent signals: ${observations.slice(0, 3).join(', ')}.`;
 }
 
 /**
  * Build a reflective-plus-insight response (used in therapy mode or when gatekeeper says 'reflect').
  * This combines light observation with a reflective question instead of reflection-only.
  */
-function buildReflectiveInsight({ message, explanation, latestMental, latestFitness, user, mode }) {
+function buildReflectiveInsight({ message, explanation, history, mode }) {
   const s = String(message || '').trim();
   const lower = s.toLowerCase();
 
-  // Try to extract the felt-state word/phrase: "feel stressed", "feeling overwhelmed", etc.
-  // Keep it lightweight and general; if it fails, we fall back to a generic question.
-  const m = lower.match(/\bfeel(?:ing)?\s+([a-z][a-z\-]*)/i);
-  const feeling = m?.[1] ? m[1].replace(/[^a-z\-]/gi, '') : null;
+  const directAnswer = detectDirectAnswerMode(s);
+  const degraded = detectDegradedState(s);
 
-  const gentleQuestion = feeling
-    ? `When do you notice feeling ${feeling} the most—morning, afternoon, or evening?`
-    : 'When did this start feeling noticeable—today, the last few days, or longer?';
+  const followUp = buildRotatedFollowUpQuestion({ message: s, history });
+
+  // Degraded-state structure: 1 likely cause (from what we have), 1 small suggestion, optional offer.
+  if (degraded) {
+    const base = explanation || 'Here’s a grounded read: feeling “off” often tracks with shorter sleep, low mood, and compressed routines.';
+    const step = mode === 'therapy'
+      ? 'One small step: write down the single biggest pressure you’re carrying today, then pick one 10-minute task that reduces it.'
+      : 'One small step: do a 10-minute reset (water + a short walk + pick one next task) and see if your baseline shifts.';
+    // STRICT: no questions, no extra hypotheses, stop after one step.
+    return `${base} ${step}`;
+  }
 
   if (explanation) {
-    return `${explanation} ${gentleQuestion}`;
+    if (directAnswer) return explanation;
+    return `${explanation} ${followUp}`;
   }
 
   // If no explanation was possible, still offer a tentative frame without pretending we saw patterns.
-  if (isQuestionLike(s) || lower.includes('why')) {
-    return `I don\'t have enough recent logs to anchor this to specific signals yet. In general, felt-states can shift with sleep, stress load, recovery, movement, and context. ${gentleQuestion}`;
-  }
-
-  return `I\'m here with you. ${gentleQuestion}`;
+  const genericFrame = 'Here’s what I can say so far: even without enough logs, felt-states can shift with sleep, stress load, recovery, movement, and context.';
+  if (directAnswer) return genericFrame;
+  return `${genericFrame} ${followUp}`;
 }
 
 const router = express.Router();
@@ -819,6 +1140,16 @@ router.post('/chat', async (req, res) => {
         "If you sign in, I can answer questions about your diet, nutrition, habits, sleep, and workouts.";
     }
 
+    // Deterministic answer for "my medical conditions" (profile field).
+    if (!llmReply && userId && isMedicalConditionsQuestion(message)) {
+      const conditions = Array.isArray(user?.conditions) ? user.conditions.filter(Boolean) : [];
+      if (conditions.length === 0) {
+        llmReply = 'Here’s what I can say so far: I don’t see any medical conditions saved in your LifeSync profile.';
+      } else {
+        llmReply = `Here’s what I can say so far: your saved medical conditions are ${conditions.slice(0, 12).join(', ')}.`;
+      }
+    }
+
     // Authenticated: answer "about me" and "my diet" deterministically (no LLM needed).
     if (!llmReply && userId && isAboutMeQuestion(message)) {
       const bits = [];
@@ -829,6 +1160,28 @@ router.post('/chat', async (req, res) => {
       if (Array.isArray(user?.conditions) && user.conditions.length) bits.push(`Conditions: ${user.conditions.slice(0, 8).join(', ')}.`);
       bits.push(`I can also see: ${fitness.length} workouts, ${nutrition.length} nutrition logs, ${mental.length} wellness logs, ${habits.length} active habits.`);
       llmReply = bits.filter(Boolean).join(' ');
+    }
+
+    // Degraded-state UX (strict): one grounded explanation + one small step, stop.
+    // No questions unless the user explicitly invites exploration.
+    if (!llmReply && detectDegradedState(message)) {
+      const expl = userId
+        ? buildLowConfidenceExplanation({
+            message,
+            history,
+            recentMental: mental,
+            latestMental: mental[0] || null,
+            latestFitness: fitness[0] || null,
+            mode,
+          })
+        : null;
+
+      const base = expl || 'Here’s a grounded read: feeling “off” often tracks with shorter sleep, low mood, and compressed routines.';
+      const step = mode === 'therapy'
+        ? 'One small step: write down the single biggest pressure you’re carrying today, then pick one 10-minute task that reduces it.'
+        : 'One small step: do a 10-minute reset (water + a short walk + pick one next task) and see if your baseline shifts.';
+
+      llmReply = `${base} ${step}`;
     }
 
     if (!llmReply && userId && isDietOverviewQuestion(message)) {
@@ -859,9 +1212,10 @@ router.post('/chat', async (req, res) => {
     if (!llmReply && userId && explicitInsightRequest) {
       const lowConfidenceExpl = buildLowConfidenceExplanation({
         message,
+        history,
+        recentMental: mental,
         latestMental: mental[0] || null,
         latestFitness: fitness[0] || null,
-        user,
         mode,
       });
 
@@ -878,9 +1232,7 @@ router.post('/chat', async (req, res) => {
         llmReply = buildReflectiveInsight({
           message,
           explanation: lowConfidenceExpl,
-          latestMental: mental[0] || null,
-          latestFitness: fitness[0] || null,
-          user,
+          history,
           mode,
         });
       }
@@ -896,6 +1248,19 @@ router.post('/chat', async (req, res) => {
         systemPrompt,
         history,
       });
+    }
+
+    // --- Global UX guards (do not change safety logic) ---
+    // Core rule: explanation sentence must come before any question.
+    // Also limit to at most ONE follow-up question (or none in direct-answer mode).
+    const directAnswer = detectDirectAnswerMode(message);
+    const degraded = detectDegradedState(message);
+    llmReply = limitQuestions(llmReply, (directAnswer || degraded) ? 0 : 1);
+    llmReply = ensureExplanationFirst(llmReply, { mode });
+    llmReply = enforceOneUncertaintyPhrase(llmReply);
+    if (directAnswer) {
+      llmReply = compressForDirectAnswer(llmReply, { mode });
+      llmReply = enforceOneUncertaintyPhrase(llmReply);
     }
 
     if (!llmReply) {

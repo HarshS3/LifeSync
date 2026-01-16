@@ -18,6 +18,8 @@ const symptomRoutes = require('./routes/symptomRoutes');
 const labRoutes = require('./routes/labRoutes');
 const insightRoutes = require('./routes/insightRoutes');
 const dailyLifeStateRoutes = require('./routes/dailyLifeStateRoutes');
+const sttRoutes = require('./routes/sttRoutes');
+const chatIngestionRoutes = require('./routes/chatIngestionRoutes');
 
 // Start reminder scheduler
 require('./services/reminderScheduler');
@@ -46,6 +48,11 @@ app.use((req, res, next) => {
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'LifeSync API' });
 });
+app.get("/ip", (req, res) => {
+  res.json({
+    ip: req.headers["x-forwarded-for"] || req.socket.remoteAddress
+  });
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -62,6 +69,13 @@ app.use('/api/symptoms', symptomRoutes);
 app.use('/api/labs', labRoutes);
 app.use('/api/insights', insightRoutes);
 app.use('/api/daily-life-state', dailyLifeStateRoutes);
+app.use('/api/stt', sttRoutes);
+app.use('/api/chat-ingestion', chatIngestionRoutes);
+app.get("/ip", (req, res) => {
+  res.json({
+    ip: req.headers["x-forwarded-for"] || req.socket.remoteAddress
+  });
+});
 
 async function start() {
   try {

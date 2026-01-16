@@ -1,6 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { NutritionLog } = require('../models/Logs');
+const { NutritionLog, WeightLog } = require('../models/Logs');
 const User = require('../models/User');
 const { searchFoods } = require('../services/nutritionProvider');
 const { searchLocalFoods } = require('../services/mealPipeline/aggregator');
@@ -263,6 +263,96 @@ async function upsertNutritionLog(req, res) {
     res.status(500).json({ error: 'Failed to save nutrition log' });
   }
 }
+
+async function getWeightForDate(req, res, dateStr) {
+  try {
+    const startDate = new Date(dateStr);
+    if (Number.isNaN(startDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date' });
+    }
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 1);
+
+    const log = await WeightLog.findOne({
+      user: req.userId,
+      date: { $gte: startDate, $lt: endDate },
+    }).select('date weightKg');
+
+    if (!log) {
+      return res.json({ date: startDate, weightKg: null });
+    }
+
+    res.json({ date: log.date, weightKg: log.weightKg });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch weight log' });
+  }
+}
+
+// Get weight for a specific date
+router.get('/weight/date/:date', authMiddleware, async (req, res) => {
+  return getWeightForDate(req, res, req.params.date);
+});
+
+// Upsert weight for a date
+router.post('/weight', authMiddleware, async (req, res) => {
+  try {
+    const { date, weightKg } = req.body;
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) {
+      return res.status(400).json({ error: 'Invalid date' });
+    }
+    const w = Number(weightKg);
+    if (!Number.isFinite(w) || w <= 0 || w > 1000) {
+      return res.status(400).json({ error: 'Invalid weightKg' });
+    }
+
+    d.setHours(0, 0, 0, 0);
+    const endDate = new Date(d);
+    endDate.setDate(endDate.getDate() + 1);
+
+    let log = await WeightLog.findOne({
+      user: req.userId,
+      date: { $gte: d, $lt: endDate },
+    });
+
+    if (log) {
+      log.weightKg = w;
+      await log.save();
+    } else {
+      log = await WeightLog.create({ user: req.userId, date: d, weightKg: w });
+    }
+
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: d, reason: 'nutritionRoutes upsert weight' });
+
+    res.status(201).json({ date: log.date, weightKg: log.weightKg });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save weight' });
+  }
+});
+
+// Range fetch for charting
+router.get('/weight/range/:start/:end', authMiddleware, async (req, res) => {
+  try {
+    const start = new Date(req.params.start);
+    const end = new Date(req.params.end);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return res.status(400).json({ error: 'Invalid range' });
+    }
+    const docs = await WeightLog.find({
+      user: req.userId,
+      date: { $gte: start, $lte: end },
+    })
+      .sort({ date: 1 })
+      .select('date weightKg');
+    res.json(docs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch weight range' });
+  }
+});
 
 // Canonical
 router.post('/logs', authMiddleware, upsertNutritionLog);

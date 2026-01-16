@@ -21,27 +21,76 @@ function endOfDay(date) {
 
 function parseSleepHours(text) {
   const s = String(text || '').toLowerCase();
-  // Examples: "slept 7h", "sleep 6 hours", "slept 6.5 hrs"
-  const m = s.match(/\b(?:slept|sleep)\s*(?:for\s*)?(\d{1,2}(?:\.\d)?)\s*(?:h|hr|hrs|hour|hours)\b/);
+  // Be conservative: only infer sleep hours when the phrase strongly indicates duration.
+  // Common STT variants:
+  // - "slept 7h", "slept 6.5 hrs", "sleep 6 hours"
+  // - "got 7 hours of sleep", "had 8 hours sleep"
+  // - "slept 7" (sometimes the unit is omitted)
+
+  // With explicit units.
+  let m = s.match(/\b(?:slept|sleep)\s*(?:for\s*)?(\d{1,2}(?:\.\d)?)\s*(?:h|hr|hrs|hour|hours)\b/);
+  if (!m) {
+    m = s.match(/\b(?:got|had)\s*(\d{1,2}(?:\.\d)?)\s*(?:h|hr|hrs|hour|hours)\s*(?:of\s*)?sleep\b/);
+  }
+
+  // Unit-less but strongly indicated by "slept".
+  if (!m) {
+    m = s.match(/\bslept\s*(?:for\s*)?(\d{1,2}(?:\.\d)?)\b/);
+  }
+
   if (!m) return null;
+
   const hours = clamp(m[1], 0, 24);
   if (hours == null) return null;
   // Reject unlikely values for chat ingestion.
   if (hours > 16) return null;
+  // If someone says "slept 7/10" treat that as not sleep-hours.
+  if (/(?:^|\s)\/\s*(?:10|ten)\b/.test(s.slice(m.index + m[0].length))) return null;
   return hours;
+}
+
+function parseNumberToken10(token) {
+  const raw = String(token || '').trim().toLowerCase();
+  if (!raw) return null;
+  if (/^\d+$/.test(raw)) return clamp(raw, 1, 10);
+  const map = {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+  };
+  if (Object.prototype.hasOwnProperty.call(map, raw)) return map[raw];
+  return null;
 }
 
 function parseScale10(text, label) {
   const s = String(text || '').toLowerCase();
-  // Prefer explicit /10.
-  const reSlash = new RegExp(`\\b${label}\\s*(\\d{1,2})\\s*\\/\\s*10\\b`);
-  const mSlash = s.match(reSlash);
-  if (mSlash) return clamp(mSlash[1], 1, 10);
 
-  // Accept: "stress 7", "energy 4" only if label is present.
-  const reBare = new RegExp(`\\b${label}\\s*(\\d{1,2})\\b`);
+  // Accept natural variants:
+  // - "energy was 6 out of 10"
+  // - "my stress level is six out of ten"
+  // - "energy 6/10"
+  // - "stress: 7"
+  const labelPattern = `${label}(?:\\s*level)?`;
+  const numToken = '(\\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)';
+  // Allow plain whitespace: "energy 6/10" as well as "energy was 6/10", "energy: 6/10".
+  const sep = '(?:\\s*(?:(?:[:=])|is|was|at)?\\s*)';
+
+  // Prefer explicit /10 or out-of-10.
+  const reExplicit = new RegExp(`\\b${labelPattern}\\b${sep}${numToken}\\s*(?:\\/\\s*(?:10|ten)|out\\s*of\\s*(?:10|ten))\\b`);
+  const mExplicit = s.match(reExplicit);
+  if (mExplicit) return parseNumberToken10(mExplicit[1]);
+
+  // Bare: "stress 7" / "energy was 4"
+  const reBare = new RegExp(`\\b${labelPattern}\\b${sep}${numToken}\\b`);
   const mBare = s.match(reBare);
-  if (mBare) return clamp(mBare[1], 1, 10);
+  if (mBare) return parseNumberToken10(mBare[1]);
 
   return null;
 }
@@ -126,6 +175,8 @@ async function upsertTodayNutritionLog({ userId, now, patch }) {
 async function ingestFromChat({ userId, message, now = new Date() }) {
   if (!userId) return { ingested: false, dayKey: null, updates: [] };
 
+  const dryRun = Boolean(arguments?.[0]?.dryRun);
+
   const updates = [];
 
   const sleepHours = parseSleepHours(message);
@@ -142,24 +193,30 @@ async function ingestFromChat({ userId, message, now = new Date() }) {
   if (mood) mentalPatch.mood = mood;
 
   if (Object.keys(mentalPatch).length) {
-    await upsertTodayMentalLog({ userId, now, patch: mentalPatch });
+    if (!dryRun) {
+      await upsertTodayMentalLog({ userId, now, patch: mentalPatch });
+    }
     updates.push({ model: 'MentalLog', patch: mentalPatch });
   }
 
   // NutritionLog updates
   if (waterMl != null) {
-    // Incrementally add water intake for the day.
-    const start = startOfDay(now);
-    const end = endOfDay(now);
-    const existing = await NutritionLog.findOne({ user: userId, date: { $gte: start, $lt: end } }).sort({ date: -1 });
-
-    if (existing) {
-      existing.waterIntake = (Number(existing.waterIntake) || 0) + waterMl;
-      await existing.save();
-      updates.push({ model: 'NutritionLog', patch: { waterIntakeDeltaMl: waterMl, waterIntakeTotalMl: existing.waterIntake } });
+    if (dryRun) {
+      updates.push({ model: 'NutritionLog', patch: { waterIntakeDeltaMl: waterMl } });
     } else {
-      const created = await upsertTodayNutritionLog({ userId, now, patch: { waterIntake: waterMl } });
-      updates.push({ model: 'NutritionLog', patch: { waterIntakeDeltaMl: waterMl, waterIntakeTotalMl: created.waterIntake } });
+      // Incrementally add water intake for the day.
+      const start = startOfDay(now);
+      const end = endOfDay(now);
+      const existing = await NutritionLog.findOne({ user: userId, date: { $gte: start, $lt: end } }).sort({ date: -1 });
+
+      if (existing) {
+        existing.waterIntake = (Number(existing.waterIntake) || 0) + waterMl;
+        await existing.save();
+        updates.push({ model: 'NutritionLog', patch: { waterIntakeDeltaMl: waterMl, waterIntakeTotalMl: existing.waterIntake } });
+      } else {
+        const created = await upsertTodayNutritionLog({ userId, now, patch: { waterIntake: waterMl } });
+        updates.push({ model: 'NutritionLog', patch: { waterIntakeDeltaMl: waterMl, waterIntakeTotalMl: created.waterIntake } });
+      }
     }
   }
 

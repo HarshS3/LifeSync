@@ -58,6 +58,24 @@ const NutritionLogSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const WeightLogSchema = new mongoose.Schema(
+  {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    date: { type: Date, default: Date.now },
+    weightKg: { type: Number },
+  },
+  { timestamps: true }
+);
+
+const StepsLogSchema = new mongoose.Schema(
+  {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    date: { type: Date, default: Date.now },
+    stepsCount: { type: Number, min: 0 },
+  },
+  { timestamps: true }
+);
+
 const MentalLogSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -103,6 +121,8 @@ const MemorySummarySchema = new mongoose.Schema(
 module.exports = {
   FitnessLog: mongoose.model('FitnessLog', FitnessLogSchema),
   NutritionLog: mongoose.model('NutritionLog', NutritionLogSchema),
+  WeightLog: mongoose.model('WeightLog', WeightLogSchema),
+  StepsLog: mongoose.model('StepsLog', StepsLogSchema),
   MentalLog: mongoose.model('MentalLog', MentalLogSchema),
   Goal: mongoose.model('Goal', GoalSchema),
   MemorySummary: mongoose.model('MemorySummary', MemorySummarySchema),

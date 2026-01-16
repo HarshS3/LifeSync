@@ -17,6 +17,60 @@ const LabValueSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const BodyMeasurementsSchema = new mongoose.Schema(
+  {
+    waistCm: Number,
+    hipCm: Number,
+    chestCm: Number,
+    neckCm: Number,
+    wristCm: Number,
+    bicepCm: Number,
+    thighCm: Number,
+    bmi: Number,
+    updatedAt: Date,
+    source: { type: String, enum: ['manual', 'ocr'], default: 'manual' },
+  },
+  { _id: false }
+);
+
+const SegmentalSideSchema = new mongoose.Schema(
+  {
+    rightArm: Number,
+    leftArm: Number,
+    trunk: Number,
+    rightLeg: Number,
+    leftLeg: Number,
+  },
+  { _id: false }
+);
+
+const BodyCompositionSchema = new mongoose.Schema(
+  {
+    // Common InBody/Tanita-style metrics
+    bmi: Number,
+    bodyFatPercent: Number,
+    fatMassKg: Number,
+    smmKg: Number,
+    proteinKg: Number,
+    mineralKg: Number,
+    tbwKg: Number,
+    bmrKcal: Number,
+    metabolicAge: Number,
+    visceralFatLevel: Number,
+
+    // Segmental fat values (some reports provide kg, some provide %)
+    segmentalFatKg: SegmentalSideSchema,
+    segmentalFatPercent: SegmentalSideSchema,
+
+    // Segmental muscle mass (kg) - shown on many reports
+    segmentalMuscleKg: SegmentalSideSchema,
+
+    updatedAt: Date,
+    source: { type: String, enum: ['manual', 'ocr'], default: 'manual' },
+  },
+  { _id: false }
+);
+
 const UserSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
@@ -26,6 +80,9 @@ const UserSchema = new mongoose.Schema(
     // Basic Info
     age: Number,
     gender: String,
+    education: String,
+    profession: String,
+    skills: [String],
     
     // Body Stats
     height: Number,
@@ -33,6 +90,12 @@ const UserSchema = new mongoose.Schema(
     bodyFat: Number,
     restingHeartRate: Number,
     bloodType: String,
+
+    // Measurements (manual entry)
+    bodyMeasurements: BodyMeasurementsSchema,
+
+    // Body composition (manual entry or OCR import)
+    bodyComposition: BodyCompositionSchema,
     
     // Health
     conditions: [String],
@@ -88,6 +151,20 @@ const UserSchema = new mongoose.Schema(
     motivators: [String],
     energyPeakTime: { type: String, default: 'morning' },
     focusChallenges: [String],
+
+    // Personality (optional)
+    personality: {
+      introversion: Number, // 1..10 (introvert -> extrovert)
+      bigFive: {
+        openness: Number,
+        conscientiousness: Number,
+        extraversion: Number,
+        agreeableness: Number,
+        neuroticism: Number,
+      },
+      decisionStyle: String,
+      updatedAt: Date,
+    },
     
     // Style Preferences
     stylePreference: { type: String, default: 'casual' },
@@ -98,6 +175,8 @@ const UserSchema = new mongoose.Schema(
     
     // Personal Notes
     biggestChallenges: String,
+    fearMost: String,
+    whatMattersMost: String,
     whatWorkedBefore: String,
     whatDidntWork: String,
     longTermVision: String,

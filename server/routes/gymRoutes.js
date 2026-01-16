@@ -1,6 +1,9 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
+const { StepsLog } = require('../models/Logs');
+const Workout = require('../models/Workout');
+const { triggerDailyLifeStateRecompute } = require('../services/dailyLifeState/triggerDailyLifeStateRecompute');
 
 const router = express.Router();
 
@@ -21,32 +24,96 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-// Workout Schema
-const WorkoutSchema = new mongoose.Schema(
-  {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    name: String,
-    date: { type: Date, default: Date.now },
-    duration: Number, // in seconds
-    exercises: [
-      {
-        name: String,
-        muscleGroup: String,
-        sets: [
-          {
-            weight: Number,
-            reps: Number,
-            completed: { type: Boolean, default: true },
-          },
-        ],
-      },
-    ],
-    notes: String,
-  },
-  { timestamps: true }
-);
+async function getStepsForDate(req, res, dateStr) {
+  try {
+    const startDate = new Date(dateStr);
+    if (Number.isNaN(startDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date' });
+    }
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 1);
 
-const Workout = mongoose.model('Workout', WorkoutSchema);
+    const log = await StepsLog.findOne({
+      user: req.userId,
+      date: { $gte: startDate, $lt: endDate },
+    }).select('date stepsCount');
+
+    if (!log) {
+      return res.json({ date: startDate, stepsCount: null });
+    }
+
+    res.json({ date: log.date, stepsCount: log.stepsCount });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch steps log' });
+  }
+}
+
+// Get steps for a specific date
+router.get('/steps/date/:date', authMiddleware, async (req, res) => {
+  return getStepsForDate(req, res, req.params.date);
+});
+
+// Upsert steps for a date
+router.post('/steps', authMiddleware, async (req, res) => {
+  try {
+    const { date, stepsCount } = req.body;
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) {
+      return res.status(400).json({ error: 'Invalid date' });
+    }
+    const s = Number(stepsCount);
+    if (!Number.isFinite(s) || s < 0 || s > 200000) {
+      return res.status(400).json({ error: 'Invalid stepsCount' });
+    }
+
+    d.setHours(0, 0, 0, 0);
+    const endDate = new Date(d);
+    endDate.setDate(endDate.getDate() + 1);
+
+    let log = await StepsLog.findOne({
+      user: req.userId,
+      date: { $gte: d, $lt: endDate },
+    });
+
+    if (log) {
+      log.stepsCount = s;
+      await log.save();
+    } else {
+      log = await StepsLog.create({ user: req.userId, date: d, stepsCount: s });
+    }
+
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: d, reason: 'gymRoutes upsert steps' });
+
+    res.status(201).json({ date: log.date, stepsCount: log.stepsCount });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save steps' });
+  }
+});
+
+// Range fetch for charting
+router.get('/steps/range/:start/:end', authMiddleware, async (req, res) => {
+  try {
+    const start = new Date(req.params.start);
+    const end = new Date(req.params.end);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return res.status(400).json({ error: 'Invalid range' });
+    }
+    const docs = await StepsLog.find({
+      user: req.userId,
+      date: { $gte: start, $lte: end },
+    })
+      .sort({ date: 1 })
+      .select('date stepsCount');
+
+    res.json(docs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch steps range' });
+  }
+});
 
 // Get all workouts for user
 router.get('/workouts', authMiddleware, async (req, res) => {

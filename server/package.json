@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "seed:demo": "node seed_demo_full.js"
+    "seed:demo": "node seed_demo_full.js",
+    "seed:weight:demo": "node seed_weight_logs_demo.js",
+    "seed:workouts:user": "node scripts/seed_workouts_for_user.js"
   },
   "keywords": [],
   "author": "",

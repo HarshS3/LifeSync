@@ -652,6 +652,8 @@ router.post('/chat', async (req, res) => {
       return res.status(400).json({ error: 'message is required' });
     }
 
+    const skipIngestion = Boolean(req.body?.skipIngestion);
+
     const simpleGeminiMode = String(process.env.AI_CHAT_SIMPLE_GEMINI || '').trim() === '1';
 
     const explicitInsightRequest = detectExplicitInsightRequest(message);
@@ -668,7 +670,7 @@ router.post('/chat', async (req, res) => {
     // This enables the "learn over time" pipeline (DailyLifeState -> PatternMemory -> IdentityMemory)
     // without requiring the user to manually open trackers.
     let chatIngestion = { ingested: false, dayKey: null, updates: [] };
-    if (userId) {
+    if (userId && !skipIngestion) {
       try {
         chatIngestion = await ingestFromChat({ userId, message });
         if (chatIngestion?.ingested) {

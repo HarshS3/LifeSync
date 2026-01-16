@@ -123,6 +123,28 @@ async function createMentalLog(req, res, userId) {
       return res.status(401).json({ error: 'No token provided' });
     }
 
+    const allowedFields = [
+      'mood',
+      'moodScore',
+      'stressLevel',
+      'energyLevel',
+      'bodyFeel',
+      'sleepHours',
+      'medsTaken',
+      'journalSnippet',
+      'notes',
+    ];
+
+    const patch = {};
+    for (const key of allowedFields) {
+      if (!Object.prototype.hasOwnProperty.call(req.body || {}, key)) continue;
+      const value = req.body[key];
+
+      // Allow explicit empty strings/arrays, but ignore null/undefined.
+      if (value === null || typeof value === 'undefined') continue;
+      patch[key] = value;
+    }
+
     // Check if a log already exists for today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -133,11 +155,17 @@ async function createMentalLog(req, res, userId) {
       date: { $gte: today, $lt: tomorrow },
     });
     if (existingLog) {
-      return res.status(409).json({ error: 'Already checked in today', log: existingLog });
+      // Instead of blocking, merge any new fields into the existing log.
+      if (Object.keys(patch).length) {
+        Object.assign(existingLog, patch);
+        await existingLog.save();
+        triggerDailyLifeStateRecompute({ userId, date: existingLog?.date, reason: 'logRoutes mental update' });
+      }
+      return res.status(200).json(existingLog);
     }
 
     const log = await MentalLog.create({
-      ...req.body,
+      ...patch,
       user: userId,
     });
     triggerDailyLifeStateRecompute({ userId, date: log?.date, reason: 'logRoutes mental' });

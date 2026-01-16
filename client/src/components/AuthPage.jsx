@@ -7,6 +7,7 @@ import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
 import { useAuth } from '../context/AuthContext'
+import LifeSyncMark from './LifeSyncMark'
 
 function AuthPage() {
   const [showForgot, setShowForgot] = useState(false);
@@ -75,6 +76,9 @@ function AuthPage() {
         }}
       >
         <Box sx={{ textAlign: 'center', mb: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1.5 }}>
+            <LifeSyncMark size={56} />
+          </Box>
           <Typography
             variant="h4"
             sx={{ fontWeight: 700, color: '#171717', mb: 1 }}

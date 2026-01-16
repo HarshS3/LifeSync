@@ -504,7 +504,7 @@ function LabsPanel() {
                     bgcolor: '#fafafa',
                   }}
                 >
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 120px 90px', gap: 1.25 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 120px 90px' }, gap: 1.25 }}>
                     <TextField
                       label="Name"
                       value={row.name}
@@ -540,7 +540,7 @@ function LabsPanel() {
                     />
                   </Box>
 
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 44px', gap: 1.25, mt: 1.25 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 44px' }, gap: 1.25, mt: 1.25 }}>
                     <TextField
                       label="Ref Low"
                       value={row.refRangeLow}
@@ -572,7 +572,7 @@ function LabsPanel() {
                           results: p.results.length <= 1 ? p.results : p.results.filter((_, i) => i !== idx),
                         }))
                       }
-                      sx={{ alignSelf: 'center' }}
+                      sx={{ alignSelf: 'center', justifySelf: { xs: 'flex-end', sm: 'stretch' } }}
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>

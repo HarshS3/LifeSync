@@ -20,6 +20,16 @@ function RemindersSettings() {
   const { user, token, refreshUser } = useAuth()
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [reportMonth, setReportMonth] = useState(() => {
+    const d = new Date()
+    d.setDate(1)
+    d.setMonth(d.getMonth() - 1)
+    const yyyy = d.getFullYear()
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    return `${yyyy}-${mm}`
+  })
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState('')
   const [settings, setSettings] = useState({
     habitReminders: true,
     medicationReminders: true,
@@ -75,6 +85,40 @@ function RemindersSettings() {
       console.error('Failed to save reminders:', err)
     }
     setSaving(false)
+  }
+
+  const downloadMonthlyReport = async (format) => {
+    if (!token) return
+    setDownloading(true)
+    setDownloadError('')
+    try {
+      const url = `${API_BASE}/api/reports/monthly?month=${encodeURIComponent(reportMonth)}&format=${encodeURIComponent(format)}`
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!res.ok) {
+        const msg = await res.text()
+        throw new Error(msg || 'Failed to download report')
+      }
+
+      const blob = await res.blob()
+      const ext = format === 'csv' ? 'csv' : 'json'
+      const filename = `lifesync-monthly-report-${reportMonth}.${ext}`
+
+      const a = document.createElement('a')
+      a.href = window.URL.createObjectURL(blob)
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(a.href)
+    } catch (err) {
+      setDownloadError(String(err?.message || 'Failed to download report'))
+    }
+    setDownloading(false)
   }
 
   const ReminderItem = ({ icon, title, description, checked, onChange }) => (
@@ -213,6 +257,76 @@ function RemindersSettings() {
       </Box>
 
       <Divider sx={{ my: 3 }} />
+
+      {/* Monthly Report Download */}
+      <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280' }}>
+        Monthly Report
+      </Typography>
+
+      <Box
+        sx={{
+          p: 2,
+          mb: 4,
+          bgcolor: '#fff',
+          borderRadius: 2,
+          border: '1px solid #e5e7eb',
+        }}
+      >
+        <Typography variant="body2" sx={{ fontWeight: 500, color: '#171717', mb: 0.5 }}>
+          Download your monthly report
+        </Typography>
+        <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 2 }}>
+          Generates a deterministic summary from your DailyLifeState (no AI).
+        </Typography>
+
+        {downloadError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {downloadError}
+          </Alert>
+        )}
+
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <TextField
+            label="Month"
+            type="month"
+            value={reportMonth}
+            onChange={(e) => setReportMonth(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ maxWidth: 220 }}
+            helperText="Choose a month"
+          />
+
+          <Button
+            variant="outlined"
+            disabled={!token || downloading}
+            onClick={() => downloadMonthlyReport('json')}
+            sx={{
+              borderColor: '#e5e7eb',
+              color: '#171717',
+              textTransform: 'none',
+              fontWeight: 600,
+              '&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' },
+            }}
+          >
+            {downloading ? 'Preparing…' : 'Download JSON'}
+          </Button>
+
+          <Button
+            variant="outlined"
+            disabled={!token || downloading}
+            onClick={() => downloadMonthlyReport('csv')}
+            sx={{
+              borderColor: '#e5e7eb',
+              color: '#171717',
+              textTransform: 'none',
+              fontWeight: 600,
+              '&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' },
+            }}
+          >
+            {downloading ? 'Preparing…' : 'Download CSV'}
+          </Button>
+        </Box>
+      </Box>
 
       {/* Reminder Times */}
       <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280' }}>

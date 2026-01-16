@@ -59,7 +59,23 @@ async function getLogForDate(req, res, dateStr) {
         date: startDate,
         meals: [],
         waterIntake: 0,
-        dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 },
+        dailyTotals: {
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+          fiber: 0,
+          sugar: 0,
+          sodium: 0,
+          potassium: 0,
+          iron: 0,
+          calcium: 0,
+          vitaminB: 0,
+          magnesium: 0,
+          zinc: 0,
+          vitaminC: 0,
+          omega3: 0,
+        },
       };
     }
 
@@ -207,7 +223,23 @@ async function upsertNutritionLog(req, res) {
     endDate.setDate(endDate.getDate() + 1);
 
     // Calculate daily totals from meals
-    const dailyTotals = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 };
+    const dailyTotals = {
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+      fiber: 0,
+      sugar: 0,
+      sodium: 0,
+      potassium: 0,
+      iron: 0,
+      calcium: 0,
+      vitaminB: 0,
+      magnesium: 0,
+      zinc: 0,
+      vitaminC: 0,
+      omega3: 0,
+    };
     
     meals?.forEach(meal => {
       meal.totalCalories = 0;
@@ -228,6 +260,14 @@ async function upsertNutritionLog(req, res) {
         dailyTotals.fiber += food.fiber || 0;
         dailyTotals.sugar += food.sugar || 0;
         dailyTotals.sodium += food.sodium || 0;
+        dailyTotals.potassium += food.potassium || 0;
+        dailyTotals.iron += food.iron || 0;
+        dailyTotals.calcium += food.calcium || 0;
+        dailyTotals.vitaminB += food.vitaminB || 0;
+        dailyTotals.magnesium += food.magnesium || 0;
+        dailyTotals.zinc += food.zinc || 0;
+        dailyTotals.vitaminC += food.vitaminC || 0;
+        dailyTotals.omega3 += food.omega3 || 0;
       });
     });
 
@@ -389,12 +429,44 @@ router.post('/meals', authMiddleware, async (req, res) => {
         date: logDate,
         meals: [meal],
         waterIntake: 0,
-        dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 },
+        dailyTotals: {
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+          fiber: 0,
+          sugar: 0,
+          sodium: 0,
+          potassium: 0,
+          iron: 0,
+          calcium: 0,
+          vitaminB: 0,
+          magnesium: 0,
+          zinc: 0,
+          vitaminC: 0,
+          omega3: 0,
+        },
       });
     }
 
     // Recalculate daily totals
-    const dailyTotals = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 };
+    const dailyTotals = {
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+      fiber: 0,
+      sugar: 0,
+      sodium: 0,
+      potassium: 0,
+      iron: 0,
+      calcium: 0,
+      vitaminB: 0,
+      magnesium: 0,
+      zinc: 0,
+      vitaminC: 0,
+      omega3: 0,
+    };
     log.meals.forEach(m => {
       m.foods?.forEach(food => {
         dailyTotals.calories += food.calories || 0;
@@ -404,6 +476,14 @@ router.post('/meals', authMiddleware, async (req, res) => {
         dailyTotals.fiber += food.fiber || 0;
         dailyTotals.sugar += food.sugar || 0;
         dailyTotals.sodium += food.sodium || 0;
+        dailyTotals.potassium += food.potassium || 0;
+        dailyTotals.iron += food.iron || 0;
+        dailyTotals.calcium += food.calcium || 0;
+        dailyTotals.vitaminB += food.vitaminB || 0;
+        dailyTotals.magnesium += food.magnesium || 0;
+        dailyTotals.zinc += food.zinc || 0;
+        dailyTotals.vitaminC += food.vitaminC || 0;
+        dailyTotals.omega3 += food.omega3 || 0;
       });
     });
     log.dailyTotals = dailyTotals;
@@ -442,7 +522,23 @@ router.patch('/water', authMiddleware, async (req, res) => {
         date: logDate,
         meals: [],
         waterIntake: amount,
-        dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 },
+        dailyTotals: {
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+          fiber: 0,
+          sugar: 0,
+          sodium: 0,
+          potassium: 0,
+          iron: 0,
+          calcium: 0,
+          vitaminB: 0,
+          magnesium: 0,
+          zinc: 0,
+          vitaminC: 0,
+          omega3: 0,
+        },
       });
     }
 
@@ -468,7 +564,23 @@ router.delete('/meals/:logId/:mealIndex', authMiddleware, async (req, res) => {
     log.meals.splice(parseInt(mealIndex), 1);
 
     // Recalculate daily totals
-    const dailyTotals = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, sodium: 0 };
+    const dailyTotals = {
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+      fiber: 0,
+      sugar: 0,
+      sodium: 0,
+      potassium: 0,
+      iron: 0,
+      calcium: 0,
+      vitaminB: 0,
+      magnesium: 0,
+      zinc: 0,
+      vitaminC: 0,
+      omega3: 0,
+    };
     log.meals.forEach(m => {
       m.foods?.forEach(food => {
         dailyTotals.calories += food.calories || 0;
@@ -478,6 +590,14 @@ router.delete('/meals/:logId/:mealIndex', authMiddleware, async (req, res) => {
         dailyTotals.fiber += food.fiber || 0;
         dailyTotals.sugar += food.sugar || 0;
         dailyTotals.sodium += food.sodium || 0;
+        dailyTotals.potassium += food.potassium || 0;
+        dailyTotals.iron += food.iron || 0;
+        dailyTotals.calcium += food.calcium || 0;
+        dailyTotals.vitaminB += food.vitaminB || 0;
+        dailyTotals.magnesium += food.magnesium || 0;
+        dailyTotals.zinc += food.zinc || 0;
+        dailyTotals.vitaminC += food.vitaminC || 0;
+        dailyTotals.omega3 += food.omega3 || 0;
       });
     });
     log.dailyTotals = dailyTotals;

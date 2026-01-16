@@ -9,6 +9,15 @@ This document describes how the LifeSync AI assistant works end-to-end in the cu
 
 ---
 
+## 0) Design contract (Life OS behavior)
+
+- **Deterministic first**: routing, safety triage, insight gating, and chat ingestion are rules-based.
+- **Silence is the default** for cross-day “insight speech”; the system only escalates when confidence and consent allow it.
+- **LLM is a narrator**: it renders an answer within constraints; it does not “discover” patterns.
+- **No medical diagnosis / prescriptions**: the system uses triage language and conservative phrasing.
+
+---
+
 ## 1) Primary entrypoint
 
 ### Client → Server
@@ -17,11 +26,62 @@ The UI sends chat messages from:
 
 - Client component: `client/src/components/ChatPanel.jsx`
 - Endpoint: `POST /api/ai/chat`
-- Payload: `{ message: string, history: Array<{ role: 'user'|'assistant', content: string }> }`
+- Payload: `{ message: string, history: Array<{ role: 'user'|'assistant', content: string }>, skipIngestion?: boolean, dayKey?: string }`
 
 The client **includes the JWT token** (if logged in) as:
 
 - `Authorization: Bearer <token>`
+
+### Request/response shapes (practical)
+
+Request body:
+
+```json
+{
+  "message": "string",
+  "history": [{ "role": "user|assistant", "content": "string" }],
+  "skipIngestion": false,
+  "dayKey": "YYYY-MM-DD"
+}
+```
+
+Notes:
+
+- `history` is typically trimmed client-side to the last ~12 turns.
+- `skipIngestion` is used mainly after explicit ingestion commit, to avoid double-logging.
+- `dayKey` is optional; when absent, the server infers “today”.
+
+Response body (shape):
+
+```json
+{
+  "message": "string",
+  "mode": "general|medical|therapy|fitness",
+  "reply": "string",
+  "safety": {
+    "risk_level": "low|moderate|elevated|urgent",
+    "confidence": 0.0,
+    "reason": "string",
+    "red_flags": [],
+    "doctor_discussion_points": [],
+    "medication_awareness": [],
+    "disclaimer": "string"
+  },
+  "supplementAdvisor": null,
+  "memorySnapshot": {
+    "chatIngestion": { "ingested": false, "dayKey": null, "updates": [] },
+    "fitnessCount": 0,
+    "nutritionCount": 0,
+    "mentalCount": 0,
+    "habitCount": 0,
+    "habitLogsCount": 0,
+    "symptomLogsCount": 0,
+    "labReportsCount": 0,
+    "ragConfidence": 0,
+    "ragCitationsCount": 0
+  }
+}
+```
 
 ### Server route
 
@@ -73,6 +133,103 @@ sequenceDiagram
 
 ---
 
+## 2.2) Implementation map (chat-related files)
+
+Client:
+
+- `client/src/components/ChatExperience.jsx` — container for chat experience UI.
+- `client/src/components/ChatPanel.jsx` — chat UI, history shaping, auth header, voice input, ingestion preview/commit, STT fallback.
+
+Server routes:
+
+- `server/routes/aiRoutes.js` — `POST /api/ai/chat` orchestration: auth, ingestion, gatekeeper, context reads, optional RAG, LLM call, UX guards, triage append.
+- `server/routes/chatIngestionRoutes.js` — `POST /api/chat-ingestion/preview|commit` (auth required).
+- `server/routes/sttRoutes.js` — `POST /api/stt` (auth required).
+
+Server services (deterministic):
+
+- `server/services/assistant/router.js` — `detectAssistantMode()` (deterministic mode routing).
+- `server/services/assistant/prompts.js` — `buildSystemPrompt()` (mode-specific system prompts).
+- `server/services/safety/healthTriageEngine.js` — `runHealthTriage()` (deterministic red-flag and risk-level triage).
+- `server/services/chatIngestion/ingestFromChat.js` — deterministic extraction of high-confidence signals → writes logs.
+- `server/services/dailyLifeState/triggerDailyLifeStateRecompute.js` — async fire-and-forget DailyLifeState recompute trigger.
+- `server/services/insightGatekeeper/decideInsight.js` — decides `silent|reflect|insight` from derived state + memory.
+- `server/services/insightGatekeeper/insightPayload.js` — converts decision → strict output constraints.
+
+Server services (external calls):
+
+- `server/aiClient.js` — `generateLLMReply()` provider selection + fallback (Groq/Gemini/OpenAI).
+- `server/services/ragClient.js` — `fetchTextbookRag()` external call to AI service for citations.
+- `server/services/stt/googleStt.js` — Google STT integration (called by `/api/stt`).
+
+## 2.1) Related endpoints (voice + ingestion)
+
+Besides `POST /api/ai/chat`, the chat experience can use:
+
+- `POST /api/chat-ingestion/preview` (auth required)
+- `POST /api/chat-ingestion/commit` (auth required)
+- `POST /api/stt` (auth required, server speech-to-text fallback)
+
+These are used by the voice-confirm UI so the user can approve what gets logged.
+
+### Voice input flow (client)
+
+Implemented in `client/src/components/ChatPanel.jsx`.
+
+The voice button attempts, in order:
+
+1) **Browser speech recognition** (no server call):
+   - Uses `window.SpeechRecognition` / `window.webkitSpeechRecognition` if available.
+   - Uses interim results to live-fill the input box.
+   - Auto-restarts recognition on short pauses (keeps dictation going) until the user explicitly presses Stop.
+
+2) **Audio upload fallback → server STT** (auth required):
+   - Records mic audio via `MediaRecorder` (prefers `audio/webm;codecs=opus`).
+   - Uploads multipart form-data to `POST /api/stt` with `audio=<file>`.
+
+After a transcript is produced, the client starts a **voice-confirm ingestion flow**:
+
+- If user is **not signed in**: it sends the chat message normally (no auto-log).
+- If signed in:
+  - Calls `POST /api/chat-ingestion/preview`.
+  - If preview returns `updates[]`, the UI asks: **Save & Send** / **Send only** / Cancel.
+  - On “Save & Send”, it calls `POST /api/chat-ingestion/commit` and then sends `POST /api/ai/chat` with `skipIngestion: true` (prevents double-logging the same message).
+
+### `/api/chat-ingestion/preview` + `/commit` contracts
+
+Route: `server/routes/chatIngestionRoutes.js`.
+
+- Both accept JSON `{ "message": "string" }`.
+- `preview` runs ingestion in `dryRun: true` mode and returns what *would* be written.
+- `commit` performs the write and triggers a DailyLifeState recompute.
+
+Response shape is the same in both (plus `dryRun` boolean):
+
+```json
+{
+  "ingested": true,
+  "dayKey": "YYYY-MM-DD",
+  "updates": ["string"],
+  "dryRun": true
+}
+```
+
+### `/api/stt` contract
+
+Route: `server/routes/sttRoutes.js`.
+
+- Method: `POST /api/stt`
+- Auth: required
+- Body: `multipart/form-data` with field `audio`
+- Size limit: 6 MB
+- Accepted formats: `.webm` (opus), `.ogg` (opus), `.wav`
+
+Response:
+
+```json
+{ "transcript": "string", "provider": "string" }
+```
+
 ## 3) Authentication & privacy rules
 
 ### Optional auth
@@ -94,6 +251,43 @@ In `server/routes/aiRoutes.js`, the logs fetch is gated:
 This prevents accidental cross-user data leakage.
 
 ---
+
+## 3.1) External call accounting (per user interaction)
+
+This is the practical “how many external calls happen” summary.
+
+### Text chat → `POST /api/ai/chat`
+
+- Typical authenticated, non-medical message:
+  - LLM: **1**
+  - RAG: **0**
+- Medical mode message:
+  - RAG: **1** (best-effort)
+  - LLM: **1**
+  - If `MEDICAL_REQUIRE_RAG=1` and RAG insufficient: **RAG 1, LLM 0** (early return)
+- Deterministic fast-path replies (profile questions / greeting / etc.):
+  - LLM: **0**
+  - RAG: **0**
+
+### Provider fallback (worst case)
+
+When `LLM_PROVIDER=auto`, the provider layer can fall back across providers if one errors. In the worst case this can mean **more than one outbound LLM call** for a single chat message.
+
+### Voice chat (client)
+
+Two variants:
+
+1) Browser speech recognition available (no server STT)
+- External: **0 STT calls**
+- Then proceeds like normal chat; may also use ingestion preview/commit.
+
+2) Audio upload → server STT fallback
+- STT: **1** (`POST /api/stt`)
+- Optional ingestion confirmation:
+  - preview: **1** (`POST /api/chat-ingestion/preview`)
+  - commit: **1** (`POST /api/chat-ingestion/commit`)
+- Then chat:
+  - LLM: typically **1**
 
 ## 4) Mode routing (deterministic)
 
@@ -127,6 +321,29 @@ Key design intent:
 - In medical mode: if RAG citations are included, treat them as the only authoritative medical source
 
 ---
+
+## 3.2) `/api/ai/chat` branching (what can short-circuit the LLM)
+
+The route in `server/routes/aiRoutes.js` can reply without calling the LLM in several deterministic cases:
+
+- Greetings (`hi`, `hello`, etc.)
+- Unauthenticated personal-context questions (asks user to sign in)
+- Profile-field questions (e.g., “what’s my diet type”, “what do you know about me”)
+- Some “degraded state” messages (returns one grounded line + one small step)
+- Some explicit “why/pattern” requests when the gatekeeper returns `reflect` and a low-confidence explanation is available
+- Some explicit “insight” requests when a deterministic identity `reasonKey` can be rendered without exposing memory layers
+
+Otherwise the default path is:
+
+- Compute system prompt (mode + constraints)
+- Build memory context (auth-only)
+- Call `generateLLMReply()`
+
+Finally the route applies global UX guards:
+
+- at most one follow-up question (or none in direct-answer mode)
+- explanation must come before any question
+- uncertainty phrasing enforcement
 
 ## 5) Safety triage (deterministic)
 
@@ -332,6 +549,26 @@ Provider selection:
 - `LLM_PROVIDER=auto` tries in order: `groq → gemini → openai`
 - `LLM_PROVIDER=gemini|groq|openai|none` forces a provider (or disables LLM)
 
+### Message packaging (important for “what the LLM sees”)
+
+In `generateLLMReply()`, the provider call is constructed as:
+
+- `system`: the mode prompt (or a default system prompt)
+- `messages`: includes:
+  - a `system` message
+  - a second `system` message: `Relevant user context (use only if helpful): ...`
+  - up to ~12 turns of history (user/assistant)
+  - the latest user message
+
+This keeps the “memory context” separated from the user’s natural language.
+
+### Provider fallback and call counts
+
+When `LLM_PROVIDER=auto`, `generateLLMReply()` will attempt providers in order until one returns text. That means:
+
+- Typical: **1** outbound LLM call
+- Worst case (multiple providers erroring): **up to 3** outbound LLM calls for a single chat request
+
 ### Output length
 
 - `LLM_MAX_OUTPUT_TOKENS` controls max generation tokens (default 700, clamped 128–2048)
@@ -356,6 +593,15 @@ OpenAI/Groq:
 In medical mode, LifeSync can optionally fetch textbook excerpts via:
 
 - `server/services/ragClient.js` → `fetchTextbookRag()` (called from `server/routes/aiRoutes.js`)
+
+Implementation notes:
+
+- It calls the AI service endpoint: `POST ${AI_SERVICE_URL}/rag/answer`
+- It uses an abort timeout: `AI_SERVICE_TIMEOUT_MS` (default 2500ms)
+- The response is normalized into:
+  - `citations[]` (top excerpts)
+  - `confidence` (number)
+  - `ragContext` (a formatted string injected into LLM context)
 
 Prompt policy in `buildSystemPrompt()`:
 
@@ -399,8 +645,13 @@ These are the main knobs used by the assistant path:
 
 Feature flags:
 
-- `AI_CHAT_SIMPLE_GEMINI=1` (when enabled, bypasses gatekeeper and forwards directly to Gemini with compiled context)
+- `AI_CHAT_SIMPLE_GEMINI=1` (when enabled, forces the “simple Gemini mode” response path with compiled context)
 - `MEDICAL_REQUIRE_RAG=1`
+
+RAG:
+
+- `AI_SERVICE_URL` (default `http://localhost:8000`)
+- `AI_SERVICE_TIMEOUT_MS` (default `2500`)
 
 Debug flags:
 
@@ -435,6 +686,43 @@ Invoke-RestMethod -Method Post -Uri 'http://localhost:5000/api/ai/chat' -Content
 ```
 
 ---
+
+## 15.1) Brief examples
+
+### Example A: authenticated “why/pattern” (triggers gatekeeper + possible deterministic reflection)
+
+```http
+POST /api/ai/chat
+Authorization: Bearer <JWT>
+Content-Type: application/json
+
+{
+  "message": "I slept 6h and stress is 7/10 today. Why do I feel drained?",
+  "history": [],
+  "skipIngestion": false
+}
+```
+
+Typical response (shape; values vary by user data):
+
+```json
+{
+  "mode": "general",
+  "reply": "Based on limited data, I see shorter sleep and higher stress in what you shared. What part of today feels most draining right now?",
+  "memorySnapshot": {
+    "chatIngestion": {
+      "ingested": true,
+      "dayKey": "2026-01-17",
+      "updates": ["mental.sleepHours", "mental.stress"]
+    },
+    "ragCitationsCount": 0
+  }
+}
+```
+
+### Example B: medical + `MEDICAL_REQUIRE_RAG=1` (early return, no LLM)
+
+If the system is in medical mode and cannot retrieve citations, it returns a safe refusal with optional triage.
 
 ## 16) Where to extend next (safe additions)
 

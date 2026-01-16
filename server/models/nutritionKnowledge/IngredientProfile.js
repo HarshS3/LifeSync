@@ -9,6 +9,14 @@ const NutrientsPer100gSchema = new mongoose.Schema(
     calories: { type: Number, default: 0 },
     sugar: { type: Number, default: 0 },
     sodium: { type: Number, default: 0 },
+    potassium: { type: Number, default: 0 },
+    iron: { type: Number, default: 0 },
+    calcium: { type: Number, default: 0 },
+    vitaminB: { type: Number, default: 0 },
+    magnesium: { type: Number, default: 0 },
+    zinc: { type: Number, default: 0 },
+    vitaminC: { type: Number, default: 0 },
+    omega3: { type: Number, default: 0 },
   },
   { _id: false }
 )

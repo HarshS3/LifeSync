@@ -11,6 +11,9 @@
     $env:SEED_SHOWCASE_EMAIL="showcase.user@lifesync.local"   # optional
     $env:SEED_SHOWCASE_PASSWORD="demopassword"                # optional
     $env:SEED_SHOWCASE_DAYS="30"                              # optional
+    # Optional explicit range (overrides SEED_SHOWCASE_DAYS when both set):
+    $env:SEED_SHOWCASE_START_DAYKEY="2025-11-01"              # optional
+    $env:SEED_SHOWCASE_END_DAYKEY="2025-12-31"                # optional
     node .\scripts\seed_demo_showcase.js
 
   Notes:
@@ -26,7 +29,7 @@ const bcrypt = require('bcryptjs');
 
 const User = require('../models/User');
 const { Habit, HabitLog } = require('../models/Habit');
-const { FitnessLog, NutritionLog, MentalLog, Goal } = require('../models/Logs');
+const { FitnessLog, NutritionLog, MentalLog, Goal, StepsLog, WeightLog } = require('../models/Logs');
 const { LongTermGoal, LongTermGoalLog } = require('../models/LongTermGoal');
 const { WardrobeItem, Outfit } = require('../models/Wardrobe');
 const SymptomLog = require('../models/SymptomLog');
@@ -48,6 +51,8 @@ const SEED_EMAIL = process.env.SEED_SHOWCASE_EMAIL || 'showcase.user@lifesync.lo
 const SEED_PASSWORD = process.env.SEED_SHOWCASE_PASSWORD || 'demopassword';
 const SEED_NAME = process.env.SEED_SHOWCASE_NAME || 'Showcase User';
 const SEED_DAYS = Math.max(7, Math.min(90, Number(process.env.SEED_SHOWCASE_DAYS || 30)));
+const SEED_START_DAYKEY = String(process.env.SEED_SHOWCASE_START_DAYKEY || '').trim();
+const SEED_END_DAYKEY = String(process.env.SEED_SHOWCASE_END_DAYKEY || '').trim();
 
 function dayKeyFromDateLocal(date) {
   const d = new Date(date);
@@ -89,6 +94,31 @@ function buildDayKeys({ days, endDayKey }) {
   for (let i = days - 1; i >= 0; i--) {
     out.push(dayKeyPlus(endDayKey, -i));
   }
+  return out;
+}
+
+function isValidDayKey(dayKey) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(dayKey || ''));
+}
+
+function buildDayKeysInclusive(startDayKey, endDayKey) {
+  if (!isValidDayKey(startDayKey) || !isValidDayKey(endDayKey)) {
+    throw new Error(`Invalid dayKey range: ${startDayKey}..${endDayKey}`);
+  }
+
+  // Walk forward one day at a time, inclusive.
+  const out = [];
+  let cursor = startDayKey;
+  for (let i = 0; i < 4000; i++) {
+    out.push(cursor);
+    if (cursor === endDayKey) break;
+    cursor = dayKeyPlus(cursor, 1);
+  }
+
+  if (out[out.length - 1] !== endDayKey) {
+    throw new Error(`Could not build dayKey range (start > end?): ${startDayKey}..${endDayKey}`);
+  }
+
   return out;
 }
 
@@ -295,6 +325,20 @@ function storylineForOffset(offsetFromStart, totalDays) {
       ? { calories: 2300, protein: 140, carbs: 240, fat: 70, waterMl: 1800 }
       : { calories: 2100, protein: 130, carbs: 220, fat: 60, waterMl: 2000 };
 
+  // Steps/weight: user-entered daily metrics.
+  const stepsBase = phase === 'pressure' ? 8600 : phase === 'recovery' ? 7400 : 8000;
+  const steps = stepsBase
+    + (isHighTrainingDay ? 1600 : 0)
+    - (energyLevelFinal <= 3.6 ? 2600 : 0)
+    - (isTemporaryPhase ? 900 : 0);
+
+  const stepsCount = Math.max(900, Math.min(18000, Math.round(steps)));
+
+  // Gentle deterministic trend + small oscillation.
+  const weightTrend = 74 - (offsetFromStart * 0.015);
+  const weightOsc = 0.35 * Math.sin(offsetFromStart / 6);
+  const weightKg = Math.max(68, Math.min(78, Number((weightTrend + weightOsc).toFixed(1))));
+
   // Fitness logs for trainingLoad signal.
   const fitness = isHighTrainingDay
     ? { intensity: 9, fatigue: 8, type: 'strength', focus: 'push' }
@@ -324,6 +368,8 @@ function storylineForOffset(offsetFromStart, totalDays) {
     nutrition,
     fitness,
     habitsCompletionFactor,
+    stepsCount,
+    weightKg,
     symptoms,
   };
 }
@@ -365,32 +411,48 @@ async function upsertNutritionForDay(userId, dayKey, { calories, protein, carbs,
   };
 
   const meals = dailyTotals.calories
-    ? [
-        {
-          name: 'Seed day',
-          mealType: 'lunch',
-          time: '13:00',
-          foods: [
-            {
-              name: 'Seed macros',
-              quantity: 1,
-              unit: 'serving',
-              calories: dailyTotals.calories,
-              protein: dailyTotals.protein,
-              carbs: dailyTotals.carbs,
-              fat: dailyTotals.fat,
-              fiber: 0,
-              sugar: 0,
-              sodium: 0,
-            },
-          ],
-          totalCalories: dailyTotals.calories,
-          totalProtein: dailyTotals.protein,
-          totalCarbs: dailyTotals.carbs,
-          totalFat: dailyTotals.fat,
-          notes: `${SEED_TAG} nutrition`,
-        },
-      ]
+    ? (() => {
+        // Split totals across 3 meals for nicer UI.
+        const split = [0.3, 0.4, 0.3];
+        const mealDefs = [
+          { name: 'Breakfast', mealType: 'breakfast', time: '08:15', food: 'Oats + yogurt' },
+          { name: 'Lunch', mealType: 'lunch', time: '13:05', food: 'Chicken + rice bowl' },
+          { name: 'Dinner', mealType: 'dinner', time: '20:10', food: 'Paneer + veggies' },
+        ];
+
+        return mealDefs.map((m, idx) => {
+          const frac = split[idx] ?? 0.33;
+          const caloriesPart = Math.round(dailyTotals.calories * frac);
+          const proteinPart = Math.round(dailyTotals.protein * frac);
+          const carbsPart = Math.round(dailyTotals.carbs * frac);
+          const fatPart = Math.round(dailyTotals.fat * frac);
+
+          return {
+            name: m.name,
+            mealType: m.mealType,
+            time: m.time,
+            foods: [
+              {
+                name: m.food,
+                quantity: 1,
+                unit: 'serving',
+                calories: caloriesPart,
+                protein: proteinPart,
+                carbs: carbsPart,
+                fat: fatPart,
+                fiber: 0,
+                sugar: 0,
+                sodium: 0,
+              },
+            ],
+            totalCalories: caloriesPart,
+            totalProtein: proteinPart,
+            totalCarbs: carbsPart,
+            totalFat: fatPart,
+            notes: `${SEED_TAG} nutrition`,
+          };
+        });
+      })()
     : [];
 
   await NutritionLog.updateOne(
@@ -403,6 +465,38 @@ async function upsertNutritionForDay(userId, dayKey, { calories, protein, carbs,
         waterIntake: Math.max(0, Number(waterMl) || 0),
         dailyTotals,
         notes: `${SEED_TAG} nutrition`,
+      },
+    },
+    { upsert: true }
+  );
+}
+
+async function upsertStepsForDay(userId, dayKey, stepsCount) {
+  const { noon } = dayRangeLocal(dayKey);
+
+  await StepsLog.updateOne(
+    { user: userId, date: noon },
+    {
+      $set: {
+        user: userId,
+        date: noon,
+        stepsCount: Math.max(0, Math.round(Number(stepsCount) || 0)),
+      },
+    },
+    { upsert: true }
+  );
+}
+
+async function upsertWeightForDay(userId, dayKey, weightKg) {
+  const { noon } = dayRangeLocal(dayKey);
+
+  await WeightLog.updateOne(
+    { user: userId, date: noon },
+    {
+      $set: {
+        user: userId,
+        date: noon,
+        weightKg: Number(weightKg),
       },
     },
     { upsert: true }
@@ -828,8 +922,18 @@ async function main() {
   const user = await ensureUser();
   const userId = user._id;
 
-  const endDayKey = dayKeyFromDateLocal(new Date());
-  const dayKeys = buildDayKeys({ days: SEED_DAYS, endDayKey });
+  let dayKeys;
+  if (SEED_START_DAYKEY && SEED_END_DAYKEY) {
+    dayKeys = buildDayKeysInclusive(SEED_START_DAYKEY, SEED_END_DAYKEY);
+  } else if (SEED_START_DAYKEY && !SEED_END_DAYKEY) {
+    const computedEnd = dayKeyPlus(SEED_START_DAYKEY, SEED_DAYS - 1);
+    dayKeys = buildDayKeysInclusive(SEED_START_DAYKEY, computedEnd);
+  } else {
+    const endDayKey = SEED_END_DAYKEY || dayKeyFromDateLocal(new Date());
+    dayKeys = buildDayKeys({ days: SEED_DAYS, endDayKey });
+  }
+
+  const endDayKey = dayKeys[dayKeys.length - 1];
 
   console.log(`${SEED_TAG} ensure habits`);
   const habits = await ensureHabits(userId);
@@ -851,6 +955,8 @@ async function main() {
     await upsertMentalForDay(userId, dayKey, story);
     await upsertNutritionForDay(userId, dayKey, story.nutrition);
     await upsertFitnessForDay(userId, dayKey, story.fitness);
+    await upsertStepsForDay(userId, dayKey, story.stepsCount);
+    await upsertWeightForDay(userId, dayKey, story.weightKg);
     await upsertHabitLogsForDay(userId, dayKey, habits, story.habitsCompletionFactor);
     await upsertSymptomsForDay(userId, dayKey, story.symptoms);
   }
@@ -935,6 +1041,8 @@ async function main() {
   console.log('  - Chat: ask "How am I doing today?" (reflect) then "Why do I feel tired so often?" (insight gated)');
   console.log('  - Memory control: point out temporary phase window does not over-define identity');
 }
+
+module.exports = { main };
 
 if (require.main === module) {
   main()

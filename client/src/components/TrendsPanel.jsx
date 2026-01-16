@@ -5,15 +5,17 @@ import Tabs from '@mui/material/Tabs'
 import Tab from '@mui/material/Tab'
 import Button from '@mui/material/Button'
 import Divider from '@mui/material/Divider'
+import TextField from '@mui/material/TextField'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
+import { computeTrainingInsights } from '../lib/trainingInsights'
 
 function TrendsPanel() {
   const initialTab = useMemo(() => {
     try {
       const raw = localStorage.getItem('lifesync:insights:activeTab')
       const n = Number.parseInt(raw || '', 10)
-      if (Number.isFinite(n) && n >= 0 && n <= 2) return n
+      if (Number.isFinite(n) && n >= 0 && n <= 3) return n
     } catch {
       // ignore
     }
@@ -21,16 +23,41 @@ function TrendsPanel() {
   }, [])
 
   const [activeTab, setActiveTab] = useState(initialTab)
-  const [data, setData] = useState({ fitness: [], nutrition: [], mental: [] })
+  const [data, setData] = useState({ fitness: [], nutrition: [], mental: [], workouts: [] })
 
   const [checkinInsight, setCheckinInsight] = useState(null)
   const [journalInsight, setJournalInsight] = useState(null)
+  const [nutritionInsight, setNutritionInsight] = useState(null)
 
   const [journalToday, setJournalToday] = useState('')
   const [journalTodayLoading, setJournalTodayLoading] = useState(false)
   const [aiGenerating, setAiGenerating] = useState(false)
 
+  const [learningOverview, setLearningOverview] = useState(null)
+  const [learningLoading, setLearningLoading] = useState(false)
+  const [learningError, setLearningError] = useState('')
+
+  const [todayLifeState, setTodayLifeState] = useState(null)
+  const [todayLifeStateReflection, setTodayLifeStateReflection] = useState('')
+  const [todayLifeStateLoading, setTodayLifeStateLoading] = useState(false)
+  const [todayLifeStateError, setTodayLifeStateError] = useState('')
+
+  const [nutritionReview, setNutritionReview] = useState(null)
+  const [nutritionReviewNarration, setNutritionReviewNarration] = useState('')
+  const [nutritionReviewLoading, setNutritionReviewLoading] = useState(false)
+  const [nutritionReviewError, setNutritionReviewError] = useState('')
+
   const { token, user } = useAuth()
+
+  const defaultWellnessDayKey = useMemo(() => {
+    const dt = new Date()
+    const y = dt.getFullYear()
+    const m = String(dt.getMonth() + 1).padStart(2, '0')
+    const d = String(dt.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }, [])
+
+  const [wellnessDayKey, setWellnessDayKey] = useState(defaultWellnessDayKey)
 
   useEffect(() => {
     try {
@@ -45,11 +72,14 @@ function TrendsPanel() {
       try {
         const rawCheckin = localStorage.getItem('lifesync:insights:checkin')
         const rawJournal = localStorage.getItem('lifesync:insights:journal')
+        const rawNutrition = localStorage.getItem('lifesync:insights:nutrition')
         setCheckinInsight(rawCheckin ? JSON.parse(rawCheckin) : null)
         setJournalInsight(rawJournal ? JSON.parse(rawJournal) : null)
+        setNutritionInsight(rawNutrition ? JSON.parse(rawNutrition) : null)
       } catch {
         setCheckinInsight(null)
         setJournalInsight(null)
+        setNutritionInsight(null)
       }
     }
 
@@ -88,6 +118,108 @@ function TrendsPanel() {
   }, [token, activeTab])
 
   useEffect(() => {
+    const fetchTodayLifeState = async () => {
+      if (!token) return
+      if (activeTab !== 2) return
+
+      const dayKey = wellnessDayKey
+
+      setTodayLifeStateError('')
+      setTodayLifeStateLoading(true)
+      try {
+        const res = await fetch(`${API_BASE}/api/daily-life-state/${dayKey}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+
+        const reflection = res.headers.get('X-LifeSync-State-Reflection') || ''
+        setTodayLifeStateReflection(reflection)
+
+        if (!res.ok) {
+          const msg = await res.text().catch(() => '')
+          setTodayLifeState(null)
+          setTodayLifeStateError(msg || 'Failed to load DailyLifeState.')
+          return
+        }
+
+        const json = await res.json().catch(() => null)
+        setTodayLifeState(json)
+      } catch {
+        setTodayLifeState(null)
+        setTodayLifeStateReflection('')
+        setTodayLifeStateError('Failed to load DailyLifeState.')
+      } finally {
+        setTodayLifeStateLoading(false)
+      }
+    }
+
+    fetchTodayLifeState()
+  }, [token, activeTab, wellnessDayKey])
+
+  useEffect(() => {
+    const fetchNutritionReview = async () => {
+      if (!token) return
+      if (activeTab !== 2) return
+
+      setNutritionReviewError('')
+      setNutritionReviewLoading(true)
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/insights/nutrition/review?dayKey=${encodeURIComponent(wellnessDayKey)}&narrate=1`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+        if (!res.ok) {
+          const msg = await res.text().catch(() => '')
+          setNutritionReview(null)
+          setNutritionReviewNarration('')
+          setNutritionReviewError(msg || 'Failed to load nutrition review.')
+          return
+        }
+        const json = await res.json().catch(() => null)
+        setNutritionReview(json?.review || null)
+        setNutritionReviewNarration(json?.narration || '')
+      } catch {
+        setNutritionReview(null)
+        setNutritionReviewNarration('')
+        setNutritionReviewError('Failed to load nutrition review.')
+      } finally {
+        setNutritionReviewLoading(false)
+      }
+    }
+
+    fetchNutritionReview()
+  }, [token, activeTab, wellnessDayKey])
+
+  useEffect(() => {
+    const fetchLearning = async () => {
+      if (!token) return
+      if (activeTab !== 3) return
+
+      setLearningError('')
+      setLearningLoading(true)
+      try {
+        const res = await fetch(`${API_BASE}/api/insights/learning/overall?days=120`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) {
+          const msg = await res.text().catch(() => '')
+          setLearningOverview(null)
+          setLearningError(msg || 'Failed to load learning overview.')
+          return
+        }
+        const json = await res.json().catch(() => null)
+        setLearningOverview(json)
+      } catch {
+        setLearningOverview(null)
+        setLearningError('Failed to load learning overview.')
+      } finally {
+        setLearningLoading(false)
+      }
+    }
+
+    fetchLearning()
+  }, [token, activeTab])
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
         const fetchJson = async (url) => {
@@ -107,10 +239,11 @@ function TrendsPanel() {
           return
         }
         const userId = user._id
-        const [fit, nut, men] = await Promise.all([
+        const [fit, nut, men, workouts] = await Promise.all([
           fetchJson(`${API_BASE}/api/logs/fitness/${userId}`),
           fetchJson(`${API_BASE}/api/logs/nutrition/${userId}`),
           fetchJson(`${API_BASE}/api/logs/mental/${userId}`),
+          fetchJson(`${API_BASE}/api/gym/workouts`),
         ])
 
         const normalizedNutrition = Array.isArray(nut)
@@ -123,10 +256,11 @@ function TrendsPanel() {
             })
           : []
 
-        setData({ 
-          fitness: Array.isArray(fit) ? fit.slice(0, 7) : [], 
-          nutrition: normalizedNutrition.slice(0, 7), 
-          mental: Array.isArray(men) ? men.slice(0, 7) : [] 
+        setData({
+          fitness: Array.isArray(fit) ? fit.slice(0, 7) : [],
+          nutrition: normalizedNutrition.slice(0, 7),
+          mental: Array.isArray(men) ? men.slice(0, 7) : [],
+          workouts: Array.isArray(workouts) ? workouts.slice(0, 50) : [],
         })
       } catch (err) {
         console.error('Failed to fetch trends:', err)
@@ -135,11 +269,19 @@ function TrendsPanel() {
     fetchData()
   }, [token])
 
+  const trainingInsights = useMemo(() => computeTrainingInsights(data.workouts), [data.workouts])
+
   const latestMentalLog = useMemo(() => {
     if (!Array.isArray(data.mental) || data.mental.length === 0) return null
     const sorted = [...data.mental].sort((a, b) => new Date(b.date) - new Date(a.date))
     return sorted[0] || null
   }, [data.mental])
+
+  const latestNutritionLog = useMemo(() => {
+    if (!Array.isArray(data.nutrition) || data.nutrition.length === 0) return null
+    const sorted = [...data.nutrition].sort((a, b) => new Date(b.date) - new Date(a.date))
+    return sorted[0] || null
+  }, [data.nutrition])
 
   const saveInsight = (key, text, meta = {}) => {
     try {
@@ -237,6 +379,62 @@ function TrendsPanel() {
       saveInsight('lifesync:insights:journal', text, { source: 'journal' })
     } catch {
       alert('Failed to generate journal insight. Please try again.')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
+  const generateNutritionInsight = async () => {
+    if (!token) return
+    if (!latestNutritionLog) return
+
+    setAiGenerating(true)
+    try {
+      const dt = latestNutritionLog.date ? new Date(latestNutritionLog.date) : null
+      const dateStr = dt ? dt.toLocaleDateString() : ''
+
+      const daily = latestNutritionLog.dailyTotals || {}
+      const calories = latestNutritionLog.totalCalories ?? daily.calories ?? 0
+      const protein = latestNutritionLog.protein ?? daily.protein ?? 0
+      const carbs = latestNutritionLog.carbs ?? daily.carbs ?? null
+      const fat = latestNutritionLog.fat ?? daily.fat ?? null
+      const fiber = latestNutritionLog.fiber ?? daily.fiber ?? null
+      const water = latestNutritionLog.waterIntake ?? null
+      const notes = (latestNutritionLog.notes || '').trim()
+
+      const message = [
+        `Based on my latest nutrition log (${dateStr}), write a short reflection.`,
+        'Return exactly: (1) one key observation and (2) one gentle optional suggestion.',
+        'Be calm and concise. No diagnosis, no medical advice, no moralizing.',
+        '',
+        `calories: ${calories} kcal`,
+        `protein: ${protein} g`,
+        carbs != null ? `carbs: ${carbs} g` : null,
+        fat != null ? `fat: ${fat} g` : null,
+        fiber != null ? `fiber: ${fiber} g` : null,
+        water != null ? `water: ${water} ml` : null,
+        notes ? `notes: ${notes}` : null,
+      ].filter(Boolean).join('\n')
+
+      const res = await fetch(`${API_BASE}/api/ai/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ message }),
+      })
+
+      if (!res.ok) {
+        alert('Failed to generate nutrition insight. Please try again.')
+        return
+      }
+
+      const json = await res.json().catch(() => null)
+      const text = json?.reply || json?.message || 'No AI reply returned.'
+      saveInsight('lifesync:insights:nutrition', text, { source: 'nutrition', forDate: latestNutritionLog.date || null })
+    } catch {
+      alert('Failed to generate nutrition insight. Please try again.')
     } finally {
       setAiGenerating(false)
     }
@@ -438,6 +636,7 @@ function TrendsPanel() {
           <Tab label="Training" />
           <Tab label="Nutrition" />
           <Tab label="Wellness" />
+          <Tab label="Overall Learning" />
         </Tabs>
       </Box>
 
@@ -448,6 +647,31 @@ function TrendsPanel() {
             <StatCard label="Avg Intensity" value={calcAvg(data.fitness, 'intensity')} unit="/10" trend={-3} />
             <StatCard label="Sessions" value={data.fitness.length} trend={12} />
           </Box>
+
+          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+              Training Insights
+            </Typography>
+            {trainingInsights.length > 0 ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                {trainingInsights.map((p, idx) => (
+                  <Box key={idx} sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                    <Typography variant="body2" sx={{ color: '#374151', fontWeight: 600, mb: 0.5 }}>
+                      {p.title}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                      {p.detail}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                Log a few workouts to surface training insights here.
+              </Typography>
+            )}
+          </Box>
+
           {data.fitness.length > 0 && (
             <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
               <Typography variant="subtitle2" sx={{ mb: 3, color: '#6b7280' }}>
@@ -461,6 +685,39 @@ function TrendsPanel() {
 
       {activeTab === 1 && (
         <Box>
+          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+              AI Insight (nutrition)
+            </Typography>
+
+            {nutritionInsight?.text ? (
+              <>
+                <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.7 }}>
+                  {nutritionInsight.text}
+                </Typography>
+                {nutritionInsight?.createdAt && (
+                  <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block', mt: 1 }}>
+                    Updated {new Date(nutritionInsight.createdAt).toLocaleString()}
+                  </Typography>
+                )}
+              </>
+            ) : (
+              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                Generate an insight from your latest nutrition log.
+              </Typography>
+            )}
+
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={generateNutritionInsight}
+              disabled={aiGenerating || !latestNutritionLog}
+              sx={{ mt: 2, textTransform: 'none', borderColor: '#e5e7eb', color: '#374151' }}
+            >
+              {aiGenerating ? 'Generating…' : 'Generate'}
+            </Button>
+          </Box>
+
           <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap' }}>
             <StatCard label="Avg Calories" value={calcAvg(data.nutrition, 'totalCalories')} unit="kcal" trend={5} />
             <StatCard label="Avg Protein" value={calcAvg(data.nutrition, 'protein')} unit="g" trend={15} />
@@ -480,6 +737,195 @@ function TrendsPanel() {
 
       {activeTab === 2 && (
         <Box>
+          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+              Wellness date
+            </Typography>
+            <TextField
+              type="date"
+              size="small"
+              value={wellnessDayKey}
+              onChange={(e) => setWellnessDayKey(e.target.value)}
+              sx={{ maxWidth: 220 }}
+              inputProps={{ max: defaultWellnessDayKey }}
+            />
+            <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mt: 1 }}>
+              Tip for demos: pick a seeded date like 2025-12-15.
+            </Typography>
+          </Box>
+
+          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+              Today’s Life State (derived)
+            </Typography>
+
+            {todayLifeStateError ? (
+              <Typography variant="caption" sx={{ color: '#991b1b', display: 'block', whiteSpace: 'pre-line' }}>
+                {todayLifeStateError}
+              </Typography>
+            ) : todayLifeStateLoading ? (
+              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                Loading today’s state…
+              </Typography>
+            ) : todayLifeState?.summaryState ? (
+              <>
+                <Typography variant="body2" sx={{ color: '#111827', fontWeight: 700 }}>
+                  {todayLifeState.summaryState.label || 'unknown'}
+                  {todayLifeState.summaryState.confidence != null
+                    ? ` (conf ${Math.round((todayLifeState.summaryState.confidence || 0) * 100)}%)`
+                    : ''}
+                </Typography>
+                {Array.isArray(todayLifeState.summaryState.reasons) && todayLifeState.summaryState.reasons.length ? (
+                  <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mt: 0.75 }}>
+                    {todayLifeState.summaryState.reasons.join(' • ')}
+                  </Typography>
+                ) : null}
+
+                {todayLifeStateReflection ? (
+                  <Box sx={{ mt: 2, p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                    <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                      Calm reflection
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.7 }}>
+                      {todayLifeStateReflection}
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mt: 1 }}>
+                    No reflection generated (silence is normal when confidence is low).
+                  </Typography>
+                )}
+              </>
+            ) : (
+              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                No daily state yet. Add a check-in (sleep/stress/energy) or logs.
+              </Typography>
+            )}
+
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => {
+                setTodayLifeState(null)
+                setTodayLifeStateReflection('')
+                setTodayLifeStateError('')
+                setTodayLifeStateLoading(true)
+
+                const dayKey = wellnessDayKey
+
+                fetch(`${API_BASE}/api/daily-life-state/${dayKey}?refresh=1`, {
+                  headers: { Authorization: `Bearer ${token}` },
+                })
+                  .then(async (r) => {
+                    const reflection = r.headers.get('X-LifeSync-State-Reflection') || ''
+                    setTodayLifeStateReflection(reflection)
+                    if (!r.ok) throw new Error(await r.text().catch(() => 'Failed'))
+                    return r.json()
+                  })
+                  .then((json) => setTodayLifeState(json))
+                  .catch((e) => setTodayLifeStateError(String(e?.message || 'Failed to refresh DailyLifeState.')))
+                  .finally(() => setTodayLifeStateLoading(false))
+              }}
+              disabled={todayLifeStateLoading || !token}
+              sx={{ mt: 2, textTransform: 'none', borderColor: '#e5e7eb', color: '#374151' }}
+            >
+              {todayLifeStateLoading ? 'Refreshing…' : 'Refresh'}
+            </Button>
+          </Box>
+
+          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+              Nutrition Review (medical-style)
+            </Typography>
+
+            {nutritionReviewError ? (
+              <Typography variant="caption" sx={{ color: '#991b1b', display: 'block', whiteSpace: 'pre-line' }}>
+                {nutritionReviewError}
+              </Typography>
+            ) : nutritionReviewLoading ? (
+              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                Building nutrition review…
+              </Typography>
+            ) : nutritionReview ? (
+              <>
+                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 1 }}>
+                  confidence {Math.round((nutritionReview.confidence || 0) * 100)}% • completeness {Math.round((nutritionReview.completeness || 0) * 100)}%
+                </Typography>
+
+                {nutritionReviewNarration ? (
+                  <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb', mb: 1.5 }}>
+                    <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.7 }}>
+                      {nutritionReviewNarration}
+                    </Typography>
+                  </Box>
+                ) : null}
+
+                {Array.isArray(nutritionReview.flags) && nutritionReview.flags.length ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                    {nutritionReview.flags.slice(0, 6).map((f) => (
+                      <Box key={f.key} sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                        <Typography variant="body2" sx={{ color: '#111827', fontWeight: 700 }}>
+                          {f.title}
+                          <Typography component="span" variant="caption" sx={{ color: '#6b7280', fontWeight: 500, ml: 1 }}>
+                            ({f.severity})
+                          </Typography>
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                ) : (
+                  <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                    No notable flags found for this day.
+                  </Typography>
+                )}
+
+                {Array.isArray(nutritionReview.questionsForClinician) && nutritionReview.questionsForClinician.length ? (
+                  <>
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 1 }}>
+                      Questions to discuss with a clinician (optional):
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.8 }}>
+                      {nutritionReview.questionsForClinician.map((q) => `• ${q}`).join('\n')}
+                    </Typography>
+                  </>
+                ) : null}
+              </>
+            ) : (
+              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                No nutrition log found for this date.
+              </Typography>
+            )}
+
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => {
+                setNutritionReview(null)
+                setNutritionReviewNarration('')
+                setNutritionReviewError('')
+                setNutritionReviewLoading(true)
+                fetch(`${API_BASE}/api/insights/nutrition/review?dayKey=${encodeURIComponent(wellnessDayKey)}&narrate=1`, {
+                  headers: { Authorization: `Bearer ${token}` },
+                })
+                  .then(async (r) => {
+                    if (!r.ok) throw new Error(await r.text().catch(() => 'Failed'))
+                    return r.json()
+                  })
+                  .then((json) => {
+                    setNutritionReview(json?.review || null)
+                    setNutritionReviewNarration(json?.narration || '')
+                  })
+                  .catch((e) => setNutritionReviewError(String(e?.message || 'Failed to refresh nutrition review.')))
+                  .finally(() => setNutritionReviewLoading(false))
+              }}
+              disabled={nutritionReviewLoading || !token}
+              sx={{ mt: 2, textTransform: 'none', borderColor: '#e5e7eb', color: '#374151' }}
+            >
+              {nutritionReviewLoading ? 'Refreshing…' : 'Refresh'}
+            </Button>
+          </Box>
+
           <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
             <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', flex: 1, minWidth: 280 }}>
               <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
@@ -605,6 +1051,187 @@ function TrendsPanel() {
           <Typography variant="body2" sx={{ color: '#9ca3af' }}>
             Start logging your activities to see trends here
           </Typography>
+        </Box>
+      )}
+
+      {activeTab === 3 && (
+        <Box>
+          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+              What LifeSync has learned (deterministic)
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#374151', lineHeight: 1.7 }}>
+              This view shows stable patterns and identities derived from DailyLifeState. It’s designed to be calm and factual.
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => {
+                setLearningOverview(null)
+                setLearningError('')
+                setLearningLoading(true)
+                fetch(`${API_BASE}/api/insights/learning/overall?days=120`, {
+                  headers: { Authorization: `Bearer ${token}` },
+                })
+                  .then(async (r) => {
+                    if (!r.ok) throw new Error(await r.text().catch(() => 'Failed'))
+                    return r.json()
+                  })
+                  .then((json) => setLearningOverview(json))
+                  .catch((e) => {
+                    setLearningOverview(null)
+                    setLearningError(String(e?.message || 'Failed to refresh learning overview.'))
+                  })
+                  .finally(() => setLearningLoading(false))
+              }}
+              disabled={learningLoading || !token}
+              sx={{ mt: 2, textTransform: 'none', borderColor: '#e5e7eb', color: '#374151' }}
+            >
+              {learningLoading ? 'Loading…' : 'Refresh'}
+            </Button>
+          </Box>
+
+          {learningError ? (
+            <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #fecaca', mb: 3 }}>
+              <Typography variant="body2" sx={{ color: '#991b1b', whiteSpace: 'pre-line' }}>
+                {learningError}
+              </Typography>
+            </Box>
+          ) : null}
+
+          <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+            <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', flex: 1, minWidth: 280 }}>
+              <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+                Recent Day-State (last {learningOverview?.windowDays ?? 120} days)
+              </Typography>
+              {learningOverview?.stateSummary?.latestDayKey ? (
+                <>
+                  <Typography variant="body2" sx={{ color: '#111827', fontWeight: 600 }}>
+                    Latest: {learningOverview.stateSummary.latestDayKey}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#374151', mt: 0.5 }}>
+                    {learningOverview.stateSummary.latestSummaryState?.label || 'unknown'}
+                    {learningOverview.stateSummary.latestSummaryState?.confidence != null
+                      ? ` (conf ${Math.round((learningOverview.stateSummary.latestSummaryState.confidence || 0) * 100)}%)`
+                      : ''}
+                  </Typography>
+                  {Array.isArray(learningOverview.stateSummary.latestSummaryState?.reasons) &&
+                  learningOverview.stateSummary.latestSummaryState.reasons.length ? (
+                    <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mt: 1 }}>
+                      {learningOverview.stateSummary.latestSummaryState.reasons.join(' • ')}
+                    </Typography>
+                  ) : null}
+                </>
+              ) : (
+                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                  No daily state data found yet for this window.
+                </Typography>
+              )}
+            </Box>
+
+            <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', flex: 1, minWidth: 280 }}>
+              <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+                Counts
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#374151', lineHeight: 1.8 }}>
+                Total days with state: {learningOverview?.stateSummary?.totalDaysWithState ?? 0}
+                <br />
+                Stable: {learningOverview?.stateSummary?.counts?.stable ?? 0} | Recovering:{' '}
+                {learningOverview?.stateSummary?.counts?.recovering ?? 0}
+                <br />
+                Overloaded: {learningOverview?.stateSummary?.counts?.overloaded ?? 0} | Depleted:{' '}
+                {learningOverview?.stateSummary?.counts?.depleted ?? 0}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 2 }}>
+              PatternMemory (correlations)
+            </Typography>
+            {Array.isArray(learningOverview?.patterns) && learningOverview.patterns.length ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                {learningOverview.patterns.slice(0, 20).map((p) => (
+                  <Box
+                    key={p._id || p.patternKey}
+                    sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}
+                  >
+                    <Typography variant="body2" sx={{ color: '#111827', fontWeight: 700 }}>
+                      {(p.conditions || []).join(' + ') || 'context'} → {p.effect}
+                      <Typography component="span" variant="caption" sx={{ color: '#6b7280', fontWeight: 500, ml: 1 }}>
+                        ({p.window})
+                      </Typography>
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mt: 0.25 }}>
+                      conf {Math.round((p.confidence || 0) * 100)}% • support {p.supportCount || 0} • last{' '}
+                      {p.lastObserved ? new Date(p.lastObserved).toLocaleDateString() : '—'} • {p.status}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                Not enough repeated signal yet to form patterns.
+              </Typography>
+            )}
+          </Box>
+
+          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+            <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 2 }}>
+              IdentityMemory (stable truths)
+            </Typography>
+            {Array.isArray(learningOverview?.identities) && learningOverview.identities.length ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                {learningOverview.identities.slice(0, 12).map((im) => (
+                  <Box
+                    key={im._id || im.identityKey}
+                    sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}
+                  >
+                    <Typography variant="body2" sx={{ color: '#111827', fontWeight: 700 }}>
+                      {im.claim}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mt: 0.25 }}>
+                      conf {Math.round((im.confidence || 0) * 100)}% • stability {Math.round((im.stabilityScore || 0) * 100)}% • last{' '}
+                      {im.lastReinforced ? new Date(im.lastReinforced).toLocaleDateString() : '—'} • {im.status}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                No identities confirmed yet.
+              </Typography>
+            )}
+          </Box>
+
+          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+            <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+              Field coverage (what feeds learning today)
+            </Typography>
+            {learningOverview?.fieldCoverage?.learnedFrom ? (
+              <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.8 }}>
+                {(learningOverview.fieldCoverage.learnedFrom.dailyLifeStateSignals || []).map((x) => `• ${x}`).join('\n')}
+                {'\n'}
+                {(learningOverview.fieldCoverage.learnedFrom.contextSignals || []).map((x) => `• ${x}`).join('\n')}
+              </Typography>
+            ) : (
+              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                Coverage info unavailable.
+              </Typography>
+            )}
+
+            {learningOverview?.fieldCoverage?.notYetUsed?.examples?.length ? (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 1 }}>
+                  Not yet used for learning:
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.8 }}>
+                  {(learningOverview.fieldCoverage.notYetUsed.examples || []).map((x) => `• ${x}`).join('\n')}
+                </Typography>
+              </>
+            ) : null}
+          </Box>
         </Box>
       )}
     </Box>

@@ -34,6 +34,9 @@ import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
+import GlbModelViewer from './GlbModelViewer.jsx'
+
+const DEFAULT_GLB_URL = new URL('../assets/Untitled.glb', import.meta.url).href
 
 const CATEGORIES = [
   'tops', 'bottoms', 'dresses', 'outerwear', 'shoes', 'accessories', 'activewear', 'formal'
@@ -284,6 +287,7 @@ function StylePanel() {
         <Tab label="Wardrobe" />
         <Tab label="Outfit Ideas" />
         <Tab label="Stats" />
+        <Tab label="3D Preview" />
       </Tabs>
 
       {/* Wardrobe Tab */}
@@ -431,6 +435,17 @@ function StylePanel() {
               ))}
             </Grid>
           )}
+        </Box>
+      )}
+
+      {/* 3D Preview Tab */}
+      {activeTab === 3 && (
+        <Box>
+          <Typography variant="body2" sx={{ mb: 2, color: '#6b7280' }}>
+            Preview the uploaded GLB model from your local assets.
+          </Typography>
+
+          <GlbModelViewer src={DEFAULT_GLB_URL} />
         </Box>
       )}
 

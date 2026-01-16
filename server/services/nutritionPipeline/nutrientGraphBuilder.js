@@ -19,6 +19,7 @@ async function buildAndStoreNutrientGraph({ canonicalId, sourceFood, sourceLabel
   const evidenceIds = []
 
   const addNutrient = async (key, meanValue, unitOverride = null) => {
+    if (meanValue == null) return
     const meta = getNutrientMeta(key)
     const unit = unitOverride || meta.unit
     const mean = Number(meanValue) || 0
@@ -83,6 +84,16 @@ async function buildAndStoreNutrientGraph({ canonicalId, sourceFood, sourceLabel
   await addNutrient('sugar', sourceFood.sugar)
   await addNutrient('sodium', sourceFood.sodium, 'mg')
 
+  // Optional micros (may be missing depending on the source item)
+  await addNutrient('potassium', sourceFood.potassium, 'mg')
+  await addNutrient('iron', sourceFood.iron, 'mg')
+  await addNutrient('calcium', sourceFood.calcium, 'mg')
+  await addNutrient('vitaminB', sourceFood.vitaminB, 'mg')
+  await addNutrient('magnesium', sourceFood.magnesium, 'mg')
+  await addNutrient('zinc', sourceFood.zinc, 'mg')
+  await addNutrient('vitaminC', sourceFood.vitaminC, 'mg')
+  await addNutrient('omega3', sourceFood.omega3, 'g')
+
   const graphDoc = await NutrientGraph.create({
     canonicalId,
     version: 1,
@@ -127,6 +138,7 @@ async function buildAndStoreNutrientGraphFromTotals({
   const evidenceIds = []
 
   const add = async (key, mean, unitOverride = null) => {
+    if (mean == null) return
     const meta = getNutrientMeta(key)
     const unit = unitOverride || meta.unit
     const v = Number(mean) || 0
@@ -175,6 +187,15 @@ async function buildAndStoreNutrientGraphFromTotals({
   await add('fiber', totals.fiber)
   await add('sugar', totals.sugar)
   await add('sodium', totals.sodium, 'mg')
+
+  await add('potassium', totals.potassium, 'mg')
+  await add('iron', totals.iron, 'mg')
+  await add('calcium', totals.calcium, 'mg')
+  await add('vitaminB', totals.vitaminB, 'mg')
+  await add('magnesium', totals.magnesium, 'mg')
+  await add('zinc', totals.zinc, 'mg')
+  await add('vitaminC', totals.vitaminC, 'mg')
+  await add('omega3', totals.omega3, 'g')
 
   const graphDoc = await NutrientGraph.create({
     canonicalId,

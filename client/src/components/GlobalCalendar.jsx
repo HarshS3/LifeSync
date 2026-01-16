@@ -192,7 +192,14 @@ function GlobalCalendar() {
       </Box>
 
       {/* Monthly Stats */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2, mb: 3 }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' },
+          gap: 2,
+          mb: 3,
+        }}
+      >
         <Box sx={{ p: 2, bgcolor: '#eff6ff', borderRadius: 2, textAlign: 'center' }}>
           <FitnessCenterIcon sx={{ color: '#2563eb', mb: 0.5 }} />
           <Typography variant="h5" sx={{ fontWeight: 700, color: '#2563eb' }}>{stats.workouts}</Typography>
@@ -378,7 +385,7 @@ function GlobalCalendar() {
 
                 {/* Mental Details */}
                 {event.type === 'mental' && event.data && (
-                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
                     <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.5)', borderRadius: 1 }}>
                       <Typography variant="caption" sx={{ color: '#6b7280' }}>Mood</Typography>
                       <Typography variant="h6" sx={{ fontWeight: 600 }}>{event.data.moodScore || 5}/10</Typography>

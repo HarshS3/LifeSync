@@ -97,6 +97,14 @@ async function searchFoods(query) {
         let fiber = 0
         let sugar = 0
         let sodium = 0
+        let potassium = null
+        let iron = null
+        let calcium = null
+        let vitaminB = null
+        let magnesium = null
+        let zinc = null
+        let vitaminC = null
+        let omega3 = null
         let servingQty = 1
         let servingUnit = 'serving'
 
@@ -125,6 +133,33 @@ async function searchFoods(query) {
               fiber = toNum(serving.fiber)
               sugar = toNum(serving.sugar)
               sodium = toNum(serving.sodium)
+
+              // Micronutrients: FatSecret may or may not include these depending on item.
+              // We map the most common key names used by FatSecret's serving payload.
+              const has = (k) => Object.prototype.hasOwnProperty.call(serving, k)
+
+              potassium = has('potassium') ? toNum(serving.potassium) : null
+              iron = has('iron') ? toNum(serving.iron) : null
+              calcium = has('calcium') ? toNum(serving.calcium) : null
+              magnesium = has('magnesium') ? toNum(serving.magnesium) : null
+              zinc = has('zinc') ? toNum(serving.zinc) : null
+
+              // Vitamins: FatSecret sometimes uses snake_case for vitamins.
+              if (has('vitamin_c') || has('vitamin_c_mg') || has('vitaminC')) {
+                vitaminC = toNum(serving.vitamin_c ?? serving.vitamin_c_mg ?? serving.vitaminC)
+              }
+
+              // "Vitamin B" is not a single nutrient in most databases.
+              // If present, prefer B6; otherwise fall back to any provided generic key.
+              if (has('vitamin_b6') || has('vitamin_b') || has('vitaminB')) {
+                vitaminB = toNum(serving.vitamin_b6 ?? serving.vitamin_b ?? serving.vitaminB)
+              }
+
+              // Omega-3: commonly listed as omega_3_fatty_acid or omega_3.
+              if (has('omega_3_fatty_acid') || has('omega_3') || has('omega3')) {
+                omega3 = toNum(serving.omega_3_fatty_acid ?? serving.omega_3 ?? serving.omega3)
+              }
+
               servingQty = toNum(serving.number_of_units) || 1
               servingUnit = serving.measure || 'serving'
             }
@@ -146,6 +181,14 @@ async function searchFoods(query) {
           fiber,
           sugar,
           sodium,
+          potassium,
+          iron,
+          calcium,
+          vitaminB,
+          magnesium,
+          zinc,
+          vitaminC,
+          omega3,
         }
       })
     )

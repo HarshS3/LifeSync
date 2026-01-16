@@ -20,6 +20,14 @@ async function computeRecipeTotals({ recipeName, locale = 'en' }) {
     calories: 0,
     sugar: 0,
     sodium: 0,
+    potassium: 0,
+    iron: 0,
+    calcium: 0,
+    vitaminB: 0,
+    magnesium: 0,
+    zinc: 0,
+    vitaminC: 0,
+    omega3: 0,
   }
 
   const missing = []
@@ -42,6 +50,15 @@ async function computeRecipeTotals({ recipeName, locale = 'en' }) {
     totals.calories += scale(n.calories, grams)
     totals.sugar += scale(n.sugar, grams)
     totals.sodium += scale(n.sodium, grams)
+
+    totals.potassium += scale(n.potassium, grams)
+    totals.iron += scale(n.iron, grams)
+    totals.calcium += scale(n.calcium, grams)
+    totals.vitaminB += scale(n.vitaminB, grams)
+    totals.magnesium += scale(n.magnesium, grams)
+    totals.zinc += scale(n.zinc, grams)
+    totals.vitaminC += scale(n.vitaminC, grams)
+    totals.omega3 += scale(n.omega3, grams)
   }
 
   const adjusted = applyCookingAdjustments({
@@ -74,6 +91,14 @@ async function computeRecipeTotals({ recipeName, locale = 'en' }) {
       fiber_g: roundTo(adjusted.fiber, 1),
       sugar_g: roundTo(adjusted.sugar, 1),
       sodium_mg: roundTo(adjusted.sodium, 0),
+      potassium_mg: roundTo(adjusted.potassium, 0),
+      iron_mg: roundTo(adjusted.iron, 1),
+      calcium_mg: roundTo(adjusted.calcium, 0),
+      vitaminB_mg: roundTo(adjusted.vitaminB, 2),
+      magnesium_mg: roundTo(adjusted.magnesium, 0),
+      zinc_mg: roundTo(adjusted.zinc, 1),
+      vitaminC_mg: roundTo(adjusted.vitaminC, 1),
+      omega3_g: roundTo(adjusted.omega3, 2),
       calories_kcal: roundTo(adjusted.calories, 0),
     },
     derived_metrics: derived,
@@ -110,6 +135,14 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
         fiber: computed.nutrition.fiber_g,
         sugar: computed.nutrition.sugar_g,
         sodium: computed.nutrition.sodium_mg,
+        potassium: computed.nutrition.potassium_mg,
+        iron: computed.nutrition.iron_mg,
+        calcium: computed.nutrition.calcium_mg,
+        vitaminB: computed.nutrition.vitaminB_mg,
+        magnesium: computed.nutrition.magnesium_mg,
+        zinc: computed.nutrition.zinc_mg,
+        vitaminC: computed.nutrition.vitaminC_mg,
+        omega3: computed.nutrition.omega3_g,
         _local: { kind: 'recipe', missing: computed.missing_ingredients },
       }
     })
@@ -130,6 +163,14 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
       fiber: Number(n.fiber) || 0,
       sugar: Number(n.sugar) || 0,
       sodium: Number(n.sodium) || 0,
+      potassium: Number(n.potassium) || 0,
+      iron: Number(n.iron) || 0,
+      calcium: Number(n.calcium) || 0,
+      vitaminB: Number(n.vitaminB) || 0,
+      magnesium: Number(n.magnesium) || 0,
+      zinc: Number(n.zinc) || 0,
+      vitaminC: Number(n.vitaminC) || 0,
+      omega3: Number(n.omega3) || 0,
       _local: { kind: 'ingredient' },
     }
   })

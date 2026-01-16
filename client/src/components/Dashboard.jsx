@@ -35,6 +35,7 @@ function Dashboard() {
   const [hasCheckedIn, setHasCheckedIn] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [recentLogs, setRecentLogs] = useState({ fitness: [], mental: [], nutrition: [] })
+  const [recentGymWorkouts, setRecentGymWorkouts] = useState([])
   const [weeklyStats, setWeeklyStats] = useState({
     avgEnergy: 0,
     avgMood: 0,
@@ -48,6 +49,42 @@ function Dashboard() {
     loadData()
   }, [token])
 
+  useEffect(() => {
+    const handler = (e) => {
+      const log = e?.detail?.log
+      if (!log) return
+
+      const todayKey = new Date().toDateString()
+      const logKey = new Date(log.date).toDateString()
+      if (logKey !== todayKey) return
+
+      setHasCheckedIn(true)
+      setTodayState({
+        energy: Number(log.energyLevel ?? log.energy ?? 5) || 5,
+        mood: Number(log.moodScore ?? log.mood ?? 5) || 5,
+        bodyFeel: Number(log.bodyFeel ?? 5) || 5,
+        sleep: Number(log.sleepHours ?? log.sleep ?? 7) || 7,
+      })
+
+      // Keep the rest of the dashboard in sync too.
+      loadData()
+    }
+
+    window.addEventListener('lifesync:mental:updated', handler)
+    return () => window.removeEventListener('lifesync:mental:updated', handler)
+  }, [token])
+
+  const moodEnumToScore10 = (mood) => {
+    const m = String(mood || '').trim().toLowerCase()
+    if (!m) return null
+    if (m === 'very-low') return 2
+    if (m === 'low') return 4
+    if (m === 'neutral') return 5
+    if (m === 'good') return 7
+    if (m === 'great') return 9
+    return null
+  }
+
   const dayKeyFromDate = (d) => {
     const date = new Date(d)
     if (Number.isNaN(date.getTime())) return null
@@ -60,7 +97,7 @@ function Dashboard() {
   const fetchDailyLifeState = async (dayKey) => {
     if (!token || !dayKey) return null
     try {
-      const res = await fetch(`${API_BASE}/api/daily-life-state/${dayKey}`, {
+      const res = await fetch(`${API_BASE}/api/daily-life-state/${dayKey}?refresh=1`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) return null
@@ -77,17 +114,18 @@ function Dashboard() {
     try {
       // Fetch recent logs
       if (!user || !user._id) throw new Error('User not found')
-      const userId = user._id
       const todayKey = dayKeyFromDate(new Date())
 
-      const [fitness, mental, nutrition, dlsResult] = await Promise.all([
-        fetchJson(`${API_BASE}/api/logs/fitness/${userId}`),
-        fetchJson(`${API_BASE}/api/logs/mental/${userId}`),
-        fetchJson(`${API_BASE}/api/logs/nutrition/${userId}`),
+      const [fitness, mental, nutrition, gymWorkouts, dlsResult] = await Promise.all([
+        fetchJson(`${API_BASE}/api/logs/fitness`),
+        fetchJson(`${API_BASE}/api/logs/mental`),
+        fetchJson(`${API_BASE}/api/logs/nutrition`),
+        fetchJson(`${API_BASE}/api/gym/workouts`),
         fetchDailyLifeState(todayKey),
       ])
       
       setRecentLogs({ fitness, mental, nutrition })
+      setRecentGymWorkouts(gymWorkouts)
       setDailyLifeState(dlsResult?.data || null)
       setStateReflection(dlsResult?.reflection || null)
       
@@ -97,12 +135,29 @@ function Dashboard() {
       
       const recentMental = mental.filter(m => new Date(m.date) > weekAgo)
       const recentFitness = fitness.filter(f => new Date(f.date) > weekAgo)
+      const recentGym = gymWorkouts.filter(w => new Date(w.date) > weekAgo)
+
+      const avgFrom = (arr) => {
+        const nums = (arr || []).filter((n) => Number.isFinite(n))
+        if (!nums.length) return null
+        return nums.reduce((a, b) => a + b, 0) / nums.length
+      }
+
+      const avgEnergy = avgFrom(recentMental.map((m) => Number(m.energyLevel)))
+      const avgMood = avgFrom(
+        recentMental.map((m) => {
+          const direct = Number(m.moodScore)
+          if (Number.isFinite(direct) && direct > 0) return direct
+          return moodEnumToScore10(m.mood)
+        })
+      )
+      const avgSleep = avgFrom(recentMental.map((m) => Number(m.sleepHours)))
       
       setWeeklyStats({
-        avgEnergy: recentMental.length ? Math.round(recentMental.reduce((s, m) => s + (m.energyLevel || 0), 0) / recentMental.length) : 0,
-        avgMood: recentMental.length ? Math.round(recentMental.reduce((s, m) => s + (m.moodScore || 0), 0) / recentMental.length) : 0,
-        avgSleep: recentMental.length ? (recentMental.reduce((s, m) => s + (m.sleepHours || 0), 0) / recentMental.length).toFixed(1) : 0,
-        workouts: recentFitness.length,
+        avgEnergy: avgEnergy == null ? '—' : String(Math.round(avgEnergy)),
+        avgMood: avgMood == null ? '—' : String(Math.round(avgMood)),
+        avgSleep: avgSleep == null ? '—' : String(avgSleep.toFixed(1)),
+        workouts: recentGym.length + recentFitness.length,
         streak: calculateStreak(mental),
       })
 
@@ -130,7 +185,9 @@ function Dashboard() {
 
   const fetchJson = async (url) => {
     try {
-      const res = await fetch(url)
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      })
       if (!res.ok) return []
       const data = await res.json()
       return Array.isArray(data) ? data : []
@@ -299,7 +356,7 @@ function Dashboard() {
         return
       }
 
-      await fetch(`${API_BASE}/api/logs/mental`, {
+      const res = await fetch(`${API_BASE}/api/logs/mental`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -313,7 +370,15 @@ function Dashboard() {
           date: new Date(),
         }),
       })
+      if (!res.ok) {
+        const msg = await res.text().catch(() => '')
+        throw new Error(msg || 'Check-in failed')
+      }
+
+      const saved = await res.json().catch(() => null)
+      window.dispatchEvent(new CustomEvent('lifesync:mental:updated', { detail: { log: saved } }))
       setHasCheckedIn(true)
+      await loadData()
       // Insights are centralized in the Insights tab.
     } catch (err) {
       console.error(err)
@@ -354,6 +419,10 @@ function Dashboard() {
   )
 
   const dayTone = stateReflection
+
+  const navigateTo = (section) => {
+    window.dispatchEvent(new CustomEvent('lifesync:navigate', { detail: { section } }))
+  }
 
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '280px 1fr 320px' }, gap: 3 }}>
@@ -426,17 +495,30 @@ function Dashboard() {
           <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
             Recent Activity
           </Typography>
-          {recentLogs.fitness.slice(0, 3).map((log, i) => (
-            <Box key={i} sx={{ py: 1, borderBottom: i < 2 ? '1px solid #e5e7eb' : 'none' }}>
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                {log.activityType || 'Workout'}
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>
-                {log.duration}min • {new Date(log.date).toLocaleDateString()}
-              </Typography>
-            </Box>
-          ))}
-          {recentLogs.fitness.length === 0 && (
+          {(recentGymWorkouts.length ? recentGymWorkouts : recentLogs.fitness)
+            .slice(0, 3)
+            .map((log, i) => {
+              const isGym = Boolean(log?.exercises)
+              const title = isGym ? log?.name || 'Workout' : log?.activityType || log?.type || 'Workout'
+              const durationMin = isGym
+                ? Math.round((Number(log?.duration) || 0) / 60)
+                : Number(log?.duration) || 0
+              const detail = isGym
+                ? `${log?.exercises?.length || 0} exercises • ${durationMin}min`
+                : `${durationMin}min`
+
+              return (
+                <Box key={log?._id || i} sx={{ py: 1, borderBottom: i < 2 ? '1px solid #e5e7eb' : 'none' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {title}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                    {detail} • {new Date(log.date).toLocaleDateString()}
+                  </Typography>
+                </Box>
+              )
+            })}
+          {recentGymWorkouts.length === 0 && recentLogs.fitness.length === 0 && (
             <Typography variant="body2" sx={{ color: '#9ca3af' }}>No recent workouts</Typography>
           )}
         </Box>
@@ -480,7 +562,7 @@ function Dashboard() {
             {hasCheckedIn ? "Today's State" : "How are you feeling?"}
           </Typography>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, mb: 3 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3, mb: 3 }}>
             {/* Energy */}
             <Box sx={{ p: 2, bgcolor: '#fafafa', borderRadius: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -593,14 +675,21 @@ function Dashboard() {
         </Box>
 
         {/* Quick Actions */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+            gap: 2,
+          }}
+        >
           {[
-            { label: 'Log Workout', icon: '💪', color: '#eff6ff' },
-            { label: 'Log Meal', icon: '🥗', color: '#f0fdf4' },
-            { label: 'Talk to AI', icon: '🤖', color: '#faf5ff' },
+            { label: 'Log Workout', icon: '💪', color: '#eff6ff', section: 'logs' },
+            { label: 'Log Meal', icon: '🥗', color: '#f0fdf4', section: 'nutrition' },
+            { label: 'Talk to AI', icon: '🤖', color: '#faf5ff', section: 'chat' },
           ].map((action) => (
             <Box
               key={action.label}
+              onClick={() => navigateTo(action.section)}
               sx={{
                 p: 2,
                 bgcolor: action.color,

@@ -18,6 +18,7 @@ import FlagIcon from '@mui/icons-material/Flag'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
+import LifeSyncMark from './LifeSyncMark'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
 
@@ -186,9 +187,12 @@ function Onboarding({ onComplete }) {
       {/* Progress Header */}
       <Box sx={{ p: 3, bgcolor: '#fff', borderBottom: '1px solid #e5e7eb' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            LifeSync
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+            <LifeSyncMark size={26} />
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              LifeSync
+            </Typography>
+          </Box>
           <Typography variant="body2" sx={{ color: '#6b7280' }}>
             Step {step + 1} of {steps.length}
           </Typography>

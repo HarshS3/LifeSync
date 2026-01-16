@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -28,6 +28,12 @@ import CloseIcon from '@mui/icons-material/Close'
 import Calendar from './Calendar'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
+import { computeTrainingInsights } from '../lib/trainingInsights'
+import { computeMuscleHeatmap } from '../lib/muscleHeatmap'
+import MuscleHeatmapFigure from './MuscleHeatmapFigure'
+import GlbModelViewer from './GlbModelViewer.jsx'
+
+const DEFAULT_BODY_MODEL_GLB_URL = new URL('../assets/Untitled.glb', import.meta.url).href
 
 // Exercise Library with muscle groups
 const EXERCISE_LIBRARY = {
@@ -80,6 +86,20 @@ function GymTracker() {
   const [loading, setLoading] = useState(true)
   const [calendarWorkouts, setCalendarWorkouts] = useState([])
   const [calendarLoading, setCalendarLoading] = useState(false)
+
+  const [aiWorkoutSuggestion, setAiWorkoutSuggestion] = useState('')
+  const [aiWorkoutSuggestionLoading, setAiWorkoutSuggestionLoading] = useState(false)
+  const [aiRecoverySuggestion, setAiRecoverySuggestion] = useState('')
+  const [aiRecoverySuggestionLoading, setAiRecoverySuggestionLoading] = useState(false)
+
+  // Steps (daily)
+  const [stepsDate, setStepsDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [stepsValue, setStepsValue] = useState('')
+  const [stepsRangeMode, setStepsRangeMode] = useState('week')
+  const [stepsSeries, setStepsSeries] = useState([])
+  const [stepsLoading, setStepsLoading] = useState(false)
+  const [stepsSaving, setStepsSaving] = useState(false)
+  const [stepsError, setStepsError] = useState('')
   
   // Current workout state
   const [currentWorkout, setCurrentWorkout] = useState(null)
@@ -101,9 +121,291 @@ function GymTracker() {
     currentStreak: 0,
   })
 
+  const muscleHeatmap = useMemo(() => computeMuscleHeatmap(workouts, { days: 30 }), [workouts])
+
+  const trainingInsights = useMemo(() => computeTrainingInsights(workouts), [workouts])
+
   useEffect(() => {
     loadWorkouts()
   }, [token])
+
+  useEffect(() => {
+    loadStepsDayAndRange()
+  }, [token, stepsDate, stepsRangeMode])
+
+  const safeReadJson = async (res) => {
+    try {
+      return await res.json()
+    } catch {
+      return null
+    }
+  }
+
+  const buildRecentWorkoutsSummary = useCallback(() => {
+    const sorted = [...(workouts || [])].sort((a, b) => new Date(b?.date).getTime() - new Date(a?.date).getTime())
+    return sorted.slice(0, 7).map((w) => {
+      const d = new Date(w?.date)
+      const day = Number.isNaN(d.getTime()) ? 'unknown date' : d.toISOString().slice(0, 10)
+      const name = w?.name || 'Workout'
+      const exercises = Array.isArray(w?.exercises) ? w.exercises : []
+      const exNames = exercises.map((e) => String(e?.name || '').trim()).filter(Boolean).slice(0, 6)
+      const exLine = exNames.length ? exNames.join(', ') : '(no exercises)'
+      const durationMin = w?.duration ? Math.round(Number(w.duration) / 60) : null
+      return `- ${day}: ${name}${durationMin ? ` (${durationMin} min)` : ''} | ${exLine}`
+    }).join('\n')
+  }, [workouts])
+
+  const generateAiWorkoutSuggestion = useCallback(async () => {
+    if (!token) return
+
+    setAiWorkoutSuggestionLoading(true)
+    try {
+      const recent = buildRecentWorkoutsSummary()
+      const heatTop = Object.entries(muscleHeatmap?.normalized || {})
+        .filter(([, v]) => typeof v === 'number' && Number.isFinite(v))
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([k, v]) => `${k}: ${(v * 100).toFixed(0)}%`)
+        .join(', ')
+
+      const insightTitles = (trainingInsights || []).slice(0, 6).map((i) => i?.title).filter(Boolean).join(' | ')
+
+      const message = [
+        'Suggest a workout plan for today based on my recent workouts.',
+        'I am explicitly asking for suggestions.',
+        '',
+        'Recent workouts (most recent first):',
+        recent || '- (none logged)',
+        '',
+        heatTop ? `Muscle heatmap (30d, top): ${heatTop}` : null,
+        insightTitles ? `Deterministic training insights: ${insightTitles}` : null,
+        '',
+        'Return 2 options:',
+        'A) Training day (45–60 min) with exercise list + sets x reps + RPE guidance',
+        'B) Recovery day (20–30 min) with mobility + easy cardio suggestions',
+        '',
+        'Constraints:',
+        '- No diagnosis, no medical advice, no supplements.',
+        '- Keep it concise and practical.',
+        '- Use neutral language; everything is optional.',
+      ].filter(Boolean).join('\n')
+
+      const res = await fetch(`${API_BASE}/api/ai/chat`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message }),
+      })
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(text || `AI request failed (${res.status})`)
+      }
+
+      const json = await safeReadJson(res)
+      setAiWorkoutSuggestion(String(json?.reply || json?.message || 'No AI reply returned.'))
+    } catch (e) {
+      alert(e?.message || 'Failed to generate a workout suggestion.')
+    } finally {
+      setAiWorkoutSuggestionLoading(false)
+    }
+  }, [API_BASE, token, buildRecentWorkoutsSummary, muscleHeatmap, trainingInsights])
+
+  const generateAiRecoverySuggestion = useCallback(async () => {
+    if (!token) return
+
+    setAiRecoverySuggestionLoading(true)
+    try {
+      const recent = buildRecentWorkoutsSummary()
+      const insightTitles = (trainingInsights || []).slice(0, 8).map((i) => `${i?.title}: ${i?.detail}`).filter(Boolean).join('\n')
+
+      const message = [
+        'Based on my recent training, suggest a gentle recovery plan and whether I should adjust my workout plan this week.',
+        'I am explicitly asking for guidance; keep it optional and non-medical.',
+        '',
+        'Recent workouts (most recent first):',
+        recent || '- (none logged)',
+        '',
+        insightTitles ? `Signals (deterministic):\n${insightTitles}` : null,
+        '',
+        'Return:',
+        '1) Recovery suggestion for today (sleep, hydration, light activity, mobility) in 5 bullets max',
+        '2) A plan adjustment recommendation for the next 3 workouts (e.g., keep as-is / deload / swap muscle groups) with rationale',
+        '',
+        'Constraints:',
+        '- No diagnosis, no medical advice.',
+        '- Don\'t shame or moralize.',
+        '- Prefer fewer, higher-confidence suggestions.',
+      ].filter(Boolean).join('\n')
+
+      const res = await fetch(`${API_BASE}/api/ai/chat`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message }),
+      })
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(text || `AI request failed (${res.status})`)
+      }
+
+      const json = await safeReadJson(res)
+      setAiRecoverySuggestion(String(json?.reply || json?.message || 'No AI reply returned.'))
+    } catch (e) {
+      alert(e?.message || 'Failed to generate a recovery suggestion.')
+    } finally {
+      setAiRecoverySuggestionLoading(false)
+    }
+  }, [API_BASE, token, buildRecentWorkoutsSummary, trainingInsights])
+
+  const buildStepsChart = ({ start, end, days, series }) => {
+    const byDay = new Map()
+    ;(series || []).forEach((d) => {
+      const dt = new Date(d?.date)
+      if (Number.isNaN(dt.getTime())) return
+      dt.setHours(0, 0, 0, 0)
+      const key = dt.toISOString().slice(0, 10)
+      const s = d?.stepsCount
+      if (typeof s === 'number' && Number.isFinite(s)) byDay.set(key, s)
+    })
+
+    const values = []
+    const labels = []
+    for (let i = 0; i < days; i++) {
+      const d = new Date(start)
+      d.setDate(d.getDate() + i)
+      const key = d.toISOString().slice(0, 10)
+      labels.push(key.slice(5))
+      values.push(byDay.has(key) ? byDay.get(key) : null)
+    }
+
+    const numeric = values.filter((v) => typeof v === 'number')
+    if (numeric.length === 0) return { points: '', min: null, max: null, labels, dims: null }
+
+    let min = Math.min(...numeric)
+    let max = Math.max(...numeric)
+    if (min === max) {
+      min = Math.max(0, min - 1000)
+      max = max + 1000
+    }
+
+    const W = 560
+    const H = 200
+    const M = {
+      left: 64,
+      right: 16,
+      top: 16,
+      bottom: 44,
+    }
+    const innerW = W - M.left - M.right
+    const innerH = H - M.top - M.bottom
+
+    const pts = []
+    for (let i = 0; i < values.length; i++) {
+      const v = values[i]
+      if (v == null) continue
+      const x = M.left + (innerW * i) / Math.max(1, values.length - 1)
+      const t = (v - min) / (max - min)
+      const y = M.top + innerH * (1 - t)
+      pts.push(`${x.toFixed(1)},${y.toFixed(1)}`)
+    }
+
+    return {
+      points: pts.join(' '),
+      min,
+      max,
+      labels,
+      dims: {
+        W,
+        H,
+        M,
+        innerW,
+        innerH,
+        x0: M.left,
+        x1: M.left + innerW,
+        y0: M.top,
+        y1: M.top + innerH,
+      },
+    }
+  }
+
+  const loadStepsDayAndRange = async () => {
+    if (!token) return
+    setStepsLoading(true)
+    setStepsError('')
+    try {
+      const dayRes = await fetch(`${API_BASE}/api/gym/steps/date/${encodeURIComponent(stepsDate)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const dayJson = await safeReadJson(dayRes)
+      if (!dayRes.ok) {
+        throw new Error(dayJson?.error || `Failed to load steps (${dayRes.status})`)
+      }
+      setStepsValue(dayJson?.stepsCount == null ? '' : String(dayJson.stepsCount))
+
+      const end = new Date(stepsDate)
+      end.setHours(23, 59, 59, 999)
+      const start = new Date(end)
+      const days = stepsRangeMode === 'month' ? 30 : 7
+      start.setDate(start.getDate() - days + 1)
+      start.setHours(0, 0, 0, 0)
+
+      const rangeRes = await fetch(
+        `${API_BASE}/api/gym/steps/range/${encodeURIComponent(start.toISOString())}/${encodeURIComponent(end.toISOString())}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      const rangeJson = await safeReadJson(rangeRes)
+      if (!rangeRes.ok) {
+        throw new Error(rangeJson?.error || `Failed to load steps range (${rangeRes.status})`)
+      }
+      setStepsSeries(Array.isArray(rangeJson) ? rangeJson : [])
+    } catch (e) {
+      setStepsError(e?.message || 'Failed to load steps')
+    } finally {
+      setStepsLoading(false)
+    }
+  }
+
+  const saveSteps = async () => {
+    if (!token) return
+    const d = new Date(stepsDate)
+    if (Number.isNaN(d.getTime())) {
+      setStepsError('Invalid date')
+      return
+    }
+    const s = Number(stepsValue)
+    if (!Number.isFinite(s) || s < 0 || s > 200000) {
+      setStepsError('Enter a valid step count')
+      return
+    }
+
+    setStepsSaving(true)
+    setStepsError('')
+    try {
+      const res = await fetch(`${API_BASE}/api/gym/steps`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ date: d.toISOString(), stepsCount: s }),
+      })
+      if (!res.ok) {
+        const errJson = await safeReadJson(res)
+        throw new Error(errJson?.error || `Failed to save (${res.status})`)
+      }
+      await loadStepsDayAndRange()
+    } catch (e) {
+      setStepsError(e?.message || 'Failed to save steps')
+    } finally {
+      setStepsSaving(false)
+    }
+  }
 
   useEffect(() => {
     let interval
@@ -152,29 +454,32 @@ function GymTracker() {
     }
   }
 
-  const loadCalendarRange = async (monthDate) => {
-    if (!token) return
-    const d = monthDate instanceof Date ? monthDate : new Date()
-    const start = new Date(d.getFullYear(), d.getMonth(), 1)
-    start.setHours(0, 0, 0, 0)
-    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
-    end.setHours(23, 59, 59, 999)
+  const loadCalendarRange = useCallback(
+    async (monthDate) => {
+      if (!token) return
+      const d = monthDate instanceof Date ? monthDate : new Date()
+      const start = new Date(d.getFullYear(), d.getMonth(), 1)
+      start.setHours(0, 0, 0, 0)
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+      end.setHours(23, 59, 59, 999)
 
-    setCalendarLoading(true)
-    try {
-      const res = await fetch(
-        `${API_BASE}/api/gym/workouts/range/${encodeURIComponent(start.toISOString())}/${encodeURIComponent(end.toISOString())}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      if (res.ok) {
-        const data = await res.json()
-        setCalendarWorkouts(Array.isArray(data) ? data : [])
+      setCalendarLoading(true)
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/gym/workouts/range/${encodeURIComponent(start.toISOString())}/${encodeURIComponent(end.toISOString())}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        )
+        if (res.ok) {
+          const data = await res.json()
+          setCalendarWorkouts(Array.isArray(data) ? data : [])
+        }
+      } catch (err) {
+        console.error('Failed to load workouts range:', err)
       }
-    } catch (err) {
-      console.error('Failed to load workouts range:', err)
-    }
-    setCalendarLoading(false)
-  }
+      setCalendarLoading(false)
+    },
+    [token]
+  )
 
   const loadStatsFromServer = async () => {
     if (!token) return false
@@ -585,6 +890,7 @@ function GymTracker() {
               }}
             >
               <Tab icon={<TrendingUpIcon />} label="Overview" iconPosition="start" />
+              <Tab icon={<TimerIcon />} label="Steps" iconPosition="start" />
               <Tab icon={<CalendarMonthIcon />} label="Calendar" iconPosition="start" />
               <Tab icon={<FitnessCenterIcon />} label="History" iconPosition="start" />
             </Tabs>
@@ -594,7 +900,7 @@ function GymTracker() {
           {activeTab === 0 && (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
               {/* Stats Cards */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
                 <StatCard
                   icon={<FitnessCenterIcon />}
                   label="Total Workouts"
@@ -621,6 +927,129 @@ function GymTracker() {
                   sublabel="days"
                   color="#9333ea"
                 />
+              </Box>
+
+              {/* Training Insights */}
+              <Box sx={{ gridColumn: { md: '1 / -1' } }}>
+                <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                  <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+                    Training Insights
+                  </Typography>
+                  {trainingInsights.length > 0 ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                      {trainingInsights.map((insight, idx) => (
+                        <Box key={idx} sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                          <Typography variant="body2" sx={{ color: '#374151', fontWeight: 600, mb: 0.5 }}>
+                            {insight.title}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                            {insight.detail}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" sx={{ color: '#9ca3af' }}>
+                      Log a few workouts to unlock training insights.
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+
+              {/* AI Suggestions */}
+              <Box sx={{ gridColumn: { md: '1 / -1' } }}>
+                <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                    AI Suggestions
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 2 }}>
+                    Generated only when you ask—useful for demo or low-friction planning.
+                  </Typography>
+
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={generateAiWorkoutSuggestion}
+                      disabled={aiWorkoutSuggestionLoading}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      {aiWorkoutSuggestionLoading ? 'Thinking…' : 'Suggest Today’s Workout'}
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={generateAiRecoverySuggestion}
+                      disabled={aiRecoverySuggestionLoading}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      {aiRecoverySuggestionLoading ? 'Thinking…' : 'Recovery + Plan Adjustment'}
+                    </Button>
+                  </Box>
+
+                  {(aiWorkoutSuggestion || aiRecoverySuggestion) ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {aiWorkoutSuggestion ? (
+                        <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                            Today’s Workout
+                          </Typography>
+                          <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: '#374151', lineHeight: 1.7 }}>
+                            {aiWorkoutSuggestion}
+                          </Typography>
+                        </Box>
+                      ) : null}
+
+                      {aiRecoverySuggestion ? (
+                        <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                            Recovery + Adjustment
+                          </Typography>
+                          <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: '#374151', lineHeight: 1.7 }}>
+                            {aiRecoverySuggestion}
+                          </Typography>
+                        </Box>
+                      ) : null}
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" sx={{ color: '#9ca3af' }}>
+                      Ask when you want suggestions.
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Monthly Muscle Heatmap */}
+              <Box sx={{ gridColumn: { md: '1 / -1' } }}>
+                <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 2, mb: 1.5 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                      Muscle Heatmap (30 days)
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                      Based on logged sets
+                    </Typography>
+                  </Box>
+
+                  {muscleHeatmap && muscleHeatmap.scoredSets > 0 ? (
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                      <Box>
+                        <MuscleHeatmapFigure intensityByRegion={muscleHeatmap.normalized} />
+                      </Box>
+                      <GlbModelViewer
+                        src={DEFAULT_BODY_MODEL_GLB_URL}
+                        intensityByRegion={muscleHeatmap.normalized}
+                        height={420}
+                        title="Body Model"
+                        subtitle="Use this as a base for muscle visualization"
+                      />
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" sx={{ color: '#9ca3af' }}>
+                      Log a few workouts with named exercises to see this.
+                    </Typography>
+                  )}
+                </Box>
               </Box>
 
               {/* Muscle Distribution */}
@@ -715,8 +1144,167 @@ function GymTracker() {
             </Box>
           )}
 
-          {/* Calendar Tab */}
+          {/* Steps Tab */}
           {activeTab === 1 && (
+            <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#171717' }}>
+                    Daily steps
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                    Log your steps for a day and view trends.
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    variant={stepsRangeMode === 'week' ? 'contained' : 'outlined'}
+                    onClick={() => setStepsRangeMode('week')}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Week
+                  </Button>
+                  <Button
+                    variant={stepsRangeMode === 'month' ? 'contained' : 'outlined'}
+                    onClick={() => setStepsRangeMode('month')}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Month
+                  </Button>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
+                <TextField
+                  label="Date"
+                  type="date"
+                  value={stepsDate}
+                  onChange={(e) => setStepsDate(e.target.value)}
+                  size="small"
+                  sx={{ width: { xs: '100%', sm: 180 } }}
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  label="Steps"
+                  type="number"
+                  value={stepsValue}
+                  onChange={(e) => setStepsValue(e.target.value)}
+                  size="small"
+                  sx={{ width: { xs: '100%', sm: 180 } }}
+                />
+                <Button variant="contained" onClick={saveSteps} disabled={stepsSaving || stepsLoading}>
+                  {stepsSaving ? 'Saving…' : 'Save Steps'}
+                </Button>
+                {stepsError ? (
+                  <Typography variant="body2" sx={{ color: '#b91c1c' }}>
+                    {stepsError}
+                  </Typography>
+                ) : null}
+              </Box>
+
+              {stepsLoading ? (
+                <LinearProgress />
+              ) : (
+                (() => {
+                  const end = new Date(stepsDate)
+                  end.setHours(23, 59, 59, 999)
+                  const start = new Date(end)
+                  const days = stepsRangeMode === 'month' ? 30 : 7
+                  start.setDate(start.getDate() - days + 1)
+                  start.setHours(0, 0, 0, 0)
+                  const chart = buildStepsChart({ start, end, days, series: stepsSeries })
+
+                  if (!chart.dims) {
+                    return (
+                      <Typography variant="body2" sx={{ color: '#9ca3af', textAlign: 'center', py: 4 }}>
+                        No steps logged in this range.
+                      </Typography>
+                    )
+                  }
+
+                  const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  const fmtSteps = (v) => (typeof v === 'number' ? `${Math.round(v).toLocaleString()} steps` : '')
+
+                  const d = chart.dims
+                  const yMin = chart.min
+                  const yMax = chart.max
+                  const yMid = yMin != null && yMax != null ? (yMin + yMax) / 2 : null
+
+                  return (
+                    <Box>
+                      <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 1 }}>
+                        {fmt(start)} – {fmt(end)}
+                      </Typography>
+                      <Box sx={{ width: '100%', overflowX: 'auto' }}>
+                        <Box sx={{ minWidth: 560 }}>
+                          <svg width="560" height="200" viewBox="0 0 560 200" role="img" aria-label="Steps chart">
+                            <rect x="0" y="0" width="560" height="200" fill="#ffffff" />
+
+                            {/* axes */}
+                            <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke="#e5e7eb" strokeWidth="1" />
+                            <line x1={d.x0} y1={d.y0} x2={d.x0} y2={d.y1} stroke="#e5e7eb" strokeWidth="1" />
+
+                            {/* y grid */}
+                            <line x1={d.x0} y1={d.y0} x2={d.x1} y2={d.y0} stroke="#f3f4f6" strokeWidth="1" />
+                            <line
+                              x1={d.x0}
+                              y1={(d.y0 + d.y1) / 2}
+                              x2={d.x1}
+                              y2={(d.y0 + d.y1) / 2}
+                              stroke="#f3f4f6"
+                              strokeWidth="1"
+                            />
+                            <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke="#f3f4f6" strokeWidth="1" />
+
+                            {/* y labels */}
+                            <text x={d.x0 - 8} y={d.y0 + 3} fontSize="10" fill="#6b7280" textAnchor="end">
+                              {fmtSteps(yMax)}
+                            </text>
+                            <text x={d.x0 - 8} y={(d.y0 + d.y1) / 2 + 3} fontSize="10" fill="#9ca3af" textAnchor="end">
+                              {fmtSteps(yMid)}
+                            </text>
+                            <text x={d.x0 - 8} y={d.y1 + 3} fontSize="10" fill="#6b7280" textAnchor="end">
+                              {fmtSteps(yMin)}
+                            </text>
+
+                            {/* axis titles */}
+                            <text x={(d.x0 + d.x1) / 2} y={200 - 8} fontSize="10" fill="#6b7280" textAnchor="middle">
+                              Date
+                            </text>
+                            <text
+                              x="16"
+                              y={(d.y0 + d.y1) / 2}
+                              fontSize="10"
+                              fill="#6b7280"
+                              textAnchor="middle"
+                              transform={`rotate(-90 16 ${(d.y0 + d.y1) / 2})`}
+                            >
+                              Steps
+                            </text>
+
+                            {/* line */}
+                            <polyline fill="none" stroke="#171717" strokeWidth="2" points={chart.points} />
+
+                            {/* points */}
+                            {chart.points
+                              .split(' ')
+                              .filter(Boolean)
+                              .map((p, i) => {
+                                const [x, y] = p.split(',').map(Number)
+                                return <circle key={i} cx={x} cy={y} r={3} fill="#171717" />
+                              })}
+                          </svg>
+                        </Box>
+                      </Box>
+                    </Box>
+                  )
+                })()
+              )}
+            </Box>
+          )}
+
+          {/* Calendar Tab */}
+          {activeTab === 2 && (
             <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
               {calendarLoading && <LinearProgress sx={{ mb: 2 }} />}
               <Calendar events={calendarEvents} onMonthChange={loadCalendarRange} />
@@ -724,7 +1312,7 @@ function GymTracker() {
           )}
 
           {/* History Tab */}
-          {activeTab === 2 && (
+          {activeTab === 3 && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {workouts.length > 0 ? (
                 workouts.map((workout, idx) => (

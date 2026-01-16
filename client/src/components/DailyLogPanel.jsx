@@ -16,6 +16,7 @@ function DailyLogPanel() {
   const [mentalData, setMentalData] = useState({
     mood: 5,
     energy: 5,
+    bodyFeel: 5,
     stress: 5,
     sleep: 7,
     notes: '',
@@ -23,6 +24,7 @@ function DailyLogPanel() {
   })
   const [journal, setJournal] = useState('')
   const [journalSaved, setJournalSaved] = useState(false)
+  const [checkinLoaded, setCheckinLoaded] = useState(false)
 
   // Get user's medications from profile
   const userMedications = user?.medications || []
@@ -36,6 +38,43 @@ function DailyLogPanel() {
     }))
   }
 
+  const applyMentalLogToForm = (log) => {
+    if (!log) return
+    setMentalData(prev => ({
+      ...prev,
+      mood: Number(log.moodScore ?? log.mood ?? prev.mood) || prev.mood,
+      energy: Number(log.energyLevel ?? prev.energy) || prev.energy,
+      bodyFeel: Number(log.bodyFeel ?? prev.bodyFeel) || prev.bodyFeel,
+      stress: Number(log.stressLevel ?? prev.stress) || prev.stress,
+      sleep: Number(log.sleepHours ?? prev.sleep) || prev.sleep,
+      notes: typeof log.notes === 'string' ? log.notes : prev.notes,
+      medsTaken: Array.isArray(log.medsTaken) ? log.medsTaken : prev.medsTaken,
+    }))
+  }
+
+  const loadTodayCheckIn = async () => {
+    if (!token) {
+      setCheckinLoaded(true)
+      return
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/logs/mental`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return
+      const logs = await res.json().catch(() => [])
+      if (!Array.isArray(logs) || logs.length === 0) return
+
+      const todayKey = new Date().toDateString()
+      const todayLog = logs.find(l => new Date(l.date).toDateString() === todayKey)
+      if (todayLog) applyMentalLogToForm(todayLog)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setCheckinLoaded(true)
+    }
+  }
+
   const handleSubmit = async () => {
     if (!token) {
       alert('Please log in to submit a check-in.')
@@ -46,6 +85,7 @@ function DailyLogPanel() {
       moodScore: mentalData.mood,
       energyLevel: mentalData.energy,
       stressLevel: mentalData.stress,
+      bodyFeel: mentalData.bodyFeel,
       sleepHours: mentalData.sleep,
       medsTaken: mentalData.medsTaken,
       notes: mentalData.notes,
@@ -61,12 +101,29 @@ function DailyLogPanel() {
         body: JSON.stringify(body),
       })
       if (res.ok) {
+        const saved = await res.json().catch(() => null)
+        applyMentalLogToForm(saved)
+        window.dispatchEvent(new CustomEvent('lifesync:mental:updated', { detail: { log: saved } }))
         alert('Logged successfully!')
       }
     } catch (err) {
       console.error(err)
     }
   }
+
+  useEffect(() => {
+    setCheckinLoaded(false)
+    loadTodayCheckIn()
+  }, [token])
+
+  useEffect(() => {
+    const handler = (e) => {
+      const log = e?.detail?.log
+      applyMentalLogToForm(log)
+    }
+    window.addEventListener('lifesync:mental:updated', handler)
+    return () => window.removeEventListener('lifesync:mental:updated', handler)
+  }, [])
 
   // Fetch today's journal entry on mount
   useEffect(() => {
@@ -112,49 +169,123 @@ function DailyLogPanel() {
     window.dispatchEvent(new CustomEvent('lifesync:navigate', { detail: { section: 'trends' } }))
   }
 
+  const stressColor = (value) => {
+    const v = Math.max(1, Math.min(10, Number(value) || 1))
+    const t = (v - 1) / 9
+    const hue = (1 - t) * 120 // 120=green -> 0=red
+    return `hsl(${hue}, 72%, 40%)`
+  }
+
   return (
     <Box>
       <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: '#171717' }}>
         Wellness Check-in
       </Typography>
       <Typography variant="body2" sx={{ mb: 3, color: '#6b7280' }}>
-        Track your mood, energy, stress, sleep, and medications for today
+        Track your mood, energy, body feel, stress, sleep, and medications for today
       </Typography>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <Box>
-            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
-              Mood: {mentalData.mood}/10
-            </Typography>
-            <Slider
-              value={mentalData.mood}
-              onChange={(e, v) => setMentalData({ ...mentalData, mood: v })}
-              min={1}
-              max={10}
-              sx={{
-                color: '#171717',
-                '& .MuiSlider-thumb': { width: 16, height: 16 },
-              }}
-            />
+      {!checkinLoaded && token && (
+        <Typography variant="caption" sx={{ display: 'block', mb: 2, color: '#6b7280' }}>
+          Loading today's check-in…
+        </Typography>
+      )}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+        {/* Synced block (Dashboard + Wellness) */}
+        <Box
+          sx={{
+            p: 2.5,
+            bgcolor: '#fff',
+            borderRadius: 2,
+            border: '1px solid #e5e7eb',
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#171717', mb: 2 }}>
+            Today’s State
+          </Typography>
+
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
+                Mood: {mentalData.mood}/10
+              </Typography>
+              <Slider
+                value={mentalData.mood}
+                onChange={(e, v) => setMentalData({ ...mentalData, mood: v })}
+                min={1}
+                max={10}
+                sx={{
+                  color: '#171717',
+                  '& .MuiSlider-thumb': { width: 16, height: 16 },
+                }}
+              />
+            </Box>
+
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
+                Energy: {mentalData.energy}/10
+              </Typography>
+              <Slider
+                value={mentalData.energy}
+                onChange={(e, v) => setMentalData({ ...mentalData, energy: v })}
+                min={1}
+                max={10}
+                sx={{
+                  color: '#171717',
+                  '& .MuiSlider-thumb': { width: 16, height: 16 },
+                }}
+              />
+            </Box>
+
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
+                Body Feel: {mentalData.bodyFeel}/10
+              </Typography>
+              <Slider
+                value={mentalData.bodyFeel}
+                onChange={(e, v) => setMentalData({ ...mentalData, bodyFeel: v })}
+                min={1}
+                max={10}
+                sx={{
+                  color: '#171717',
+                  '& .MuiSlider-thumb': { width: 16, height: 16 },
+                }}
+              />
+            </Box>
+
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
+                Sleep: {mentalData.sleep} hrs
+              </Typography>
+              <Slider
+                value={mentalData.sleep}
+                onChange={(e, v) => setMentalData({ ...mentalData, sleep: v })}
+                min={0}
+                max={12}
+                step={0.5}
+                sx={{
+                  color: '#171717',
+                  '& .MuiSlider-thumb': { width: 16, height: 16 },
+                }}
+              />
+            </Box>
           </Box>
+        </Box>
+
+        {/* Stress block (Wellness-specific) */}
+        <Box
+          sx={{
+            p: 2.5,
+            bgcolor: '#fff7ed',
+            borderRadius: 2,
+            border: '1px solid #fed7aa',
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#171717', mb: 2 }}>
+            Stress
+          </Typography>
 
           <Box>
-            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
-              Energy: {mentalData.energy}/10
-            </Typography>
-            <Slider
-              value={mentalData.energy}
-              onChange={(e, v) => setMentalData({ ...mentalData, energy: v })}
-              min={1}
-              max={10}
-              sx={{
-                color: '#171717',
-                '& .MuiSlider-thumb': { width: 16, height: 16 },
-              }}
-            />
-          </Box>
-
-          <Box>
-            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#7c2d12' }}>
               Stress: {mentalData.stress}/10
             </Typography>
             <Slider
@@ -163,28 +294,12 @@ function DailyLogPanel() {
               min={1}
               max={10}
               sx={{
-                color: '#171717',
+                color: stressColor(mentalData.stress),
                 '& .MuiSlider-thumb': { width: 16, height: 16 },
               }}
             />
           </Box>
-
-          <Box>
-            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
-              Sleep: {mentalData.sleep} hrs
-            </Typography>
-            <Slider
-              value={mentalData.sleep}
-              onChange={(e, v) => setMentalData({ ...mentalData, sleep: v })}
-              min={0}
-              max={12}
-              step={0.5}
-              sx={{
-                color: '#171717',
-                '& .MuiSlider-thumb': { width: 16, height: 16 },
-              }}
-            />
-          </Box>
+        </Box>
 
           {/* Medications Taken Section */}
           {userMedications.length > 0 && (

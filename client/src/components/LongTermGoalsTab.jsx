@@ -747,7 +747,13 @@ function LongTermGoalsTab() {
           {analytics && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 1 }}>
               {/* Stats Cards */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2 }}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+                  gap: 2,
+                }}
+              >
                 <Box sx={{ p: 2, bgcolor: '#dcfce7', borderRadius: 2, textAlign: 'center' }}>
                   <Typography variant="h4" sx={{ fontWeight: 700, color: '#15803d' }}>
                     {analytics.stats.successRate}%

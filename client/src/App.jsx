@@ -7,6 +7,8 @@ import Avatar from '@mui/material/Avatar'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
 import CircularProgress from '@mui/material/CircularProgress'
+import Drawer from '@mui/material/Drawer'
+import useMediaQuery from '@mui/material/useMediaQuery'
 
 import HomeOutlinedIcon from '@mui/icons-material/HomeOutlined'
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline'
@@ -16,13 +18,13 @@ import RestaurantOutlinedIcon from '@mui/icons-material/RestaurantOutlined'
 import SpaOutlinedIcon from '@mui/icons-material/SpaOutlined'
 import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined'
 import InsightsIcon from '@mui/icons-material/Insights'
-import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import LogoutIcon from '@mui/icons-material/Logout'
 import NotificationsIcon from '@mui/icons-material/Notifications'
 import StarIcon from '@mui/icons-material/Star'
 import HealingIcon from '@mui/icons-material/Healing'
 import BiotechIcon from '@mui/icons-material/Biotech'
+import MenuIcon from '@mui/icons-material/Menu'
 
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import AuthPage from './components/AuthPage.jsx'
@@ -35,9 +37,9 @@ import DailyLogPanel from './components/DailyLogPanel.jsx'
 import ProfilePanel from './components/ProfilePanel.jsx'
 import HabitTracker from './components/HabitTracker.jsx'
 import TrendsPanel from './components/TrendsPanel.jsx'
-import StylePanel from './components/StylePanel.jsx'
 import GymTracker from './components/GymTracker.jsx'
 import GlobalCalendar from './components/GlobalCalendar.jsx'
+import LifeSyncMark from './components/LifeSyncMark.jsx'
 import NutritionTracker from './components/NutritionTracker.jsx'
 import RemindersSettings from './components/RemindersSettings.jsx'
 import SymptomsPanel from './components/SymptomsPanel.jsx'
@@ -56,7 +58,6 @@ const navItems = [
   { id: 'calendar', label: 'Calendar', icon: <CalendarMonthIcon fontSize="small" /> },
   { id: 'goals', label: 'Habits', icon: <FlagOutlinedIcon fontSize="small" /> },
   { id: 'trends', label: 'Insights', icon: <InsightsIcon fontSize="small" /> },
-  { id: 'style', label: 'Style', icon: <AutoAwesomeOutlinedIcon fontSize="small" /> },
   { id: 'reminders', label: 'Reminders', icon: <NotificationsIcon fontSize="small" /> },
   // { id: 'premium', label: 'Premium', icon: <StarIcon fontSize="small" /> },
 ]
@@ -74,6 +75,13 @@ function AppContent() {
   const [activeSection, setActiveSection] = useState('home')
   const [anchorEl, setAnchorEl] = useState(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+  useEffect(() => {
+    if (!loading) {
+      window.dispatchEvent(new Event('lifesync:app:ready'))
+    }
+  }, [loading])
 
   useEffect(() => {
     const handler = (e) => {
@@ -86,6 +94,16 @@ function AppContent() {
     window.addEventListener('lifesync:navigate', handler)
     return () => window.removeEventListener('lifesync:navigate', handler)
   }, [])
+
+  // Safety: close any modal backdrops when auth/section changes
+  useEffect(() => {
+    setMobileNavOpen(false)
+    setAnchorEl(null)
+  }, [user?._id])
+
+  useEffect(() => {
+    setMobileNavOpen(false)
+  }, [activeSection])
 
   const theme = useMemo(
     () =>
@@ -188,6 +206,8 @@ function AppContent() {
     []
   )
 
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+
   const renderContent = () => {
     switch (activeSection) {
       case 'home': return <Dashboard />
@@ -200,7 +220,6 @@ function AppContent() {
       case 'calendar': return <GlobalCalendar />
       case 'goals': return <HabitTracker />
       case 'trends': return <TrendsPanel />
-      case 'style': return <StylePanel />
       case 'chat': return <ChatExperience />
       case 'reminders': return <RemindersSettings />
       // case 'premium': return <PremiumPage />
@@ -262,13 +281,13 @@ function AppContent() {
       <CssBaseline />
       
       <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-        {/* Sidebar */}
+        {/* Sidebar (desktop) */}
         <Box
           sx={{
             width: 240,
             borderRight: '1px solid #e5e7eb',
             bgcolor: '#fff',
-            display: 'flex',
+            display: { xs: 'none', md: 'flex' },
             flexDirection: 'column',
           }}
         >
@@ -280,13 +299,13 @@ function AppContent() {
                   width: 32,
                   height: 32,
                   borderRadius: 2,
-                  bgcolor: '#171717',
+                  bgcolor: 'transparent',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>L</Typography>
+                <LifeSyncMark size={32} />
               </Box>
               <Typography variant="h6" sx={{ fontSize: 18 }}>LifeSync</Typography>
             </Box>
@@ -375,33 +394,152 @@ function AppContent() {
           </Box>
         </Box>
 
+        {/* Navigation Drawer (mobile) */}
+        <Drawer
+          open={mobileNavOpen}
+          onClose={() => setMobileNavOpen(false)}
+          variant="temporary"
+          ModalProps={{ keepMounted: true }}
+          PaperProps={{ sx: { width: 280, borderRight: '1px solid #e5e7eb' } }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid #e5e7eb' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 2,
+                    bgcolor: 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <LifeSyncMark size={32} />
+                </Box>
+                <Typography variant="h6" sx={{ fontSize: 18 }}>LifeSync</Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ flex: 1, py: 2, px: 1.5 }}>
+              {navItems.map((item) => (
+                <Box
+                  key={item.id}
+                  onClick={() => {
+                    setActiveSection(item.id)
+                    setMobileNavOpen(false)
+                  }}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    px: 1.5,
+                    py: 1,
+                    mb: 0.5,
+                    borderRadius: 1.5,
+                    cursor: 'pointer',
+                    color: activeSection === item.id ? '#171717' : '#6b7280',
+                    bgcolor: activeSection === item.id ? '#f3f4f6' : 'transparent',
+                    fontWeight: activeSection === item.id ? 500 : 400,
+                    transition: 'all 0.15s ease',
+                    '&:hover': {
+                      bgcolor: activeSection === item.id ? '#f3f4f6' : '#f9fafb',
+                      color: '#171717',
+                    },
+                  }}
+                >
+                  {item.icon}
+                  <Typography variant="body2" sx={{ fontWeight: 'inherit', color: 'inherit' }}>
+                    {item.label}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+
+            <Box sx={{ p: 2, borderTop: '1px solid #e5e7eb' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1, borderRadius: 1.5 }}>
+                <Avatar sx={{ width: 32, height: 32, bgcolor: '#171717', color: '#fff', fontSize: 14 }}>
+                  {user.name?.[0]?.toUpperCase() || 'U'}
+                </Avatar>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500, color: '#171717' }} noWrap>
+                    {user.name || 'User'}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#9ca3af' }} noWrap>
+                    {user.email}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box
+                onClick={() => {
+                  setMobileNavOpen(false)
+                  setAnchorEl(null)
+                  logout()
+                }}
+                sx={{
+                  mt: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  cursor: 'pointer',
+                  p: 1,
+                  borderRadius: 1.5,
+                  color: '#dc2626',
+                  '&:hover': { bgcolor: '#fef2f2' },
+                }}
+              >
+                <LogoutIcon fontSize="small" />
+                <Typography variant="body2" sx={{ color: 'inherit' }}>
+                  Sign Out
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+        </Drawer>
+
         {/* Main Content */}
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', bgcolor: '#fafafa' }}>
           {/* Header */}
           <Box
             sx={{
-              px: 4,
-              py: 2,
+              px: { xs: 2, md: 4 },
+              py: { xs: 1.5, md: 2 },
               bgcolor: '#fff',
               borderBottom: '1px solid #e5e7eb',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              gap: 1,
             }}
           >
-            <Typography variant="h5" sx={{ fontSize: 20 }}>
-              {navItems.find((n) => n.id === activeSection)?.label || 'Dashboard'}
-            </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="body2" sx={{ color: '#9ca3af' }}>
+              <IconButton
+                onClick={() => setMobileNavOpen(true)}
+                sx={{ display: { xs: 'inline-flex', md: 'none' } }}
+                aria-label="Open navigation"
+              >
+                <MenuIcon />
+              </IconButton>
+              <Typography
+                variant="h5"
+                sx={{ fontSize: { xs: 18, md: 20 }, lineHeight: 1.2 }}
+                noWrap
+              >
+                {navItems.find((n) => n.id === activeSection)?.label || 'Dashboard'}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" sx={{ color: '#9ca3af', display: { xs: 'none', sm: 'block' } }}>
                 {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
               </Typography>
             </Box>
           </Box>
 
           {/* Content */}
-          <Box sx={{ flex: 1, overflow: 'auto', p: 4 }}>
-            <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+          <Box sx={{ flex: 1, overflow: 'auto', p: { xs: 2, md: 4 } }}>
+            <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%' }}>
               {renderContent()}
             </Box>
           </Box>

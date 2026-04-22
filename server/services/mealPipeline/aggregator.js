@@ -1,4 +1,6 @@
 const { IngredientProfile, RecipeTemplate } = require('../../models/nutritionKnowledge')
+const IndbFood = require('../../models/IndbFood')
+const MfpFood = require('../../models/MfpFood')
 const { scale, roundTo, deriveMetricsFromTotals, applyCookingAdjustments } = require('./utils')
 
 function normalizeKey(s) {
@@ -112,9 +114,11 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
   const query = normalizeKey(q)
   if (!query) return []
 
-  const [recipes, ingredients] = await Promise.all([
+  const [recipes, ingredients, indbFoods, mfpFoods] = await Promise.all([
     RecipeTemplate.find({ name: { $regex: query, $options: 'i' }, locale }).limit(limit),
     IngredientProfile.find({ displayName: { $regex: query, $options: 'i' }, locale }).limit(limit),
+    IndbFood.find({ searchText: { $regex: query, $options: 'i' } }).limit(limit),
+    MfpFood.find({ searchText: { $regex: query, $options: 'i' } }).limit(limit),
   ])
 
   // Return in the same shape as your existing search API (name, servingQty, servingUnit, macros).
@@ -122,12 +126,16 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
     recipes.map(async (r) => {
       const computed = await computeRecipeTotals({ recipeName: r.name, locale })
       if (!computed) return null
+      const servingWeightG = Number(r.servingSizeG) || 0
+      const servingLabel = String(r.servingDescription || '').trim() || (servingWeightG ? `${servingWeightG} g serving` : '1 serving')
       return {
         id: `dish:${r.name}`,
         name: r.name,
         brand: null,
         servingQty: 1,
-        servingUnit: `${r.servingSizeG} g`,
+        servingUnit: 'serving',
+        servingLabel,
+        servingWeightG,
         calories: computed.nutrition.calories_kcal,
         protein: computed.nutrition.protein_g,
         carbs: computed.nutrition.carbs_g,
@@ -156,6 +164,8 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
       brand: null,
       servingQty: 100,
       servingUnit: 'g',
+      servingLabel: '100 g',
+      servingWeightG: 100,
       calories: Number(n.calories) || 0,
       protein: Number(n.protein) || 0,
       carbs: Number(n.carbs) || 0,
@@ -175,7 +185,146 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
     }
   })
 
-  return [...recipeResults.filter(Boolean), ...ingredientResults].slice(0, limit)
+  // Also map raw IndbFoods directly for comprehensive local lookup
+  const getCol = (cols, exactKey, partialKey, useUnit = false) => {
+    if (useUnit) {
+      const unitKey = 'unit_serving_' + exactKey;
+      const unitFound = cols.find(c => c.key.toLowerCase() === unitKey.toLowerCase());
+      if (unitFound && unitFound.value) {
+        const v = parseFloat(String(unitFound.value).replace(/[^0-9.-]/g, ''));
+        if (!isNaN(v)) return v;
+      }
+    }
+    
+    const found = cols.find(c => c.key.toLowerCase() === exactKey.toLowerCase()) 
+               || (partialKey && cols.find(c => c.key.toLowerCase().includes(partialKey.toLowerCase())));
+    if (!found || !found.value) return 0;
+    const v = parseFloat(String(found.value).replace(/[^0-9.-]/g, ''));
+    return isNaN(v) ? 0 : v;
+  };
+
+  const getName = (cols) => {
+    const fNode = cols.find(c => c.key.toLowerCase() === 'food_name');
+    return fNode && fNode.value ? String(fNode.value) : null;
+  }
+
+  const indbResults = indbFoods.map((f) => {
+    const c = f.columns || [];
+    
+    const servingsUnitNode = c.find(col => col.key.toLowerCase() === 'servings_unit');
+    const unitKcalNode = c.find(col => col.key.toLowerCase() === 'unit_serving_energy_kcal');
+    const hasUnitData = servingsUnitNode && servingsUnitNode.value && unitKcalNode && unitKcalNode.value;
+    
+    let useUnit = false;
+    let servingQty = 100;
+    let servingUnit = 'g';
+    let servingLabel = '100 g';
+    let servingWeightG = 100;
+    
+    if (hasUnitData) {
+      useUnit = true;
+      servingQty = 1;
+      servingUnit = String(servingsUnitNode.value).trim();
+      servingLabel = `1 ${servingUnit}`;
+      
+      const unitKcal = parseFloat(String(unitKcalNode.value).replace(/[^0-9.-]/g, ''));
+      const per100KcalNode = c.find(col => col.key.toLowerCase() === 'energy_kcal');
+      const per100Kcal = per100KcalNode ? parseFloat(String(per100KcalNode.value).replace(/[^0-9.-]/g, '')) : 0;
+      
+      if (!isNaN(unitKcal) && !isNaN(per100Kcal) && per100Kcal > 0) {
+          servingWeightG = Math.round((unitKcal / per100Kcal) * 100);
+      }
+    }
+    
+    const vitaminD2 = getCol(c, 'vitd2_ug', 'vitd2', useUnit);
+    const vitaminD3 = getCol(c, 'vitd3_ug', 'vitd3', useUnit);
+    const vitaminD = (vitaminD2 + vitaminD3) || getCol(c, 'vitamind', 'vitamin_d', useUnit);
+
+    return {
+      id: `indb:${f._id}`,
+      name: f.displayName || getName(c) || 'Unnamed INDB Food',
+      brand: 'INDB Database',
+      servingQty,
+      servingUnit,
+      servingLabel,
+      servingWeightG,
+      calories: getCol(c, 'energy_kcal', 'kcal', useUnit),
+      protein: getCol(c, 'protein_g', 'protein', useUnit),
+      carbs: getCol(c, 'carb_g', 'carbohydrate', useUnit),
+      fat: getCol(c, 'fat_g', 'total_fat', useUnit),
+      fiber: getCol(c, 'fibre_g', 'fiber', useUnit),
+      sugar: getCol(c, 'freesugar_g', 'sugar', useUnit),
+      sodium: getCol(c, 'sodium_mg', 'sodium', useUnit),
+      potassium: getCol(c, 'potassium_mg', 'potassium', useUnit),
+      iron: getCol(c, 'iron_mg', 'iron', useUnit),
+      calcium: getCol(c, 'calcium_mg', 'calcium', useUnit),
+      // Avoid mixing unrelated B-vitamin proxies; keep this tied to explicit "vitamin_b" style columns only.
+      vitaminB: getCol(c, 'vitamin_b', 'vitb_mg', useUnit),
+      magnesium: getCol(c, 'magnesium_mg', 'magnesium', useUnit),
+      zinc: getCol(c, 'zinc_mg', 'zinc', useUnit),
+      vitaminC: getCol(c, 'vitc_mg', 'vitaminc', useUnit),
+      // Keep omega3 as a first-class field, but only map explicit omega-3 columns.
+      omega3: getCol(c, 'omega_3', 'omega3', useUnit),
+      manganese: getCol(c, 'manganese_mg', 'manganese', useUnit),
+      selenium: getCol(c, 'selenium_ug', 'selenium', useUnit),
+      copper: getCol(c, 'copper_mg', 'copper', useUnit),
+      monounsaturatedFat: getCol(c, 'mufa_mg', 'mufa', useUnit),
+      polyunsaturatedFat: getCol(c, 'pufa_mg', 'pufa', useUnit),
+      saturatedFat: getCol(c, 'sfa_mg', 'sfa', useUnit) || getCol(c, 'saturatedfat', 'saturated_fat', useUnit),
+      cholesterol: getCol(c, 'cholesterol_mg', 'cholesterol', useUnit),
+      vitaminD2,
+      vitaminD3,
+      vitaminD,
+      vitaminE: getCol(c, 'vite_mg', 'vite', useUnit) || getCol(c, 'vitamine', 'vitamin_e', useUnit),
+      vitaminA: getCol(c, 'vita_ug', 'vita', useUnit) || getCol(c, 'vitamina', 'vitamin_a', useUnit),
+      vitaminB1: getCol(c, 'vitb1_mg', 'thiamin', useUnit),
+      vitaminB2: getCol(c, 'vitb2_mg', 'riboflavin', useUnit),
+      vitaminB3: getCol(c, 'vitb3_mg', 'niacin', useUnit),
+      vitaminB5: getCol(c, 'vitb5_mg', 'pantothenic', useUnit),
+      vitaminB6: getCol(c, 'vitb6_mg', 'vitb6', useUnit),
+      vitaminB7: getCol(c, 'vitb7_ug', 'biotin', useUnit),
+      vitaminB9: getCol(c, 'vitb9_ug', 'folate', useUnit),
+      vitaminB12: getCol(c, 'vitb12_ug', 'vitb12', useUnit),
+      folate: getCol(c, 'folate_ug', 'folate', useUnit),
+      phosphorus: getCol(c, 'phosphorus_mg', 'phosphorus', useUnit),
+      _local: { kind: 'indb' },
+    }
+  })
+
+  const mfpResults = mfpFoods.map((f) => {
+    const c = f.columns || [];
+    
+    return {
+      id: `mfp:${f._id}`,
+      name: f.displayName || getName(c) || 'Unnamed MFP Food',
+      brand: 'MyFitnessPal',
+      servingQty: Number(f.servingQty) || 1,
+      servingUnit: f.servingSize || 'serving',
+      servingLabel: `${f.servingQty || 1} ${f.servingSize || 'serving'}`.trim(),
+      servingWeightG: 100, // Exact weight unknown
+      calories: getCol(c, 'energy_kcal', 'kcal', false),
+      protein: getCol(c, 'protein_g', 'protein', false),
+      carbs: getCol(c, 'carb_g', 'carbohydrate', false),
+      fat: getCol(c, 'fat_g', 'total_fat', false),
+      fiber: getCol(c, 'fibre_g', 'fiber', false),
+      sugar: getCol(c, 'freesugar_g', 'sugar', false),
+      sodium: getCol(c, 'sodium_mg', 'sodium', false),
+      potassium: getCol(c, 'potassium_mg', 'potassium', false),
+      iron: getCol(c, 'iron_mg', 'iron', false),
+      calcium: getCol(c, 'calcium_mg', 'calcium', false),
+      vitaminC: getCol(c, 'vitc_mg', 'vitaminc', false),
+      monounsaturatedFat: getCol(c, 'mufa_mg', 'mufa', false),
+      polyunsaturatedFat: getCol(c, 'pufa_mg', 'pufa', false),
+      saturatedFat: getCol(c, 'sfa_mg', 'sfa', false),
+      cholesterol: getCol(c, 'cholesterol_mg', 'cholesterol', false),
+      vitaminA: getCol(c, 'vita_ug', 'vita', false),
+      _local: { kind: 'mfp' },
+    }
+  })
+
+  // Group to prioritize matches cleanly
+  const merged = [...recipeResults.filter(Boolean), ...ingredientResults, ...indbResults, ...mfpResults]
+  return merged.slice(0, limit)
 }
 
 module.exports = {

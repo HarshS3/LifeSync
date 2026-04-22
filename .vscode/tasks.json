@@ -68,6 +68,18 @@
 			"isBackground": true,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "lifesync: seed nutrition insights demo",
+			"type": "shell",
+			"command": "cd server && node .\\scripts\\seed_nutrition_insights_demo.js",
+			"group": "build"
+		},
+		{
+			"label": "lifesync: seed nutrition insights demo",
+			"type": "shell",
+			"command": "cd server; node .\\scripts\\seed_nutrition_insights_demo.js",
+			"group": "build"
 		}
 	]
 }

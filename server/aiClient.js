@@ -241,6 +241,87 @@ async function generateLLMReply({ message, memoryContext, systemPrompt, history,
   return null
 }
 
+async function estimateMissingMicronutrients(productName, knownMacros, missingMicros) {
+  if (!productName || missingMicros.length === 0) return null
+
+  // If no provider key is configured, return null.
+  if (!process.env.GROQ_API_KEY && !process.env.OPENAI_API_KEY && !process.env.GEMINI_API_KEY) return null
+
+  const keysString = missingMicros.join(', ')
+  const system = [
+    'You are LifeSync Nutrition Estimator.',
+    'You are given a product name, its known macros per 100g, and a list of missing micronutrients.',
+    'Estimate the missing micronutrients per 100g based on the food type.',
+    'Return STRICT JSON ONLY containing the exact requested keys as JSON properties with numeric values.',
+    'Do not include any units in the values, just numbers.',
+    'If you are completely unsure, return 0 for that nutrient.',
+  ].join('\n')
+
+  const prompt = `Product: ${productName}\nMacros per 100g: ${JSON.stringify(knownMacros)}\nMissing nutrients to estimate directly as keys: [${keysString}]`
+
+  const clean = (s) => {
+    if (!s) return null
+    try {
+      const start = s.indexOf('{')
+      const end = s.lastIndexOf('}')
+      if (start >= 0 && end > start) {
+        return JSON.parse(s.slice(start, end + 1))
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  try {
+    if (process.env.GROQ_API_KEY) {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'llama3-70b-8192',
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0,
+        })
+      })
+      const dt = await res.json()
+      return clean(dt.choices?.[0]?.message?.content)
+    } else if (process.env.OPENAI_API_KEY) {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0,
+        })
+      })
+      const dt = await res.json()
+      return clean(dt.choices?.[0]?.message?.content)
+    } else if (process.env.GEMINI_API_KEY) {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: system + '\n\n' + prompt }] }],
+          generationConfig: { temperature: 0 }
+        })
+      })
+      const dt = await res.json()
+      return clean(dt.candidates?.[0]?.content?.parts?.[0]?.text)
+    }
+  } catch (err) {
+    console.error('[AI] estimateMissingMicronutrients error:', err)
+  }
+  return null
+}
+
 async function generateNutritionSemanticJson({
   canonicalId,
   input,
@@ -374,4 +455,4 @@ async function generateNutritionHypothesisJson({
   return null
 }
 
-module.exports = { generateLLMReply, generateNutritionSemanticJson, generateNutritionHypothesisJson }
+module.exports = { generateLLMReply, generateNutritionSemanticJson, generateNutritionHypothesisJson, estimateMissingMicronutrients }

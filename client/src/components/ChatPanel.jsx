@@ -10,6 +10,8 @@ import MicIcon from '@mui/icons-material/Mic'
 import StopIcon from '@mui/icons-material/Stop'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
+import { VoiceNutritionLogger } from '../services/voiceNutritionLogger'
+import { VoiceNutritionConfirm } from './VoiceNutritionConfirm'
 
 function ChatPanel() {
   const { token } = useAuth()
@@ -141,26 +143,43 @@ function ChatPanel() {
     return json
   }
 
+  const [voiceAgent, setVoiceAgent] = useState(() => new VoiceNutritionLogger(API_BASE, null))
+  
+  useEffect(() => {
+     if (token) voiceAgent.token = token;
+  }, [token, voiceAgent])
+
   const beginVoiceConfirmFlow = async (transcript) => {
     const t = String(transcript || '').trim()
     if (!t) return
 
-    // If user is not signed in, we can still send the message, but can't auto-log.
+    // Instead of legacy preview flow, we send everything to the Nutrition ReAct Agent
     if (!token) {
       await sendMessageText(t)
       return
     }
 
-    const preview = await previewChatIngestion(t)
-    const updates = Array.isArray(preview?.updates) ? preview.updates : []
-    if (!updates.length) {
-      // Nothing to log; proceed as a normal chat message.
-      await sendMessageText(t, { skipIngestion: true })
-      return
-    }
+    try {
+       // Display "processing..." message immediately
+       setMessages(prev => [...prev, { from: 'user', text: t }]);
+       setInput('');
+       setIsSending(true);
 
-    // Hold for user confirmation.
-    setPendingVoiceConfirm({ transcript: t, preview })
+       const result = await voiceAgent.sendToAgent(t);
+       
+       if (result.reply) {
+         setMessages(prev => [...prev, { from: 'ai', text: result.reply }]);
+         // Optional: Speak the response via browser TTS
+         voiceAgent.speak(result.reply);
+       } else {
+         setMessages(prev => [...prev, { from: 'system', text: "Agent didn't say anything back." }]);
+       }
+
+    } catch (e) {
+       setMessages(prev => [...prev, { from: 'system', text: "Voice Action Failed: " + e.message }]);
+    } finally {
+       setIsSending(false);
+    }
   }
 
   const stopRecording = ({ submit = true } = {}) => {

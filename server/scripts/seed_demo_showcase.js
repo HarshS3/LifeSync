@@ -440,9 +440,25 @@ async function upsertNutritionForDay(userId, dayKey, { calories, protein, carbs,
                 protein: proteinPart,
                 carbs: carbsPart,
                 fat: fatPart,
-                fiber: 0,
-                sugar: 0,
-                sodium: 0,
+                fiber: Math.round(30 * frac), // Random realistic daily 30g
+                sugar: Math.round(25 * frac),
+                sodium: Math.round(2000 * frac), // Electrolytes
+                potassium: Math.round(3000 * frac),
+                magnesium: Math.round(400 * frac),
+                iron: Math.round(15 * frac), // Minerals
+                calcium: Math.round(1000 * frac),
+                zinc: Math.round(12 * frac),
+                copper: Math.round(1.0 * frac * 10) / 10,
+                selenium: Math.round(50 * frac),
+                manganese: Math.round(2.0 * frac * 10) / 10,
+                vitaminA: Math.round(800 * frac), // Fat soluble
+                vitaminE: Math.round(12 * frac),
+                vitaminD: Math.round(10 * frac),
+                vitaminB12: Math.round(2.0 * frac * 10) / 10, // Water soluble
+                vitaminB: Math.round(1.2 * frac * 10) / 10,
+                vitaminC: Math.round(80 * frac),
+                folate: Math.round(350 * frac),
+                saturatedFat: Math.round((fatPart || 0) * 0.3), // Approx 30% of fat is saturated
               },
             ],
             totalCalories: caloriesPart,

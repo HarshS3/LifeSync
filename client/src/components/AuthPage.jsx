@@ -6,10 +6,11 @@ import Typography from '@mui/material/Typography'
 import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
+import Divider from '@mui/material/Divider'
 import { useAuth } from '../context/AuthContext'
 import LifeSyncMark from './LifeSyncMark'
 
-function AuthPage() {
+function AuthPage({ themeVariant = 'paper', onToggleTheme } = {}) {
   const [showForgot, setShowForgot] = useState(false);
   const [showReset, setShowReset] = useState(false);
   const [isLogin, setIsLogin] = useState(true)
@@ -41,14 +42,16 @@ function AuthPage() {
     }
   }
 
-  const inputSx = {
+  const inputSx = (theme) => ({
     '& .MuiOutlinedInput-root': {
-      '& fieldset': { borderColor: '#e5e7eb' },
-      '&:hover fieldset': { borderColor: '#d1d5db' },
-      '&.Mui-focused fieldset': { borderColor: '#171717' },
+      '& fieldset': { borderColor: theme.palette.divider },
+      '&:hover fieldset': {
+        borderColor: theme.palette.mode === 'dark' ? 'rgba(243, 240, 234, 0.28)' : 'rgba(22, 19, 16, 0.18)',
+      },
+      '&.Mui-focused fieldset': { borderColor: theme.palette.secondary.main },
     },
-    '& .MuiInputLabel-root.Mui-focused': { color: '#171717' },
-  }
+    '& .MuiInputLabel-root.Mui-focused': { color: theme.palette.secondary.main },
+  })
 
   // Show forgot/reset password pages
   if (showForgot) return <ForgotPassword />;
@@ -61,17 +64,39 @@ function AuthPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: '#fafafa',
+        bgcolor: 'background.default',
         p: 2,
+        position: 'relative',
       }}
     >
       <Box
         sx={{
+          position: 'absolute',
+          top: 16,
+          right: 16,
+          display: 'flex',
+          gap: 1,
+          alignItems: 'center',
+        }}
+      >
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={onToggleTheme}
+          disabled={!onToggleTheme}
+          sx={{ borderRadius: 999, px: 1.5, py: 0.75 }}
+        >
+          Theme: {themeVariant === 'noir' ? 'Noir' : 'Paper'}
+        </Button>
+      </Box>
+      <Box
+        sx={{
           width: '100%',
           maxWidth: 400,
-          bgcolor: '#fff',
+          bgcolor: 'background.paper',
           borderRadius: 3,
-          border: '1px solid #e5e7eb',
+          border: '1px solid',
+          borderColor: 'divider',
           p: 4,
         }}
       >
@@ -81,11 +106,11 @@ function AuthPage() {
           </Box>
           <Typography
             variant="h4"
-            sx={{ fontWeight: 700, color: '#171717', mb: 1 }}
+            sx={{ fontWeight: 700, color: 'text.primary', mb: 1 }}
           >
             LifeSync
           </Typography>
-          <Typography variant="body2" sx={{ color: '#6b7280' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {isLogin ? 'Welcome back' : 'Create your account'}
           </Typography>
         </Box>
@@ -125,19 +150,20 @@ function AuthPage() {
             />
             {isLogin && (
               <Box sx={{ textAlign: 'right' }}>
-                <span
-                  style={{ color: '#6366f1', cursor: 'pointer', fontSize: 13 }}
+                <Box
+                  component="span"
+                  sx={{ color: 'secondary.main', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
                   onClick={() => setShowForgot(true)}
                 >
                   Forgot password?
-                </span>
+                </Box>
               </Box>
             )}
 
             {error && (
               <Typography
                 variant="body2"
-                sx={{ color: '#dc2626', textAlign: 'center' }}
+                sx={{ color: 'error.main', textAlign: 'center' }}
               >
                 {error}
               </Typography>
@@ -148,18 +174,10 @@ function AuthPage() {
               fullWidth
               variant="contained"
               disabled={loading}
-              sx={{
-                py: 1.5,
-                bgcolor: '#171717',
-                textTransform: 'none',
-                fontWeight: 600,
-                borderRadius: 2,
-                boxShadow: 'none',
-                '&:hover': { bgcolor: '#374151', boxShadow: 'none' },
-              }}
+              sx={{ py: 1.5, borderRadius: 2 }}
             >
               {loading ? (
-                <CircularProgress size={24} sx={{ color: '#fff' }} />
+                <CircularProgress size={24} sx={{ color: 'inherit' }} />
               ) : isLogin ? (
                 'Sign In'
               ) : (
@@ -169,8 +187,9 @@ function AuthPage() {
           </Box>
         </form>
 
+        <Divider sx={{ my: 3 }} />
         <Box sx={{ mt: 3, textAlign: 'center' }}>
-          <Typography variant="body2" sx={{ color: '#6b7280' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
             <Box
               component="span"
@@ -179,7 +198,7 @@ function AuthPage() {
                 setError('')
               }}
               sx={{
-                color: '#171717',
+                color: 'text.primary',
                 fontWeight: 600,
                 cursor: 'pointer',
                 '&:hover': { textDecoration: 'underline' },

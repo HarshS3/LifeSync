@@ -1,205 +1,37 @@
-// Simple wrapper around a public nutrition API (FatSecret)
-// It expects env vars FATSECRET_CLIENT_ID and FATSECRET_CLIENT_SECRET.
-// If they are missing or the API calls fail, it returns an empty list.
-
-const TOKEN_URL = process.env.FATSECRET_TOKEN_URL || 'https://oauth.fatsecret.com/connect/token'
-const API_BASE = process.env.FATSECRET_API_BASE || 'https://platform.fatsecret.com/rest/server.api'
+const {
+  ensureIndbDataLoaded,
+  searchIndbFoods,
+} = require('./nutritionSources/indbMongo');
+const { searchOpenFoodFactsFoods } = require('./nutritionSources/openFoodFacts');
 
 async function searchFoods(query) {
-  if (!query || !query.trim()) return []
+  const q = String(query || '').trim();
+  if (!q) return [];
 
-  console.log('[NutritionProvider] searchFoods called with query:', query.trim())
+  try {
+    await ensureIndbDataLoaded();
+  } catch (err) {
+    console.warn('[NutritionProvider] INDB load failed:', err?.message || err);
+  }
 
-  const clientId = process.env.FATSECRET_CLIENT_ID
-  const clientSecret = process.env.FATSECRET_CLIENT_SECRET
+  let indbResults = [];
+  try {
+    indbResults = await searchIndbFoods({ query: q, limit: 10 });
+  } catch (err) {
+    console.warn('[NutritionProvider] INDB search failed:', err?.message || err);
+  }
 
-  if (!clientId || !clientSecret) {
-    console.warn('[NutritionProvider] FATSECRET_CLIENT_ID/SECRET not configured; skipping API call')
-    // API not configured; caller should handle empty result gracefully
-    return []
+  if (indbResults.length > 0) {
+    return indbResults.slice(0, 10);
   }
 
   try {
-    if (typeof fetch !== 'function') {
-      throw new Error('Fetch is not available in this Node runtime')
-    }
-
-    // 1) Get OAuth2 access token from FatSecret
-    const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
-
-    console.log('[NutritionProvider] Requesting FatSecret token from', TOKEN_URL)
-
-    const tokenRes = await fetch(TOKEN_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: `Basic ${basic}`,
-      },
-      body: new URLSearchParams({
-        grant_type: 'client_credentials',
-        scope: 'basic',
-      }),
-    })
-
-    if (!tokenRes.ok) {
-      console.error('[NutritionProvider] FatSecret token error:', tokenRes.status)
-      return []
-    }
-
-    const tokenData = await tokenRes.json()
-    const accessToken = tokenData.access_token
-    if (!accessToken) {
-      console.error('[NutritionProvider] FatSecret token missing access_token field')
-      return []
-    }
-
-    console.log('[NutritionProvider] Obtained FatSecret token successfully')
-
-    // 2) Search foods
-    const searchUrl = `${API_BASE}?method=foods.search&search_expression=${encodeURIComponent(
-      query.trim()
-    )}&max_results=10&format=json`
-
-    const res = await fetch(searchUrl, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    })
-
-    if (!res.ok) {
-      console.error('[NutritionProvider] FatSecret search error:', res.status)
-      return []
-    }
-
-    const data = await res.json()
-    const foodsRoot = data.foods || {}
-    const foodsField = foodsRoot.food
-    const foods = !foodsField
-      ? []
-      : Array.isArray(foodsField)
-        ? foodsField
-        : [foodsField]
-
-    if (!foods.length) {
-      console.log('[NutritionProvider] FatSecret search returned 0 foods, raw response:', JSON.stringify(data))
-      return []
-    }
-
-    // 3) For each food, fetch detailed nutrition via food.get
-    const results = await Promise.all(
-      foods.slice(0, 10).map(async (f) => {
-        const foodId = f.food_id
-
-        let calories = 0
-        let protein = 0
-        let carbs = 0
-        let fat = 0
-        let fiber = 0
-        let sugar = 0
-        let sodium = 0
-        let potassium = null
-        let iron = null
-        let calcium = null
-        let vitaminB = null
-        let magnesium = null
-        let zinc = null
-        let vitaminC = null
-        let omega3 = null
-        let servingQty = 1
-        let servingUnit = 'serving'
-
-        try {
-          const detailUrl = `${API_BASE}?method=food.get&food_id=${encodeURIComponent(
-            foodId
-          )}&format=json`
-          const detailRes = await fetch(detailUrl, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          })
-
-          if (detailRes.ok) {
-            const detail = await detailRes.json()
-            const foodDetail = detail.food || {}
-            const servings = foodDetail.servings || {}
-            const serving = Array.isArray(servings.serving)
-              ? servings.serving[0]
-              : servings.serving || null
-
-            if (serving) {
-              const toNum = (v) => (v != null ? Number(v) || 0 : 0)
-              calories = toNum(serving.calories)
-              protein = toNum(serving.protein)
-              carbs = toNum(serving.carbohydrate)
-              fat = toNum(serving.fat)
-              fiber = toNum(serving.fiber)
-              sugar = toNum(serving.sugar)
-              sodium = toNum(serving.sodium)
-
-              // Micronutrients: FatSecret may or may not include these depending on item.
-              // We map the most common key names used by FatSecret's serving payload.
-              const has = (k) => Object.prototype.hasOwnProperty.call(serving, k)
-
-              potassium = has('potassium') ? toNum(serving.potassium) : null
-              iron = has('iron') ? toNum(serving.iron) : null
-              calcium = has('calcium') ? toNum(serving.calcium) : null
-              magnesium = has('magnesium') ? toNum(serving.magnesium) : null
-              zinc = has('zinc') ? toNum(serving.zinc) : null
-
-              // Vitamins: FatSecret sometimes uses snake_case for vitamins.
-              if (has('vitamin_c') || has('vitamin_c_mg') || has('vitaminC')) {
-                vitaminC = toNum(serving.vitamin_c ?? serving.vitamin_c_mg ?? serving.vitaminC)
-              }
-
-              // "Vitamin B" is not a single nutrient in most databases.
-              // If present, prefer B6; otherwise fall back to any provided generic key.
-              if (has('vitamin_b6') || has('vitamin_b') || has('vitaminB')) {
-                vitaminB = toNum(serving.vitamin_b6 ?? serving.vitamin_b ?? serving.vitaminB)
-              }
-
-              // Omega-3: commonly listed as omega_3_fatty_acid or omega_3.
-              if (has('omega_3_fatty_acid') || has('omega_3') || has('omega3')) {
-                omega3 = toNum(serving.omega_3_fatty_acid ?? serving.omega_3 ?? serving.omega3)
-              }
-
-              servingQty = toNum(serving.number_of_units) || 1
-              servingUnit = serving.measure || 'serving'
-            }
-          }
-        } catch (e) {
-          console.error('[NutritionProvider] FatSecret detail error:', e.message)
-        }
-
-        return {
-          id: String(foodId),
-          name: f.food_name,
-          brand: f.brand_name || null,
-          servingQty,
-          servingUnit,
-          calories,
-          protein,
-          carbs,
-          fat,
-          fiber,
-          sugar,
-          sodium,
-          potassium,
-          iron,
-          calcium,
-          vitaminB,
-          magnesium,
-          zinc,
-          vitaminC,
-          omega3,
-        }
-      })
-    )
-
-    console.log('[NutritionProvider] FatSecret search returned', results.length, 'normalized foods')
-
-    return results
+    const fallback = await searchOpenFoodFactsFoods({ query: q, pageSize: 10 });
+    return Array.isArray(fallback) ? fallback.slice(0, 10) : [];
   } catch (err) {
-    console.error('[NutritionProvider] Nutrition API call failed:', err.message)
-    return []
+    console.warn('[NutritionProvider] OpenFoodFacts fallback failed:', err?.message || err);
+    return [];
   }
 }
 
-module.exports = { searchFoods }
+module.exports = { searchFoods };

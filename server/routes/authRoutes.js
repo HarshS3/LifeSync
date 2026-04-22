@@ -38,19 +38,20 @@ router.post('/register', async (req, res) => {
     }
 
     // Check if user exists
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
     // Hash password
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(String(password), salt);
 
     // Create user
     const user = await User.create({
-      name,
-      email: email.toLowerCase(),
+      name: String(name).trim(),
+      email: normalizedEmail,
       password: hashedPassword,
     });
 
@@ -60,9 +61,10 @@ router.post('/register', async (req, res) => {
     res.status(201).json({
       token,
       user: {
-        id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
+        onboardingCompleted: user.onboardingCompleted,
       },
     });
   } catch (err) {
@@ -81,13 +83,14 @@ router.post('/login', async (req, res) => {
     }
 
     // Find user
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user || !user.password) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     // Check password
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(String(password), user.password);
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -98,9 +101,10 @@ router.post('/login', async (req, res) => {
     res.json({
       token,
       user: {
-        id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
+        onboardingCompleted: user.onboardingCompleted,
       },
     });
   } catch (err) {
@@ -135,12 +139,13 @@ router.get('/me', async (req, res) => {
 router.post('/direct-reset', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and new password are required' });
-  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+  if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
   try {
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) return res.status(404).json({ error: 'User not found' });
     const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    user.password = await bcrypt.hash(String(password), salt);
     await user.save();
     res.json({ message: 'Password updated successfully.' });
   } catch (err) {

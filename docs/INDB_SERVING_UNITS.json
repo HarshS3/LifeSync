@@ -1,0 +1,2990 @@
+[
+  {
+    "unit": "bowl",
+    "foodCount": 240,
+    "inferredWeightMedianG": 239,
+    "inferredWeightMinG": 47,
+    "inferredWeightMaxG": 770,
+    "sampleFoods": [
+      {
+        "food_code": "ASC220",
+        "food_name": "Al yakhani",
+        "inferredWeightG": 232,
+        "unitCalories": 342.3
+      },
+      {
+        "food_code": "BFP087",
+        "food_name": "Almond soup (Badam ka soup)",
+        "inferredWeightG": 477,
+        "unitCalories": 375.16
+      },
+      {
+        "food_code": "BFP338",
+        "food_name": "Apple kheer (Seb ki kheer)",
+        "inferredWeightG": 333,
+        "unitCalories": 270.47
+      },
+      {
+        "food_code": "ASC314",
+        "food_name": "Apple mousse",
+        "inferredWeightG": 365,
+        "unitCalories": 390.28
+      },
+      {
+        "food_code": "OSR013",
+        "food_name": "Apple sago payasam (Seb aur sabudana ki kheer)",
+        "inferredWeightG": 331,
+        "unitCalories": 451.91
+      }
+    ]
+  },
+  {
+    "unit": "plate",
+    "foodCount": 55,
+    "inferredWeightMedianG": 302,
+    "inferredWeightMinG": 95,
+    "inferredWeightMaxG": 831,
+    "sampleFoods": [
+      {
+        "food_code": "OSR062",
+        "food_name": "Afghani chicken",
+        "inferredWeightG": 190,
+        "unitCalories": 287.5
+      },
+      {
+        "food_code": "OSR069",
+        "food_name": "Baked eggs in tomato sauce",
+        "inferredWeightG": 498,
+        "unitCalories": 398.25
+      },
+      {
+        "food_code": "BFP154",
+        "food_name": "Beans and macaroni",
+        "inferredWeightG": 254,
+        "unitCalories": 345.99
+      },
+      {
+        "food_code": "BFP138",
+        "food_name": "Black channa pulao/ Bengal gram pulao (Kale chane ka pulao)",
+        "inferredWeightG": 397,
+        "unitCalories": 498.16
+      },
+      {
+        "food_code": "ASC113",
+        "food_name": "Boiled rice (Uble chawal)",
+        "inferredWeightG": 300,
+        "unitCalories": 351.57
+      }
+    ]
+  },
+  {
+    "unit": "piece",
+    "foodCount": 53,
+    "inferredWeightMedianG": 66,
+    "inferredWeightMinG": 13,
+    "inferredWeightMaxG": 393,
+    "sampleFoods": [
+      {
+        "food_code": "ASC418",
+        "food_name": "Apple cake (Seb ka cake)",
+        "inferredWeightG": 68,
+        "unitCalories": 197.25
+      },
+      {
+        "food_code": "ASC331",
+        "food_name": "Apple snowballs",
+        "inferredWeightG": 260,
+        "unitCalories": 263.42
+      },
+      {
+        "food_code": "BFP574",
+        "food_name": "Atta dal burfi ",
+        "inferredWeightG": 39,
+        "unitCalories": 115.78
+      },
+      {
+        "food_code": "BFP485",
+        "food_name": "Black forest gateau",
+        "inferredWeightG": 66,
+        "unitCalories": 142.76
+      },
+      {
+        "food_code": "ASC409",
+        "food_name": "Cheese balls",
+        "inferredWeightG": 59,
+        "unitCalories": 402.95
+      }
+    ]
+  },
+  {
+    "unit": "biscuit",
+    "foodCount": 29,
+    "inferredWeightMedianG": 19,
+    "inferredWeightMinG": 11,
+    "inferredWeightMaxG": 151,
+    "sampleFoods": [
+      {
+        "food_code": "BFP502",
+        "food_name": "Almond biscuit (Badam ke biscuit)",
+        "inferredWeightG": 19,
+        "unitCalories": 75.74
+      },
+      {
+        "food_code": "BFP519",
+        "food_name": "Butterfly biscuit",
+        "inferredWeightG": 12,
+        "unitCalories": 41.48
+      },
+      {
+        "food_code": "OSR032",
+        "food_name": "Buttermilk biscuit",
+        "inferredWeightG": 128,
+        "unitCalories": 414.46
+      },
+      {
+        "food_code": "ASC442",
+        "food_name": "Chocolate biscuit",
+        "inferredWeightG": 15,
+        "unitCalories": 57.49
+      },
+      {
+        "food_code": "BFP510",
+        "food_name": "Christmas bell biscuit",
+        "inferredWeightG": 21,
+        "unitCalories": 84.11
+      }
+    ]
+  },
+  {
+    "unit": "tablespoon",
+    "foodCount": 21,
+    "inferredWeightMedianG": 19,
+    "inferredWeightMinG": 11,
+    "inferredWeightMaxG": 43,
+    "sampleFoods": [
+      {
+        "food_code": "BFP499",
+        "food_name": "Butter icing",
+        "inferredWeightG": 16,
+        "unitCalories": 81.12
+      },
+      {
+        "food_code": "BFP500",
+        "food_name": "Chocolate butter icing",
+        "inferredWeightG": 19,
+        "unitCalories": 91.1
+      },
+      {
+        "food_code": "BFP498",
+        "food_name": "Chocolate glace icing",
+        "inferredWeightG": 24,
+        "unitCalories": 104.44
+      },
+      {
+        "food_code": "BFP353",
+        "food_name": "Chocolate sauce",
+        "inferredWeightG": 17,
+        "unitCalories": 43.87
+      },
+      {
+        "food_code": "ASC386",
+        "food_name": "Coconut chutney (Nariyal ki chutney)",
+        "inferredWeightG": 25,
+        "unitCalories": 67.37
+      }
+    ]
+  },
+  {
+    "unit": "triangle",
+    "foodCount": 21,
+    "inferredWeightMedianG": 61,
+    "inferredWeightMinG": 28,
+    "inferredWeightMaxG": 240,
+    "sampleFoods": [
+      {
+        "food_code": "ASC034",
+        "food_name": "Carrot apple sandwich (Gajar aur seb ka sandwich)",
+        "inferredWeightG": 97,
+        "unitCalories": 208.22
+      },
+      {
+        "food_code": "ASC023",
+        "food_name": "Cheese and chilli sandwich ",
+        "inferredWeightG": 56,
+        "unitCalories": 121.6
+      },
+      {
+        "food_code": "ASC026",
+        "food_name": "Cheese and pineapple sandwich (Cheese aur ananas ka sandwich)",
+        "inferredWeightG": 56,
+        "unitCalories": 143.68
+      },
+      {
+        "food_code": "ASC027",
+        "food_name": "Cheese and tomato sandwich (Cheese aur tamatar ke sandwich)",
+        "inferredWeightG": 58,
+        "unitCalories": 141.73
+      },
+      {
+        "food_code": "ASC040",
+        "food_name": "Cheese and tomato sandwich (toasted) (Cheese aur tamatar ke sandwich (toasted))",
+        "inferredWeightG": 76,
+        "unitCalories": 170.12
+      }
+    ]
+  },
+  {
+    "unit": "tall glass",
+    "foodCount": 20,
+    "inferredWeightMedianG": 340,
+    "inferredWeightMinG": 251,
+    "inferredWeightMaxG": 544,
+    "sampleFoods": [
+      {
+        "food_code": "ASC016",
+        "food_name": "Banana milkshake (Kele milkshake)",
+        "inferredWeightG": 345,
+        "unitCalories": 225.63
+      },
+      {
+        "food_code": "BFP015",
+        "food_name": "Banana milkshake with ice cream (Kele ka milkshake ice cream ke saath)",
+        "inferredWeightG": 340,
+        "unitCalories": 259.92
+      },
+      {
+        "food_code": "ASC011",
+        "food_name": "Coco pine cooler",
+        "inferredWeightG": 432,
+        "unitCalories": 141.54
+      },
+      {
+        "food_code": "BFP013",
+        "food_name": "Cold coffee (with cream)",
+        "inferredWeightG": 251,
+        "unitCalories": 207.32
+      },
+      {
+        "food_code": "ASC020",
+        "food_name": "Egg nog",
+        "inferredWeightG": 303,
+        "unitCalories": 294.82
+      }
+    ]
+  },
+  {
+    "unit": "slice",
+    "foodCount": 19,
+    "inferredWeightMedianG": 116,
+    "inferredWeightMinG": 56,
+    "inferredWeightMaxG": 513,
+    "sampleFoods": [
+      {
+        "food_code": "OSR126",
+        "food_name": "Almond cardamom cake (Badam elaichi cake)",
+        "inferredWeightG": 68,
+        "unitCalories": 242.84
+      },
+      {
+        "food_code": "ASC403",
+        "food_name": "Apple cinnamon pie",
+        "inferredWeightG": 177,
+        "unitCalories": 458.28
+      },
+      {
+        "food_code": "ASC423",
+        "food_name": "Banana cake (Kele ka cake)",
+        "inferredWeightG": 66,
+        "unitCalories": 258.3
+      },
+      {
+        "food_code": "OSR122",
+        "food_name": "Carrot cake (Gajar ka cake)",
+        "inferredWeightG": 100,
+        "unitCalories": 255.46
+      },
+      {
+        "food_code": "OSR022",
+        "food_name": "Chhena poda",
+        "inferredWeightG": 74,
+        "unitCalories": 255.84
+      }
+    ]
+  },
+  {
+    "unit": "cup",
+    "foodCount": 18,
+    "inferredWeightMedianG": 314,
+    "inferredWeightMinG": 52,
+    "inferredWeightMaxG": 1115,
+    "sampleFoods": [
+      {
+        "food_code": "OSR004",
+        "food_name": "Apple and honey sorbet (Seb aur shehad ka sharbat)",
+        "inferredWeightG": 162,
+        "unitCalories": 196.96
+      },
+      {
+        "food_code": "ASC068",
+        "food_name": "Brown stock",
+        "inferredWeightG": 488,
+        "unitCalories": 103.65
+      },
+      {
+        "food_code": "ASC070",
+        "food_name": "Chicken stock",
+        "inferredWeightG": 376,
+        "unitCalories": 112.33
+      },
+      {
+        "food_code": "BFP356",
+        "food_name": "Crunchy butterscotch",
+        "inferredWeightG": 187,
+        "unitCalories": 519.63
+      },
+      {
+        "food_code": "BFP313",
+        "food_name": "Curd dressing ",
+        "inferredWeightG": 209,
+        "unitCalories": 164.82
+      }
+    ]
+  },
+  {
+    "unit": "soup bowl",
+    "foodCount": 17,
+    "inferredWeightMedianG": 362,
+    "inferredWeightMinG": 188,
+    "inferredWeightMaxG": 463,
+    "sampleFoods": [
+      {
+        "food_code": "ASC081",
+        "food_name": "Chicken consomme (Clear chicken soup)",
+        "inferredWeightG": 226,
+        "unitCalories": 108.31
+      },
+      {
+        "food_code": "ASC087",
+        "food_name": "Chicken sweet corn soup",
+        "inferredWeightG": 242,
+        "unitCalories": 68.46
+      },
+      {
+        "food_code": "ASC079",
+        "food_name": "Clear tomato soup (Tamatar ka soup)",
+        "inferredWeightG": 398,
+        "unitCalories": 318.41
+      },
+      {
+        "food_code": "ASC094",
+        "food_name": "Cold cucumber soup (Thanda kheere ka soup)",
+        "inferredWeightG": 188,
+        "unitCalories": 90.13
+      },
+      {
+        "food_code": "ASC095",
+        "food_name": "Cold summer garden soup",
+        "inferredWeightG": 307,
+        "unitCalories": 151
+      }
+    ]
+  },
+  {
+    "unit": "glass",
+    "foodCount": 15,
+    "inferredWeightMedianG": 339,
+    "inferredWeightMinG": 170,
+    "inferredWeightMaxG": 629,
+    "sampleFoods": [
+      {
+        "food_code": "OSR007",
+        "food_name": "Apple oats chia seed smoothie",
+        "inferredWeightG": 629,
+        "unitCalories": 538.28
+      },
+      {
+        "food_code": "BFP029",
+        "food_name": "Canjee",
+        "inferredWeightG": 170,
+        "unitCalories": 11.26
+      },
+      {
+        "food_code": "BFP030",
+        "food_name": "Cauliflower canjee (Phoolgobhi ki canjee)",
+        "inferredWeightG": 179,
+        "unitCalories": 12.32
+      },
+      {
+        "food_code": "BFP605",
+        "food_name": "Cauliflower potato canjee",
+        "inferredWeightG": 212,
+        "unitCalories": 35.58
+      },
+      {
+        "food_code": "OSR006",
+        "food_name": "Cucumber sharbat (Kheere ka sharbat)",
+        "inferredWeightG": 411,
+        "unitCalories": 112.14
+      }
+    ]
+  },
+  {
+    "unit": "sandwich",
+    "foodCount": 14,
+    "inferredWeightMedianG": 78,
+    "inferredWeightMinG": 22,
+    "inferredWeightMaxG": 261,
+    "sampleFoods": [
+      {
+        "food_code": "BFP470",
+        "food_name": "Cheese open sandwich",
+        "inferredWeightG": 55,
+        "unitCalories": 150.74
+      },
+      {
+        "food_code": "BFP473",
+        "food_name": "Chicken and corn open sandwich",
+        "inferredWeightG": 108,
+        "unitCalories": 203.92
+      },
+      {
+        "food_code": "BFP461",
+        "food_name": "Chicken walnut sandwich (Chicken aur akhrot ke sandwich)",
+        "inferredWeightG": 67,
+        "unitCalories": 190.4
+      },
+      {
+        "food_code": "BFP472",
+        "food_name": "Danish luncheon sandwich",
+        "inferredWeightG": 86,
+        "unitCalories": 167.41
+      },
+      {
+        "food_code": "OSR029",
+        "food_name": "Fish sandwich ",
+        "inferredWeightG": 261,
+        "unitCalories": 391.45
+      }
+    ]
+  },
+  {
+    "unit": "small bowl",
+    "foodCount": 14,
+    "inferredWeightMedianG": 225,
+    "inferredWeightMinG": 79,
+    "inferredWeightMaxG": 573,
+    "sampleFoods": [
+      {
+        "food_code": "BFP272",
+        "food_name": "Beans foogath",
+        "inferredWeightG": 181,
+        "unitCalories": 190.35
+      },
+      {
+        "food_code": "BFP299",
+        "food_name": "Beetroot and egg salad (Chukandar aur ande ka salad)",
+        "inferredWeightG": 223,
+        "unitCalories": 188.94
+      },
+      {
+        "food_code": "BFP345",
+        "food_name": "Caramel custard (baked)",
+        "inferredWeightG": 226,
+        "unitCalories": 276.68
+      },
+      {
+        "food_code": "BFP606",
+        "food_name": "Creamed spinach",
+        "inferredWeightG": 386,
+        "unitCalories": 373.69
+      },
+      {
+        "food_code": "OSR051",
+        "food_name": "Date pickle (Khajoor ka achaar)",
+        "inferredWeightG": 138,
+        "unitCalories": 251.9
+      }
+    ]
+  },
+  {
+    "unit": "parantha",
+    "foodCount": 13,
+    "inferredWeightMedianG": 85,
+    "inferredWeightMinG": 56,
+    "inferredWeightMaxG": 108,
+    "sampleFoods": [
+      {
+        "food_code": "ASC106",
+        "food_name": "Besan and spinach parantha/paratha (Besan aur palak ka parantha/paratha)",
+        "inferredWeightG": 82,
+        "unitCalories": 178.12
+      },
+      {
+        "food_code": "ASC100",
+        "food_name": "Cauliflower parantha/paratha (Phoolgobhi ka parantha/paratha)",
+        "inferredWeightG": 102,
+        "unitCalories": 181.39
+      },
+      {
+        "food_code": "ASC101",
+        "food_name": "Dal parantha/paratha",
+        "inferredWeightG": 77,
+        "unitCalories": 205.73
+      },
+      {
+        "food_code": "ASC104",
+        "food_name": "Keema parantha/paratha",
+        "inferredWeightG": 100,
+        "unitCalories": 238.16
+      },
+      {
+        "food_code": "BFP110",
+        "food_name": "Methi parantha/paratha",
+        "inferredWeightG": 91,
+        "unitCalories": 135.3
+      }
+    ]
+  },
+  {
+    "unit": "cookie",
+    "foodCount": 12,
+    "inferredWeightMedianG": 86,
+    "inferredWeightMinG": 14,
+    "inferredWeightMaxG": 219,
+    "sampleFoods": [
+      {
+        "food_code": "OSR039",
+        "food_name": "Cardamom cookies (Elaichi cookies)",
+        "inferredWeightG": 219,
+        "unitCalories": 875.47
+      },
+      {
+        "food_code": "ASC440",
+        "food_name": "Chocolate chip cookies",
+        "inferredWeightG": 22,
+        "unitCalories": 93.03
+      },
+      {
+        "food_code": "ASC439",
+        "food_name": "Chocolate walnut cookies (Chocolate aur akhrot ke cookies)",
+        "inferredWeightG": 26,
+        "unitCalories": 110.01
+      },
+      {
+        "food_code": "OSR042",
+        "food_name": "Cranberry cookies",
+        "inferredWeightG": 186,
+        "unitCalories": 506.14
+      },
+      {
+        "food_code": "OSR037",
+        "food_name": "Greenpea cookies",
+        "inferredWeightG": 76,
+        "unitCalories": 120.92
+      }
+    ]
+  },
+  {
+    "unit": "egg",
+    "foodCount": 12,
+    "inferredWeightMedianG": 89,
+    "inferredWeightMinG": 56,
+    "inferredWeightMaxG": 582,
+    "sampleFoods": [
+      {
+        "food_code": "ASC060",
+        "food_name": "Baked egg ",
+        "inferredWeightG": 101,
+        "unitCalories": 221.04
+      },
+      {
+        "food_code": "ASC056",
+        "food_name": "Boiled egg (Ubla anda)",
+        "inferredWeightG": 151,
+        "unitCalories": 68.49
+      },
+      {
+        "food_code": "BFP057",
+        "food_name": "Cheese and mushroom omelette/omlet",
+        "inferredWeightG": 128,
+        "unitCalories": 263.2
+      },
+      {
+        "food_code": "ASC256",
+        "food_name": "Deviled egg",
+        "inferredWeightG": 160,
+        "unitCalories": 157.45
+      },
+      {
+        "food_code": "OSR070",
+        "food_name": "Egg in a pepper",
+        "inferredWeightG": 582,
+        "unitCalories": 749.5
+      }
+    ]
+  },
+  {
+    "unit": "dish",
+    "foodCount": 10,
+    "inferredWeightMedianG": 288,
+    "inferredWeightMinG": 188,
+    "inferredWeightMaxG": 1776,
+    "sampleFoods": [
+      {
+        "food_code": "BFP355",
+        "food_name": "Coffee pear alaska",
+        "inferredWeightG": 250,
+        "unitCalories": 510.74
+      },
+      {
+        "food_code": "BFP365",
+        "food_name": "Creamy chocolate mousse",
+        "inferredWeightG": 203,
+        "unitCalories": 467.38
+      },
+      {
+        "food_code": "BFP229",
+        "food_name": "Fish in coconut milk (Nariyal ke doodh ke saath machli)",
+        "inferredWeightG": 326,
+        "unitCalories": 280.64
+      },
+      {
+        "food_code": "BFP234",
+        "food_name": "Fish souffle",
+        "inferredWeightG": 295,
+        "unitCalories": 412.61
+      },
+      {
+        "food_code": "BFP292",
+        "food_name": "Fricassee of Mushroom",
+        "inferredWeightG": 281,
+        "unitCalories": 299.55
+      }
+    ]
+  },
+  {
+    "unit": "jar",
+    "foodCount": 10,
+    "inferredWeightMedianG": 149,
+    "inferredWeightMinG": 23,
+    "inferredWeightMaxG": 1175,
+    "sampleFoods": [
+      {
+        "food_code": "OSR059",
+        "food_name": "Coconut pickle (Nariyal ka aachar)",
+        "inferredWeightG": 28,
+        "unitCalories": 144.86
+      },
+      {
+        "food_code": "OSR053",
+        "food_name": "Fermented bamboo shoot pickle (Mesu pickle)",
+        "inferredWeightG": 136,
+        "unitCalories": 81.52
+      },
+      {
+        "food_code": "OSR052",
+        "food_name": "Garlic pickle (Lahasun ka achar)",
+        "inferredWeightG": 51,
+        "unitCalories": 211.44
+      },
+      {
+        "food_code": "OSR049",
+        "food_name": "Gooseberry pickle (Amla ka achaar)",
+        "inferredWeightG": 23,
+        "unitCalories": 64.86
+      },
+      {
+        "food_code": "OSR057",
+        "food_name": "Green tomato pickle (Haray tamatar ka achaar)",
+        "inferredWeightG": 64,
+        "unitCalories": 122.91
+      }
+    ]
+  },
+  {
+    "unit": "poori",
+    "foodCount": 10,
+    "inferredWeightMedianG": 119,
+    "inferredWeightMinG": 75,
+    "inferredWeightMaxG": 153,
+    "sampleFoods": [
+      {
+        "food_code": "BFP114",
+        "food_name": "Bathua poori",
+        "inferredWeightG": 91,
+        "unitCalories": 544.24
+      },
+      {
+        "food_code": "BFP116",
+        "food_name": "Beetroot poori (Chukandar ki poori)",
+        "inferredWeightG": 103,
+        "unitCalories": 543.14
+      },
+      {
+        "food_code": "ASC110",
+        "food_name": "Dal stuffed poori",
+        "inferredWeightG": 119,
+        "unitCalories": 932.65
+      },
+      {
+        "food_code": "BFP115",
+        "food_name": "Gram flour poori (Besan poori)",
+        "inferredWeightG": 75,
+        "unitCalories": 525.57
+      },
+      {
+        "food_code": "ASC109",
+        "food_name": "Methi poori",
+        "inferredWeightG": 130,
+        "unitCalories": 923.03
+      }
+    ]
+  },
+  {
+    "unit": "pancake",
+    "foodCount": 9,
+    "inferredWeightMedianG": 110,
+    "inferredWeightMinG": 42,
+    "inferredWeightMaxG": 134,
+    "sampleFoods": [
+      {
+        "food_code": "BFP124",
+        "food_name": "Bacon and mushroom pancake",
+        "inferredWeightG": 122,
+        "unitCalories": 191.57
+      },
+      {
+        "food_code": "OSR106",
+        "food_name": "Buckwheat pancake (Khura)",
+        "inferredWeightG": 104,
+        "unitCalories": 274.93
+      },
+      {
+        "food_code": "BFP125",
+        "food_name": "Cheese and tomato pancake",
+        "inferredWeightG": 110,
+        "unitCalories": 162.49
+      },
+      {
+        "food_code": "ASC066",
+        "food_name": "Jam and fruit pancake",
+        "inferredWeightG": 66,
+        "unitCalories": 106.57
+      },
+      {
+        "food_code": "ASC064",
+        "food_name": "Keema pancake",
+        "inferredWeightG": 110,
+        "unitCalories": 194.58
+      }
+    ]
+  },
+  {
+    "unit": "ladoo",
+    "foodCount": 8,
+    "inferredWeightMedianG": 36,
+    "inferredWeightMinG": 27,
+    "inferredWeightMaxG": 48,
+    "sampleFoods": [
+      {
+        "food_code": "OSR021",
+        "food_name": "Amaranth ladoo (Rajgira ladoo)",
+        "inferredWeightG": 44,
+        "unitCalories": 199.28
+      },
+      {
+        "food_code": "ASC343",
+        "food_name": "Gram flour ladoo (Besan ladoo)",
+        "inferredWeightG": 35,
+        "unitCalories": 168.11
+      },
+      {
+        "food_code": "ASC471",
+        "food_name": "Paushtik ladoo",
+        "inferredWeightG": 35,
+        "unitCalories": 170.06
+      },
+      {
+        "food_code": "ASC470",
+        "food_name": "Pearl millet ladoo (Bajra ladoo)",
+        "inferredWeightG": 48,
+        "unitCalories": 151.84
+      },
+      {
+        "food_code": "ASC342",
+        "food_name": "Semolina ladoo with coconut (Suji/Rava aur nariyal ke ladoo )",
+        "inferredWeightG": 36,
+        "unitCalories": 168.94
+      }
+    ]
+  },
+  {
+    "unit": "burfi",
+    "foodCount": 7,
+    "inferredWeightMedianG": 38,
+    "inferredWeightMinG": 21,
+    "inferredWeightMaxG": 72,
+    "sampleFoods": [
+      {
+        "food_code": "ASC337",
+        "food_name": "Bottle gourd burfi (Ghiya/Lauki burfi)",
+        "inferredWeightG": 72,
+        "unitCalories": 199.03
+      },
+      {
+        "food_code": "ASC339",
+        "food_name": "Cashewnut burfi (Kaju burfi/Kaju katli)",
+        "inferredWeightG": 29,
+        "unitCalories": 120.9
+      },
+      {
+        "food_code": "ASC338",
+        "food_name": "Chocolate burfi",
+        "inferredWeightG": 33,
+        "unitCalories": 110.28
+      },
+      {
+        "food_code": "ASC336",
+        "food_name": "Coconut burfi (Nariyal ki burfi)",
+        "inferredWeightG": 57,
+        "unitCalories": 265.38
+      },
+      {
+        "food_code": "ASC340",
+        "food_name": "Gram flour burfi (Besan burfi)",
+        "inferredWeightG": 38,
+        "unitCalories": 161.6
+      }
+    ]
+  },
+  {
+    "unit": "cheela",
+    "foodCount": 7,
+    "inferredWeightMedianG": 146,
+    "inferredWeightMinG": 30,
+    "inferredWeightMaxG": 227,
+    "sampleFoods": [
+      {
+        "food_code": "BFP570",
+        "food_name": "Besan bathua chilla/cheela",
+        "inferredWeightG": 30,
+        "unitCalories": 112.61
+      },
+      {
+        "food_code": "ASC461",
+        "food_name": "Gram flour and semolina chilla/cheela/savory pancake (Besan suji chilla/cheela)",
+        "inferredWeightG": 151,
+        "unitCalories": 1142.14
+      },
+      {
+        "food_code": "OSR100",
+        "food_name": "Gram flour chilla/cheela (Besan chilla/cheela)",
+        "inferredWeightG": 52,
+        "unitCalories": 70.78
+      },
+      {
+        "food_code": "BFP046",
+        "food_name": "Moong dal stuffed cheela/chilla (Moong dal ka cheela/chilla)",
+        "inferredWeightG": 227,
+        "unitCalories": 352.1
+      },
+      {
+        "food_code": "BFP047",
+        "food_name": "Paneer stuffed cheela/chilla",
+        "inferredWeightG": 212,
+        "unitCalories": 435.68
+      }
+    ]
+  },
+  {
+    "unit": "curry bowl",
+    "foodCount": 7,
+    "inferredWeightMedianG": 363,
+    "inferredWeightMinG": 225,
+    "inferredWeightMaxG": 403,
+    "sampleFoods": [
+      {
+        "food_code": "BFP172",
+        "food_name": "Arhar with spinach (Arhar dal aur palak)",
+        "inferredWeightG": 403,
+        "unitCalories": 213.09
+      },
+      {
+        "food_code": "BFP165",
+        "food_name": "Home made egg noodles",
+        "inferredWeightG": 225,
+        "unitCalories": 541.78
+      },
+      {
+        "food_code": "BFP174",
+        "food_name": "Moong dal with vadi",
+        "inferredWeightG": 362,
+        "unitCalories": 87.28
+      },
+      {
+        "food_code": "BFP177",
+        "food_name": "Rasam with lemon (Nimmakaya rasam/Nimmakaya charu/Elumichai rasam/Nimbe hannina saaru)",
+        "inferredWeightG": 394,
+        "unitCalories": 96.27
+      },
+      {
+        "food_code": "BFP176",
+        "food_name": "Rasam with tamarind (Puli rasam/ Chintapandu rasam/ Charu/Saaru)",
+        "inferredWeightG": 390,
+        "unitCalories": 104.25
+      }
+    ]
+  },
+  {
+    "unit": "souffle dish",
+    "foodCount": 7,
+    "inferredWeightMedianG": 241,
+    "inferredWeightMinG": 195,
+    "inferredWeightMaxG": 451,
+    "sampleFoods": [
+      {
+        "food_code": "OSR095",
+        "food_name": "Chicken and cheese souffle",
+        "inferredWeightG": 195,
+        "unitCalories": 356.5
+      },
+      {
+        "food_code": "BFP370",
+        "food_name": "Cold chocolate souffle",
+        "inferredWeightG": 243,
+        "unitCalories": 455.69
+      },
+      {
+        "food_code": "BFP366",
+        "food_name": "Cold lemon souffle",
+        "inferredWeightG": 243,
+        "unitCalories": 411.92
+      },
+      {
+        "food_code": "BFP367",
+        "food_name": "Cold orange souffle",
+        "inferredWeightG": 241,
+        "unitCalories": 417.82
+      },
+      {
+        "food_code": "BFP368",
+        "food_name": "Cold pineapple souffle",
+        "inferredWeightG": 228,
+        "unitCalories": 413.18
+      }
+    ]
+  },
+  {
+    "unit": "tart",
+    "foodCount": 7,
+    "inferredWeightMedianG": 67,
+    "inferredWeightMinG": 36,
+    "inferredWeightMaxG": 77,
+    "sampleFoods": [
+      {
+        "food_code": "ASC400",
+        "food_name": "Cheese and mushroom tart",
+        "inferredWeightG": 67,
+        "unitCalories": 165.5
+      },
+      {
+        "food_code": "ASC395",
+        "food_name": "Custard tart",
+        "inferredWeightG": 72,
+        "unitCalories": 161.73
+      },
+      {
+        "food_code": "BFP527",
+        "food_name": "Fruit puree tart",
+        "inferredWeightG": 56,
+        "unitCalories": 159.4
+      },
+      {
+        "food_code": "ASC397",
+        "food_name": "Jam tart",
+        "inferredWeightG": 36,
+        "unitCalories": 130.54
+      },
+      {
+        "food_code": "ASC396",
+        "food_name": "Lemon tart",
+        "inferredWeightG": 54,
+        "unitCalories": 165.14
+      }
+    ]
+  },
+  {
+    "unit": "dosa",
+    "foodCount": 6,
+    "inferredWeightMedianG": 135,
+    "inferredWeightMinG": 33,
+    "inferredWeightMaxG": 277,
+    "sampleFoods": [
+      {
+        "food_code": "OSR151",
+        "food_name": "Jowar dosa",
+        "inferredWeightG": 33,
+        "unitCalories": 97.25
+      },
+      {
+        "food_code": "ASC146",
+        "food_name": "Masala dosa",
+        "inferredWeightG": 210,
+        "unitCalories": 345.08
+      },
+      {
+        "food_code": "BFP150",
+        "food_name": "Masala dosa mixed vegetable fillings",
+        "inferredWeightG": 277,
+        "unitCalories": 400.84
+      },
+      {
+        "food_code": "BFP151",
+        "food_name": "Masala dosa paneer fillings",
+        "inferredWeightG": 197,
+        "unitCalories": 479.75
+      },
+      {
+        "food_code": "BFP148",
+        "food_name": "Plain dosa",
+        "inferredWeightG": 36,
+        "unitCalories": 137.6
+      }
+    ]
+  },
+  {
+    "unit": "pie",
+    "foodCount": 6,
+    "inferredWeightMedianG": 372,
+    "inferredWeightMinG": 306,
+    "inferredWeightMaxG": 698,
+    "sampleFoods": [
+      {
+        "food_code": "BFP529",
+        "food_name": "Apple banana pie",
+        "inferredWeightG": 389,
+        "unitCalories": 948.46
+      },
+      {
+        "food_code": "ASC401",
+        "food_name": "Cottage cheese pie",
+        "inferredWeightG": 340,
+        "unitCalories": 813.33
+      },
+      {
+        "food_code": "BFP232",
+        "food_name": "Fish pie",
+        "inferredWeightG": 306,
+        "unitCalories": 369.44
+      },
+      {
+        "food_code": "BFP531",
+        "food_name": "Lemon chiffon pie",
+        "inferredWeightG": 536,
+        "unitCalories": 1389.91
+      },
+      {
+        "food_code": "ASC402",
+        "food_name": "Minced meat pie",
+        "inferredWeightG": 354,
+        "unitCalories": 783.93
+      }
+    ]
+  },
+  {
+    "unit": "tea cup",
+    "foodCount": 6,
+    "inferredWeightMedianG": 206,
+    "inferredWeightMinG": 158,
+    "inferredWeightMaxG": 450,
+    "sampleFoods": [
+      {
+        "food_code": "ASC003",
+        "food_name": "Espreso coffee",
+        "inferredWeightG": 158,
+        "unitCalories": 81.7
+      },
+      {
+        "food_code": "BFP011",
+        "food_name": "Hot chocolate",
+        "inferredWeightG": 190,
+        "unitCalories": 171.46
+      },
+      {
+        "food_code": "ASC001",
+        "food_name": "Hot tea (Garam Chai)",
+        "inferredWeightG": 210,
+        "unitCalories": 33.98
+      },
+      {
+        "food_code": "ASC002",
+        "food_name": "Instant coffee",
+        "inferredWeightG": 450,
+        "unitCalories": 104.2
+      },
+      {
+        "food_code": "BFP007",
+        "food_name": "Kashmiri tea (Kehwa)",
+        "inferredWeightG": 257,
+        "unitCalories": 63.93
+      }
+    ]
+  },
+  {
+    "unit": "cutlet",
+    "foodCount": 5,
+    "inferredWeightMedianG": 211,
+    "inferredWeightMinG": 181,
+    "inferredWeightMaxG": 241,
+    "sampleFoods": [
+      {
+        "food_code": "BFP428",
+        "food_name": "Egg cutlet (Anda cutlet)",
+        "inferredWeightG": 203,
+        "unitCalories": 1169.22
+      },
+      {
+        "food_code": "BFP430",
+        "food_name": "Minced meat cutlet",
+        "inferredWeightG": 233,
+        "unitCalories": 1241.01
+      },
+      {
+        "food_code": "BFP424",
+        "food_name": "Paneer cutlet",
+        "inferredWeightG": 181,
+        "unitCalories": 1215.57
+      },
+      {
+        "food_code": "BFP427",
+        "food_name": "Poshtik cutlet",
+        "inferredWeightG": 241,
+        "unitCalories": 1195.62
+      },
+      {
+        "food_code": "BFP425",
+        "food_name": "Sago cutlet/vadas (Sabudana cutlet/vadas)",
+        "inferredWeightG": 211,
+        "unitCalories": 1178.05
+      }
+    ]
+  },
+  {
+    "unit": "ice cream cup",
+    "foodCount": 5,
+    "inferredWeightMedianG": 181,
+    "inferredWeightMinG": 157,
+    "inferredWeightMaxG": 199,
+    "sampleFoods": [
+      {
+        "food_code": "BFP350",
+        "food_name": "Chocochip ice cream",
+        "inferredWeightG": 199,
+        "unitCalories": 481.38
+      },
+      {
+        "food_code": "BFP354",
+        "food_name": "Coffee ice cream",
+        "inferredWeightG": 166,
+        "unitCalories": 249.84
+      },
+      {
+        "food_code": "BFP348",
+        "food_name": "Strawberry ice cream",
+        "inferredWeightG": 182,
+        "unitCalories": 392.13
+      },
+      {
+        "food_code": "BFP347",
+        "food_name": "Vanilla ice cream with egg",
+        "inferredWeightG": 181,
+        "unitCalories": 389.15
+      },
+      {
+        "food_code": "BFP346",
+        "food_name": "Vanilla ice cream without egg",
+        "inferredWeightG": 157,
+        "unitCalories": 359.87
+      }
+    ]
+  },
+  {
+    "unit": "large slice",
+    "foodCount": 5,
+    "inferredWeightMedianG": 134,
+    "inferredWeightMinG": 107,
+    "inferredWeightMaxG": 326,
+    "sampleFoods": [
+      {
+        "food_code": "ASC324",
+        "food_name": "Cheese pudding",
+        "inferredWeightG": 121,
+        "unitCalories": 343.59
+      },
+      {
+        "food_code": "ASC325",
+        "food_name": "Chocolate pudding",
+        "inferredWeightG": 166,
+        "unitCalories": 351.2
+      },
+      {
+        "food_code": "ASC328",
+        "food_name": "Pineapple upside down pudding",
+        "inferredWeightG": 134,
+        "unitCalories": 344.4
+      },
+      {
+        "food_code": "ASC327",
+        "food_name": "Queen of pudding",
+        "inferredWeightG": 326,
+        "unitCalories": 432.99
+      },
+      {
+        "food_code": "ASC322",
+        "food_name": "Steamed orange pudding",
+        "inferredWeightG": 107,
+        "unitCalories": 298.77
+      }
+    ]
+  },
+  {
+    "unit": "pastry",
+    "foodCount": 5,
+    "inferredWeightMedianG": 87,
+    "inferredWeightMinG": 52,
+    "inferredWeightMaxG": 93,
+    "sampleFoods": [
+      {
+        "food_code": "BFP483",
+        "food_name": "Assorted pastry",
+        "inferredWeightG": 80,
+        "unitCalories": 185.36
+      },
+      {
+        "food_code": "ASC431",
+        "food_name": "Black forest pastry",
+        "inferredWeightG": 93,
+        "unitCalories": 217.78
+      },
+      {
+        "food_code": "BFP482",
+        "food_name": "Chocolate pastry",
+        "inferredWeightG": 87,
+        "unitCalories": 211.93
+      },
+      {
+        "food_code": "BFP521",
+        "food_name": "Flan pastry",
+        "inferredWeightG": 52,
+        "unitCalories": 232.93
+      },
+      {
+        "food_code": "ASC430",
+        "food_name": "Pineapple pastry ",
+        "inferredWeightG": 91,
+        "unitCalories": 189.99
+      }
+    ]
+  },
+  {
+    "unit": "small mould",
+    "foodCount": 5,
+    "inferredWeightMedianG": 238,
+    "inferredWeightMinG": 213,
+    "inferredWeightMaxG": 342,
+    "sampleFoods": [
+      {
+        "food_code": "BFP364",
+        "food_name": "Fruit delight",
+        "inferredWeightG": 342,
+        "unitCalories": 366.25
+      },
+      {
+        "food_code": "BFP306",
+        "food_name": "Jellied sunshine fruit salad",
+        "inferredWeightG": 248,
+        "unitCalories": 121.43
+      },
+      {
+        "food_code": "BFP363",
+        "food_name": "Raspberry bavarian cream",
+        "inferredWeightG": 237,
+        "unitCalories": 355.75
+      },
+      {
+        "food_code": "BFP380",
+        "food_name": "Steamed cake with chocolate sauce",
+        "inferredWeightG": 238,
+        "unitCalories": 718.54
+      },
+      {
+        "food_code": "BFP307",
+        "food_name": "Tomato aspic",
+        "inferredWeightG": 213,
+        "unitCalories": 107.16
+      }
+    ]
+  },
+  {
+    "unit": "souffle cup",
+    "foodCount": 5,
+    "inferredWeightMedianG": 220,
+    "inferredWeightMinG": 202,
+    "inferredWeightMaxG": 244,
+    "sampleFoods": [
+      {
+        "food_code": "ASC312",
+        "food_name": "Chocolate souffle",
+        "inferredWeightG": 220,
+        "unitCalories": 416.5
+      },
+      {
+        "food_code": "ASC309",
+        "food_name": "Lemon souffle",
+        "inferredWeightG": 237,
+        "unitCalories": 399.36
+      },
+      {
+        "food_code": "ASC310",
+        "food_name": "Orange souffle",
+        "inferredWeightG": 244,
+        "unitCalories": 410.61
+      },
+      {
+        "food_code": "ASC313",
+        "food_name": "Pineapple souffle ",
+        "inferredWeightG": 202,
+        "unitCalories": 396.21
+      },
+      {
+        "food_code": "ASC311",
+        "food_name": "Vanilla souffle",
+        "inferredWeightG": 218,
+        "unitCalories": 408.58
+      }
+    ]
+  },
+  {
+    "unit": "toasted triangle",
+    "foodCount": 5,
+    "inferredWeightMedianG": 85,
+    "inferredWeightMinG": 62,
+    "inferredWeightMaxG": 89,
+    "sampleFoods": [
+      {
+        "food_code": "ASC043",
+        "food_name": "Chicken sandwich (toasted)",
+        "inferredWeightG": 85,
+        "unitCalories": 143.1
+      },
+      {
+        "food_code": "ASC042",
+        "food_name": "Paneer pea sandwich (toasted) (Paneer matar ka sandwich)",
+        "inferredWeightG": 89,
+        "unitCalories": 221.79
+      },
+      {
+        "food_code": "ASC044",
+        "food_name": "Pea keema sandwich (toasted) (Matar aur keema ka sandwich)",
+        "inferredWeightG": 85,
+        "unitCalories": 145.39
+      },
+      {
+        "food_code": "ASC041",
+        "food_name": "Pea potato sandwich (toasted) (Matar aloo ka sandwich)",
+        "inferredWeightG": 89,
+        "unitCalories": 146.56
+      },
+      {
+        "food_code": "ASC046",
+        "food_name": "Sesame toast",
+        "inferredWeightG": 62,
+        "unitCalories": 309.18
+      }
+    ]
+  },
+  {
+    "unit": "vada",
+    "foodCount": 5,
+    "inferredWeightMedianG": 90,
+    "inferredWeightMinG": 79,
+    "inferredWeightMaxG": 172,
+    "sampleFoods": [
+      {
+        "food_code": "ASC279",
+        "food_name": "Dahi vadas/Dahi bhalla",
+        "inferredWeightG": 172,
+        "unitCalories": 1150.16
+      },
+      {
+        "food_code": "BFP566",
+        "food_name": "Fermented bengal gram vada (Khameerikrit/Ufna hua channa dal ka vada)",
+        "inferredWeightG": 90,
+        "unitCalories": 592.64
+      },
+      {
+        "food_code": "BFP437",
+        "food_name": "Masala urad dal vada",
+        "inferredWeightG": 86,
+        "unitCalories": 602.03
+      },
+      {
+        "food_code": "BFP436",
+        "food_name": "Plain urad dal vada (Uzunne vada/Minapa garelu/Ulundu vadai/Medu vada)",
+        "inferredWeightG": 79,
+        "unitCalories": 588.01
+      },
+      {
+        "food_code": "ASC473",
+        "food_name": "Semolina carrot vada (Suji gajar vada)",
+        "inferredWeightG": 163,
+        "unitCalories": 1138.48
+      }
+    ]
+  },
+  {
+    "unit": "ice-cream cup",
+    "foodCount": 4,
+    "inferredWeightMedianG": 346,
+    "inferredWeightMinG": 271,
+    "inferredWeightMaxG": 456,
+    "sampleFoods": [
+      {
+        "food_code": "ASC308",
+        "food_name": "Caramel ice cream",
+        "inferredWeightG": 271,
+        "unitCalories": 471.03
+      },
+      {
+        "food_code": "ASC304",
+        "food_name": "Chocolate ice cream",
+        "inferredWeightG": 371,
+        "unitCalories": 659.28
+      },
+      {
+        "food_code": "ASC307",
+        "food_name": "Fruit Ice cream (Phalon ka Ice cream)",
+        "inferredWeightG": 321,
+        "unitCalories": 550.82
+      },
+      {
+        "food_code": "ASC305",
+        "food_name": "Mango ice cream",
+        "inferredWeightG": 456,
+        "unitCalories": 573.13
+      }
+    ]
+  },
+  {
+    "unit": "kabab",
+    "foodCount": 4,
+    "inferredWeightMedianG": 145,
+    "inferredWeightMinG": 57,
+    "inferredWeightMaxG": 171,
+    "sampleFoods": [
+      {
+        "food_code": "ASC243",
+        "food_name": "Chicken kebab",
+        "inferredWeightG": 124,
+        "unitCalories": 903.73
+      },
+      {
+        "food_code": "ASC237",
+        "food_name": "Shammi kebab",
+        "inferredWeightG": 171,
+        "unitCalories": 1173.95
+      },
+      {
+        "food_code": "OSR153",
+        "food_name": "Soya seekh kebab",
+        "inferredWeightG": 57,
+        "unitCalories": 65.75
+      },
+      {
+        "food_code": "ASC377",
+        "food_name": "Vegetable seekh kebab",
+        "inferredWeightG": 165,
+        "unitCalories": 1136.38
+      }
+    ]
+  },
+  {
+    "unit": "pakora",
+    "foodCount": 4,
+    "inferredWeightMedianG": 69,
+    "inferredWeightMinG": 69,
+    "inferredWeightMaxG": 71,
+    "sampleFoods": [
+      {
+        "food_code": "BFP420",
+        "food_name": "Chicken pakora/pakoda",
+        "inferredWeightG": 69,
+        "unitCalories": 404.34
+      },
+      {
+        "food_code": "BFP421",
+        "food_name": "Fish pakora/pakoda",
+        "inferredWeightG": 69,
+        "unitCalories": 395.39
+      },
+      {
+        "food_code": "BFP416",
+        "food_name": "Masala green chilli pakora/pakoda (Hari mirch kay pakode)",
+        "inferredWeightG": 69,
+        "unitCalories": 458.92
+      },
+      {
+        "food_code": "BFP415",
+        "food_name": "Masala onion pakora/pakoda (Pyaaz ke pakode)",
+        "inferredWeightG": 71,
+        "unitCalories": 389.03
+      }
+    ]
+  },
+  {
+    "unit": "patty",
+    "foodCount": 4,
+    "inferredWeightMedianG": 110,
+    "inferredWeightMinG": 101,
+    "inferredWeightMaxG": 130,
+    "sampleFoods": [
+      {
+        "food_code": "ASC412",
+        "food_name": "Cheese patties",
+        "inferredWeightG": 104,
+        "unitCalories": 336.84
+      },
+      {
+        "food_code": "ASC411",
+        "food_name": "Minced meat patties",
+        "inferredWeightG": 130,
+        "unitCalories": 345
+      },
+      {
+        "food_code": "BFP544",
+        "food_name": "Paneer patties",
+        "inferredWeightG": 101,
+        "unitCalories": 340.99
+      },
+      {
+        "food_code": "BFP545",
+        "food_name": "Vegetable patties ",
+        "inferredWeightG": 116,
+        "unitCalories": 303.07
+      }
+    ]
+  },
+  {
+    "unit": "roti",
+    "foodCount": 4,
+    "inferredWeightMedianG": 52,
+    "inferredWeightMinG": 43,
+    "inferredWeightMaxG": 85,
+    "sampleFoods": [
+      {
+        "food_code": "ASC150",
+        "food_name": "Makki ki roti",
+        "inferredWeightG": 85,
+        "unitCalories": 224.37
+      },
+      {
+        "food_code": "ASC472",
+        "food_name": "Paushtik roti",
+        "inferredWeightG": 43,
+        "unitCalories": 64.1
+      },
+      {
+        "food_code": "BFP575",
+        "food_name": "Soya roti",
+        "inferredWeightG": 50,
+        "unitCalories": 142.93
+      },
+      {
+        "food_code": "ASC467",
+        "food_name": "Sweet split chickpea roti (Sweet channa dal roti/Puranpoli)",
+        "inferredWeightG": 53,
+        "unitCalories": 195.67
+      }
+    ]
+  },
+  {
+    "unit": "samosa",
+    "foodCount": 4,
+    "inferredWeightMedianG": 135,
+    "inferredWeightMinG": 101,
+    "inferredWeightMaxG": 141,
+    "sampleFoods": [
+      {
+        "food_code": "ASC362",
+        "food_name": "Minced meat samosa (Keema ka samosa)",
+        "inferredWeightG": 135,
+        "unitCalories": 837.51
+      },
+      {
+        "food_code": "ASC363",
+        "food_name": "Paneer and pea samosa (Paneer matar ka samosa)",
+        "inferredWeightG": 135,
+        "unitCalories": 841.31
+      },
+      {
+        "food_code": "ASC361",
+        "food_name": "Potato samosa (Aloo ka samosa)",
+        "inferredWeightG": 141,
+        "unitCalories": 813.76
+      },
+      {
+        "food_code": "BFP431",
+        "food_name": "Vegetable samosa",
+        "inferredWeightG": 101,
+        "unitCalories": 447.23
+      }
+    ]
+  },
+  {
+    "unit": "idli",
+    "foodCount": 3,
+    "inferredWeightMedianG": 30,
+    "inferredWeightMinG": 25,
+    "inferredWeightMaxG": 35,
+    "sampleFoods": [
+      {
+        "food_code": "ASC144",
+        "food_name": "Idli",
+        "inferredWeightG": 25,
+        "unitCalories": 34.47
+      },
+      {
+        "food_code": "BFP147",
+        "food_name": "Instant idli (with semolina)",
+        "inferredWeightG": 35,
+        "unitCalories": 87.23
+      },
+      {
+        "food_code": "BFP579",
+        "food_name": "Semolina idli (Suji/Rava idli)",
+        "inferredWeightG": 30,
+        "unitCalories": 61.14
+      }
+    ]
+  },
+  {
+    "unit": "kachori",
+    "foodCount": 3,
+    "inferredWeightMedianG": 101,
+    "inferredWeightMinG": 87,
+    "inferredWeightMaxG": 108,
+    "sampleFoods": [
+      {
+        "food_code": "ASC365",
+        "food_name": "Khasta kachori",
+        "inferredWeightG": 101,
+        "unitCalories": 717.57
+      },
+      {
+        "food_code": "ASC364",
+        "food_name": "Mathri",
+        "inferredWeightG": 87,
+        "unitCalories": 702.18
+      },
+      {
+        "food_code": "BFP118",
+        "food_name": "Peas kachori (Matar kachori)",
+        "inferredWeightG": 108,
+        "unitCalories": 632.21
+      }
+    ]
+  },
+  {
+    "unit": "kebab",
+    "foodCount": 3,
+    "inferredWeightMedianG": 55,
+    "inferredWeightMinG": 45,
+    "inferredWeightMaxG": 179,
+    "sampleFoods": [
+      {
+        "food_code": "BFP198",
+        "food_name": "Boti kebab",
+        "inferredWeightG": 55,
+        "unitCalories": 72.66
+      },
+      {
+        "food_code": "OSR064",
+        "food_name": "Hariyali Fish Tikka",
+        "inferredWeightG": 179,
+        "unitCalories": 268.25
+      },
+      {
+        "food_code": "BFP199",
+        "food_name": "Mutton seekh kebab",
+        "inferredWeightG": 45,
+        "unitCalories": 60.25
+      }
+    ]
+  },
+  {
+    "unit": "kofta",
+    "foodCount": 3,
+    "inferredWeightMedianG": 391,
+    "inferredWeightMinG": 41,
+    "inferredWeightMaxG": 399,
+    "sampleFoods": [
+      {
+        "food_code": "BFP201",
+        "food_name": "Indian lamb and egg curry (Nargisi kofta)",
+        "inferredWeightG": 391,
+        "unitCalories": 1312.54
+      },
+      {
+        "food_code": "ASC230",
+        "food_name": "Keema kofta curry",
+        "inferredWeightG": 41,
+        "unitCalories": 63.82
+      },
+      {
+        "food_code": "BFP210",
+        "food_name": "Vegetarian nargisi kofta curry",
+        "inferredWeightG": 399,
+        "unitCalories": 1325.26
+      }
+    ]
+  },
+  {
+    "unit": "omelette",
+    "foodCount": 3,
+    "inferredWeightMedianG": 194,
+    "inferredWeightMinG": 143,
+    "inferredWeightMaxG": 262,
+    "sampleFoods": [
+      {
+        "food_code": "OSR072",
+        "food_name": "Corn omelette/omlet",
+        "inferredWeightG": 194,
+        "unitCalories": 324.26
+      },
+      {
+        "food_code": "ASC061",
+        "food_name": "Plain omelette/omlet",
+        "inferredWeightG": 143,
+        "unitCalories": 389.55
+      },
+      {
+        "food_code": "ASC062",
+        "food_name": "Stuffed egg omelette/omlet",
+        "inferredWeightG": 262,
+        "unitCalories": 533.21
+      }
+    ]
+  },
+  {
+    "unit": "potato",
+    "foodCount": 3,
+    "inferredWeightMedianG": 77,
+    "inferredWeightMinG": 43,
+    "inferredWeightMaxG": 104,
+    "sampleFoods": [
+      {
+        "food_code": "BFP286",
+        "food_name": "Ducheese potato",
+        "inferredWeightG": 43,
+        "unitCalories": 60.38
+      },
+      {
+        "food_code": "BFP287",
+        "food_name": "Roast potatoes ",
+        "inferredWeightG": 77,
+        "unitCalories": 67.49
+      },
+      {
+        "food_code": "BFP288",
+        "food_name": "Stuffed baked potatoes ",
+        "inferredWeightG": 104,
+        "unitCalories": 104.25
+      }
+    ]
+  },
+  {
+    "unit": "roll",
+    "foodCount": 3,
+    "inferredWeightMedianG": 83,
+    "inferredWeightMinG": 54,
+    "inferredWeightMaxG": 146,
+    "sampleFoods": [
+      {
+        "food_code": "BFP262",
+        "food_name": "Cabbage rolls (curry) ((Pattagobhi rolls)(curry))",
+        "inferredWeightG": 146,
+        "unitCalories": 181.48
+      },
+      {
+        "food_code": "BFP261",
+        "food_name": "Cabbage rolls (dry) ((Pattagobhi rolls) (dry))",
+        "inferredWeightG": 83,
+        "unitCalories": 118.47
+      },
+      {
+        "food_code": "OSR015",
+        "food_name": "Putharekulu",
+        "inferredWeightG": 54,
+        "unitCalories": 170.29
+      }
+    ]
+  },
+  {
+    "unit": "shallow dish",
+    "foodCount": 3,
+    "inferredWeightMedianG": 496,
+    "inferredWeightMinG": 374,
+    "inferredWeightMaxG": 556,
+    "sampleFoods": [
+      {
+        "food_code": "BFP155",
+        "food_name": "Spaghetti bolognese",
+        "inferredWeightG": 374,
+        "unitCalories": 364.68
+      },
+      {
+        "food_code": "BFP158",
+        "food_name": "Spaghetti with meat balls and tomato sauce",
+        "inferredWeightG": 556,
+        "unitCalories": 878.84
+      },
+      {
+        "food_code": "BFP159",
+        "food_name": "Spaghetti with paneer balls and tomato sauce",
+        "inferredWeightG": 496,
+        "unitCalories": 785.99
+      }
+    ]
+  },
+  {
+    "unit": "sundae glass",
+    "foodCount": 3,
+    "inferredWeightMedianG": 240,
+    "inferredWeightMinG": 229,
+    "inferredWeightMaxG": 244,
+    "sampleFoods": [
+      {
+        "food_code": "BFP351",
+        "food_name": "Choconut ice cream",
+        "inferredWeightG": 240,
+        "unitCalories": 658.8
+      },
+      {
+        "food_code": "BFP358",
+        "food_name": "Peach melba ice cream",
+        "inferredWeightG": 229,
+        "unitCalories": 460.14
+      },
+      {
+        "food_code": "BFP352",
+        "food_name": "Pear chocholate sunday",
+        "inferredWeightG": 244,
+        "unitCalories": 447.25
+      }
+    ]
+  },
+  {
+    "unit": "appam",
+    "foodCount": 2,
+    "inferredWeightMedianG": 222,
+    "inferredWeightMinG": 153,
+    "inferredWeightMaxG": 290,
+    "sampleFoods": [
+      {
+        "food_code": "BFP153",
+        "food_name": "Appam",
+        "inferredWeightG": 153,
+        "unitCalories": 409.28
+      },
+      {
+        "food_code": "OSR110",
+        "food_name": "Banana appam",
+        "inferredWeightG": 290,
+        "unitCalories": 1364.2
+      }
+    ]
+  },
+  {
+    "unit": "casserole dish",
+    "foodCount": 2,
+    "inferredWeightMedianG": 261,
+    "inferredWeightMinG": 239,
+    "inferredWeightMaxG": 283,
+    "sampleFoods": [
+      {
+        "food_code": "BFP233",
+        "food_name": "Crispy baked fish",
+        "inferredWeightG": 283,
+        "unitCalories": 391.68
+      },
+      {
+        "food_code": "ASC133",
+        "food_name": "Macroni cheese pie",
+        "inferredWeightG": 239,
+        "unitCalories": 408.65
+      }
+    ]
+  },
+  {
+    "unit": "dhokla",
+    "foodCount": 2,
+    "inferredWeightMedianG": 81,
+    "inferredWeightMinG": 42,
+    "inferredWeightMaxG": 119,
+    "sampleFoods": [
+      {
+        "food_code": "BFP440",
+        "food_name": "Instant dhokla",
+        "inferredWeightG": 42,
+        "unitCalories": 87.99
+      },
+      {
+        "food_code": "BFP439",
+        "food_name": "Khaman (dhokla)",
+        "inferredWeightG": 119,
+        "unitCalories": 64.93
+      }
+    ]
+  },
+  {
+    "unit": "flan",
+    "foodCount": 2,
+    "inferredWeightMedianG": 435,
+    "inferredWeightMinG": 404,
+    "inferredWeightMaxG": 465,
+    "sampleFoods": [
+      {
+        "food_code": "BFP522",
+        "food_name": "Fruit flan",
+        "inferredWeightG": 465,
+        "unitCalories": 1215.94
+      },
+      {
+        "food_code": "BFP523",
+        "food_name": "Orange cream flan",
+        "inferredWeightG": 404,
+        "unitCalories": 1132.77
+      }
+    ]
+  },
+  {
+    "unit": "gunjia",
+    "foodCount": 2,
+    "inferredWeightMedianG": 141,
+    "inferredWeightMinG": 106,
+    "inferredWeightMaxG": 175,
+    "sampleFoods": [
+      {
+        "food_code": "ASC347",
+        "food_name": "Ghujia/Lavang latika",
+        "inferredWeightG": 106,
+        "unitCalories": 818.71
+      },
+      {
+        "food_code": "ASC280",
+        "food_name": "Gunjia",
+        "inferredWeightG": 175,
+        "unitCalories": 1166.18
+      }
+    ]
+  },
+  {
+    "unit": "half-pints",
+    "foodCount": 2,
+    "inferredWeightMedianG": 492,
+    "inferredWeightMinG": 387,
+    "inferredWeightMaxG": 596,
+    "sampleFoods": [
+      {
+        "food_code": "OSR046",
+        "food_name": "Peach blueberry preserves",
+        "inferredWeightG": 387,
+        "unitCalories": 685.58
+      },
+      {
+        "food_code": "OSR047",
+        "food_name": "Pear preserves (Naashpati ka murabba)",
+        "inferredWeightG": 596,
+        "unitCalories": 603.53
+      }
+    ]
+  },
+  {
+    "unit": "horn",
+    "foodCount": 2,
+    "inferredWeightMedianG": 95,
+    "inferredWeightMinG": 74,
+    "inferredWeightMaxG": 115,
+    "sampleFoods": [
+      {
+        "food_code": "BFP541",
+        "food_name": "Cream horns",
+        "inferredWeightG": 115,
+        "unitCalories": 469.97
+      },
+      {
+        "food_code": "BFP542",
+        "food_name": "Savoury cheese horns",
+        "inferredWeightG": 74,
+        "unitCalories": 218.16
+      }
+    ]
+  },
+  {
+    "unit": "portion",
+    "foodCount": 2,
+    "inferredWeightMedianG": 298,
+    "inferredWeightMinG": 241,
+    "inferredWeightMaxG": 355,
+    "sampleFoods": [
+      {
+        "food_code": "BFP282",
+        "food_name": "Cauliflower basket",
+        "inferredWeightG": 241,
+        "unitCalories": 219.61
+      },
+      {
+        "food_code": "BFP284",
+        "food_name": "Stuffed bottle gourd (Stuffed ghiya/lauki)",
+        "inferredWeightG": 355,
+        "unitCalories": 330.81
+      }
+    ]
+  },
+  {
+    "unit": "puff",
+    "foodCount": 2,
+    "inferredWeightMedianG": 105,
+    "inferredWeightMinG": 72,
+    "inferredWeightMaxG": 138,
+    "sampleFoods": [
+      {
+        "food_code": "ASC407",
+        "food_name": "Cream puffs",
+        "inferredWeightG": 72,
+        "unitCalories": 160.19
+      },
+      {
+        "food_code": "BFP535",
+        "food_name": "Savoury puffs",
+        "inferredWeightG": 138,
+        "unitCalories": 264
+      }
+    ]
+  },
+  {
+    "unit": "small plate",
+    "foodCount": 2,
+    "inferredWeightMedianG": 107,
+    "inferredWeightMinG": 98,
+    "inferredWeightMaxG": 115,
+    "sampleFoods": [
+      {
+        "food_code": "BFP379",
+        "food_name": "Apple crumb pudding",
+        "inferredWeightG": 98,
+        "unitCalories": 216.99
+      },
+      {
+        "food_code": "BFP303",
+        "food_name": "Cucumber and yogurt salad (Kheere aur dahi ka salad)",
+        "inferredWeightG": 115,
+        "unitCalories": 41.58
+      }
+    ]
+  },
+  {
+    "unit": "square",
+    "foodCount": 2,
+    "inferredWeightMedianG": 48,
+    "inferredWeightMinG": 37,
+    "inferredWeightMaxG": 59,
+    "sampleFoods": [
+      {
+        "food_code": "BFP467",
+        "food_name": "Checker board sandwich",
+        "inferredWeightG": 37,
+        "unitCalories": 128.17
+      },
+      {
+        "food_code": "OSR123",
+        "food_name": "Semolina cake (Suji/Rava cake)",
+        "inferredWeightG": 59,
+        "unitCalories": 220.74
+      }
+    ]
+  },
+  {
+    "unit": "swiss roll",
+    "foodCount": 2,
+    "inferredWeightMedianG": 55,
+    "inferredWeightMinG": 47,
+    "inferredWeightMaxG": 63,
+    "sampleFoods": [
+      {
+        "food_code": "BFP478",
+        "food_name": "Chocolate swiss roll",
+        "inferredWeightG": 47,
+        "unitCalories": 145
+      },
+      {
+        "food_code": "ASC429",
+        "food_name": "Swiss roll",
+        "inferredWeightG": 63,
+        "unitCalories": 159.31
+      }
+    ]
+  },
+  {
+    "unit": "tall stemmed glass",
+    "foodCount": 2,
+    "inferredWeightMedianG": 280,
+    "inferredWeightMinG": 228,
+    "inferredWeightMaxG": 331,
+    "sampleFoods": [
+      {
+        "food_code": "BFP372",
+        "food_name": "Apricot fool",
+        "inferredWeightG": 228,
+        "unitCalories": 550.09
+      },
+      {
+        "food_code": "BFP362",
+        "food_name": "Honey banana cream",
+        "inferredWeightG": 331,
+        "unitCalories": 415.37
+      }
+    ]
+  },
+  {
+    "unit": "uttapam",
+    "foodCount": 2,
+    "inferredWeightMedianG": 104,
+    "inferredWeightMinG": 68,
+    "inferredWeightMaxG": 139,
+    "sampleFoods": [
+      {
+        "food_code": "ASC148",
+        "food_name": "Onion tomato uttapam",
+        "inferredWeightG": 139,
+        "unitCalories": 644.32
+      },
+      {
+        "food_code": "BFP152",
+        "food_name": "Uttapam",
+        "inferredWeightG": 68,
+        "unitCalories": 174.15
+      }
+    ]
+  },
+  {
+    "unit": "aigrette",
+    "foodCount": 1,
+    "inferredWeightMedianG": 41,
+    "inferredWeightMinG": 41,
+    "inferredWeightMaxG": 41,
+    "sampleFoods": [
+      {
+        "food_code": "BFP539",
+        "food_name": "Potato aigrettes",
+        "inferredWeightG": 41,
+        "unitCalories": 219.41
+      }
+    ]
+  },
+  {
+    "unit": "basket",
+    "foodCount": 1,
+    "inferredWeightMedianG": 210,
+    "inferredWeightMinG": 210,
+    "inferredWeightMaxG": 210,
+    "sampleFoods": [
+      {
+        "food_code": "BFP302",
+        "food_name": "Spring basket salad",
+        "inferredWeightG": 210,
+        "unitCalories": 336.96
+      }
+    ]
+  },
+  {
+    "unit": "bhatura",
+    "foodCount": 1,
+    "inferredWeightMedianG": 146,
+    "inferredWeightMinG": 146,
+    "inferredWeightMaxG": 146,
+    "sampleFoods": [
+      {
+        "food_code": "ASC143",
+        "food_name": "Bhatura",
+        "inferredWeightG": 146,
+        "unitCalories": 1154.61
+      }
+    ]
+  },
+  {
+    "unit": "bonda",
+    "foodCount": 1,
+    "inferredWeightMedianG": 179,
+    "inferredWeightMinG": 179,
+    "inferredWeightMaxG": 179,
+    "sampleFoods": [
+      {
+        "food_code": "ASC360",
+        "food_name": "Potato bonda (Aloo bonda)",
+        "inferredWeightG": 179,
+        "unitCalories": 1134.09
+      }
+    ]
+  },
+  {
+    "unit": "bread roll",
+    "foodCount": 1,
+    "inferredWeightMedianG": 121,
+    "inferredWeightMinG": 121,
+    "inferredWeightMaxG": 121,
+    "sampleFoods": [
+      {
+        "food_code": "OSR152",
+        "food_name": "Bread roll",
+        "inferredWeightG": 121,
+        "unitCalories": 526.92
+      }
+    ]
+  },
+  {
+    "unit": "brinjal",
+    "foodCount": 1,
+    "inferredWeightMedianG": 55,
+    "inferredWeightMinG": 55,
+    "inferredWeightMaxG": 55,
+    "sampleFoods": [
+      {
+        "food_code": "ASC187",
+        "food_name": "Stuffed brinjal (Bharwa baingan)",
+        "inferredWeightG": 55,
+        "unitCalories": 51.5
+      }
+    ]
+  },
+  {
+    "unit": "bun",
+    "foodCount": 1,
+    "inferredWeightMedianG": 83,
+    "inferredWeightMinG": 83,
+    "inferredWeightMaxG": 83,
+    "sampleFoods": [
+      {
+        "food_code": "BFP534",
+        "food_name": "Cream buns",
+        "inferredWeightG": 83,
+        "unitCalories": 179.67
+      }
+    ]
+  },
+  {
+    "unit": "cake",
+    "foodCount": 1,
+    "inferredWeightMedianG": 697,
+    "inferredWeightMinG": 697,
+    "inferredWeightMaxG": 697,
+    "sampleFoods": [
+      {
+        "food_code": "OSR146",
+        "food_name": "Gujarati handvo ",
+        "inferredWeightG": 697,
+        "unitCalories": 1442.54
+      }
+    ]
+  },
+  {
+    "unit": "candy",
+    "foodCount": 1,
+    "inferredWeightMedianG": 76,
+    "inferredWeightMinG": 76,
+    "inferredWeightMaxG": 76,
+    "sampleFoods": [
+      {
+        "food_code": "OSR061",
+        "food_name": "Mango murabba candy",
+        "inferredWeightG": 76,
+        "unitCalories": 222.94
+      }
+    ]
+  },
+  {
+    "unit": "capsicum",
+    "foodCount": 1,
+    "inferredWeightMedianG": 125,
+    "inferredWeightMinG": 125,
+    "inferredWeightMaxG": 125,
+    "sampleFoods": [
+      {
+        "food_code": "ASC186",
+        "food_name": "Stuffed capsicum (Bharwa shimla mirch)",
+        "inferredWeightG": 125,
+        "unitCalories": 114.13
+      }
+    ]
+  },
+  {
+    "unit": "cauliflower steak",
+    "foodCount": 1,
+    "inferredWeightMedianG": 107,
+    "inferredWeightMinG": 107,
+    "inferredWeightMaxG": 107,
+    "sampleFoods": [
+      {
+        "food_code": "OSR078",
+        "food_name": "Roasted cauliflower steak",
+        "inferredWeightG": 107,
+        "unitCalories": 84.48
+      }
+    ]
+  },
+  {
+    "unit": "chapati",
+    "foodCount": 1,
+    "inferredWeightMedianG": 36,
+    "inferredWeightMinG": 36,
+    "inferredWeightMaxG": 36,
+    "sampleFoods": [
+      {
+        "food_code": "ASC096",
+        "food_name": "Chapati/Roti",
+        "inferredWeightG": 36,
+        "unitCalories": 72.83
+      }
+    ]
+  },
+  {
+    "unit": "chicken breast",
+    "foodCount": 1,
+    "inferredWeightMedianG": 168,
+    "inferredWeightMinG": 168,
+    "inferredWeightMaxG": 168,
+    "sampleFoods": [
+      {
+        "food_code": "OSR073",
+        "food_name": "Cajun chicken",
+        "inferredWeightG": 168,
+        "unitCalories": 309.78
+      }
+    ]
+  },
+  {
+    "unit": "chops",
+    "foodCount": 1,
+    "inferredWeightMedianG": 148,
+    "inferredWeightMinG": 148,
+    "inferredWeightMaxG": 148,
+    "sampleFoods": [
+      {
+        "food_code": "BFP190",
+        "food_name": "Dry masala chops",
+        "inferredWeightG": 148,
+        "unitCalories": 199.37
+      }
+    ]
+  },
+  {
+    "unit": "cookies",
+    "foodCount": 1,
+    "inferredWeightMedianG": 18,
+    "inferredWeightMinG": 18,
+    "inferredWeightMaxG": 18,
+    "sampleFoods": [
+      {
+        "food_code": "BFP517",
+        "food_name": "Cherry and walnut cookies",
+        "inferredWeightG": 18,
+        "unitCalories": 74.27
+      }
+    ]
+  },
+  {
+    "unit": "éclair",
+    "foodCount": 1,
+    "inferredWeightMedianG": 169,
+    "inferredWeightMinG": 169,
+    "inferredWeightMaxG": 169,
+    "sampleFoods": [
+      {
+        "food_code": "ASC408",
+        "food_name": "Chocolate eclairs",
+        "inferredWeightG": 169,
+        "unitCalories": 405.21
+      }
+    ]
+  },
+  {
+    "unit": "finger",
+    "foodCount": 1,
+    "inferredWeightMedianG": 72,
+    "inferredWeightMinG": 72,
+    "inferredWeightMaxG": 72,
+    "sampleFoods": [
+      {
+        "food_code": "ASC432",
+        "food_name": "Coconut finger",
+        "inferredWeightG": 72,
+        "unitCalories": 196.52
+      }
+    ]
+  },
+  {
+    "unit": "fish",
+    "foodCount": 1,
+    "inferredWeightMedianG": 608,
+    "inferredWeightMinG": 608,
+    "inferredWeightMaxG": 608,
+    "sampleFoods": [
+      {
+        "food_code": "BFP231",
+        "food_name": "Baked stuffed fish",
+        "inferredWeightG": 608,
+        "unitCalories": 742.09
+      }
+    ]
+  },
+  {
+    "unit": "gingerman",
+    "foodCount": 1,
+    "inferredWeightMedianG": 36,
+    "inferredWeightMinG": 36,
+    "inferredWeightMaxG": 36,
+    "sampleFoods": [
+      {
+        "food_code": "BFP506",
+        "food_name": "Gingerman biscuit",
+        "inferredWeightG": 36,
+        "unitCalories": 127.03
+      }
+    ]
+  },
+  {
+    "unit": "glass jar",
+    "foodCount": 1,
+    "inferredWeightMedianG": 24,
+    "inferredWeightMinG": 24,
+    "inferredWeightMaxG": 24,
+    "sampleFoods": [
+      {
+        "food_code": "OSR098",
+        "food_name": "Green chutney",
+        "inferredWeightG": 24,
+        "unitCalories": 19.38
+      }
+    ]
+  },
+  {
+    "unit": "gm",
+    "foodCount": 1,
+    "inferredWeightMedianG": 1,
+    "inferredWeightMinG": 1,
+    "inferredWeightMaxG": 1,
+    "sampleFoods": [
+      {
+        "food_code": "OSR097",
+        "food_name": "Pav bhaji masala",
+        "inferredWeightG": 1,
+        "unitCalories": 2.62
+      }
+    ]
+  },
+  {
+    "unit": "gulab jamun",
+    "foodCount": 1,
+    "inferredWeightMedianG": 157,
+    "inferredWeightMinG": 157,
+    "inferredWeightMaxG": 157,
+    "sampleFoods": [
+      {
+        "food_code": "ASC348",
+        "food_name": "Gulab Jamun with khoya",
+        "inferredWeightG": 157,
+        "unitCalories": 918.46
+      }
+    ]
+  },
+  {
+    "unit": "gushtaba",
+    "foodCount": 1,
+    "inferredWeightMedianG": 304,
+    "inferredWeightMinG": 304,
+    "inferredWeightMaxG": 304,
+    "sampleFoods": [
+      {
+        "food_code": "ASC231",
+        "food_name": "Kashmiri mutton koftas (Gushtaba)",
+        "inferredWeightG": 304,
+        "unitCalories": 296.19
+      }
+    ]
+  },
+  {
+    "unit": "hot dog bun",
+    "foodCount": 1,
+    "inferredWeightMedianG": 194,
+    "inferredWeightMinG": 194,
+    "inferredWeightMaxG": 194,
+    "sampleFoods": [
+      {
+        "food_code": "BFP468",
+        "food_name": "Submarine sandwich",
+        "inferredWeightG": 194,
+        "unitCalories": 421.63
+      }
+    ]
+  },
+  {
+    "unit": "joint",
+    "foodCount": 1,
+    "inferredWeightMedianG": 133,
+    "inferredWeightMinG": 133,
+    "inferredWeightMaxG": 133,
+    "sampleFoods": [
+      {
+        "food_code": "BFP212",
+        "food_name": "Roast chicken",
+        "inferredWeightG": 133,
+        "unitCalories": 266.62
+      }
+    ]
+  },
+  {
+    "unit": "juice glass",
+    "foodCount": 1,
+    "inferredWeightMedianG": 140,
+    "inferredWeightMinG": 140,
+    "inferredWeightMaxG": 140,
+    "sampleFoods": [
+      {
+        "food_code": "BFP024",
+        "food_name": "Jal jeera",
+        "inferredWeightG": 140,
+        "unitCalories": 42.34
+      }
+    ]
+  },
+  {
+    "unit": "kaathi roll",
+    "foodCount": 1,
+    "inferredWeightMedianG": 148,
+    "inferredWeightMinG": 148,
+    "inferredWeightMaxG": 148,
+    "sampleFoods": [
+      {
+        "food_code": "ASC149",
+        "food_name": "Paneer kaathi roll",
+        "inferredWeightG": 148,
+        "unitCalories": 424.15
+      }
+    ]
+  },
+  {
+    "unit": "khakhra",
+    "foodCount": 1,
+    "inferredWeightMedianG": 76,
+    "inferredWeightMinG": 76,
+    "inferredWeightMaxG": 76,
+    "sampleFoods": [
+      {
+        "food_code": "OSR102",
+        "food_name": "Khakhra",
+        "inferredWeightG": 76,
+        "unitCalories": 135.1
+      }
+    ]
+  },
+  {
+    "unit": "kulfi",
+    "foodCount": 1,
+    "inferredWeightMedianG": 270,
+    "inferredWeightMinG": 270,
+    "inferredWeightMaxG": 270,
+    "sampleFoods": [
+      {
+        "food_code": "ASC321",
+        "food_name": "Kulfi",
+        "inferredWeightG": 270,
+        "unitCalories": 265.87
+      }
+    ]
+  },
+  {
+    "unit": "large piece",
+    "foodCount": 1,
+    "inferredWeightMedianG": 275,
+    "inferredWeightMinG": 275,
+    "inferredWeightMaxG": 275,
+    "sampleFoods": [
+      {
+        "food_code": "ASC242",
+        "food_name": "Butter chicken",
+        "inferredWeightG": 275,
+        "unitCalories": 377.04
+      }
+    ]
+  },
+  {
+    "unit": "malqura",
+    "foodCount": 1,
+    "inferredWeightMedianG": 150,
+    "inferredWeightMinG": 150,
+    "inferredWeightMaxG": 150,
+    "sampleFoods": [
+      {
+        "food_code": "ASC349",
+        "food_name": "Mal pua",
+        "inferredWeightG": 150,
+        "unitCalories": 847.94
+      }
+    ]
+  },
+  {
+    "unit": "meringue",
+    "foodCount": 1,
+    "inferredWeightMedianG": 362,
+    "inferredWeightMinG": 362,
+    "inferredWeightMaxG": 362,
+    "sampleFoods": [
+      {
+        "food_code": "BFP373",
+        "food_name": "Pavlova",
+        "inferredWeightG": 362,
+        "unitCalories": 725.45
+      }
+    ]
+  },
+  {
+    "unit": "ml",
+    "foodCount": 1,
+    "inferredWeightMedianG": 4,
+    "inferredWeightMinG": 4,
+    "inferredWeightMaxG": 4,
+    "sampleFoods": [
+      {
+        "food_code": "OSR096",
+        "food_name": "Tamarind chutney (Chintapandu pachadi/Puli chutney)",
+        "inferredWeightG": 4,
+        "unitCalories": 3.95
+      }
+    ]
+  },
+  {
+    "unit": "mulik/fritter",
+    "foodCount": 1,
+    "inferredWeightMedianG": 27,
+    "inferredWeightMinG": 27,
+    "inferredWeightMaxG": 27,
+    "sampleFoods": [
+      {
+        "food_code": "OSR118",
+        "food_name": "Jackfruit fritters (Ponsa mulik/Kathal ka pakora)",
+        "inferredWeightG": 27,
+        "unitCalories": 160.12
+      }
+    ]
+  },
+  {
+    "unit": "muthia",
+    "foodCount": 1,
+    "inferredWeightMedianG": 134,
+    "inferredWeightMinG": 134,
+    "inferredWeightMaxG": 134,
+    "sampleFoods": [
+      {
+        "food_code": "ASC456",
+        "food_name": "Soyabean muthias",
+        "inferredWeightG": 134,
+        "unitCalories": 1126.44
+      }
+    ]
+  },
+  {
+    "unit": "naan",
+    "foodCount": 1,
+    "inferredWeightMedianG": 53,
+    "inferredWeightMinG": 53,
+    "inferredWeightMaxG": 53,
+    "sampleFoods": [
+      {
+        "food_code": "ASC142",
+        "food_name": "Naan",
+        "inferredWeightG": 53,
+        "unitCalories": 152.3
+      }
+    ]
+  },
+  {
+    "unit": "nest",
+    "foodCount": 1,
+    "inferredWeightMedianG": 191,
+    "inferredWeightMinG": 191,
+    "inferredWeightMaxG": 191,
+    "sampleFoods": [
+      {
+        "food_code": "BFP289",
+        "food_name": "Potato nests",
+        "inferredWeightG": 191,
+        "unitCalories": 213.71
+      }
+    ]
+  },
+  {
+    "unit": "orange case",
+    "foodCount": 1,
+    "inferredWeightMedianG": 121,
+    "inferredWeightMinG": 121,
+    "inferredWeightMaxG": 121,
+    "sampleFoods": [
+      {
+        "food_code": "BFP361",
+        "food_name": "Grape and orange whip",
+        "inferredWeightG": 121,
+        "unitCalories": 69.44
+      }
+    ]
+  },
+  {
+    "unit": "pesarattu",
+    "foodCount": 1,
+    "inferredWeightMedianG": 27,
+    "inferredWeightMinG": 27,
+    "inferredWeightMaxG": 27,
+    "sampleFoods": [
+      {
+        "food_code": "OSR103",
+        "food_name": "Moong bean dosa (Pesarattu)",
+        "inferredWeightG": 27,
+        "unitCalories": 75.94
+      }
+    ]
+  },
+  {
+    "unit": "puttu",
+    "foodCount": 1,
+    "inferredWeightMedianG": 420,
+    "inferredWeightMinG": 420,
+    "inferredWeightMaxG": 420,
+    "sampleFoods": [
+      {
+        "food_code": "OSR105",
+        "food_name": "Rice puttu (Ari puttu)",
+        "inferredWeightG": 420,
+        "unitCalories": 344.41
+      }
+    ]
+  },
+  {
+    "unit": "ribbon",
+    "foodCount": 1,
+    "inferredWeightMedianG": 43,
+    "inferredWeightMinG": 43,
+    "inferredWeightMaxG": 43,
+    "sampleFoods": [
+      {
+        "food_code": "BFP466",
+        "food_name": "Ribbon sandwich",
+        "inferredWeightG": 43,
+        "unitCalories": 102.29
+      }
+    ]
+  },
+  {
+    "unit": "shell",
+    "foodCount": 1,
+    "inferredWeightMedianG": 23,
+    "inferredWeightMinG": 23,
+    "inferredWeightMaxG": 23,
+    "sampleFoods": [
+      {
+        "food_code": "BFP513",
+        "food_name": "Chocolate cream shells",
+        "inferredWeightG": 23,
+        "unitCalories": 98.2
+      }
+    ]
+  },
+  {
+    "unit": "small",
+    "foodCount": 1,
+    "inferredWeightMedianG": 12,
+    "inferredWeightMinG": 12,
+    "inferredWeightMaxG": 12,
+    "sampleFoods": [
+      {
+        "food_code": "BFP507",
+        "food_name": "Coffee drops",
+        "inferredWeightG": 12,
+        "unitCalories": 52.3
+      }
+    ]
+  },
+  {
+    "unit": "small casserole dish",
+    "foodCount": 1,
+    "inferredWeightMedianG": 400,
+    "inferredWeightMinG": 400,
+    "inferredWeightMaxG": 400,
+    "sampleFoods": [
+      {
+        "food_code": "BFP157",
+        "food_name": "Meat and macaroni casserole",
+        "inferredWeightG": 400,
+        "unitCalories": 647.01
+      }
+    ]
+  },
+  {
+    "unit": "spring roll",
+    "foodCount": 1,
+    "inferredWeightMedianG": 94,
+    "inferredWeightMinG": 94,
+    "inferredWeightMaxG": 94,
+    "sampleFoods": [
+      {
+        "food_code": "ASC383",
+        "food_name": "Spring roll",
+        "inferredWeightG": 94,
+        "unitCalories": 587.39
+      }
+    ]
+  },
+  {
+    "unit": "straw",
+    "foodCount": 1,
+    "inferredWeightMedianG": 10,
+    "inferredWeightMinG": 10,
+    "inferredWeightMaxG": 10,
+    "sampleFoods": [
+      {
+        "food_code": "BFP518",
+        "food_name": "Cheese straws",
+        "inferredWeightG": 10,
+        "unitCalories": 36.85
+      }
+    ]
+  },
+  {
+    "unit": "stuffed tomato",
+    "foodCount": 1,
+    "inferredWeightMedianG": 264,
+    "inferredWeightMinG": 264,
+    "inferredWeightMaxG": 264,
+    "sampleFoods": [
+      {
+        "food_code": "BFP305",
+        "food_name": "Chicken and tomato towers",
+        "inferredWeightG": 264,
+        "unitCalories": 265.55
+      }
+    ]
+  },
+  {
+    "unit": "swan",
+    "foodCount": 1,
+    "inferredWeightMedianG": 171,
+    "inferredWeightMinG": 171,
+    "inferredWeightMaxG": 171,
+    "sampleFoods": [
+      {
+        "food_code": "BFP536",
+        "food_name": "Choux swans",
+        "inferredWeightG": 171,
+        "unitCalories": 370.29
+      }
+    ]
+  },
+  {
+    "unit": "teaspoon",
+    "foodCount": 1,
+    "inferredWeightMedianG": 18,
+    "inferredWeightMinG": 18,
+    "inferredWeightMaxG": 18,
+    "sampleFoods": [
+      {
+        "food_code": "ASC281",
+        "food_name": "Saunth/Sonth chutney with tamarind/imli",
+        "inferredWeightG": 18,
+        "unitCalories": 25.05
+      }
+    ]
+  },
+  {
+    "unit": "thepla",
+    "foodCount": 1,
+    "inferredWeightMedianG": 36,
+    "inferredWeightMinG": 36,
+    "inferredWeightMaxG": 36,
+    "sampleFoods": [
+      {
+        "food_code": "OSR104",
+        "food_name": "Methi thepla",
+        "inferredWeightG": 36,
+        "unitCalories": 126.16
+      }
+    ]
+  },
+  {
+    "unit": "tikki",
+    "foodCount": 1,
+    "inferredWeightMedianG": 166,
+    "inferredWeightMinG": 166,
+    "inferredWeightMaxG": 166,
+    "sampleFoods": [
+      {
+        "food_code": "ASC457",
+        "food_name": "Soyabean tikki",
+        "inferredWeightG": 166,
+        "unitCalories": 1156.34
+      }
+    ]
+  },
+  {
+    "unit": "toast",
+    "foodCount": 1,
+    "inferredWeightMedianG": 145,
+    "inferredWeightMinG": 145,
+    "inferredWeightMaxG": 145,
+    "sampleFoods": [
+      {
+        "food_code": "ASC372",
+        "food_name": "Cheese toast",
+        "inferredWeightG": 145,
+        "unitCalories": 1138.78
+      }
+    ]
+  },
+  {
+    "unit": "tomato",
+    "foodCount": 1,
+    "inferredWeightMedianG": 136,
+    "inferredWeightMinG": 136,
+    "inferredWeightMaxG": 136,
+    "sampleFoods": [
+      {
+        "food_code": "ASC189",
+        "food_name": "Stuffed tomatoes (Bharwa tamatar)",
+        "inferredWeightG": 136,
+        "unitCalories": 126.49
+      }
+    ]
+  },
+  {
+    "unit": "tukra",
+    "foodCount": 1,
+    "inferredWeightMedianG": 102,
+    "inferredWeightMinG": 102,
+    "inferredWeightMaxG": 102,
+    "sampleFoods": [
+      {
+        "food_code": "ASC350",
+        "food_name": "Shahi tukre",
+        "inferredWeightG": 102,
+        "unitCalories": 193.43
+      }
+    ]
+  }
+]

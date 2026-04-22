@@ -3,6 +3,11 @@
 
 const BASE = 'https://world.openfoodfacts.org';
 
+function safeNumber(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function toNumber(v) {
   if (v == null) return null;
   const n = Number(v);
@@ -54,6 +59,115 @@ async function searchOpenFoodFactsFirstProduct({ query, pageSize = 5 }) {
   const data = await res.json().catch(() => null);
   const products = Array.isArray(data?.products) ? data.products : [];
   return products.find((p) => p && p.nutriments) || null;
+}
+
+function extractSearchResultFood(product) {
+  const n = product?.nutriments || {};
+  const servingQty = safeNumber(product?.serving_quantity) || 100;
+  const servingUnit = product?.serving_quantity_unit || 'g';
+  const servingLabel = [product?.serving_size, `${servingQty} ${servingUnit}`]
+    .map((value) => String(value || '').trim())
+    .find(Boolean) || `${servingQty} ${servingUnit}`;
+
+  return {
+    id: String(product?.code || product?._id || product?.id || ''),
+    name: product?.product_name || product?.generic_name || product?.brands || 'Unknown food',
+    brand: product?.brands || null,
+    servingQty,
+    servingUnit,
+    servingLabel,
+    calories: safeNumber(n['energy-kcal_100g'] ?? n.energy_kcal_100g ?? n['energy-kcal']),
+    protein: safeNumber(n.proteins_100g ?? n.proteins),
+    carbs: safeNumber(n.carbohydrates_100g ?? n.carbohydrates),
+    fat: safeNumber(n.fat_100g ?? n.fat),
+    fiber: safeNumber(n.fiber_100g ?? n.fiber),
+    sugar: safeNumber(n.sugars_100g ?? n.sugars),
+    sodium: safeNumber(n.sodium_100g ?? n.sodium) * 1000,
+    potassium: safeNumber(n.potassium_100g ?? n.potassium),
+    iron: safeNumber(n.iron_100g ?? n.iron),
+    calcium: safeNumber(n.calcium_100g ?? n.calcium),
+    vitaminB: safeNumber(n['vitamin-b6_100g'] ?? n['vitamin-b6'] ?? n.vitamin_b6_100g),
+    magnesium: safeNumber(n.magnesium_100g ?? n.magnesium),
+    zinc: safeNumber(n.zinc_100g ?? n.zinc),
+    vitaminC: safeNumber(n['vitamin-c_100g'] ?? n['vitamin-c'] ?? n.vitamin_c_100g),
+    omega3: safeNumber(n['omega-3-fat_100g'] ?? n['omega-3-fat'] ?? n.omega_3_fat_100g),
+    _local: {
+      kind: 'open_food_facts_fallback',
+      url: product?.url || null,
+      code: product?.code || null,
+    },
+  };
+}
+
+async function searchOpenFoodFactsFoods({ query, pageSize = 10 }) {
+  const q = String(query || '').trim();
+  if (!q) return [];
+
+  const url = `${BASE}/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=${Math.max(1, Math.min(pageSize, 25))}`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'LifeSync/1.0 (food-search-fallback)' } });
+  if (!res.ok) return [];
+
+  const data = await res.json().catch(() => null);
+  const products = Array.isArray(data?.products) ? data.products : [];
+  return products.map(extractSearchResultFood).filter((p) => p && p.name);
+}
+
+function normalizeBarcodeResult(product) {
+  const n = product?.nutriments || {};
+  return {
+    barcode: String(product?.code || ''),
+    name: product?.product_name || product?.generic_name || 'Unknown product',
+    brand: product?.brands || null,
+    quantityLabel: product?.quantity || null,
+    servingSize: product?.serving_size || null,
+    imageUrl: product?.image_front_url || product?.image_url || null,
+    nutrimentsPer100g: {
+      caloriesKcal: safeNumber(n['energy-kcal_100g'] ?? n.energy_kcal_100g ?? n['energy-kcal']),
+      proteinG: safeNumber(n.proteins_100g ?? n.proteins),
+      carbsG: safeNumber(n.carbohydrates_100g ?? n.carbohydrates),
+      fatG: safeNumber(n.fat_100g ?? n.fat),
+      fiberG: safeNumber(n.fiber_100g ?? n.fiber),
+      sugarG: safeNumber(n.sugars_100g ?? n.sugars),
+      sodiumMg: safeNumber(n.sodium_100g ?? n.sodium) * 1000,
+      potassiumMg: safeNumber(n.potassium_100g ?? n.potassium),
+      calciumMg: safeNumber(n.calcium_100g ?? n.calcium),
+      ironMg: safeNumber(n.iron_100g ?? n.iron),
+      magnesiumMg: safeNumber(n.magnesium_100g ?? n.magnesium),
+      zincMg: safeNumber(n.zinc_100g ?? n.zinc),
+      vitaminCMg: safeNumber(n['vitamin-c_100g'] ?? n['vitamin-c'] ?? n.vitamin_c_100g),
+      vitaminB12Ug: safeNumber(n['vitamin-b12_100g'] ?? n['vitamin-b12'] ?? n.vitamin_b12_100g),
+      vitaminDUg: safeNumber(n['vitamin-d_100g'] ?? n['vitamin-d'] ?? n.vitamin_d_100g),
+      omega3G: safeNumber(n['omega-3-fat_100g'] ?? n['omega-3-fat'] ?? n.omega_3_fat_100g),
+    },
+    source: {
+      kind: 'open_food_facts_barcode',
+      url: product?.url || null,
+    },
+  };
+}
+
+async function lookupOpenFoodFactsByBarcode({ barcode }) {
+  const code = String(barcode || '').trim();
+  if (!/^\d{8,14}$/.test(code)) {
+    return { ok: false, error: 'Invalid barcode format' };
+  }
+
+  const url = `${BASE}/api/v2/product/${encodeURIComponent(code)}.json`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'LifeSync/1.0 (barcode-lookup)' } });
+  if (!res.ok) {
+    return { ok: false, error: `Lookup failed (${res.status})` };
+  }
+
+  const data = await res.json().catch(() => null);
+  const product = data?.product;
+  if (!product) {
+    return { ok: false, error: 'Product not found' };
+  }
+
+  return {
+    ok: true,
+    product: normalizeBarcodeResult(product),
+  };
 }
 
 function extractMicrosPer100g(product) {
@@ -149,4 +263,6 @@ async function lookupMicrosPer100g({ query }) {
 
 module.exports = {
   lookupMicrosPer100g,
+  searchOpenFoodFactsFoods,
+  lookupOpenFoodFactsByBarcode,
 };

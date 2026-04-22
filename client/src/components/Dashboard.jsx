@@ -428,7 +428,7 @@ function Dashboard() {
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '280px 1fr 320px' }, gap: 3 }}>
       {/* LEFT: Life Summary */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', position: 'relative', overflow: 'hidden' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', position: 'relative', overflow: 'hidden' }}>
           <GlowingEffect
             spread={40}
             glow={true}
@@ -437,12 +437,12 @@ function Dashboard() {
             inactiveZone={0.01}
             borderWidth={3}
           />
-          <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 2 }}>
             This Week
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="body2">Avg Energy</Typography>
+              <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600 }}>Avg Energy</Typography>
               <Chip 
                 label={`${weeklyStats.avgEnergy}/10`} 
                 size="small" 
@@ -450,7 +450,7 @@ function Dashboard() {
               />
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="body2">Avg Mood</Typography>
+              <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600 }}>Avg Mood</Typography>
               <Chip 
                 label={`${weeklyStats.avgMood}/10`} 
                 size="small" 
@@ -458,7 +458,7 @@ function Dashboard() {
               />
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="body2">Avg Sleep</Typography>
+              <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600 }}>Avg Sleep</Typography>
               <Chip 
                 label={`${weeklyStats.avgSleep}h`} 
                 size="small" 
@@ -466,7 +466,7 @@ function Dashboard() {
               />
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="body2">Workouts</Typography>
+              <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600 }}>Workouts</Typography>
               <Chip 
                 label={weeklyStats.workouts} 
                 size="small" 
@@ -476,23 +476,23 @@ function Dashboard() {
           </Box>
         </Box>
 
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-          <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>
             Check-in Streak
           </Typography>
-          <Typography variant="h3" sx={{ fontWeight: 700, color: '#171717' }}>
+          <Typography variant="h3" sx={{ fontWeight: 800, color: 'text.primary' }}>
             {weeklyStats.streak}
-            <Typography component="span" variant="body1" sx={{ color: '#6b7280', ml: 0.5 }}>
+            <Typography component="span" variant="body1" sx={{ color: 'text.secondary', ml: 0.5 }}>
               days
             </Typography>
           </Typography>
-          <Typography variant="caption" sx={{ color: '#9ca3af' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             Keep going! Consistency builds insight.
           </Typography>
         </Box>
 
-        <Box sx={{ p: 3, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-          <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>
             Recent Activity
           </Typography>
           {(recentGymWorkouts.length ? recentGymWorkouts : recentLogs.fitness)
@@ -508,11 +508,11 @@ function Dashboard() {
                 : `${durationMin}min`
 
               return (
-                <Box key={log?._id || i} sx={{ py: 1, borderBottom: i < 2 ? '1px solid #e5e7eb' : 'none' }}>
+                <Box key={log?._id || i} sx={{ py: 1, borderBottom: i < 2 ? '1px solid' : 'none', borderColor: 'divider' }}>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
                     {title}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                     {detail} • {new Date(log.date).toLocaleDateString()}
                   </Typography>
                 </Box>

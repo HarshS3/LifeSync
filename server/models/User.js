@@ -93,6 +93,7 @@ const UserSchema = new mongoose.Schema(
 
     // Measurements (manual entry)
     bodyMeasurements: BodyMeasurementsSchema,
+    bodyMeasurementLogs: [BodyMeasurementsSchema],
 
     // Body composition (manual entry or OCR import)
     bodyComposition: BodyCompositionSchema,
@@ -217,6 +218,36 @@ const UserSchema = new mongoose.Schema(
     
     // Legacy - keep for compatibility
     preferences: mongoose.Schema.Types.Mixed,
+
+    // Scientific Metabolic & Dietary Profile (DRI/BMR Calculation Engine)
+    biologicalProfile: {
+      biologicalSex: { type: String, enum: ['male', 'female'] },
+      dob: Date,
+      heightCm: Number,
+      weightKg: Number,
+      bodyFatPercentage: Number,
+      activityLevel: { 
+        type: String, 
+        enum: ['sedentary', 'lightly_active', 'moderately_active', 'very_active', 'extra_active'], 
+        default: 'sedentary' 
+      },
+      metabolicGoal: { 
+        type: String, 
+        enum: ['aggressive_loss', 'mild_loss', 'maintenance', 'lean_gain', 'aggressive_gain'], 
+        default: 'maintenance' 
+      },
+      pregnancyStatus: { 
+        type: String, 
+        enum: ['none', 'pregnant_trimester_1', 'pregnant_trimester_2', 'pregnant_trimester_3', 'lactating'], 
+        default: 'none' 
+      },
+      dietaryPreference: { 
+        type: String, 
+        enum: ['omnivore', 'pescatarian', 'vegetarian', 'vegan', 'keto', 'paleo'], 
+        default: 'omnivore' 
+      },
+      hypertension: { type: Boolean, default: false }
+    },
   },
   { timestamps: true }
 );

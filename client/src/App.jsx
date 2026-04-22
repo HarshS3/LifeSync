@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -64,15 +65,30 @@ const navItems = [
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </BrowserRouter>
   )
 }
 
 function AppContent() {
   const { user, loading, logout, refreshUser } = useAuth()
-  const [activeSection, setActiveSection] = useState('home')
+  const navigate = useNavigate()
+  const location = useLocation()
+  
+  // derivation from location.pathname, e.g., '/nutrition' -> 'nutrition'
+  const activeSection = location.pathname.substring(1) || 'home'
+
+  const [themeVariant, setThemeVariant] = useState(() => {
+    try {
+      const v = localStorage.getItem('lifesync_theme')
+      return v === 'noir' ? 'noir' : 'paper'
+    } catch {
+      return 'paper'
+    }
+  })
   const [anchorEl, setAnchorEl] = useState(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -84,16 +100,64 @@ function AppContent() {
   }, [loading])
 
   useEffect(() => {
+    try {
+      localStorage.setItem('lifesync_theme', themeVariant)
+    } catch {
+      // ignore
+    }
+    try {
+      document.documentElement.dataset.lifesyncTheme = themeVariant
+    } catch {
+      // ignore
+    }
+  }, [themeVariant])
+
+  const ui = useMemo(() => {
+    const isNoir = themeVariant === 'noir'
+    return isNoir
+      ? {
+          name: 'Noir',
+          bg: '#0b0e14',
+          surface: '#0f1623',
+          surface2: '#0c121e',
+          text: '#f3f0ea',
+          muted: 'rgba(243, 240, 234, 0.66)',
+          border: 'rgba(243, 240, 234, 0.14)',
+          accent: '#5de4c7',
+          accent2: '#e6b450',
+          danger: '#fb7185',
+          navActiveBg: 'rgba(93, 228, 199, 0.10)',
+          navHoverBg: 'rgba(93, 228, 199, 0.06)',
+        }
+      : {
+          name: 'Paper',
+          bg: '#f6f1e7',
+          surface: '#ffffff',
+          surface2: '#fbf7f0',
+          text: '#161310',
+          muted: 'rgba(22, 19, 16, 0.62)',
+          border: 'rgba(22, 19, 16, 0.10)',
+          accent: '#1f6f5b',
+          accent2: '#b45309',
+          danger: '#dc2626',
+          navActiveBg: 'rgba(31, 111, 91, 0.10)',
+          navHoverBg: 'rgba(31, 111, 91, 0.06)',
+        }
+  }, [themeVariant])
+
+  const toggleTheme = () => setThemeVariant((v) => (v === 'noir' ? 'paper' : 'noir'))
+
+  useEffect(() => {
     const handler = (e) => {
       const next = e?.detail?.section
       if (typeof next === 'string' && next.length > 0) {
-        setActiveSection(next)
+        navigate('/' + next)
       }
     }
 
     window.addEventListener('lifesync:navigate', handler)
     return () => window.removeEventListener('lifesync:navigate', handler)
-  }, [])
+  }, [navigate])
 
   // Safety: close any modal backdrops when auth/section changes
   useEffect(() => {
@@ -105,127 +169,100 @@ function AppContent() {
     setMobileNavOpen(false)
   }, [activeSection])
 
-  const theme = useMemo(
-    () =>
-      createTheme({
-        palette: {
-          mode: 'light',
-          background: {
-            default: '#fafafa',
-            paper: '#ffffff',
-          },
-          primary: {
-            main: '#171717',
-          },
-          secondary: {
-            main: '#6366f1',
-          },
-          text: {
-            primary: '#171717',
-            secondary: '#6b7280',
-          },
-          divider: '#e5e7eb',
+  const theme = useMemo(() => {
+    const isNoir = themeVariant === 'noir'
+
+    return createTheme({
+      palette: {
+        mode: isNoir ? 'dark' : 'light',
+        background: {
+          default: ui.bg,
+          paper: ui.surface,
         },
-        typography: {
-          fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-          h4: { fontWeight: 600, letterSpacing: '-0.02em' },
-          h5: { fontWeight: 600, letterSpacing: '-0.01em' },
-          h6: { fontWeight: 600, letterSpacing: '-0.01em' },
-          subtitle1: { fontWeight: 500 },
-          subtitle2: { fontWeight: 500, color: '#6b7280' },
-          body1: { fontSize: '0.938rem' },
-          body2: { fontSize: '0.875rem', color: '#6b7280' },
-          button: { fontWeight: 500, textTransform: 'none' },
+        primary: { main: ui.text },
+        secondary: { main: ui.accent },
+        text: {
+          primary: ui.text,
+          secondary: ui.muted,
         },
-        shape: { borderRadius: 8 },
-        shadows: [
-          'none',
-          '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-          '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
-          '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-          '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
-          '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
-          ...Array(19).fill('none'),
-        ],
-        components: {
-          MuiButton: {
-            styleOverrides: {
-              root: {
-                borderRadius: 6,
-                padding: '8px 16px',
-                fontWeight: 500,
-              },
-              contained: {
-                backgroundColor: '#171717',
+        divider: ui.border,
+        error: { main: ui.danger },
+      },
+      typography: {
+        fontFamily: '"Albert Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        h4: { fontFamily: '"Fraunces", ui-serif, Georgia, "Times New Roman", serif', fontWeight: 700, letterSpacing: '-0.02em' },
+        h5: { fontFamily: '"Fraunces", ui-serif, Georgia, "Times New Roman", serif', fontWeight: 700, letterSpacing: '-0.01em' },
+        h6: { fontFamily: '"Fraunces", ui-serif, Georgia, "Times New Roman", serif', fontWeight: 700, letterSpacing: '-0.01em' },
+        subtitle1: { fontWeight: 600 },
+        subtitle2: { fontWeight: 600, color: ui.muted },
+        body1: { fontSize: '0.938rem' },
+        body2: { fontSize: '0.875rem', color: ui.muted },
+        button: { fontWeight: 600, textTransform: 'none' },
+      },
+      shape: { borderRadius: 10 },
+      shadows: [
+        'none',
+        '0 1px 2px 0 rgb(0 0 0 / 0.06)',
+        '0 1px 3px 0 rgb(0 0 0 / 0.10), 0 1px 2px -1px rgb(0 0 0 / 0.10)',
+        '0 6px 18px rgb(0 0 0 / 0.12)',
+        ...Array(21).fill('none'),
+      ],
+      components: {
+        MuiButton: {
+          styleOverrides: {
+            root: {
+              borderRadius: 10,
+              padding: '9px 14px',
+            },
+            contained: {
+              backgroundColor: ui.text,
+              color: isNoir ? ui.bg : '#ffffff',
+              boxShadow: 'none',
+              '&:hover': {
+                backgroundColor: isNoir ? '#ffffff' : '#0b0b0b',
+                color: isNoir ? ui.bg : '#ffffff',
                 boxShadow: 'none',
-                '&:hover': {
-                  backgroundColor: '#262626',
-                  boxShadow: 'none',
-                },
-              },
-              outlined: {
-                borderColor: '#e5e7eb',
-                color: '#171717',
-                '&:hover': {
-                  borderColor: '#d1d5db',
-                  backgroundColor: '#f9fafb',
-                },
               },
             },
-          },
-          MuiTextField: {
-            styleOverrides: {
-              root: {
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: '#fff',
-                  '& fieldset': { borderColor: '#e5e7eb' },
-                  '&:hover fieldset': { borderColor: '#d1d5db' },
-                  '&.Mui-focused fieldset': { borderColor: '#171717', borderWidth: 1 },
-                },
-              },
-            },
-          },
-          MuiPaper: {
-            styleOverrides: {
-              root: {
-                backgroundImage: 'none',
-                border: '1px solid #e5e7eb',
-              },
-            },
-          },
-          MuiChip: {
-            styleOverrides: {
-              root: {
-                fontWeight: 500,
-                fontSize: '0.75rem',
+            outlined: {
+              borderColor: ui.border,
+              color: ui.text,
+              '&:hover': {
+                borderColor: isNoir ? 'rgba(243, 240, 234, 0.28)' : 'rgba(22, 19, 16, 0.18)',
+                backgroundColor: isNoir ? 'rgba(93, 228, 199, 0.08)' : 'rgba(31, 111, 91, 0.06)',
               },
             },
           },
         },
-      }),
-    []
-  )
+        MuiTextField: {
+          styleOverrides: {
+            root: {
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: ui.surface,
+                '& fieldset': { borderColor: ui.border },
+                '&:hover fieldset': {
+                  borderColor: isNoir ? 'rgba(243, 240, 234, 0.28)' : 'rgba(22, 19, 16, 0.18)',
+                },
+                '&.Mui-focused fieldset': { borderColor: ui.accent, borderWidth: 1 },
+              },
+            },
+          },
+        },
+        MuiPaper: {
+          styleOverrides: {
+            root: {
+              backgroundImage: 'none',
+              border: `1px solid ${ui.border}`,
+            },
+          },
+        },
+      },
+    })
+  }, [themeVariant, ui])
 
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 
-  const renderContent = () => {
-    switch (activeSection) {
-      case 'home': return <Dashboard />
-      case 'profile': return <ProfilePanel />
-      case 'logs': return <GymTracker />
-      case 'nutrition': return <NutritionTracker />
-      case 'mental': return <DailyLogPanel />
-      case 'symptoms': return <SymptomsPanel />
-      case 'labs': return <LabsPanel />
-      case 'calendar': return <GlobalCalendar />
-      case 'goals': return <HabitTracker />
-      case 'trends': return <TrendsPanel />
-      case 'chat': return <ChatExperience />
-      case 'reminders': return <RemindersSettings />
-      // case 'premium': return <PremiumPage />
-      default: return <Dashboard />
-    }
-  }
+  // Removed renderContent since we use Routes below
 
   // Check if user needs onboarding
   const needsOnboarding = user && !user.onboardingCompleted && !showOnboarding
@@ -235,8 +272,8 @@ function AppContent() {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', bgcolor: '#fafafa' }}>
-          <CircularProgress sx={{ color: '#171717' }} />
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', bgcolor: ui.bg }}>
+          <CircularProgress sx={{ color: ui.accent }} />
         </Box>
       </ThemeProvider>
     )
@@ -244,21 +281,13 @@ function AppContent() {
 
   // Show auth page if not logged in
   if (!user) {
-    // Show reset password page if token in URL
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    if (token) {
-      return (
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <ResetPassword />
-        </ThemeProvider>
-      );
-    }
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <AuthPage />
+        <Routes>
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="*" element={<AuthPage themeVariant={themeVariant} onToggleTheme={toggleTheme} />} />
+        </Routes>
       </ThemeProvider>
     );
   }
@@ -285,14 +314,14 @@ function AppContent() {
         <Box
           sx={{
             width: 240,
-            borderRight: '1px solid #e5e7eb',
-            bgcolor: '#fff',
+            borderRight: `1px solid ${ui.border}`,
+            bgcolor: ui.surface,
             display: { xs: 'none', md: 'flex' },
             flexDirection: 'column',
           }}
         >
           {/* Logo */}
-          <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid #e5e7eb' }}>
+          <Box sx={{ px: 3, py: 2.5, borderBottom: `1px solid ${ui.border}` }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <Box
                 sx={{
@@ -316,7 +345,7 @@ function AppContent() {
             {navItems.map((item) => (
               <Box
                 key={item.id}
-                onClick={() => setActiveSection(item.id)}
+                onClick={() => navigate('/' + item.id)}
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
@@ -326,13 +355,13 @@ function AppContent() {
                   mb: 0.5,
                   borderRadius: 1.5,
                   cursor: 'pointer',
-                  color: activeSection === item.id ? '#171717' : '#6b7280',
-                  bgcolor: activeSection === item.id ? '#f3f4f6' : 'transparent',
+                  color: activeSection === item.id ? ui.text : ui.muted,
+                  bgcolor: activeSection === item.id ? ui.navActiveBg : 'transparent',
                   fontWeight: activeSection === item.id ? 500 : 400,
                   transition: 'all 0.15s ease',
                   '&:hover': {
-                    bgcolor: activeSection === item.id ? '#f3f4f6' : '#f9fafb',
-                    color: '#171717',
+                    bgcolor: activeSection === item.id ? ui.navActiveBg : ui.navHoverBg,
+                    color: ui.text,
                   },
                 }}
               >
@@ -345,7 +374,7 @@ function AppContent() {
           </Box>
 
           {/* User */}
-          <Box sx={{ p: 2, borderTop: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 2, borderTop: `1px solid ${ui.border}` }}>
             <Box
               onClick={(e) => setAnchorEl(e.currentTarget)}
               sx={{
@@ -355,17 +384,17 @@ function AppContent() {
                 cursor: 'pointer',
                 p: 1,
                 borderRadius: 1.5,
-                '&:hover': { bgcolor: '#f3f4f6' },
+                '&:hover': { bgcolor: ui.navHoverBg },
               }}
             >
-              <Avatar sx={{ width: 32, height: 32, bgcolor: '#171717', color: '#fff', fontSize: 14 }}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: ui.accent, color: ui.bg, fontSize: 14 }}>
                 {user.name?.[0]?.toUpperCase() || 'U'}
               </Avatar>
               <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="body2" sx={{ fontWeight: 500, color: '#171717' }} noWrap>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: ui.text }} noWrap>
                   {user.name || 'User'}
                 </Typography>
-                <Typography variant="caption" sx={{ color: '#9ca3af' }} noWrap>
+                <Typography variant="caption" sx={{ color: ui.muted }} noWrap>
                   {user.email}
                 </Typography>
               </Box>
@@ -383,9 +412,18 @@ function AppContent() {
               <MenuItem
                 onClick={() => {
                   setAnchorEl(null)
+                  toggleTheme()
+                }}
+              >
+                <SpaOutlinedIcon fontSize="small" sx={{ mr: 1.5 }} />
+                Theme: {ui.name}
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setAnchorEl(null)
                   logout()
                 }}
-                sx={{ color: '#dc2626' }}
+                sx={{ color: ui.danger }}
               >
                 <LogoutIcon fontSize="small" sx={{ mr: 1.5 }} />
                 Sign Out
@@ -400,10 +438,10 @@ function AppContent() {
           onClose={() => setMobileNavOpen(false)}
           variant="temporary"
           ModalProps={{ keepMounted: true }}
-          PaperProps={{ sx: { width: 280, borderRight: '1px solid #e5e7eb' } }}
+          PaperProps={{ sx: { width: 280, borderRight: `1px solid ${ui.border}`, bgcolor: ui.surface } }}
         >
           <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid #e5e7eb' }}>
+            <Box sx={{ px: 3, py: 2.5, borderBottom: `1px solid ${ui.border}` }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 <Box
                   sx={{
@@ -427,7 +465,7 @@ function AppContent() {
                 <Box
                   key={item.id}
                   onClick={() => {
-                    setActiveSection(item.id)
+                    navigate('/' + item.id)
                     setMobileNavOpen(false)
                   }}
                   sx={{
@@ -439,13 +477,13 @@ function AppContent() {
                     mb: 0.5,
                     borderRadius: 1.5,
                     cursor: 'pointer',
-                    color: activeSection === item.id ? '#171717' : '#6b7280',
-                    bgcolor: activeSection === item.id ? '#f3f4f6' : 'transparent',
+                    color: activeSection === item.id ? ui.text : ui.muted,
+                    bgcolor: activeSection === item.id ? ui.navActiveBg : 'transparent',
                     fontWeight: activeSection === item.id ? 500 : 400,
                     transition: 'all 0.15s ease',
                     '&:hover': {
-                      bgcolor: activeSection === item.id ? '#f3f4f6' : '#f9fafb',
-                      color: '#171717',
+                      bgcolor: activeSection === item.id ? ui.navActiveBg : ui.navHoverBg,
+                      color: ui.text,
                     },
                   }}
                 >
@@ -457,16 +495,16 @@ function AppContent() {
               ))}
             </Box>
 
-            <Box sx={{ p: 2, borderTop: '1px solid #e5e7eb' }}>
+            <Box sx={{ p: 2, borderTop: `1px solid ${ui.border}` }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1, borderRadius: 1.5 }}>
-                <Avatar sx={{ width: 32, height: 32, bgcolor: '#171717', color: '#fff', fontSize: 14 }}>
+                <Avatar sx={{ width: 32, height: 32, bgcolor: ui.accent, color: ui.bg, fontSize: 14 }}>
                   {user.name?.[0]?.toUpperCase() || 'U'}
                 </Avatar>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 500, color: '#171717' }} noWrap>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: ui.text }} noWrap>
                     {user.name || 'User'}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: '#9ca3af' }} noWrap>
+                  <Typography variant="caption" sx={{ color: ui.muted }} noWrap>
                     {user.email}
                   </Typography>
                 </Box>
@@ -486,8 +524,10 @@ function AppContent() {
                   cursor: 'pointer',
                   p: 1,
                   borderRadius: 1.5,
-                  color: '#dc2626',
-                  '&:hover': { bgcolor: '#fef2f2' },
+                  color: ui.danger,
+                  '&:hover': {
+                    bgcolor: themeVariant === 'noir' ? 'rgba(251, 113, 133, 0.12)' : '#fef2f2',
+                  },
                 }}
               >
                 <LogoutIcon fontSize="small" />
@@ -500,14 +540,14 @@ function AppContent() {
         </Drawer>
 
         {/* Main Content */}
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', bgcolor: '#fafafa' }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', bgcolor: ui.bg }}>
           {/* Header */}
           <Box
             sx={{
               px: { xs: 2, md: 4 },
               py: { xs: 1.5, md: 2 },
-              bgcolor: '#fff',
-              borderBottom: '1px solid #e5e7eb',
+              bgcolor: ui.surface,
+              borderBottom: `1px solid ${ui.border}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -531,7 +571,7 @@ function AppContent() {
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="body2" sx={{ color: '#9ca3af', display: { xs: 'none', sm: 'block' } }}>
+              <Typography variant="body2" sx={{ color: ui.muted, display: { xs: 'none', sm: 'block' } }}>
                 {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
               </Typography>
             </Box>
@@ -540,7 +580,22 @@ function AppContent() {
           {/* Content */}
           <Box sx={{ flex: 1, overflow: 'auto', p: { xs: 2, md: 4 } }}>
             <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%' }}>
-              {renderContent()}
+              <Routes>
+                <Route path="/" element={<Navigate to="/home" replace />} />
+                <Route path="/home" element={<Dashboard />} />
+                <Route path="/profile" element={<ProfilePanel />} />
+                <Route path="/logs" element={<GymTracker />} />
+                <Route path="/nutrition" element={<NutritionTracker />} />
+                <Route path="/mental" element={<DailyLogPanel />} />
+                <Route path="/symptoms" element={<SymptomsPanel />} />
+                <Route path="/labs" element={<LabsPanel />} />
+                <Route path="/calendar" element={<GlobalCalendar />} />
+                <Route path="/goals" element={<HabitTracker />} />
+                <Route path="/trends" element={<TrendsPanel />} />
+                <Route path="/chat" element={<ChatExperience />} />
+                <Route path="/reminders" element={<RemindersSettings />} />
+                <Route path="*" element={<Navigate to="/home" replace />} />
+              </Routes>
             </Box>
           </Box>
         </Box>

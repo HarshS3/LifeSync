@@ -1324,4 +1324,63 @@ router.post('/chat', async (req, res) => {
   }
 });
 
+// --- NEW ROUTE: Conversational Nutrition Agent ---
+router.post('/nutrition-agent', async (req, res) => {
+  const { message, sessionId } = req.body;
+  if (!message) return res.status(400).json({ error: 'Message required' });
+
+  // Get user from token if available
+  let userId = null;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production');
+      userId = decoded.userId;
+    } catch (e) {
+      console.log('NutritionAgent auth failed:', e.message);
+    }
+  }
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required for Nutrition Agent' });
+  }
+
+  // We should manage sessions based on ID, but for simplicity, we mock a brief in-memory cache or instantiate afresh.
+  // In a real app we would cache NutritionAgentSession by sessionId. 
+  // Let's rely on standard stateless req/res with the client managing the history loop, 
+  // OR we store it in a global map for this prototype.
+  
+  if (!global.agentSessions) {
+    global.agentSessions = {};
+  }
+  
+  let agentId = sessionId || `session_${userId}_${Date.now()}`;
+  if (!global.agentSessions[agentId]) {
+    const { NutritionAgentSession } = require('../services/nutritionAI/nutritionAgent');
+    global.agentSessions[agentId] = new NutritionAgentSession(userId);
+  }
+  
+  const agent = global.agentSessions[agentId];
+  
+  try {
+    const result = await agent.handleVoiceInput(message);
+    
+    // Clear session if done
+    if (result.isComplete) {
+       delete global.agentSessions[agentId];
+    }
+    
+    return res.json({ 
+       reply: result.audioResponseText, 
+       isComplete: result.isComplete,
+       sessionId: agentId 
+    });
+  } catch(err) {
+    console.error('[NutritionAgent] Error:', err);
+    delete global.agentSessions[agentId];
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

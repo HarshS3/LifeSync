@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { calculateDailyTargets } = require('../services/nutritionEngine');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
@@ -26,17 +27,29 @@ router.put('/profile', auth, async (req, res) => {
     // Remove fields that shouldn't be updated directly
     const { _id, email, password, createdAt, updatedAt, __v, ...updateData } = req.body;
 
-    const user = await User.findByIdAndUpdate(
-      req.userId,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    ).select('-password');
-
+    const user = await User.findById(req.userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(user);
+    Object.assign(user, updateData);
+
+    if (updateData.biologicalProfile) {
+      const calculated = calculateDailyTargets({
+        ...user.biologicalProfile?.toObject?.() || user.biologicalProfile,
+        ...updateData.biologicalProfile
+      });
+      if (calculated) {
+        user.dailyCalorieTarget = calculated.targets.calories;
+        user.dailyProteinTarget = calculated.targets.protein;
+      }
+    }
+
+    await user.save();
+
+    const updatedUser = await User.findById(req.userId).select('-password');
+
+    res.json(updatedUser);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update profile' });
@@ -62,17 +75,37 @@ router.patch('/profile', auth, async (req, res) => {
   try {
     const { _id, email, password, createdAt, updatedAt, __v, ...updateData } = req.body;
 
-    const user = await User.findByIdAndUpdate(
-      req.userId,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    ).select('-password');
-
+    const user = await User.findById(req.userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(user);
+    Object.keys(updateData).forEach(key => {
+      // Need to handle biologicalProfile deep merge
+      if (key === 'biologicalProfile') {
+        user.biologicalProfile = {
+           ...(user.biologicalProfile ? (user.biologicalProfile.toObject ? user.biologicalProfile.toObject() : user.biologicalProfile) : {}),
+           ...updateData.biologicalProfile
+        };
+      } else {
+        user[key] = updateData[key];
+      }
+    });
+
+    if (updateData.biologicalProfile) {
+      const calculated = calculateDailyTargets({
+        ...user.biologicalProfile.toObject?.() || user.biologicalProfile
+      });
+      if (calculated) {
+        user.dailyCalorieTarget = calculated.targets.calories;
+        user.dailyProteinTarget = calculated.targets.protein;
+      }
+    }
+
+    await user.save();
+
+    const updatedUser = await User.findById(req.userId).select('-password');
+    res.json(updatedUser);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update profile' });

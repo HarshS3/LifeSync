@@ -81,9 +81,6 @@ function Onboarding({ onComplete }) {
     chronotype: 'neutral',
     averageSleep: 7,
     stressTriggers: [],
-    // Step 6: Final
-    biggestChallenges: '',
-    longTermVision: '',
   })
 
   const WORKOUTS = ['Gym/Weights', 'Running', 'Yoga', 'Swimming', 'Cycling', 'HIIT', 'Sports', 'Home Workouts', 'Walking', 'Dance']
@@ -95,7 +92,6 @@ function Onboarding({ onComplete }) {
     { title: 'Fitness', subtitle: 'Tell us about your training', icon: <FitnessCenterIcon /> },
     { title: 'Nutrition', subtitle: 'Your eating preferences', icon: <RestaurantIcon /> },
     { title: 'Lifestyle', subtitle: 'Sleep and stress patterns', icon: <SpaIcon /> },
-    { title: 'Almost Done!', subtitle: 'Final touches', icon: <CheckCircleIcon /> },
   ]
 
   const toggleGoal = (goalId) => {
@@ -143,13 +139,17 @@ function Onboarding({ onComplete }) {
         workoutFrequency: data.workoutFrequency,
         preferredWorkouts: data.preferredWorkouts,
         dietType: data.dietType,
+        biologicalProfile: {
+          dietaryPreference: data.dietType,
+          biologicalSex: data.gender || undefined,
+          heightCm: data.height ? parseFloat(data.height) : undefined,
+          weightKg: data.weight ? parseFloat(data.weight) : undefined,
+        },
         mealsPerDay: data.mealsPerDay,
         dailyCalorieTarget: data.dailyCalorieTarget ? parseInt(data.dailyCalorieTarget) : undefined,
         chronotype: data.chronotype,
         averageSleep: data.averageSleep,
         stressTriggers: data.stressTriggers,
-        biggestChallenges: data.biggestChallenges,
-        longTermVision: data.longTermVision,
         trainingGoals,
         onboardingCompleted: true,
       }
@@ -462,31 +462,6 @@ function Onboarding({ onComplete }) {
                       ))}
                     </Box>
                   </Box>
-                </Box>
-              )}
-
-              {/* Step 5: Final */}
-              {step === 5 && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <TextField
-                    label="What's your biggest wellness challenge?"
-                    multiline
-                    rows={3}
-                    fullWidth
-                    value={data.biggestChallenges}
-                    onChange={(e) => setData({ ...data, biggestChallenges: e.target.value })}
-                    placeholder="e.g., Staying consistent with workouts, managing stress..."
-                  />
-                  
-                  <TextField
-                    label="Where do you see yourself in 6 months?"
-                    multiline
-                    rows={3}
-                    fullWidth
-                    value={data.longTermVision}
-                    onChange={(e) => setData({ ...data, longTermVision: e.target.value })}
-                    placeholder="e.g., Running a 5k, feeling more energetic..."
-                  />
 
                   <Box
                     sx={{
@@ -494,6 +469,7 @@ function Onboarding({ onComplete }) {
                       bgcolor: '#f0fdf4',
                       borderRadius: 2,
                       border: '1px solid #bbf7d0',
+                      mt: 4
                     }}
                   >
                     <Typography variant="body2" sx={{ color: '#166534', fontWeight: 500 }}>

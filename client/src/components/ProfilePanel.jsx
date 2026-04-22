@@ -46,6 +46,7 @@ function ProfilePanel() {
   const [bodyCompOcrFile, setBodyCompOcrFile] = useState(null)
   const [bodyCompOcrLoading, setBodyCompOcrLoading] = useState(false)
   const [bodyCompOcrError, setBodyCompOcrError] = useState('')
+  const [selectedMeasurementLogIndex, setSelectedMeasurementLogIndex] = useState(0)
 
   const [profile, setProfile] = useState({
     // Basic Info
@@ -77,6 +78,7 @@ function ProfilePanel() {
       updatedAt: '',
       source: 'manual',
     },
+    bodyMeasurementLogs: [],
 
     // Body Composition (OCR / manual)
     bodyComposition: {
@@ -178,14 +180,6 @@ function ProfilePanel() {
     avoidColors: [],
     bodyConfidence: 5,
     styleGoals: [],
-    
-    // Personal Notes
-    biggestChallenges: '',
-    fearMost: '',
-    whatMattersMost: '',
-    whatWorkedBefore: '',
-    whatDidntWork: '',
-    longTermVision: '',
 
     // Personality
     personality: {
@@ -221,6 +215,10 @@ function ProfilePanel() {
         setProfile(prev => ({
           ...prev,
           ...data,
+          gender: data.gender || data.biologicalProfile?.biologicalSex || prev.gender,
+          height: data.height || data.biologicalProfile?.heightCm || prev.height,
+          weight: data.weight || data.biologicalProfile?.weightKg || prev.weight,
+          bodyFat: data.bodyFat || data.biologicalProfile?.bodyFatPercentage || prev.bodyFat,
           // Ensure arrays are arrays
           conditions: data.conditions || [],
           allergies: data.allergies || [],
@@ -239,6 +237,9 @@ function ProfilePanel() {
           favoriteColors: data.favoriteColors || [],
           avoidColors: data.avoidColors || [],
           styleGoals: data.styleGoals || [],
+          bodyMeasurementLogs: Array.isArray(data.bodyMeasurementLogs) && data.bodyMeasurementLogs.length > 0
+            ? data.bodyMeasurementLogs
+            : (data.bodyMeasurements ? [data.bodyMeasurements] : []),
 
           personality: {
             ...prev.personality,
@@ -391,6 +392,13 @@ function ProfilePanel() {
       return pruned
     }
 
+    const normalizeMeasurementLogsForSave = (logs) => {
+      if (!Array.isArray(logs)) return []
+      return logs
+        .map((m) => normalizeMeasurementsForSave(m))
+        .filter(Boolean)
+    }
+
     const normalizeBodyCompositionForSave = (c) => {
       const toNum = (v) => {
         if (v == null || v === '') return undefined
@@ -449,7 +457,24 @@ function ProfilePanel() {
 
     try {
       const bodyMeasurementsPayload = normalizeMeasurementsForSave(profile.bodyMeasurements)
+      const bodyMeasurementLogsPayload = normalizeMeasurementLogsForSave(profile.bodyMeasurementLogs)
       const bodyCompositionPayload = normalizeBodyCompositionForSave(profile.bodyComposition)
+      const toNumOrUndefined = (v) => {
+        if (v == null || v === '') return undefined
+        const n = Number(v)
+        return Number.isFinite(n) ? n : undefined
+      }
+
+      const mergedBiologicalProfile = {
+        ...(profile.biologicalProfile || {}),
+        biologicalSex:
+          (profile.biologicalProfile?.biologicalSex === 'male' || profile.biologicalProfile?.biologicalSex === 'female')
+            ? profile.biologicalProfile.biologicalSex
+            : (profile.gender === 'male' || profile.gender === 'female' ? profile.gender : undefined),
+        heightCm: toNumOrUndefined(profile.height) ?? profile.biologicalProfile?.heightCm,
+        weightKg: toNumOrUndefined(profile.weight) ?? profile.biologicalProfile?.weightKg,
+        bodyFatPercentage: toNumOrUndefined(profile.bodyFat) ?? profile.biologicalProfile?.bodyFatPercentage,
+      }
 
       const res = await fetch(`${API_BASE}/api/users/profile`, {
         method: 'PUT',
@@ -459,7 +484,9 @@ function ProfilePanel() {
         },
         body: JSON.stringify({
           ...profile,
+          biologicalProfile: mergedBiologicalProfile,
           labMarkers: normalizeLabMarkersForSave(profile.labMarkers),
+          bodyMeasurementLogs: bodyMeasurementLogsPayload,
           ...(bodyMeasurementsPayload ? { bodyMeasurements: bodyMeasurementsPayload } : {}),
           ...(bodyCompositionPayload ? { bodyComposition: bodyCompositionPayload } : {}),
         }),
@@ -478,7 +505,45 @@ function ProfilePanel() {
   }
 
   const updateField = (field, value) => {
-    setProfile(prev => ({ ...prev, [field]: value }))
+    setProfile(prev => {
+      const next = { ...prev, [field]: value }
+      const bp = {
+        ...(prev.biologicalProfile || {
+          biologicalSex: 'male',
+          activityLevel: 'sedentary',
+          metabolicGoal: 'maintenance',
+          pregnancyStatus: 'none',
+          dietaryPreference: 'omnivore',
+          hypertension: false,
+        }),
+      }
+
+      if (field === 'height') bp.heightCm = value === '' ? undefined : Number(value)
+      if (field === 'weight') bp.weightKg = value === '' ? undefined : Number(value)
+      if (field === 'bodyFat') bp.bodyFatPercentage = value === '' ? undefined : Number(value)
+      if (field === 'gender' && (value === 'male' || value === 'female')) bp.biologicalSex = value
+
+      next.biologicalProfile = bp
+      return next
+    })
+  }
+
+  const updateBiologicalProfileField = (field, value) => {
+    setProfile(prev => ({
+      ...prev,
+      ...(field === 'biologicalSex' ? { gender: value } : {}),
+      biologicalProfile: {
+        ...(prev.biologicalProfile || {
+          biologicalSex: 'male',
+          activityLevel: 'sedentary',
+          metabolicGoal: 'maintenance',
+          pregnancyStatus: 'none',
+          dietaryPreference: 'omnivore',
+          hypertension: false,
+        }),
+        [field]: value
+      }
+    }))
   }
 
   const updatePersonalityField = (field, value) => {
@@ -516,6 +581,74 @@ function ProfilePanel() {
         updatedAt: new Date().toISOString(),
       },
     }))
+  }
+
+  const addMeasurementLog = () => {
+    setProfile(prev => {
+      const logs = Array.isArray(prev.bodyMeasurementLogs) ? [...prev.bodyMeasurementLogs] : []
+      const newLog = {
+        waistCm: '',
+        hipCm: '',
+        chestCm: '',
+        neckCm: '',
+        wristCm: '',
+        bicepCm: '',
+        thighCm: '',
+        bmi: '',
+        source: 'manual',
+        updatedAt: new Date().toISOString(),
+      }
+      logs.unshift(newLog)
+      return {
+        ...prev,
+        bodyMeasurementLogs: logs,
+        bodyMeasurements: newLog,
+      }
+    })
+    setSelectedMeasurementLogIndex(0)
+  }
+
+  const selectMeasurementLog = (idx) => {
+    setSelectedMeasurementLogIndex(idx)
+    setProfile(prev => {
+      const logs = Array.isArray(prev.bodyMeasurementLogs) ? prev.bodyMeasurementLogs : []
+      const selected = logs[idx] || null
+      if (!selected) return prev
+      return {
+        ...prev,
+        bodyMeasurements: { ...selected },
+      }
+    })
+  }
+
+  const updateMeasurementLogField = (field, value) => {
+    setProfile(prev => {
+      const logs = Array.isArray(prev.bodyMeasurementLogs) ? [...prev.bodyMeasurementLogs] : []
+      if (!logs[selectedMeasurementLogIndex]) {
+        logs[selectedMeasurementLogIndex] = {
+          source: 'manual',
+          updatedAt: new Date().toISOString(),
+        }
+      }
+      logs[selectedMeasurementLogIndex] = {
+        ...logs[selectedMeasurementLogIndex],
+        [field]: value,
+        source: 'manual',
+        updatedAt: new Date().toISOString(),
+      }
+      return {
+        ...prev,
+        bodyMeasurementLogs: logs,
+        bodyMeasurements: { ...logs[selectedMeasurementLogIndex] },
+      }
+    })
+  }
+
+  const getMeasurementLogLabel = (entry, idx) => {
+    const dt = entry?.updatedAt ? new Date(entry.updatedAt) : null
+    const fallback = `Entry ${idx + 1}`
+    if (!dt || Number.isNaN(dt.getTime())) return fallback
+    return dt.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
   const updateBodyCompositionField = (field, value) => {
@@ -965,7 +1098,7 @@ function ProfilePanel() {
     )
   }
 
-  const tabs = ['Basic', 'Body', 'Health', 'Diet', 'Training', 'Mind', 'Style', 'Measurements', 'Personality', 'Notes']
+  const tabs = ['Basic', 'Body', 'Clinical & Diet', 'Health', 'Training', 'Mind', 'Measurements', 'Personality']
 
   return (
     <Box>
@@ -1050,37 +1183,17 @@ function ProfilePanel() {
               />
               <TextField
                 label="Gender"
-                value={profile.gender}
+                select
+                SelectProps={{ native: true }}
+                value={profile.gender || ''}
                 onChange={(e) => updateField('gender', e.target.value)}
-                placeholder="Male / Female / Other"
                 sx={{ ...inputSx, flex: 1 }}
-              />
-            </Box>
-
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                label="Education"
-                value={profile.education}
-                onChange={(e) => updateField('education', e.target.value)}
-                placeholder="e.g., B.Tech, MBA, Self-taught"
-                sx={{ ...inputSx, flex: 1 }}
-              />
-              <TextField
-                label="Profession"
-                value={profile.profession}
-                onChange={(e) => updateField('profession', e.target.value)}
-                placeholder="e.g., Developer, Designer, Student"
-                sx={{ ...inputSx, flex: 1 }}
-              />
-            </Box>
-
-            <Box>
-              <SectionTitle>Skills</SectionTitle>
-              <ChipListInput
-                items={profile.skills}
-                onChange={(items) => updateField('skills', items)}
-                placeholder="Add skill (e.g., React, Writing, Sales)"
-              />
+              >
+                <option value="">Select</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </TextField>
             </Box>
           </Box>
         )}
@@ -1115,21 +1228,13 @@ function ProfilePanel() {
                 sx={{ ...inputSx, flex: 1 }}
               />
               <TextField
-                label="Resting Heart Rate"
+                label="Resting Heart Rate (Optional)"
                 type="number"
                 value={profile.restingHeartRate}
                 onChange={(e) => updateField('restingHeartRate', e.target.value)}
                 sx={{ ...inputSx, flex: 1 }}
               />
             </Box>
-
-            <TextField
-              label="Blood Type"
-              value={profile.bloodType}
-              onChange={(e) => updateField('bloodType', e.target.value)}
-              placeholder="A+ / B- / O+ / etc."
-              sx={inputSx}
-            />
           </Box>
         )}
 
@@ -1365,62 +1470,160 @@ function ProfilePanel() {
           </Box>
         )}
 
-        {/* Tab 3: Diet */}
+        {/* Tab 3: Clinical & Diet */}
         {activeTab === 3 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <Box>
-              <SectionTitle>Diet Type</SectionTitle>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>Metabolic & Dietary Engine Profile</Typography>
+              <Typography variant="body2" sx={{ color: '#6b7280', mb: 3 }}>
+                We use the scientific Mifflin-St Jeor / Katch-McArdle formulas to compute highly personalized clinical 
+                caloric and deep micronutrient targets (NIH DRIs) based on these precise biological metrics.
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 3 }}>
+              <Box>
+                <SectionTitle>Biological Sex</SectionTitle>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  {['male', 'female'].map((val) => (
+                    <Chip
+                      key={val}
+                      label={val.charAt(0).toUpperCase() + val.slice(1)}
+                      onClick={() => {
+                        updateBiologicalProfileField('biologicalSex', val)
+                        if (val === 'male') {
+                          updateBiologicalProfileField('pregnancyStatus', 'none')
+                        }
+                      }}
+                      sx={{
+                        flex: 1,
+                        bgcolor: profile.biologicalProfile?.biologicalSex === val ? '#171717' : '#f3f4f6',
+                        color: profile.biologicalProfile?.biologicalSex === val ? '#fff' : '#374151',
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              {profile.biologicalProfile?.biologicalSex === 'female' && (
+              <Box>
+                <SectionTitle>Pregnancy Status</SectionTitle>
+                <TextField
+                  fullWidth
+                  select
+                  SelectProps={{ native: true }}
+                  value={profile.biologicalProfile?.pregnancyStatus || 'none'}
+                  onChange={(e) => updateBiologicalProfileField('pregnancyStatus', e.target.value)}
+                  size="small"
+                >
+                  <option value="none">Not Pregnant</option>
+                  <option value="pregnant_trimester_1">Pregnant (1st Trimester)</option>
+                  <option value="pregnant_trimester_2">Pregnant (2nd Trimester)</option>
+                  <option value="pregnant_trimester_3">Pregnant (3rd Trimester)</option>
+                  <option value="lactating">Lactating</option>
+                </TextField>
+              </Box>
+              )}
+
+              <Box>
+                <SectionTitle>Hypertension History</SectionTitle>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  {[true, false].map((val) => (
+                    <Chip
+                      key={val.toString()}
+                      label={val ? 'Yes (Limits Sodium)' : 'No'}
+                      onClick={() => updateBiologicalProfileField('hypertension', val)}
+                      sx={{
+                        flex: 1,
+                        bgcolor: profile.biologicalProfile?.hypertension === val ? '#171717' : '#f3f4f6',
+                        color: profile.biologicalProfile?.hypertension === val ? '#fff' : '#374151',
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            </Box>
+
+            <Box>
+              <SectionTitle>Activity Level (PAL Multiplier)</SectionTitle>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {['omnivore', 'vegetarian', 'vegan', 'keto', 'paleo', 'jain', 'other'].map((diet) => (
+                {[
+                  { id: 'sedentary', label: 'Sedentary (Office/No Ex.)' },
+                  { id: 'lightly_active', label: 'Lightly Active (1-3 days)' },
+                  { id: 'moderately_active', label: 'Moderately Active' },
+                  { id: 'very_active', label: 'Very Active (Hard Ex.)' },
+                  { id: 'extra_active', label: 'Extra Active (Athlete)' }
+                ].map((act) => (
                   <Chip
-                    key={diet}
-                    label={diet.charAt(0).toUpperCase() + diet.slice(1)}
-                    onClick={() => updateField('dietType', diet)}
+                    key={act.id}
+                    label={act.label}
+                    onClick={() => updateBiologicalProfileField('activityLevel', act.id)}
                     sx={{
-                      bgcolor: profile.dietType === diet ? '#171717' : '#f3f4f6',
-                      color: profile.dietType === diet ? '#fff' : '#374151',
-                      '&:hover': { bgcolor: profile.dietType === diet ? '#171717' : '#e5e7eb' },
+                      bgcolor: profile.biologicalProfile?.activityLevel === act.id ? '#171717' : '#f3f4f6',
+                      color: profile.biologicalProfile?.activityLevel === act.id ? '#fff' : '#374151',
                     }}
                   />
                 ))}
               </Box>
             </Box>
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                label="Meals per Day"
-                type="number"
-                value={profile.mealsPerDay}
-                onChange={(e) => updateField('mealsPerDay', Number(e.target.value))}
-                sx={{ ...inputSx, flex: 1 }}
-              />
-              <TextField
-                label="Fasting Window (e.g., 16:8)"
-                value={profile.fastingWindow}
-                onChange={(e) => updateField('fastingWindow', e.target.value)}
-                sx={{ ...inputSx, flex: 1 }}
-              />
+            <Box>
+              <SectionTitle>Metabolic Goal</SectionTitle>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {[
+                  { id: 'aggressive_loss', label: 'Aggressive Loss (-1kg/wk)' },
+                  { id: 'mild_loss', label: 'Mild Loss (-0.5kg/wk)' },
+                  { id: 'maintenance', label: 'Maintenance' },
+                  { id: 'lean_gain', label: 'Lean Muscle Gain' },
+                  { id: 'aggressive_gain', label: 'Aggressive Gain (Bulking)' }
+                ].map((goal) => (
+                  <Chip
+                    key={goal.id}
+                    label={goal.label}
+                    onClick={() => updateBiologicalProfileField('metabolicGoal', goal.id)}
+                    sx={{
+                      bgcolor: profile.biologicalProfile?.metabolicGoal === goal.id ? '#171717' : '#f3f4f6',
+                      color: profile.biologicalProfile?.metabolicGoal === goal.id ? '#fff' : '#374151',
+                    }}
+                  />
+                ))}
+              </Box>
             </Box>
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                label="Daily Calorie Target"
-                type="number"
-                value={profile.dailyCalorieTarget}
-                onChange={(e) => updateField('dailyCalorieTarget', e.target.value)}
-                sx={{ ...inputSx, flex: 1 }}
-              />
-              <TextField
-                label="Daily Protein Target (g)"
-                type="number"
-                value={profile.dailyProteinTarget}
-                onChange={(e) => updateField('dailyProteinTarget', e.target.value)}
-                sx={{ ...inputSx, flex: 1 }}
-              />
+            <Box>
+              <SectionTitle>Dietary Preference</SectionTitle>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {['omnivore', 'pescatarian', 'vegetarian', 'vegan', 'keto', 'paleo'].map((diet) => (
+                  <Chip
+                    key={diet}
+                    label={diet.charAt(0).toUpperCase() + diet.slice(1)}        
+                    onClick={() => updateBiologicalProfileField('dietaryPreference', diet)}
+                    sx={{
+                      bgcolor: profile.biologicalProfile?.dietaryPreference === diet ? '#171717' : '#f3f4f6',
+                      color: profile.biologicalProfile?.dietaryPreference === diet ? '#fff' : '#374151',    
+                      '&:hover': { bgcolor: profile.biologicalProfile?.dietaryPreference === diet ? '#171717' : '#e5e7eb' },
+                    }}
+                  />
+                ))}
+              </Box>
             </Box>
 
             <Box>
               <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                Meals Per Day: {profile.mealsPerDay || 3}
+              </Typography>
+              <Slider
+                value={profile.mealsPerDay || 3}
+                onChange={(e, v) => updateField('mealsPerDay', v)}
+                min={1}
+                max={6}
+                step={1}
+                sx={{ color: '#171717' }}
+              />
+            </Box>
+
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>      
                 Hydration Goal: {profile.hydrationGoal} glasses/day
               </Typography>
               <Slider
@@ -1430,6 +1633,13 @@ function ProfilePanel() {
                 max={16}
                 sx={{ color: '#171717' }}
               />
+            </Box>
+
+            <Box sx={{ p: 2, bgcolor: '#f0fdf4', borderRadius: 2, border: '1px solid #bbf7d0', mt: 2 }}>
+              <Typography variant="subtitle2" sx={{ color: '#166534', fontWeight: 700 }}>Note on DRIs</Typography>
+              <Typography variant="body2" sx={{ color: '#166534', mt: 0.5 }}>
+                Targets act autonomously based on these selections. Vegans will automatically see a 1.8x bump in Iron targets (due to non-heme bioavailability differences). To update BMR precisely, ensure your DOB, Height, Weight, and Body Fat% are up to date in the "Body" tab.
+              </Typography>
             </Box>
 
             <Box>
@@ -1623,143 +1833,116 @@ function ProfilePanel() {
           </Box>
         )}
 
-        {/* Tab 6: Style */}
+        {/* Tab 6: Measurements */}
         {activeTab === 6 && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <Box>
-              <SectionTitle>Style Preference</SectionTitle>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {['casual', 'smart-casual', 'formal', 'athletic', 'streetwear', 'minimalist'].map((style) => (
-                  <Chip
-                    key={style}
-                    label={style.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                    onClick={() => updateField('stylePreference', style)}
-                    sx={{
-                      bgcolor: profile.stylePreference === style ? '#171717' : '#f3f4f6',
-                      color: profile.stylePreference === style ? '#fff' : '#374151',
-                      '&:hover': { bgcolor: profile.stylePreference === style ? '#171717' : '#e5e7eb' },
-                    }}
-                  />
-                ))}
-              </Box>
-            </Box>
-
-            <Box>
-              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
-                Body Confidence: {profile.bodyConfidence}/10
-              </Typography>
-              <Slider
-                value={profile.bodyConfidence}
-                onChange={(e, v) => updateField('bodyConfidence', v)}
-                min={1}
-                max={10}
-                sx={{ color: '#171717' }}
-              />
-            </Box>
-
-            <Box>
-              <SectionTitle>Favorite Colors</SectionTitle>
-              <ChipListInput
-                items={profile.favoriteColors}
-                onChange={(items) => updateField('favoriteColors', items)}
-                placeholder="Add color"
-              />
-            </Box>
-
-            <Box>
-              <SectionTitle>Colors to Avoid</SectionTitle>
-              <ChipListInput
-                items={profile.avoidColors}
-                onChange={(items) => updateField('avoidColors', items)}
-                placeholder="Add color"
-              />
-            </Box>
-
-            <Box>
-              <SectionTitle>Style Goals</SectionTitle>
-              <ChipListInput
-                items={profile.styleGoals}
-                onChange={(items) => updateField('styleGoals', items)}
-                placeholder="Add goal (e.g., Look more professional)"
-              />
-            </Box>
-          </Box>
-        )}
-
-        {/* Tab 7: Measurements */}
-        {activeTab === 7 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <Typography variant="body2" sx={{ color: '#6b7280' }}>
-              Keep a baseline of body measurements (manual) and optionally import a body scan report.
+              Log measurements by date. Add a new entry, then click any previous date to view or edit all fields.
             </Typography>
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                label="Waist (cm)"
-                type="number"
-                value={profile.bodyMeasurements?.waistCm ?? ''}
-                onChange={(e) => updateMeasurementField('waistCm', e.target.value)}
-                sx={{ ...inputSx, flex: 1 }}
-              />
-              <TextField
-                label="Hip (cm)"
-                type="number"
-                value={profile.bodyMeasurements?.hipCm ?? ''}
-                onChange={(e) => updateMeasurementField('hipCm', e.target.value)}
-                sx={{ ...inputSx, flex: 1 }}
-              />
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
+              <SectionTitle>Measurement Log</SectionTitle>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={addMeasurementLog}
+                sx={{ textTransform: 'none', borderColor: '#171717', color: '#171717' }}
+              >
+                + Add Measurement
+              </Button>
             </Box>
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                label="Chest (cm)"
-                type="number"
-                value={profile.bodyMeasurements?.chestCm ?? ''}
-                onChange={(e) => updateMeasurementField('chestCm', e.target.value)}
-                sx={{ ...inputSx, flex: 1 }}
-              />
-              <TextField
-                label="Neck (cm)"
-                type="number"
-                value={profile.bodyMeasurements?.neckCm ?? ''}
-                onChange={(e) => updateMeasurementField('neckCm', e.target.value)}
-                sx={{ ...inputSx, flex: 1 }}
-              />
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              {(profile.bodyMeasurementLogs || []).map((entry, idx) => (
+                <Chip
+                  key={`${entry?.updatedAt || 'entry'}-${idx}`}
+                  label={getMeasurementLogLabel(entry, idx)}
+                  onClick={() => selectMeasurementLog(idx)}
+                  sx={{
+                    bgcolor: idx === selectedMeasurementLogIndex ? '#171717' : '#f3f4f6',
+                    color: idx === selectedMeasurementLogIndex ? '#fff' : '#374151',
+                  }}
+                />
+              ))}
             </Box>
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                label="Wrist (cm)"
-                type="number"
-                value={profile.bodyMeasurements?.wristCm ?? ''}
-                onChange={(e) => updateMeasurementField('wristCm', e.target.value)}
-                sx={{ ...inputSx, flex: 1 }}
-              />
-              <TextField
-                label="Bicep (cm)"
-                type="number"
-                value={profile.bodyMeasurements?.bicepCm ?? ''}
-                onChange={(e) => updateMeasurementField('bicepCm', e.target.value)}
-                sx={{ ...inputSx, flex: 1 }}
-              />
-            </Box>
+            {(profile.bodyMeasurementLogs || []).length === 0 && (
+              <Typography variant="body2" sx={{ color: '#9ca3af' }}>
+                No measurements logged yet. Click "Add Measurement" to create your first entry.
+              </Typography>
+            )}
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                label="Thigh (cm)"
-                type="number"
-                value={profile.bodyMeasurements?.thighCm ?? ''}
-                onChange={(e) => updateMeasurementField('thighCm', e.target.value)}
-                sx={{ ...inputSx, flex: 1 }}
-              />
-              <TextField
-                label="BMI"
-                type="number"
-                value={profile.bodyMeasurements?.bmi ?? ''}
-                onChange={(e) => updateMeasurementField('bmi', e.target.value)}
-                sx={{ ...inputSx, flex: 1 }}
-              />
-            </Box>
+            {(profile.bodyMeasurementLogs || []).length > 0 && (
+              <>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextField
+                    label="Waist (cm)"
+                    type="number"
+                    value={profile.bodyMeasurements?.waistCm ?? ''}
+                    onChange={(e) => updateMeasurementLogField('waistCm', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                  <TextField
+                    label="Hip (cm)"
+                    type="number"
+                    value={profile.bodyMeasurements?.hipCm ?? ''}
+                    onChange={(e) => updateMeasurementLogField('hipCm', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextField
+                    label="Chest (cm)"
+                    type="number"
+                    value={profile.bodyMeasurements?.chestCm ?? ''}
+                    onChange={(e) => updateMeasurementLogField('chestCm', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                  <TextField
+                    label="Neck (cm)"
+                    type="number"
+                    value={profile.bodyMeasurements?.neckCm ?? ''}
+                    onChange={(e) => updateMeasurementLogField('neckCm', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextField
+                    label="Wrist (cm)"
+                    type="number"
+                    value={profile.bodyMeasurements?.wristCm ?? ''}
+                    onChange={(e) => updateMeasurementLogField('wristCm', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                  <TextField
+                    label="Bicep (cm)"
+                    type="number"
+                    value={profile.bodyMeasurements?.bicepCm ?? ''}
+                    onChange={(e) => updateMeasurementLogField('bicepCm', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextField
+                    label="Thigh (cm)"
+                    type="number"
+                    value={profile.bodyMeasurements?.thighCm ?? ''}
+                    onChange={(e) => updateMeasurementLogField('thighCm', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                  <TextField
+                    label="BMI"
+                    type="number"
+                    value={profile.bodyMeasurements?.bmi ?? ''}
+                    onChange={(e) => updateMeasurementLogField('bmi', e.target.value)}
+                    sx={{ ...inputSx, flex: 1 }}
+                  />
+                </Box>
+              </>
+            )}
 
             <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 1, border: '1px solid #e5e7eb' }}>
               <Typography variant="subtitle2" sx={{ mb: 1, color: '#374151', fontWeight: 600 }}>
@@ -1993,8 +2176,8 @@ function ProfilePanel() {
           </Box>
         )}
 
-        {/* Tab 8: Personality */}
-        {activeTab === 8 && (
+        {/* Tab 7: Personality */}
+        {activeTab === 7 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <Box>
               <SectionTitle>Introvert / Extrovert</SectionTitle>
@@ -2051,74 +2234,7 @@ function ProfilePanel() {
           </Box>
         )}
 
-        {/* Tab 9: Notes */}
-        {activeTab === 9 && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
-              This information helps the AI understand you better and provide more personalized advice.
-            </Typography>
-
-            <TextField
-              label="Biggest Challenges"
-              multiline
-              rows={3}
-              value={profile.biggestChallenges}
-              onChange={(e) => updateField('biggestChallenges', e.target.value)}
-              placeholder="What are your biggest health/fitness challenges right now?"
-              sx={inputSx}
-            />
-
-            <TextField
-              label="What You Fear The Most"
-              multiline
-              rows={3}
-              value={profile.fearMost}
-              onChange={(e) => updateField('fearMost', e.target.value)}
-              placeholder="What do you fear the most right now (health, future, failure, etc.)?"
-              sx={inputSx}
-            />
-
-            <TextField
-              label="What Matters The Most"
-              multiline
-              rows={3}
-              value={profile.whatMattersMost}
-              onChange={(e) => updateField('whatMattersMost', e.target.value)}
-              placeholder="What matters the most to you (values, family, freedom, impact, etc.)?"
-              sx={inputSx}
-            />
-
-            <TextField
-              label="What Has Worked Before"
-              multiline
-              rows={3}
-              value={profile.whatWorkedBefore}
-              onChange={(e) => updateField('whatWorkedBefore', e.target.value)}
-              placeholder="What approaches have helped you succeed in the past?"
-              sx={inputSx}
-            />
-
-            <TextField
-              label="What Didn't Work"
-              multiline
-              rows={3}
-              value={profile.whatDidntWork}
-              onChange={(e) => updateField('whatDidntWork', e.target.value)}
-              placeholder="What have you tried that didn't work for you?"
-              sx={inputSx}
-            />
-
-            <TextField
-              label="Long-term Vision"
-              multiline
-              rows={3}
-              value={profile.longTermVision}
-              onChange={(e) => updateField('longTermVision', e.target.value)}
-              placeholder="Where do you want to be in 1–5 years? (energy, body, habits, work-life, relationships) What does a good week look like? What do you want to protect at all costs?"
-              sx={inputSx}
-            />
-          </Box>
-        )}
+        {/* Tab 8 removed entirely */}
       </Box>
     </Box>
   )

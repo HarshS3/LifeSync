@@ -184,7 +184,7 @@ async function runReminderTick(now = new Date(), options = {}) {
 }
 
 // Main reminder job: run every minute so any selected HH:MM works.
-const DISABLE_CRON = String(process.env.REMINDER_SCHEDULER_DISABLE_CRON || '').trim() === '1';
+const DISABLE_CRON = true; // String(process.env.REMINDER_SCHEDULER_DISABLE_CRON || '').trim() === '1';
 if (!DISABLE_CRON) {
   cron.schedule('* * * * *', async () => {
     try {

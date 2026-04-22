@@ -1762,7 +1762,10 @@ function NutritionTracker() {
             )}
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {log.meals?.map((meal, idx) => {
+              {[...(log.meals || [])]
+                .map((meal, originalIdx) => ({ meal, originalIdx }))
+                .reverse()
+                .map(({ meal, originalIdx }) => {
                 const mealTotals = meal.foods?.reduce(
                   (acc, f) => ({
                     calories: acc.calories + (f.calories || 0),
@@ -1775,7 +1778,7 @@ function NutritionTracker() {
 
                 return (
                   <Box
-                    key={idx}
+                    key={originalIdx}
                     sx={{
                       p: 2,
                       borderRadius: 1.5,
@@ -1798,13 +1801,10 @@ function NutritionTracker() {
                             <Typography variant="caption" sx={{ color: '#6b7280' }}>
                               {(() => {
                                 const [h, m] = meal.time.split(':');
-                                if (h === undefined || m === undefined) return meal.time;
-                                let hour = parseInt(h, 10);
-                                const min = m;
-                                const ampm = hour >= 12 ? 'PM' : 'AM';
-                                hour = hour % 12;
-                                if (hour === 0) hour = 12;
-                                return `${hour}:${min} ${ampm}`;
+                                const hours = parseInt(h);
+                                const ampm = hours >= 12 ? 'PM' : 'AM';
+                                const h12 = hours % 12 || 12;
+                                return `${h12}:${m} ${ampm}`;
                               })()}
                             </Typography>
                           )}
@@ -1817,7 +1817,7 @@ function NutritionTracker() {
                           </Typography>
                           <IconButton
                             size="small"
-                            onClick={() => editMealFromDay(idx)}
+                            onClick={() => editMealFromDay(originalIdx)}
                             sx={{ p: 0.25, color: '#3b82f6', '&:hover': { bgcolor: '#eff6ff' } }}
                             title="Edit meal"
                           >
@@ -1825,7 +1825,7 @@ function NutritionTracker() {
                           </IconButton>
                           <IconButton
                             size="small"
-                            onClick={() => removeMealFromDay(idx)}
+                            onClick={() => removeMealFromDay(originalIdx)}
                             sx={{ p: 0.25, color: '#ef4444', '&:hover': { bgcolor: '#fee2e2' } }}
                             title="Delete meal"
                           >
@@ -1851,7 +1851,7 @@ function NutritionTracker() {
                       <Box sx={{ mt: 1.5 }}>
                         <ExpandableSection 
                           title="Nutrient Interactions & Bioavailability" 
-                          defaultOpen={meal.insights.antagonisms?.length > 0}
+                          defaultOpen={false}
                         >
                           <Box sx={{ p: 1.5, bgcolor: '#fff', borderRadius: 1.5, border: '1px dashed #d1d5db' }}>
                             {meal.insights.synergies?.map((syn, i) => (
@@ -1888,7 +1888,7 @@ function NutritionTracker() {
                       <Box sx={{ mt: 1.5 }}>
                         <ExpandableSection
                           title={`Absorption Analysis (${meal.bioavailability.overallConfidence || 'medium'} confidence)`}
-                          defaultOpen={Object.values(meal.bioavailability.results).some(r => r.multiplier < 0.7)}
+                          defaultOpen={false}
                         >
                           <Box sx={{ p: 1.5, bgcolor: '#fff', borderRadius: 1.5, border: '1px dashed #c7d2fe' }}>
                             {meal.bioavailability.narratives?.length > 0 && (

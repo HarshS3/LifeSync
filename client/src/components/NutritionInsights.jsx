@@ -117,7 +117,7 @@ const MacroEditorialView = ({ data }) => {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {data.insights?.length > 0 && (
         <Box sx={{ bgcolor: 'var(--ls-text)', color: 'var(--ls-bg)', p: { xs: 4, md: 6 }, borderRadius: '4px' }}>
-          <Typography sx={{ fontFamily: 'var(--font-serif, "Georgia", serif)', fontStyle: 'italic', fontSize: '2rem', mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography component="div" sx={{ fontFamily: 'var(--font-serif, "Georgia", serif)', fontStyle: 'italic', fontSize: '2rem', mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
             State Reflection <Box sx={{ flex: 1, height: '1px', bgcolor: 'var(--ls-bg)', opacity: 0.2 }} />
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -191,7 +191,7 @@ const MicroEditorialView = ({ data }) => {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {data.insights?.length > 0 && (
         <Box sx={{ bgcolor: 'var(--ls-accent)', color: '#f6f1e7', p: { xs: 4, md: 6 }, borderRadius: '4px' }}>
-          <Typography sx={{ fontFamily: 'var(--font-serif, "Georgia", serif)', fontStyle: 'italic', fontSize: '2rem', mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography component="div" sx={{ fontFamily: 'var(--font-serif, "Georgia", serif)', fontStyle: 'italic', fontSize: '2rem', mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
             Micronutrient Matrix <Box sx={{ flex: 1, height: '1px', bgcolor: 'rgba(246, 241, 231, 0.2)' }} />
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -230,7 +230,7 @@ const BioavailabilityMatrix = () => {
 
   return (
     <Box sx={{ mt: 8, pt: 8, borderTop: '2px solid var(--ls-text)' }}>
-      <Typography sx={{ fontFamily: 'var(--font-serif, "Georgia", serif)', fontStyle: 'italic', fontSize: '2rem', mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Typography component="div" sx={{ fontFamily: 'var(--font-serif, "Georgia", serif)', fontStyle: 'italic', fontSize: '2rem', mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
         Absorption & Bioavailability Matrix <Box sx={{ flex: 1, height: '1px', bgcolor: 'var(--ls-text)', opacity: 0.1 }} />
       </Typography>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 4 }}>

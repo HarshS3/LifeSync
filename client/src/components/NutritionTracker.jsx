@@ -1,6 +1,8 @@
 import ExpandableSection from './ExpandableSection'
 import NutritionInsights from './NutritionInsights'
+import WeightTracker from './WeightTracker'
 import { useState, useEffect, useMemo, useRef } from 'react'
+import RecipeExplorer from './RecipeExplorer'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -12,6 +14,14 @@ import Chip from '@mui/material/Chip'
 import LinearProgress from '@mui/material/LinearProgress'
 import Divider from '@mui/material/Divider'
 import Stack from '@mui/material/Stack'
+import Grid from '@mui/material/Grid'
+import FormControl from '@mui/material/FormControl'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Switch from '@mui/material/Switch'
+import Checkbox from '@mui/material/Checkbox'
+import Select from '@mui/material/Select'
+import MenuItem from '@mui/material/MenuItem'
+import InputLabel from '@mui/material/InputLabel'
 import WaterDropIcon from '@mui/icons-material/WaterDrop'
 import RestaurantIcon from '@mui/icons-material/Restaurant'
 import LocalDiningIcon from '@mui/icons-material/LocalDining'
@@ -21,6 +31,8 @@ import TodayIcon from '@mui/icons-material/Today'
 import CloseIcon from '@mui/icons-material/Close'
 import EditIcon from '@mui/icons-material/Edit'
 import InfoIcon from '@mui/icons-material/Info'
+import BookmarkIcon from '@mui/icons-material/Bookmark'
+import DeleteIcon from '@mui/icons-material/Delete'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
@@ -28,7 +40,7 @@ import { API_BASE } from '../config'
 const generateCGMData = (meals) => {
   const points = [];
   const baseline = 90;
-  
+
   // Create 24 hours of data, 30 min intervals (48 points)
   for (let i = 0; i < 48; i++) {
     const hour = Math.floor(i / 2);
@@ -39,55 +51,76 @@ const generateCGMData = (meals) => {
 
   if (!meals || meals.length === 0) return points;
 
-  // For each meal, simulate an impulse response
-  meals.forEach(meal => {
-    if (!meal.time) return;
-    const [h, m] = meal.time.split(':').map(Number);
-    if (isNaN(h) || isNaN(m)) return;
-    
-    const mealMinute = h * 60 + m;
-    
-    // Calculate total macros for meal
-    let totalCarbs = 0;
-    let totalFiber = 0;
-    let totalProtein = 0;
-    let totalFat = 0;
-    
+  // ── Option B: Second Meal Effect via Fiber Carryover ──────────────────────
+  // Sort meals chronologically so we can track cumulative fiber eaten before
+  // each meal. High fiber from earlier meals improves insulin sensitivity and
+  // slows gastric emptying for subsequent meals (the real biological mechanism).
+  const mealsSorted = [...meals]
+    .map(meal => {
+      const parts = (meal.time || '').split(':').map(Number);
+      const mealMinute = (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]))
+        ? parts[0] * 60 + parts[1]
+        : null;
+      return { meal, mealMinute };
+    })
+    .filter(m => m.mealMinute !== null)
+    .sort((a, b) => a.mealMinute - b.mealMinute);
+
+  let cumulativeFiberEaten = 0; // Running total of fiber from all prior meals
+
+  mealsSorted.forEach(({ meal, mealMinute }) => {
+    let totalCarbs = 0, totalFiber = 0, totalProtein = 0, totalFat = 0;
+
     meal.foods?.forEach(f => {
-      totalCarbs += f.carbs || 0;
-      totalFiber += f.fiber || 0;
+      totalCarbs   += f.carbs   || 0;
+      totalFiber   += f.fiber   || 0;
       totalProtein += f.protein || 0;
-      totalFat += f.fat || 0;
+      totalFat     += f.fat     || 0;
     });
 
-    if (totalCarbs === 0) return; // No carbs, no spike
+    if (totalCarbs === 0) {
+      // No carbs → no spike, but fiber still accumulates for future meals
+      cumulativeFiberEaten += totalFiber;
+      return;
+    }
 
-    const gp = totalCarbs / (totalFiber + totalProtein + 1);
-    
-    const baseAmp = Math.min(totalCarbs, 80); // Cap amp
-    const multiplier = Math.min(gp / 5, 2.5); // Normal multiplier
-    const peakAmp = baseAmp * multiplier;
+    // ── Second Meal Effect ─────────────────────────────────────────────────
+    // Each gram of fiber eaten before this meal reduces its glycemic pressure
+    // by 1.5%, capped at a 40% total reduction.
+    // Science: SCFAs from fiber fermentation slow gastric emptying and improve
+    // beta-cell sensitivity for subsequent meals across the day.
+    const fiberCarryoverBonus = Math.min(cumulativeFiberEaten * 0.015, 0.40);
+    const adjustedGP = (totalCarbs / (totalFiber + totalProtein + 1)) * (1 - fiberCarryoverBonus);
 
-    const buffer = totalFiber + (totalFat * 0.5) + (totalProtein * 0.2); 
-    const stdDev = 45 + Math.min(buffer * 3, 90); // minutes spread
-    
+    const baseAmp    = Math.min(totalCarbs, 80);        // cap raw amplitude
+    const multiplier = Math.min(adjustedGP / 5, 2.5);  // scale with adjusted GP
+    const peakAmp    = baseAmp * multiplier;
+
+    // Buffer widens the curve (more buffer = slower, flatter digestion)
+    const buffer = totalFiber + (totalFat * 0.5) + (totalProtein * 0.2);
+    const timeConstant = 45 + Math.min(buffer * 3, 90);
+
+    // Impulse-response curve anchored at meal time
     points.forEach(pt => {
-      if (pt.minuteOfDay < mealMinute) return; // Happens after
-      
-      const t = pt.minuteOfDay - mealMinute; // Minutes since meal
-      const timeConstant = stdDev;
+      if (pt.minuteOfDay < mealMinute) return;
+      const t = pt.minuteOfDay - mealMinute;
       const response = Math.max(0, (t / timeConstant) * Math.exp(1 - (t / timeConstant)));
-      
-      pt.glucose += (peakAmp * response);
+      pt.glucose += peakAmp * response;
     });
+
+    // Update cumulative fiber AFTER this meal's calculation so only PRIOR
+    // meals' fiber counts toward the discount (not the current meal's own fiber).
+    cumulativeFiberEaten += totalFiber;
   });
 
+  // Clamp and round all points
   points.forEach(pt => {
     pt.glucose = Math.max(75, Math.round(pt.glucose));
   });
 
   return points;
 };
+
 
 const MEAL_TYPES = [
   'breakfast',
@@ -123,6 +156,7 @@ const TARGET_KEY_TO_TOTAL_KEY = {
   selenium: 'selenium',
   vitaminE: 'vitaminE',
   omega3: 'omega3',
+  cholesterol: 'cholesterol',
 }
 
 const MICRO_TO_TARGET_KEY = {
@@ -143,6 +177,7 @@ const MICRO_TO_TARGET_KEY = {
   vitaminC: 'vitaminC',
   vitaminD: 'vitaminD',
   vitaminE: 'vitaminE',
+  cholesterol: 'cholesterol',
 }
 const EMPTY_TOTALS = {
   calories: 0,
@@ -213,9 +248,9 @@ const MACRO_FIELD_META = [
   { key: 'fiber', label: 'Fiber', unit: 'g' },
   { key: 'sugar', label: 'Sugar', unit: 'g' },
   { key: 'omega3', label: 'Omega-3', unit: 'g' },
-  { key: 'saturatedFat', label: 'Sat. fat', unit: 'mg' },
-  { key: 'monounsaturatedFat', label: 'MUFA', unit: 'mg' },
-  { key: 'polyunsaturatedFat', label: 'PUFA', unit: 'mg' },
+  { key: 'saturatedFat', label: 'Sat. fat', unit: 'g' },
+  { key: 'monounsaturatedFat', label: 'MUFA', unit: 'g' },
+  { key: 'polyunsaturatedFat', label: 'PUFA', unit: 'g' },
   { key: 'cholesterol', label: 'Cholesterol', unit: 'mg' },
 ]
 
@@ -245,6 +280,7 @@ const VITAMIN_FIELD_META = [
 const SUMMARY_MICRO_META = [
   ...MINERAL_FIELD_META,
   ...VITAMIN_FIELD_META,
+  { key: 'cholesterol', label: 'Cholesterol', unit: 'mg' },
 ]
 
 const createEmptyFoodRow = () => ({
@@ -332,6 +368,7 @@ function NutritionTracker() {
   })
   const [log, setLog] = useState({ meals: [], waterIntake: 0, dailyTotals: EMPTY_TOTALS, notes: '' })
   const [loading, setLoading] = useState(false)
+  const [timingAlerts, setTimingAlerts] = useState([])
 
   const [nutritionInsight, setNutritionInsight] = useState(null)
   const [nutritionInsightGenerating, setNutritionInsightGenerating] = useState(false)
@@ -357,6 +394,7 @@ function NutritionTracker() {
   const [clinicalTargets, setClinicalTargets] = useState(null)
   const [clinicalTargetsRequiresSetup, setClinicalTargetsRequiresSetup] = useState(false)
   const [clinicalTargetsMissingFields, setClinicalTargetsMissingFields] = useState([])
+  const [dynamicTargets, setDynamicTargets] = useState({})
 
   const [weightValue, setWeightValue] = useState('')
   const [weightLoading, setWeightLoading] = useState(false)
@@ -386,6 +424,13 @@ function NutritionTracker() {
   const scanStreamRef = useRef(null)
 
   const foodPipelineRunIdRef = useRef(0)
+
+  const [savedTemplates, setSavedTemplates] = useState([])
+  const [savedTemplatesLoading, setSavedTemplatesLoading] = useState(false)
+  const [templateName, setTemplateName] = useState('')
+  const [savingTemplate, setSavingTemplate] = useState(false)
+  const [frequentMeals, setFrequentMeals] = useState([])
+  const [frequentMealsLoading, setFrequentMealsLoading] = useState(false)
 
   const [newMeal, setNewMeal] = useState({
     name: '',
@@ -428,9 +473,10 @@ function NutritionTracker() {
 
   useEffect(() => {
     if (!token) return
-    if (activeTab !== 3) return
-    loadSummaryStats()
-      loadClinicalTargets()
+    loadClinicalTargets()
+    if (activeTab === 3) {
+      loadSummaryStats()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, activeTab])
 
@@ -469,6 +515,13 @@ function NutritionTracker() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadedBarcodePreview])
+
+  useEffect(() => {
+    if (token) {
+      loadSavedTemplates()
+      loadFrequentMeals()
+    }
+  }, [token])
 
   const getAuthHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {})
 
@@ -787,14 +840,113 @@ function NutritionTracker() {
       }
 
       if (rangeRes.status === 'fulfilled' && rangeRes.value.ok) {
-        const logs = await safeReadJson(rangeRes.value)
+        const data = await safeReadJson(rangeRes.value)
+        const logs = data?.logs || []
         setRangeDaysLogged(Array.isArray(logs) ? logs.length : null)
+        if (data?.dynamicTargets) {
+          setDynamicTargets(prev => ({ ...prev, ...data.dynamicTargets }))
+        }
       }
     } catch (err) {
       console.error('Failed to load nutrition summary stats:', err)
     } finally {
       setNutritionStatsLoading(false)
     }
+  }
+
+  const loadSavedTemplates = async () => {
+    if (!token) return
+    setSavedTemplatesLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/nutrition/saved-templates`, {
+        headers: getAuthHeaders(),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setSavedTemplates(Array.isArray(data) ? data : [])
+      }
+    } catch (err) {
+      console.error('Failed to load templates:', err)
+    } finally {
+      setSavedTemplatesLoading(false)
+    }
+  }
+
+  const saveAsTemplate = async () => {
+    if (!token) return
+    if (!templateName.trim()) return
+    setSavingTemplate(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/nutrition/saved-templates`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: templateName,
+          mealType: newMeal.mealType,
+          foods: newMeal.foods,
+          notes: newMeal.notes
+        }),
+      })
+      if (res.ok) {
+        const data = await safeReadJson(res)
+        setSavedTemplates(prev => [data, ...prev])
+        setTemplateName('')
+      }
+    } catch (err) {
+      console.error('Failed to save template:', err)
+    } finally {
+      setSavingTemplate(false)
+    }
+  }
+
+  const deleteTemplate = async (id) => {
+    if (!token) return
+    try {
+      const res = await fetch(`${API_BASE}/api/nutrition/saved-templates/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      })
+      if (res.ok) {
+        setSavedTemplates(prev => prev.filter(t => t._id !== id))
+      }
+    } catch (err) {
+      console.error('Failed to delete template:', err)
+    }
+  }
+
+  const loadFrequentMeals = async () => {
+    if (!token) return
+    setFrequentMealsLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/nutrition/meal-templates`, {
+        headers: getAuthHeaders(),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setFrequentMeals(Array.isArray(data.templates) ? data.templates : [])
+      }
+    } catch (err) {
+      console.error('Failed to load frequent meals:', err)
+    } finally {
+      setFrequentMealsLoading(false)
+    }
+  }
+
+  const useTemplate = (tpl) => {
+    // Check if it's a frequent meal (t.mealName) or saved template (t.name)
+    const name = tpl.mealName || tpl.name
+    const foods = tpl.foods.map(f => {
+       const { _id, id, ...rest } = f;
+       return { ...rest };
+    })
+    
+    setNewMeal({
+      name: name || '',
+      mealType: tpl.mealType || 'snack',
+      time: new Date().toTimeString().slice(0, 5),
+      foods,
+      notes: tpl.notes || ''
+    })
   }
 
   const aggregateTotalsFromLogs = (logs) => {
@@ -828,11 +980,22 @@ function NutritionTracker() {
         fetch(`${API_BASE}/api/nutrition/logs/range/${encodeURIComponent(monthStart.toISOString())}/${encodeURIComponent(end.toISOString())}`, { headers }),
       ])
 
-      const weekLogs = weekRes.ok ? await safeReadJson(weekRes) : []
-      const monthLogs = monthRes.ok ? await safeReadJson(monthRes) : []
+      const weekData = weekRes.ok ? await safeReadJson(weekRes) : { logs: [], dynamicTargets: {} }
+      const monthData = monthRes.ok ? await safeReadJson(monthRes) : { logs: [], dynamicTargets: {} }
 
-      setWeeklyTotals(aggregateTotalsFromLogs(Array.isArray(weekLogs) ? weekLogs : []))
-      setMonthlyTotals(aggregateTotalsFromLogs(Array.isArray(monthLogs) ? monthLogs : []))
+      const weekLogs = weekData.logs || []
+      const monthLogs = monthData.logs || []
+      
+      if (weekData.dynamicTargets || monthData.dynamicTargets) {
+        setDynamicTargets(prev => ({ 
+          ...prev, 
+          ...(weekData.dynamicTargets || {}), 
+          ...(monthData.dynamicTargets || {}) 
+        }))
+      }
+
+      setWeeklyTotals(aggregateTotalsFromLogs(weekLogs))
+      setMonthlyTotals(aggregateTotalsFromLogs(monthLogs))
     } catch (err) {
       console.error('Failed to load period summary:', err)
       setWeeklyTotals({ ...EMPTY_TOTALS })
@@ -858,13 +1021,25 @@ function NutritionTracker() {
         const data = await res.json()
         setLog({
           meals: data.meals || [],
+          supplements: data.supplements || [],
           waterIntake: data.waterIntake || 0,
           dailyTotals: data.dailyTotals || { ...EMPTY_TOTALS },
           notes: data.notes || '',
           _id: data._id,
         })
       } else {
-        setLog({ meals: [], waterIntake: 0, dailyTotals: { ...EMPTY_TOTALS }, notes: '' })
+        setLog({ meals: [], supplements: [], waterIntake: 0, dailyTotals: { ...EMPTY_TOTALS }, notes: '' })
+      }
+
+      // Fetch Meal Timing Intelligence
+      const timingRes = await fetch(`${API_BASE}/api/nutrition/timing-analysis/${encodeURIComponent(dateStr)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (timingRes.ok) {
+        const timingData = await timingRes.json()
+        setTimingAlerts(timingData.alerts || [])
+      } else {
+        setTimingAlerts([])
       }
     } catch (err) {
       console.error('Failed to load nutrition log:', err)
@@ -1040,12 +1215,14 @@ function NutritionTracker() {
       targetIndex = 0;
     }
 
-    const lastFood = newMeal.foods[targetIndex];
+    const lastFood = newMeal.foods[0];
     if (lastFood && lastFood.name && lastFood.name.trim() !== '') {
-      // Last row is filled, add a new one and target it
-      const newFoods = [...newMeal.foods, createEmptyFoodRow()];
+      // First row is filled, add a new one at the top and target it
+      const newFoods = [createEmptyFoodRow(), ...newMeal.foods];
       setNewMeal(prev => ({ ...prev, foods: newFoods }));
-      targetIndex = newFoods.length - 1;
+      targetIndex = 0;
+    } else {
+      targetIndex = 0;
     }
 
     applyFoodResultToRow(foodResult, targetIndex);
@@ -1107,8 +1284,8 @@ function NutritionTracker() {
     setNewMeal(prev => ({
       ...prev,
       foods: [
-        ...prev.foods,
         createEmptyFoodRow(),
+        ...prev.foods,
       ],
     }))
   }
@@ -1301,7 +1478,7 @@ function NutritionTracker() {
     setLog(prev => {
       updatedLog = {
         ...prev,
-        meals: [...(prev.meals || []), meal],
+        meals: [meal, ...(prev.meals || [])],
       }
       return updatedLog
     })
@@ -1357,6 +1534,7 @@ function NutritionTracker() {
       const payload = {
         date: selectedDate.toISOString(),
         meals: dataToSave.meals,
+        supplements: dataToSave.supplements,
         waterIntake: dataToSave.waterIntake || 0,
         notes: dataToSave.notes,
       }
@@ -1374,6 +1552,7 @@ function NutritionTracker() {
           ...prev,
           _id: saved._id,
           meals: saved.meals || prev.meals,
+          supplements: saved.supplements || prev.supplements,
           dailyTotals: saved.dailyTotals || { ...EMPTY_TOTALS },
         }))
       }
@@ -1387,6 +1566,7 @@ function NutritionTracker() {
       const payload = {
         date: selectedDate.toISOString(),
         meals: log.meals,
+        supplements: log.supplements,
         waterIntake: log.waterIntake || 0,
         notes: log.notes,
       }
@@ -1501,8 +1681,9 @@ function NutritionTracker() {
   }, [clinicalTargets, totals])
 
   const microTargetLookup = useMemo(() => {
-    const micros = clinicalTargets?.targets?.micronutrients || {}
-    return micros
+    const t = clinicalTargets?.targets || {}
+    const micros = t.micronutrients || {}
+    return { ...t, ...micros }
   }, [clinicalTargets])
 
   const percent = (value, target) => {
@@ -1737,6 +1918,7 @@ function NutritionTracker() {
         <Tab label="Summary" />
         <Tab label="Scan Product" />
         <Tab label="Insights" />
+        <Tab label="Recipes" />
       </Tabs>
 
       {activeTab === 0 && (
@@ -1762,9 +1944,8 @@ function NutritionTracker() {
             )}
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {[...(log.meals || [])]
+              {(log.meals || [])
                 .map((meal, originalIdx) => ({ meal, originalIdx }))
-                .reverse()
                 .map(({ meal, originalIdx }) => {
                 const mealTotals = meal.foods?.reduce(
                   (acc, f) => ({
@@ -1966,6 +2147,61 @@ function NutritionTracker() {
             ))}
           </Box>
 
+          {/* ── Daily Warnings & Insights ── */}
+          {(() => {
+            const alerts = [];
+            // SFA Alert
+            if (totals.saturatedFat > 30) {
+              alerts.push({ type: 'warning', text: `High Saturated Fat (${fmt(totals.saturatedFat)}g): Keeping saturated fat <20-30g protects your heart health over the long term.` });
+            }
+            // Cholesterol Alert
+            if (totals.cholesterol > 300) {
+              alerts.push({ type: 'warning', text: `High Cholesterol (${fmt(totals.cholesterol)}mg): Consider balancing this with high-fiber foods (oats, beans, leafy greens) which help clear excess cholesterol from your system.` });
+            }
+            // Sodium Alert
+            if (totals.sodium > 3000) {
+              alerts.push({ type: 'warning', text: `High Sodium Detected (${fmt(totals.sodium)}mg): Hydrate extra today or expect 1-2lbs of water retention on the scale tomorrow. This is not fat gain.` });
+            }
+            // Protein Distribution Alert
+            if (totals.protein > 50 && log.meals) {
+              const spikeMeal = log.meals.find(meal => {
+                const p = meal.foods?.reduce((acc, f) => acc + (f.protein || 0), 0) || 0;
+                return p > 50 && p > (totals.protein * 0.5);
+              });
+              if (spikeMeal) {
+                alerts.push({ type: 'info', text: `Lopsided Protein Loading: More than 50% of your daily protein is in "${spikeMeal.name}". Your body maximizes muscle synthesis at ~30-40g per meal. Spread it out for better gains.` });
+              }
+            }
+
+            // Meal Timing Intelligence (Workout/Sleep)
+            timingAlerts.forEach(t => {
+              alerts.push({ 
+                type: t.type === 'timing_warning' ? 'warning' : 'info', 
+                text: `${t.title}: ${t.text}` 
+              });
+            });
+
+            if (alerts.length === 0) return null;
+
+            return (
+              <Box sx={{ p: 2.5, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#111827' }}>
+                  Daily Medical Alerts & Insights
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {alerts.map((alert, i) => (
+                    <Box key={i} sx={{ display: 'flex', gap: 1.5, p: 1.5, bgcolor: alert.type === 'warning' ? '#fef2f2' : '#eff6ff', borderRadius: 1.5, border: `1px solid ${alert.type === 'warning' ? '#fecaca' : '#bfdbfe'}` }}>
+                      <Typography sx={{ fontSize: '1.2rem' }}>{alert.type === 'warning' ? '🚨' : '💡'}</Typography>
+                      <Typography variant="caption" sx={{ color: alert.type === 'warning' ? '#991b1b' : '#1e3a8a', lineHeight: 1.4, fontWeight: 500 }}>
+                        {alert.text}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            );
+          })()}
+
           {/* ── Effective Daily Absorption Summary ── */}
           {log.effectiveNutrientTotals && Object.keys(log.effectiveNutrientTotals).length > 0 && (
             <Box sx={{ p: 2.5, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
@@ -2066,15 +2302,26 @@ function NutritionTracker() {
                 <WaterDropIcon sx={{ color: '#0ea5e9', fontSize: 28 }} />
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>{Math.round((log.waterIntake || 0) / 250)} glasses</Typography>
-                  <Typography variant="caption" sx={{ color: '#6b7280' }}>{log.waterIntake || 0} ml total</Typography>
+                  <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                    {log.waterIntake || 0} / {timingAlerts?.hydrationGoalMl || 2500} ml total
+                  </Typography>
                 </Box>
               </Box>
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <Button size="small" variant="outlined" onClick={() => handleWaterChange(250)} startIcon={<WaterDropIcon sx={{ fontSize: 15 }} />} fullWidth>+250 ml</Button>
                 <Button size="small" variant="outlined" onClick={() => handleWaterChange(500)} startIcon={<WaterDropIcon sx={{ fontSize: 15 }} />} fullWidth>+500 ml</Button>
               </Box>
-              <Button size="small" onClick={() => handleWaterChange(-250)} sx={{ mt: 1, color: '#9ca3af', textTransform: 'none', fontSize: '0.75rem' }}>âˆ’ Remove 250 ml</Button>
+              <Button size="small" onClick={() => handleWaterChange(-250)} sx={{ mt: 1, color: '#9ca3af', textTransform: 'none', fontSize: '0.75rem' }}>− Remove 250 ml</Button>
             </Box>
+            
+            <SupplementSection 
+              log={log} 
+              onUpdate={async (newSupps) => {
+                const updatedLog = { ...log, supplements: newSupps };
+                setLog(updatedLog);
+                await autoSaveLog(updatedLog);
+              }} 
+            />
           </Box>
 
           {/* â”€â”€ CTA to Log Meal tab â”€â”€ */}
@@ -2187,6 +2434,88 @@ function NutritionTracker() {
                   {foodAnalysis.llm?.narrative && (
                     <Typography variant="caption" sx={{ display: 'block', color: '#374151', lineHeight: 1.6, mt: 0.5 }}>{foodAnalysis.llm.narrative}</Typography>
                   )}
+                </Box>
+              )}
+            </Box>
+
+            {/* SAVED TEMPLATES SECTION */}
+            <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <BookmarkIcon sx={{ color: '#6366f1' }} />
+                Saved Templates
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>Quickly load your favorite meal combinations.</Typography>
+              
+              {savedTemplatesLoading ? (
+                <LinearProgress />
+              ) : savedTemplates.length === 0 ? (
+                <Typography variant="caption" sx={{ color: '#9ca3af', fontStyle: 'italic' }}>No templates saved yet.</Typography>
+              ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, maxHeight: 400, overflow: 'auto', pr: 0.5 }}>
+                  {savedTemplates.map((tpl) => (
+                    <Box 
+                      key={tpl._id} 
+                      sx={{ 
+                        p: 1.5, 
+                        borderRadius: 1.5, 
+                        border: '1px solid #e5e7eb', 
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        '&:hover': { bgcolor: '#f5f3ff', borderColor: '#c4b5fd' }
+                      }}
+                      onClick={() => useTemplate(tpl)}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: '#4338ca' }}>{tpl.name}</Typography>
+                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); deleteTemplate(tpl._id); }}>
+                          <DeleteIcon sx={{ fontSize: '0.9rem', color: '#9ca3af' }} />
+                        </IconButton>
+                      </Box>
+                      <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                        {tpl.foods.length} items · {Math.round(tpl.foods.reduce((s, f) => s + (f.calories || 0), 0))} kcal
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
+
+            {/* FREQUENT MEALS (AUTO-CALCULATED) */}
+            <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <HistoryIcon sx={{ color: '#10b981' }} />
+                Frequent Meals
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>Auto-calculated from your last 60 days of logs.</Typography>
+              
+              {frequentMealsLoading ? (
+                <LinearProgress />
+              ) : frequentMeals.length === 0 ? (
+                <Typography variant="caption" sx={{ color: '#9ca3af', fontStyle: 'italic' }}>Keep logging to see your trends here.</Typography>
+              ) : (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, maxHeight: 300, overflow: 'auto', pr: 0.5 }}>
+                  {frequentMeals.map((tpl, idx) => (
+                    <Box 
+                      key={`freq-${idx}`} 
+                      sx={{ 
+                        p: 1.5, 
+                        borderRadius: 1.5, 
+                        border: '1px solid #e5e7eb', 
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        '&:hover': { bgcolor: '#f0fdf4', borderColor: '#86efac' }
+                      }}
+                      onClick={() => useTemplate(tpl)}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: '#059669' }}>{tpl.mealName}</Typography>
+                        <Chip label={`${tpl.frequency}Ã—`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#d1fae5', color: '#065f46', fontWeight: 700 }} />
+                      </Box>
+                      <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                        {tpl.foods?.length || 0} items · {Math.round(tpl.totalCalories || 0)} kcal
+                      </Typography>
+                    </Box>
+                  ))}
                 </Box>
               )}
             </Box>
@@ -2346,6 +2675,26 @@ function NutritionTracker() {
               </Box>
             )}
 
+            {/* SAVE AS TEMPLATE BAR */}
+            <Box sx={{ mb: 3, p: 2, borderRadius: 2, bgcolor: '#f5f3ff', border: '1px solid #ddd6fe', display: 'flex', gap: 1, alignItems: 'center' }}>
+              <TextField
+                placeholder="Template name..."
+                size="small"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                sx={{ bgcolor: '#fff', flex: 1 }}
+              />
+              <Button 
+                variant="contained" 
+                size="small" 
+                onClick={saveAsTemplate}
+                disabled={savingTemplate || !templateName.trim() || newMeal.foods.length === 0}
+                sx={{ bgcolor: '#7c3aed', '&:hover': { bgcolor: '#6d28d9' }, whiteSpace: 'nowrap', color: '#fff', fontWeight: 600, textTransform: 'none' }}
+              >
+                {savingTemplate ? 'Saving...' : 'Save as Template'}
+              </Button>
+            </Box>
+
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Button variant="outlined" size="small" onClick={resetNewMeal} sx={{ borderColor: '#e5e7eb', color: '#6b7280' }}>Clear</Button>
               <Button
@@ -2359,6 +2708,10 @@ function NutritionTracker() {
             </Box>
           </Box>
         </Box>
+      )}
+
+      {activeTab === 2 && (
+        <WeightTracker selectedDate={selectedDate} />
       )}
 
       {activeTab === 3 && (
@@ -2379,6 +2732,17 @@ function NutritionTracker() {
                   <Typography variant="body2" sx={{ color: '#92400e' }}>
                     Clinical targets need setup. Complete Body + Clinical Profile to unlock personalized targets.
                   </Typography>
+                  <Button 
+                    size="small" 
+                    variant="outlined" 
+                    sx={{ mt: 1, textTransform: 'none', borderColor: '#f59e0b', color: '#92400e' }}
+                    onClick={() => {
+                       // Assuming there is a window event or a prop to switch to profile
+                       window.dispatchEvent(new CustomEvent('lifesync:navigate', { detail: { tab: 'Profile' } }));
+                    }}
+                  >
+                    Set up Clinical Profile
+                  </Button>
                   {clinicalTargetsMissingFields.length > 0 && (
                     <Typography variant="caption" sx={{ color: '#b45309', display: 'block', mt: 0.5 }}>
                       Debug missing fields: {clinicalTargetsMissingFields.join(', ')}
@@ -2605,14 +2969,38 @@ function NutritionTracker() {
           {['Weekly', 'Monthly'].map((period) => {
             const totalsForPeriod = period === 'Weekly' ? weeklyTotals : monthlyTotals
             const days = period === 'Weekly' ? 7 : 30
-            const targets = clinicalTargets?.targets || {}
-            const micros = targets?.micronutrients || {}
+            
+            // Calculate actual dates for this period to lookup dynamic targets
+            const pEnd = new Date()
+            pEnd.setHours(23, 59, 59, 999)
+            const pStart = new Date(pEnd)
+            pStart.setDate(pStart.getDate() - (days - 1))
+            pStart.setHours(0, 0, 0, 0)
 
             const rowMap = new Map()
 
+            const getRequiredForPeriod = (targetKey) => {
+              let total = 0
+              const staticTargets = clinicalTargets?.targets || {}
+              const staticMicros = staticTargets.micronutrients || {}
+              const staticVal = (targetKey in staticTargets) ? staticTargets[targetKey] : staticMicros[targetKey]
+
+              for (let d = new Date(pStart); d <= pEnd; d.setDate(d.getDate() + 1)) {
+                const dateKey = d.toISOString().split('T')[0]
+                const dyn = dynamicTargets[dateKey]
+                if (dyn) {
+                  const dynMicros = dyn.micronutrients || {}
+                  const val = (targetKey in dyn) ? dyn[targetKey] : dynMicros[targetKey]
+                  total += Number(val || 0)
+                } else {
+                  total += Number(staticVal || 0)
+                }
+              }
+              return total
+            }
+
             Object.entries(TARGET_KEY_TO_TOTAL_KEY).forEach(([targetKey, totalKey]) => {
-              const perDay = (targetKey in targets) ? targets[targetKey] : micros[targetKey]
-              const required = Number(perDay) * days
+              const required = getRequiredForPeriod(targetKey)
               const consumed = Number(totalsForPeriod?.[totalKey] || 0)
               const unit =
                 targetKey === 'calories' ? 'kcal' :
@@ -2632,8 +3020,7 @@ function NutritionTracker() {
             SUMMARY_MICRO_META.forEach(({ key, label, unit }) => {
               if (rowMap.has(key)) return
               const targetKey = MICRO_TO_TARGET_KEY[key]
-              const perDay = targetKey ? micros[targetKey] : null
-              const required = Number(perDay) * days
+              const required = getRequiredForPeriod(targetKey)
               const consumed = Number(totalsForPeriod?.[key] || 0)
               rowMap.set(key, {
                 key: `${period}-micro-${key}`,
@@ -3023,8 +3410,100 @@ function NutritionTracker() {
           <NutritionInsights selectedDate={selectedDate} />
         </Box>
       )}
+      {activeTab === 7 && (
+        <RecipeExplorer token={token} />
+      )}
     </Box>
   )
 }
 
-export default NutritionTracker
+
+
+function SupplementSection({ log, onUpdate }) {
+  const [selectedSupp, setSelectedSupp] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const SUPPLEMENT_PRESETS = [
+    'Whey Protein (1 Scoop)',
+    'Creatine Monohydrate (5g)',
+    'Multivitamin (Standard)',
+    'Omega-3 Fish Oil (1000mg)',
+    'Vitamin D3 (2000IU)',
+    'Magnesium Glycinate (200mg)',
+    'Zinc Gluconate (30mg)',
+    'B-Complex (High Dose)'
+  ];
+
+  const SUPPLEMENT_DATA = {
+    'Whey Protein (1 Scoop)': { calories: 120, protein: 25, carbs: 3, fat: 1.5, calcium: 150 },
+    'Creatine Monohydrate (5g)': { protein: 0 },
+    'Multivitamin (Standard)': { vitaminA: 900, vitaminC: 90, vitaminD: 20, vitaminE: 15, vitaminB12: 2.4, folate: 400, iron: 18, zinc: 11, selenium: 55, magnesium: 100 },
+    'Omega-3 Fish Oil (1000mg)': { fat: 1, omega3: 300 },
+    'Vitamin D3 (2000IU)': { vitaminD: 50 },
+    'Magnesium Glycinate (200mg)': { magnesium: 200 },
+    'Zinc Gluconate (30mg)': { zinc: 30 },
+    'B-Complex (High Dose)': { vitaminB1: 50, vitaminB2: 50, vitaminB3: 50, vitaminB6: 50, vitaminB12: 100, folate: 400 }
+  };
+
+  const addSupplement = async () => {
+    if (!selectedSupp) return;
+    setLoading(true);
+    const nutriments = SUPPLEMENT_DATA[selectedSupp];
+    const newSupp = { 
+      name: selectedSupp, 
+      nutriments, 
+      takenAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+    };
+    
+    const updatedSupps = [...(log.supplements || []), newSupp];
+    await onUpdate(updatedSupps);
+    setSelectedSupp('');
+    setLoading(false);
+  };
+
+  const removeSupp = async (idx) => {
+    const updatedSupps = log.supplements.filter((_, i) => i !== idx);
+    await onUpdate(updatedSupps);
+  };
+
+  return (
+    <Box sx={{ p: 2, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+        💊 Supplement Stack
+      </Typography>
+      
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+        {(log.supplements || []).map((s, i) => (
+          <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, bgcolor: '#f9fafb', borderRadius: 1 }}>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>{s.name}</Typography>
+              <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                {Object.keys(s.nutriments || {}).length} nutrients · {s.takenAt}
+              </Typography>
+            </Box>
+            <IconButton size="small" onClick={() => removeSupp(i)}><DeleteIcon sx={{ fontSize: 18 }} /></IconButton>
+          </Box>
+        ))}
+        {(!log.supplements || log.supplements.length === 0) && (
+          <Typography variant="caption" sx={{ color: '#9ca3af' }}>No supplements logged for today.</Typography>
+        )}
+      </Box>
+
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        <FormControl fullWidth size="small">
+          <InputLabel>Add Supplement</InputLabel>
+          <Select
+            value={selectedSupp}
+            onChange={(e) => setSelectedSupp(e.target.value)}
+            label="Add Supplement"
+          >
+            {SUPPLEMENT_PRESETS.map(p => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+          </Select>
+        </FormControl>
+        <Button variant="outlined" onClick={addSupplement} disabled={!selectedSupp || loading}>Add</Button>
+      </Box>
+    </Box>
+  );
+}
+
+export default NutritionTracker;

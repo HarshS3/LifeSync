@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const { StepsLog } = require('../models/Logs');
 const Workout = require('../models/Workout');
+const WorkoutTemplate = require('../models/WorkoutTemplate');
 const { triggerDailyLifeStateRecompute } = require('../services/dailyLifeState/triggerDailyLifeStateRecompute');
 
 const router = express.Router();
@@ -272,6 +273,48 @@ router.get('/workouts/range/:start/:end', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Failed to fetch workouts by range:', err);
     res.status(500).json({ error: 'Failed to fetch workouts' });
+  }
+});
+
+// ── Workout Templates ────────────────────────────────────────────────────────
+
+// Get all templates for user
+router.get('/templates', authMiddleware, async (req, res) => {
+  try {
+    const templates = await WorkoutTemplate.find({ userId: req.userId }).sort({ lastUsed: -1, createdAt: -1 });
+    res.json(templates);
+  } catch (err) {
+    console.error('Failed to fetch templates:', err);
+    res.status(500).json({ error: 'Failed to fetch templates' });
+  }
+});
+
+// Create template
+router.post('/templates', authMiddleware, async (req, res) => {
+  try {
+    const { name, exercises, description } = req.body;
+    const template = await WorkoutTemplate.create({
+      userId: req.userId,
+      name,
+      description,
+      exercises: exercises || [],
+    });
+    res.status(201).json(template);
+  } catch (err) {
+    console.error('Failed to create template:', err);
+    res.status(500).json({ error: 'Failed to create template' });
+  }
+});
+
+// Delete template
+router.delete('/templates/:id', authMiddleware, async (req, res) => {
+  try {
+    const template = await WorkoutTemplate.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+    if (!template) return res.status(404).json({ error: 'Template not found' });
+    res.json({ message: 'Template deleted' });
+  } catch (err) {
+    console.error('Failed to delete template:', err);
+    res.status(500).json({ error: 'Failed to delete template' });
   }
 });
 

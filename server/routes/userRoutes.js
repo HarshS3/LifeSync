@@ -42,6 +42,7 @@ router.put('/profile', auth, async (req, res) => {
       if (calculated) {
         user.dailyCalorieTarget = calculated.targets.calories;
         user.dailyProteinTarget = calculated.targets.protein;
+        user.clinicalTargets = calculated;
       }
     }
 
@@ -99,6 +100,7 @@ router.patch('/profile', auth, async (req, res) => {
       if (calculated) {
         user.dailyCalorieTarget = calculated.targets.calories;
         user.dailyProteinTarget = calculated.targets.protein;
+        user.clinicalTargets = calculated;
       }
     }
 

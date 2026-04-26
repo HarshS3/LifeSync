@@ -32,6 +32,8 @@ import { computeTrainingInsights } from '../lib/trainingInsights'
 import { computeMuscleHeatmap } from '../lib/muscleHeatmap'
 import MuscleHeatmapFigure from './MuscleHeatmapFigure'
 import GlbModelViewer from './GlbModelViewer.jsx'
+import RestTimer from './RestTimer'
+import PlateCalculator from './PlateCalculator'
 
 const DEFAULT_BODY_MODEL_GLB_URL = new URL('../assets/Untitled.glb', import.meta.url).href
 
@@ -108,18 +110,24 @@ function GymTracker() {
   
   // Dialog states
   const [exerciseDialogOpen, setExerciseDialogOpen] = useState(false)
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
+  const [templates, setTemplates] = useState([])
+  const [templateLoading, setTemplateLoading] = useState(false)
+  const [templateName, setTemplateName] = useState('')
   const [selectedMuscle, setSelectedMuscle] = useState('')
   const [selectedExercise, setSelectedExercise] = useState('')
   const [customExercise, setCustomExercise] = useState('')
   
   // Stats
   const [stats, setStats] = useState({
-    totalWorkouts: 0,
-    totalVolume: 0,
-    muscleDistribution: {},
     weeklyWorkouts: 0,
     currentStreak: 0,
+    hardSetsPerMuscle: {}, // New: weekly sets per muscle
   })
+
+  const [restTimerSeconds, setRestTimerSeconds] = useState(0)
+  const [showRestTimer, setShowRestTimer] = useState(false)
+  const [recentPRs, setRecentPRs] = useState({}) // exercise -> best 1RM
 
   const muscleHeatmap = useMemo(() => computeMuscleHeatmap(workouts, { days: 30 }), [workouts])
 
@@ -127,6 +135,7 @@ function GymTracker() {
 
   useEffect(() => {
     loadWorkouts()
+    loadTemplates()
   }, [token])
 
   useEffect(() => {
@@ -443,6 +452,62 @@ function GymTracker() {
     setLoading(false)
   }
 
+  const loadTemplates = async () => {
+    if (!token) return
+    setTemplateLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/gym/templates`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setTemplates(Array.isArray(data) ? data : [])
+      }
+    } catch (err) {
+      console.error('Failed to load templates:', err)
+    } finally {
+      setTemplateLoading(false)
+    }
+  }
+
+  const saveCurrentAsTemplate = async (name) => {
+    if (!token || !currentWorkout || !name) return
+    try {
+      const res = await fetch(`${API_BASE}/api/gym/templates`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: name,
+          exercises: currentWorkout.exercises,
+          description: `Created from ${currentWorkout.name}`
+        }),
+      })
+      if (res.ok) {
+        setTemplateName('')
+        loadTemplates()
+        alert('Routine saved successfully!')
+      }
+    } catch (err) {
+      console.error('Failed to save template:', err)
+    }
+  }
+
+  const useTemplate = (tpl) => {
+    setCurrentWorkout({
+      name: tpl.name,
+      exercises: tpl.exercises.map(ex => ({
+        ...ex,
+        sets: ex.sets?.map(s => ({ ...s })) || [{ reps: 0, weight: 0, rpe: 8 }]
+      })),
+      date: new Date(),
+    })
+    setWorkoutStartTime(Date.now())
+    setElapsedTime(0)
+  }
+
   const touchWorkoutById = async (id) => {
     if (!token || !id) return
     try {
@@ -512,14 +577,20 @@ function GymTracker() {
     let weeklyCount = 0
     
     workoutData.forEach(w => {
-      if (new Date(w.date) > weekAgo) weeklyCount++
-      
-      w.exercises?.forEach(ex => {
-        // Count muscle groups
-        const muscle = ex.muscleGroup || 'other'
-        muscleCount[muscle] = (muscleCount[muscle] || 0) + 1
+      const wDate = new Date(w.date)
+      if (wDate > weekAgo) {
+        weeklyCount++
         
-        // Calculate volume (sets * reps * weight)
+        w.exercises?.forEach(ex => {
+          const muscle = ex.muscleGroup || 'other'
+          // Count "Hard Sets" (assume any set with weight/reps is a hard set for now, or could filter by RPE >= 7)
+          const hardSets = ex.sets?.filter(s => (s.reps || 0) > 0).length || 0
+          muscleCount[muscle] = (muscleCount[muscle] || 0) + hardSets
+        })
+      }
+      
+      // Calculate total volume across all time (for display)
+      w.exercises?.forEach(ex => {
         ex.sets?.forEach(set => {
           totalVolume += (set.reps || 0) * (set.weight || 0)
         })
@@ -575,7 +646,7 @@ function GymTracker() {
     const newExercise = {
       name: exerciseName,
       muscleGroup: selectedMuscle,
-      sets: [{ reps: 0, weight: 0 }],
+      sets: [{ reps: 0, weight: 0, rpe: 8 }],
     }
 
     setCurrentWorkout(prev => ({
@@ -599,6 +670,16 @@ function GymTracker() {
         ...updated.exercises[exerciseIdx].sets[setIdx],
         [field]: Number(value) || 0,
       }
+      
+      // Auto-trigger rest timer if a set was completed (weight/reps > 0)
+      if (field === 'reps' || field === 'weight') {
+        const set = updated.exercises[exerciseIdx].sets[setIdx]
+        if (set.reps > 0 && set.weight > 0) {
+          setRestTimerSeconds(60) // default 60s
+          setShowRestTimer(true)
+        }
+      }
+      
       return updated
     })
   }
@@ -608,7 +689,7 @@ function GymTracker() {
       const updated = { ...prev }
       updated.exercises = [...prev.exercises]
       updated.exercises[exerciseIdx] = { ...updated.exercises[exerciseIdx] }
-      const lastSet = updated.exercises[exerciseIdx].sets.slice(-1)[0] || { reps: 0, weight: 0 }
+      const lastSet = updated.exercises[exerciseIdx].sets.slice(-1)[0] || { reps: 0, weight: 0, rpe: 8 }
       updated.exercises[exerciseIdx].sets = [...updated.exercises[exerciseIdx].sets, { ...lastSet }]
       return updated
     })
@@ -695,22 +776,82 @@ function GymTracker() {
             Log workouts, track progress, build strength
           </Typography>
         </Box>
-        {!currentWorkout && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={startWorkout}
-            sx={{
-              bgcolor: '#171717',
-              textTransform: 'none',
-              fontWeight: 600,
-              '&:hover': { bgcolor: '#374151' },
-            }}
-          >
-            Start Workout
-          </Button>
-        )}
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ position: 'relative' }}>
+            <Button
+              variant="outlined"
+              onClick={() => setTemplateDialogOpen(true)}
+              sx={{ textTransform: 'none', fontWeight: 600, color: '#171717', borderColor: '#e5e7eb' }}
+            >
+              Routines
+            </Button>
+            {templates.length > 0 && (
+              <Box sx={{ 
+                position: 'absolute', top: -5, right: -5, 
+                width: 18, height: 18, bgcolor: '#ef4444', 
+                borderRadius: '50%', display: 'flex', 
+                alignItems: 'center', justifyContent: 'center', 
+                color: '#fff', fontSize: '10px', fontWeight: 700,
+                border: '2px solid #fff'
+              }}>
+                {templates.length}
+              </Box>
+            )}
+          </Box>
+          {!currentWorkout && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={startWorkout}
+              sx={{
+                bgcolor: '#171717',
+                textTransform: 'none',
+                fontWeight: 600,
+                '&:hover': { bgcolor: '#374151' },
+              }}
+            >
+              Start Workout
+            </Button>
+          )}
+        </Box>
       </Box>
+
+      {/* Routine/Template Selection Dialog */}
+      <Dialog open={templateDialogOpen} onClose={() => setTemplateDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Workout Routines</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2, color: '#64748b' }}>
+            Choose a saved routine to start your workout instantly.
+          </Typography>
+          {templates.length === 0 ? (
+            <Box sx={{ py: 4, textAlign: 'center', bgcolor: '#f8fafc', borderRadius: 2, border: '1px dashed #e2e8f0' }}>
+              <Typography variant="body2" sx={{ color: '#94a3b8' }}>You haven't saved any routines yet.</Typography>
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {templates.map((tpl) => (
+                <Box 
+                  key={tpl._id} 
+                  sx={{ 
+                    p: 2, borderRadius: 2, border: '1px solid #e2e8f0', 
+                    cursor: 'pointer', transition: 'all 0.2s',
+                    '&:hover': { bgcolor: '#f0f9ff', borderColor: '#38bdf8' }
+                  }}
+                  onClick={() => { useTemplate(tpl); setTemplateDialogOpen(false); }}
+                >
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{tpl.name}</Typography>
+                  <Typography variant="caption" sx={{ color: '#64748b' }}>
+                    {tpl.exercises?.length || 0} exercises • {tpl.description}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTemplateDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Active Workout */}
       {currentWorkout && (
@@ -733,12 +874,25 @@ function GymTracker() {
                 </Typography>
               </Box>
             </Box>
+            </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  const name = prompt('Enter routine name:');
+                  if (name) {
+                    saveCurrentAsTemplate(name);
+                  }
+                }}
+                sx={{ borderColor: 'rgba(255,255,255,0.3)', color: '#9ca3af', textTransform: 'none' }}
+              >
+                Save as Routine
+              </Button>
               <Button
                 variant="outlined"
                 onClick={cancelWorkout}
                 sx={{ 
-                  borderColor: '#6b7280', 
+                  borderColor: 'rgba(255,255,255,0.3)', 
                   color: '#9ca3af',
                   textTransform: 'none',
                 }}
@@ -786,6 +940,11 @@ function GymTracker() {
                     <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                       {exercise.name}
                     </Typography>
+                    <Chip 
+                      label="PR WATCH" 
+                      size="small" 
+                      sx={{ height: 18, fontSize: '0.6rem', bgcolor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid #f59e0b', fontWeight: 700 }}
+                    />
                   </Box>
                   <IconButton size="small" onClick={() => removeExercise(exIdx)} sx={{ color: '#ef4444' }}>
                     <DeleteIcon fontSize="small" />
@@ -794,27 +953,21 @@ function GymTracker() {
 
                 {/* Sets */}
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '40px 1fr 1fr 40px', gap: 1, mb: 1 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '40px 1fr 1fr 1fr 40px', gap: 1, mb: 1 }}>
                     <Typography variant="caption" sx={{ color: '#9ca3af' }}>Set</Typography>
                     <Typography variant="caption" sx={{ color: '#9ca3af' }}>Weight (kg)</Typography>
                     <Typography variant="caption" sx={{ color: '#9ca3af' }}>Reps</Typography>
-                    <Box />
+                    <Typography variant="caption" sx={{ color: '#9ca3af' }}>RPE</Typography>
+                    <Typography variant="caption" sx={{ color: '#9ca3af' }}></Typography>
                   </Box>
                   {exercise.sets.map((set, setIdx) => (
-                    <Box key={setIdx} sx={{ display: 'grid', gridTemplateColumns: '40px 1fr 1fr 40px', gap: 1, alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ color: '#9ca3af', fontWeight: 600 }}>
-                        {setIdx + 1}
-                      </Typography>
+                    <Box key={setIdx} sx={{ display: 'grid', gridTemplateColumns: '40px 1fr 1fr 1fr 40px', gap: 1, mb: 1, alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: '#6b7280', fontWeight: 600 }}>{setIdx + 1}</Typography>
                       <TextField
+                        size="small"
                         type="number"
                         value={set.weight || ''}
                         onChange={(e) => updateSet(exIdx, setIdx, 'weight', e.target.value)}
-                        size="small"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            bgcolor: 'rgba(255,255,255,0.1)',
-                            color: '#fff',
-                            '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
                           },
                           '& input': { color: '#fff', textAlign: 'center' },
                         }}
@@ -929,29 +1082,76 @@ function GymTracker() {
                 />
               </Box>
 
-              {/* Training Insights */}
+              {/* Training Insights - Advanced Analysis */}
               <Box sx={{ gridColumn: { md: '1 / -1' } }}>
                 <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-                  <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
-                    Training Insights
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                    <AutoGraphIcon sx={{ color: '#38bdf8' }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                      Performance Analysis & Insights
+                    </Typography>
+                  </Box>
+                  
                   {trainingInsights.length > 0 ? (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-                      {trainingInsights.map((insight, idx) => (
-                        <Box key={idx} sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-                          <Typography variant="body2" sx={{ color: '#374151', fontWeight: 600, mb: 0.5 }}>
-                            {insight.title}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
-                            {insight.detail}
-                          </Typography>
-                        </Box>
-                      ))}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+                      {trainingInsights.map((insight, idx) => {
+                        // Determine icon and color based on insight title
+                        let Icon = InsightsIcon;
+                        let color = '#64748b';
+                        let bgColor = '#f8fafc';
+                        
+                        if (insight.title.includes('Progression')) { Icon = TimelineIcon; color = '#10b981'; bgColor = '#ecfdf5'; }
+                        else if (insight.title.includes('Plateau')) { Icon = WarningAmberIcon; color = '#f59e0b'; bgColor = '#fffbeb'; }
+                        else if (insight.title.includes('Load') || insight.title.includes('Volume')) { Icon = FitnessCenterIcon; color = '#3b82f6'; bgColor = '#eff6ff'; }
+                        else if (insight.title.includes('Consistency') || insight.title.includes('Streak') || insight.title.includes('Balance')) { Icon = TrendingUpIcon; color = '#8b5cf6'; bgColor = '#f5f3ff'; }
+                        else if (insight.title.includes('Best') || insight.title.includes('PR')) { Icon = EmojiEventsIcon; color = '#eab308'; bgColor = '#fefce8'; }
+                        else if (insight.title.includes('Muscle')) { Icon = InsightsIcon; color = '#0ea5e9'; bgColor = '#f0f9ff'; }
+
+                        return (
+                          <Box key={idx} sx={{ 
+                            p: 2.5, 
+                            bgcolor: '#fff', 
+                            borderRadius: 2, 
+                            border: '1px solid #e2e8f0',
+                            display: 'flex',
+                            gap: 2,
+                            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+                            transition: 'transform 0.2s, box-shadow 0.2s',
+                            '&:hover': {
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                              borderColor: color
+                            }
+                          }}>
+                            <Box sx={{ 
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                              width: 40, height: 40, borderRadius: 2, 
+                              bgcolor: bgColor, color: color, flexShrink: 0 
+                            }}>
+                              <Icon fontSize="small" />
+                            </Box>
+                            <Box>
+                              <Typography variant="subtitle2" sx={{ color: '#1e293b', fontWeight: 700, mb: 0.5 }}>
+                                {insight.title}
+                              </Typography>
+                              <Typography variant="body2" sx={{ color: '#475569', lineHeight: 1.5 }}>
+                                {insight.detail}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        )
+                      })}
                     </Box>
                   ) : (
-                    <Typography variant="body2" sx={{ color: '#9ca3af' }}>
-                      Log a few workouts to unlock training insights.
-                    </Typography>
+                    <Box sx={{ p: 4, textAlign: 'center', bgcolor: '#f8fafc', borderRadius: 2, border: '1px dashed #cbd5e1' }}>
+                      <AutoGraphIcon sx={{ fontSize: 40, color: '#94a3b8', mb: 1, opacity: 0.5 }} />
+                      <Typography variant="body1" sx={{ color: '#475569', fontWeight: 600 }}>
+                        No insights generated yet.
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#94a3b8' }}>
+                        Log a few more workouts to unlock advanced performance analysis and trend detection.
+                      </Typography>
+                    </Box>
                   )}
                 </Box>
               </Box>
@@ -1052,35 +1252,46 @@ function GymTracker() {
                 </Box>
               </Box>
 
-              {/* Muscle Distribution */}
+              {/* Weekly Hypertrophy Volume (Hard Sets) */}
               <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-                <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
-                  Muscle Distribution
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    Weekly Hypertrophy Volume
+                  </Typography>
+                  <Chip 
+                    label="Target: 10 sets/week" 
+                    size="small" 
+                    sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#f1f5f9', color: '#64748b' }} 
+                  />
+                </Box>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {Object.entries(EXERCISE_LIBRARY).map(([key, data]) => {
+                    if (key === 'cardio') return null;
                     const count = stats.muscleDistribution[key] || 0
-                    const percentage = (count / muscleTotal) * 100
+                    const target = 10;
+                    const percentage = Math.min((count / target) * 100, 100)
+                    const statusColor = count >= 10 ? '#10b981' : count >= 5 ? '#f59e0b' : '#64748b'
+                    
                     return (
                       <Box key={key}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                          <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                          <Typography variant="caption" sx={{ fontWeight: 600, color: '#334155' }}>
                             {data.label}
                           </Typography>
-                          <Typography variant="caption" sx={{ color: '#6b7280' }}>
-                            {count} exercises
+                          <Typography variant="caption" sx={{ fontWeight: 700, color: statusColor }}>
+                            {count}/{target} sets
                           </Typography>
                         </Box>
                         <LinearProgress
                           variant="determinate"
                           value={percentage}
                           sx={{
-                            height: 8,
-                            borderRadius: 4,
-                            bgcolor: '#f3f4f6',
+                            height: 6,
+                            borderRadius: 3,
+                            bgcolor: '#f1f5f9',
                             '& .MuiLinearProgress-bar': {
-                              bgcolor: data.color,
-                              borderRadius: 4,
+                              bgcolor: statusColor,
+                              borderRadius: 3,
                             },
                           }}
                         />
@@ -1088,6 +1299,9 @@ function GymTracker() {
                     )
                   })}
                 </Box>
+                <Typography variant="caption" sx={{ display: 'block', mt: 2, color: '#94a3b8', fontStyle: 'italic' }}>
+                  * Scientific standard: 10-20 "hard sets" per muscle group per week is optimal for muscle growth.
+                </Typography>
               </Box>
 
               {/* Recent Workouts Preview */}
@@ -1449,6 +1663,14 @@ function GymTracker() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Floating Rest Timer */}
+      {showRestTimer && (
+        <RestTimer 
+          initialSeconds={restTimerSeconds} 
+          onClose={() => setShowRestTimer(false)} 
+        />
+      )}
     </Box>
   )
 }

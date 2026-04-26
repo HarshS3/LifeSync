@@ -246,8 +246,12 @@ const UserSchema = new mongoose.Schema(
         enum: ['omnivore', 'pescatarian', 'vegetarian', 'vegan', 'keto', 'paleo'], 
         default: 'omnivore' 
       },
-      hypertension: { type: Boolean, default: false }
+      hypertension: { type: Boolean, default: false },
+      defaultSleepTime: { type: String, default: '22:30' },
+      useAdaptiveTdee: { type: Boolean, default: true }
     },
+    // Comprehensive calculated targets stored as a structured object
+    clinicalTargets: mongoose.Schema.Types.Mixed,
   },
   { timestamps: true }
 );

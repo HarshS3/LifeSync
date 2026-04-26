@@ -21,6 +21,8 @@ const dailyLifeStateRoutes = require('./routes/dailyLifeStateRoutes');
 const sttRoutes = require('./routes/sttRoutes');
 const chatIngestionRoutes = require('./routes/chatIngestionRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const photoLogRoutes = require('./routes/photoLogRoutes');
+const recipeRoutes = require('./routes/recipeRoutes');
 
 // Start reminder scheduler
 require('./services/reminderScheduler');
@@ -73,6 +75,8 @@ app.use('/api/daily-life-state', dailyLifeStateRoutes);
 app.use('/api/stt', sttRoutes);
 app.use('/api/chat-ingestion', chatIngestionRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/photo-log', photoLogRoutes);
+app.use('/api/recipes', recipeRoutes);
 app.get("/ip", (req, res) => {
   res.json({
     ip: req.headers["x-forwarded-for"] || req.socket.remoteAddress

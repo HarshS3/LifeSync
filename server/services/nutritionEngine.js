@@ -48,7 +48,7 @@ const calculateBMR = (sex, age, weightKg, heightCm, bodyFat) => {
  * Calculates customized DRI (Macronutrients & Micronutrients)
  * @param {Object} biologicalProfile - Extracted from User.js
  */
-const calculateDailyTargets = (biologicalProfile) => {
+const calculateDailyTargets = (biologicalProfile, adaptiveTdeeOverride = null) => {
   if (!biologicalProfile) return null;
 
   const { 
@@ -79,17 +79,24 @@ const calculateDailyTargets = (biologicalProfile) => {
   const bmr = calculateBMR(biologicalSex, age, weightKg, heightCm, bodyFatPercentage);
 
   // 2. Apply Physical Activity Level (PAL) -> TDEE (Total Daily Energy Expenditure)
+  // PAL includes Exercise Activity Thermogenesis (EAT) and Non-Exercise Activity Thermogenesis (NEAT).
   const pal = PAL_MULTIPLIERS[activityLevel] || PAL_MULTIPLIERS.sedentary;
-  let tdee = bmr * pal;
+  let baseTdee = bmr * pal;
 
-  // 3. Apply Pregnancy Modifiers (ACOG guidelines)
+  // 3. Add Thermic Effect of Food (TEF) - roughly 10% of total energy intake
+  // If we have an adaptive TDEE override, it already includes activity and TEF.
+  let tdee = adaptiveTdeeOverride ? Number(adaptiveTdeeOverride) : baseTdee * 1.10;
+
+  // 4. Apply Pregnancy Modifiers (ACOG guidelines)
   if (biologicalSex === 'female') {
     if (pregnancyStatus === 'pregnant_trimester_2') tdee += 340;
     if (pregnancyStatus === 'pregnant_trimester_3') tdee += 452;
     if (pregnancyStatus === 'lactating') tdee += 500;
   }
 
-  // 4. Apply Target Goal Offset
+  // 5. Apply Target Goal Offset
+  // Using fixed clinical offsets: -500 for steady loss, +300 for lean gain.
+  // We can eventually replace this with the Adaptive TDEE delta.
   const modifier = GOAL_MODIFIERS[metabolicGoal] || 0;
   let targetCalories = tdee + modifier;
 
@@ -101,18 +108,37 @@ const calculateDailyTargets = (biologicalProfile) => {
   if (biologicalSex === 'female' && targetCalories < 1200) targetCalories = 1200;
   if (biologicalSex === 'male' && targetCalories < 1500) targetCalories = 1500;
 
-  // 5. Construct Macronutrients
-  // Protein (scientific range 0.8g to 2.2g per kg depending on activity)
-  let proteinPerKg = 0.8;
-  if (activityLevel === 'moderately_active') proteinPerKg = 1.4;
-  if (activityLevel === 'very_active' || activityLevel === 'extra_active') proteinPerKg = 1.8;
-  if (metabolicGoal === 'mild_loss' || metabolicGoal === 'aggressive_loss') proteinPerKg += 0.2; // Protect muscle in deficit
+  // 6. Construct Macronutrients
+  // Protein (Clinical evidence-based ranges: 1.6 to 3.1g per kg)
+  let proteinPerKg = 1.6; // Baseline for active adults
+
+  if (metabolicGoal === 'aggressive_loss' || metabolicGoal === 'mild_loss') {
+    // High protein needed in a deficit to preserve lean body mass
+    proteinPerKg = (activityLevel === 'very_active' || activityLevel === 'extra_active') ? 2.8 : 2.4;
+    // Cap at empirical limit to avoid exceeding urea cycle capacity
+    if (proteinPerKg > 3.1) proteinPerKg = 3.1;
+  } else if (metabolicGoal === 'lean_gain' || metabolicGoal === 'aggressive_gain') {
+    // Muscle Building zone
+    proteinPerKg = 2.2;
+    if (activityLevel === 'very_active' || activityLevel === 'extra_active') proteinPerKg = 2.4;
+  } else {
+    // Maintenance
+    proteinPerKg = (activityLevel === 'sedentary' || activityLevel === 'lightly_active') ? 1.6 : 2.0;
+  }
+
   if (pregnancyStatus && pregnancyStatus !== 'none') proteinPerKg += 0.3;
 
   const targetProteinGrams = weightKg * proteinPerKg;
-  const targetFatGrams = (targetCalories * 0.30) / 9; // 30% of standard diet from fat
+  
+  // Keep fat to a hormonal baseline (approx 25-30% of target calories)
+  let fatPercentage = 0.30;
+  if (metabolicGoal === 'aggressive_loss') fatPercentage = 0.25; // drop fat slightly in aggressive cut
+  const targetFatGrams = (targetCalories * fatPercentage) / 9; 
+  
+  // Remaining calories to carbs
   const targetCarbAsRemainingCalories = targetCalories - ((targetProteinGrams * 4) + (targetFatGrams * 9));
-  const targetCarbsGrams = targetCarbAsRemainingCalories / 4;
+  // If carbs drop below 0 (can happen if protein target is very high and cal target is BMR), set to minimal
+  const targetCarbsGrams = Math.max(30, targetCarbAsRemainingCalories / 4);
 
   const targetFiber = biologicalSex === 'male' ? (age < 50 ? 38 : 30) : (age < 50 ? 25 : 21);
 
@@ -179,6 +205,7 @@ const calculateDailyTargets = (biologicalProfile) => {
       // Clinical deep limits
       sugar: Math.round((targetCalories * 0.1) / 4), // WHO recommends keeping added sugar < 10% of cals
       saturatedFat: Math.round((targetCalories * 0.1) / 9), // AHA < 10% of cals from sat fat
+      cholesterol: 300, // mg (standard clinical cap)
 
       micronutrients: {
         sodium: sodiumTarget, // Keep beneath this

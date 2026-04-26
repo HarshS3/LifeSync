@@ -54,6 +54,7 @@ function ProfilePanel() {
     email: '',
     age: '',
     gender: '',
+    dob: '',
     education: '',
     profession: '',
     skills: [],
@@ -169,6 +170,7 @@ function ProfilePanel() {
     // Mental & Energy Patterns
     chronotype: 'neutral',
     averageSleep: 7,
+    defaultSleepTime: '22:30',
     stressTriggers: [],
     motivators: [],
     energyPeakTime: 'morning',
@@ -219,6 +221,8 @@ function ProfilePanel() {
           height: data.height || data.biologicalProfile?.heightCm || prev.height,
           weight: data.weight || data.biologicalProfile?.weightKg || prev.weight,
           bodyFat: data.bodyFat || data.biologicalProfile?.bodyFatPercentage || prev.bodyFat,
+          dob: data.biologicalProfile?.dob ? data.biologicalProfile.dob.split('T')[0] : (data.dob ? data.dob.split('T')[0] : prev.dob),
+          defaultSleepTime: data.biologicalProfile?.defaultSleepTime || prev.defaultSleepTime,
           // Ensure arrays are arrays
           conditions: data.conditions || [],
           allergies: data.allergies || [],
@@ -522,6 +526,8 @@ function ProfilePanel() {
       if (field === 'weight') bp.weightKg = value === '' ? undefined : Number(value)
       if (field === 'bodyFat') bp.bodyFatPercentage = value === '' ? undefined : Number(value)
       if (field === 'gender' && (value === 'male' || value === 'female')) bp.biologicalSex = value
+      if (field === 'dob') bp.dob = value
+      if (field === 'defaultSleepTime') bp.defaultSleepTime = value
 
       next.biologicalProfile = bp
       return next
@@ -1098,7 +1104,7 @@ function ProfilePanel() {
     )
   }
 
-  const tabs = ['Basic', 'Body', 'Clinical & Diet', 'Health', 'Training', 'Mind', 'Measurements', 'Personality']
+  const tabs = ['Basic', 'Body', 'Health', 'Clinical & Diet', 'Training', 'Mind', 'Measurements', 'Personality']
 
   return (
     <Box>
@@ -1195,6 +1201,15 @@ function ProfilePanel() {
                 <option value="other">Other</option>
               </TextField>
             </Box>
+
+            <TextField
+              label="Date of Birth"
+              type="date"
+              InputLabelProps={{ shrink: true }}
+              value={profile.dob}
+              onChange={(e) => updateField('dob', e.target.value)}
+              sx={inputSx}
+            />
           </Box>
         )}
 
@@ -1479,6 +1494,97 @@ function ProfilePanel() {
                 We use the scientific Mifflin-St Jeor / Katch-McArdle formulas to compute highly personalized clinical 
                 caloric and deep micronutrient targets (NIH DRIs) based on these precise biological metrics.
               </Typography>
+
+              {(() => {
+                const missing = [];
+                if (!profile.dob) missing.push('Date of Birth');
+                if (!profile.height) missing.push('Height');
+                if (!profile.weight) missing.push('Weight');
+                if (!(profile.biologicalProfile?.biologicalSex || profile.gender)) missing.push('Biological Sex');
+                
+                if (missing.length > 0) {
+                  return (
+                    <Box sx={{ 
+                      mb: 3, 
+                      p: 2, 
+                      bgcolor: '#fffbeb', 
+                      border: '1px solid #fcd34d', 
+                      borderRadius: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2
+                    }}>
+                      <Box sx={{ color: '#d97706' }}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="12" y1="8" x2="12" y2="12"></line>
+                          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ color: '#92400e', fontWeight: 700 }}>
+                          Missing Information for Clinical Targets
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#b45309' }}>
+                          Please provide: {missing.join(', ')} to calculate your personalized nutrition targets.
+                        </Typography>
+                      </Box>
+                    </Box>
+                  );
+                }
+                return null;
+              })()}
+            </Box>
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 3 }}>
+              <Box>
+                <SectionTitle>Date of Birth</SectionTitle>
+                <TextField
+                  fullWidth
+                  type="date"
+                  InputLabelProps={{ shrink: true }}
+                  value={profile.dob || ''}
+                  onChange={(e) => updateField('dob', e.target.value)}
+                  size="small"
+                  sx={inputSx}
+                />
+              </Box>
+
+              <Box>
+                <SectionTitle>Height (cm)</SectionTitle>
+                <TextField
+                  fullWidth
+                  type="number"
+                  value={profile.height || ''}
+                  onChange={(e) => updateField('height', e.target.value)}
+                  size="small"
+                  sx={inputSx}
+                />
+              </Box>
+
+              <Box>
+                <SectionTitle>Weight (kg)</SectionTitle>
+                <TextField
+                  fullWidth
+                  type="number"
+                  value={profile.weight || ''}
+                  onChange={(e) => updateField('weight', e.target.value)}
+                  size="small"
+                  sx={inputSx}
+                />
+              </Box>
+
+              <Box>
+                <SectionTitle>Body Fat %</SectionTitle>
+                <TextField
+                  fullWidth
+                  type="number"
+                  value={profile.bodyFat || ''}
+                  onChange={(e) => updateField('bodyFat', e.target.value)}
+                  size="small"
+                  sx={inputSx}
+                />
+              </Box>
             </Box>
 
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 3 }}>
@@ -1497,8 +1603,8 @@ function ProfilePanel() {
                       }}
                       sx={{
                         flex: 1,
-                        bgcolor: profile.biologicalProfile?.biologicalSex === val ? '#171717' : '#f3f4f6',
-                        color: profile.biologicalProfile?.biologicalSex === val ? '#fff' : '#374151',
+                        bgcolor: (profile.biologicalProfile?.biologicalSex || profile.gender) === val ? '#171717' : '#f3f4f6',
+                        color: (profile.biologicalProfile?.biologicalSex || profile.gender) === val ? '#fff' : '#374151',
                       }}
                     />
                   ))}
@@ -1783,6 +1889,18 @@ function ProfilePanel() {
                 max={12}
                 step={0.5}
                 sx={{ color: '#171717' }}
+              />
+            </Box>
+
+            <Box>
+              <SectionTitle>Default Sleep Time</SectionTitle>
+              <TextField
+                type="time"
+                InputLabelProps={{ shrink: true }}
+                value={profile.defaultSleepTime || '22:30'}
+                onChange={(e) => updateField('defaultSleepTime', e.target.value)}
+                sx={inputSx}
+                fullWidth
               />
             </Box>
 

@@ -543,7 +543,7 @@ function buildResult(nutrient, consumed, multiplier, interactions, confidence, u
 }
 
 // ─────────────────────────────────────────────────────────────────
-// NARRATIVE SUMMARY GENERATOR
+// NARRATIVE SUMMARY GENERATOR (Actionable Templates)
 // ─────────────────────────────────────────────────────────────────
 
 function generateNarratives(results) {
@@ -551,30 +551,40 @@ function generateNarratives(results) {
 
   const iron = results.iron;
   if (iron) {
-    const pct = Math.round(iron.multiplier * 100);
-    const blocker = iron.interactions.find(i => i.type === 'blocker');
-    const booster = iron.interactions.find(i => i.type === 'booster');
-    if (blocker) {
-      narratives.push(`Iron absorption is ~${pct}% of consumed due to ${blocker.agent.replace('_', ' ')}${booster ? `, partially offset by ${booster.agent.replace('_', ' ')}` : ''}.`);
-    } else if (booster) {
-      narratives.push(`Iron absorption boosted to ~${pct}% by ${booster.agent.replace('_', ' ')}.`);
+    if (iron.interactions.some(i => i.agent === 'tannins')) {
+      narratives.push('🚨 Your meal has good iron, but drinking tea/coffee with it cuts absorption by up to 60%. Have chai 1 hour before or after your meal.');
+    } else if (iron.interactions.some(i => i.agent === 'calcium') && iron.consumed_amount > 3) {
+      narratives.push('🚨 Calcium in this meal is blocking your iron absorption. Consider separating dairy products from iron-rich foods by 2 hours.');
     }
-  }
-
-  const vitD = results.vitaminD;
-  if (vitD && vitD.interactions.some(i => i.type === 'blocker')) {
-    const blocker = vitD.interactions.find(i => i.type === 'blocker');
-    narratives.push(`Vitamin D absorption is reduced due to ${blocker.agent.replace('_', ' ')} — ${blocker.note}`);
+    
+    if (iron.consumed_amount > 2 && !iron.interactions.some(i => i.agent === 'vitamin_c')) {
+      narratives.push('💡 Add a squeeze of lemon or tomato to this meal — Vitamin C can triple the iron you actually absorb from plant sources.');
+    }
   }
 
   const vitA = results.vitaminA;
   if (vitA && vitA.interactions.some(i => i.agent === 'low_fat')) {
-    narratives.push('Add oil or ghee to plant Vitamin A sources (carrots, spinach) to absorb them properly.');
+    narratives.push('🚨 Vitamin A in this meal cannot absorb without fat. Add ghee, dressing, or nuts to this meal so the beta-carotene actually gets absorbed.');
+  }
+
+  const vitD = results.vitaminD;
+  if (vitD && vitD.interactions.some(i => i.agent === 'low_fat')) {
+    narratives.push('🚨 Vitamin D is fat-soluble and needs fat in the same meal to absorb. Add a fat source like oil or dairy to this meal.');
+  }
+
+  const vitK = results.vitaminK;
+  if (vitK && vitK.interactions.some(i => i.agent === 'low_fat')) {
+    narratives.push('🚨 The Vitamin K in these leafy greens needs fat. Add some dressing, ghee, or olive oil to your salad.');
   }
 
   const folate = results.folate;
   if (folate && folate.interactions.some(i => i.agent === 'high_heat')) {
-    narratives.push('High heat destroyed most folate. Prefer lightly steamed or raw leafy greens to preserve folate.');
+    narratives.push('💡 High heat destroyed most of the folate in this meal. Prefer lightly steaming or eating leafy greens raw next time.');
+  }
+
+  const calcium = results.calcium;
+  if (calcium && calcium.consumed_amount > 100 && calcium.interactions.some(i => i.agent === 'low_vitamin_d')) {
+    narratives.push('💡 You consumed calcium, but without enough Vitamin D, only ~12% of it can be absorbed. Make sure you are meeting your daily Vitamin D needs.');
   }
 
   return narratives;

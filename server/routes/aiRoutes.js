@@ -666,19 +666,30 @@ router.post('/chat', async (req, res) => {
     console.log('[AI Chat] Mode:', mode, '| User:', user ? `${user.name} (${user.email}), diet: ${user.dietType}` : 'NO USER - token missing or invalid');
 
     // --- Chat ingestion (ALWAYS ON, auth-only) ---
-    // Deterministic extraction of high-confidence signals from chat -> logs -> DailyLifeState.
-    // This enables the "learn over time" pipeline (DailyLifeState -> PatternMemory -> IdentityMemory)
-    // without requiring the user to manually open trackers.
-    let chatIngestion = { ingested: false, dayKey: null, updates: [] };
+    let chatIngestion = { ingested: false, dayKey: null, updates: [], foodIngestion: null };
     if (userId && !skipIngestion) {
       try {
         chatIngestion = await ingestFromChat({ userId, message });
         if (chatIngestion?.ingested) {
-          triggerDailyLifeStateRecompute({ userId, dayKey: chatIngestion.dayKey, reason: 'chat_ingestion' });
+          triggerDailyLifeStateRecompute({ userId, date: new Date(), reason: 'chat_ingestion' });
         }
       } catch (e) {
-        chatIngestion = { ingested: false, dayKey: null, updates: [], error: String(e?.message || e) };
+        chatIngestion = { ingested: false, dayKey: null, updates: [], foodIngestion: null, error: String(e?.message || e) };
       }
+    }
+
+    // --- Short-circuit: if Nutrition Agent handled the message, return its reply directly ---
+    const foodIngestion = chatIngestion?.foodIngestion;
+    if (foodIngestion?.handled && foodIngestion?.agentReply) {
+      return res.json({
+        message,
+        mode: 'nutrition',
+        reply: foodIngestion.agentReply,
+        foodLogged: foodIngestion.foodLogged || false,
+        committedMealId: foodIngestion.committedMealId || null,
+        safety: { risk_level: 'none' },
+        memorySnapshot: { chatIngestion, nutritionAgent: true },
+      });
     }
 
     // --- Insight gating (MANDATORY) ---
@@ -1288,6 +1299,8 @@ router.post('/chat', async (req, res) => {
       message,
       mode,
       reply: llmReply,
+      foodLogged: false,
+      committedMealId: null,
       safety,
       supplementAdvisor: supplementAdvice,
       memorySnapshot: {
@@ -1374,7 +1387,9 @@ router.post('/nutrition-agent', async (req, res) => {
     return res.json({ 
        reply: result.audioResponseText, 
        isComplete: result.isComplete,
-       sessionId: agentId 
+       sessionId: agentId,
+       foodLogged: result.foodLogged || false,
+       committedMealId: result.committedMealId || null
     });
   } catch(err) {
     console.error('[NutritionAgent] Error:', err);

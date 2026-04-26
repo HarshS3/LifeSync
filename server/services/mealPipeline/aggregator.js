@@ -1,6 +1,7 @@
 const { IngredientProfile, RecipeTemplate } = require('../../models/nutritionKnowledge')
 const IndbFood = require('../../models/IndbFood')
 const MfpFood = require('../../models/MfpFood')
+const TarlaFood = require('../../models/TarlaFood')
 const { scale, roundTo, deriveMetricsFromTotals, applyCookingAdjustments } = require('./utils')
 
 function normalizeKey(s) {
@@ -114,11 +115,12 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
   const query = normalizeKey(q)
   if (!query) return []
 
-  const [recipes, ingredients, indbFoods, mfpFoods] = await Promise.all([
+  const [recipes, ingredients, indbFoods, mfpFoods, tarlaFoods] = await Promise.all([
     RecipeTemplate.find({ name: { $regex: query, $options: 'i' }, locale }).limit(limit),
     IngredientProfile.find({ displayName: { $regex: query, $options: 'i' }, locale }).limit(limit),
     IndbFood.find({ searchText: { $regex: query, $options: 'i' } }).limit(limit),
     MfpFood.find({ searchText: { $regex: query, $options: 'i' } }).limit(limit),
+    TarlaFood.find({ searchText: { $regex: query, $options: 'i' } }).limit(limit),
   ])
 
   // Return in the same shape as your existing search API (name, servingQty, servingUnit, macros).
@@ -322,8 +324,51 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
     }
   })
 
+  const tarlaResults = tarlaFoods.map((f) => {
+    const c = f.columns || [];
+    const servingWeightG =
+      Number(f.servingWeightG) ||
+      getCol(c, 'serving_weight_g', 'serving_weight_g', false) ||
+      0;
+
+    return {
+      id: `tarla:${f._id}`,
+      name: f.displayName || getName(c) || 'Unnamed Tarla Food',
+      brand: 'Tarla Dalal',
+      servingQty: Number(f.servingQty) || 1,
+      servingUnit: f.servingSize || 'serving',
+      servingLabel: `${f.servingQty || 1} ${f.servingSize || 'serving'}`.trim(),
+      servingWeightG,
+      calories: getCol(c, 'energy_kcal', 'kcal', false),
+      protein: getCol(c, 'protein_g', 'protein', false),
+      carbs: getCol(c, 'carb_g', 'carbohydrate', false),
+      fat: getCol(c, 'fat_g', 'fat', false),
+      fiber: getCol(c, 'fibre_g', 'fiber', false),
+      sugar: getCol(c, 'freesugar_g', 'sugar', false),
+      sodium: getCol(c, 'sodium_mg', 'sodium', false),
+      potassium: getCol(c, 'potassium_mg', 'potassium', false),
+      iron: getCol(c, 'iron_mg', 'iron', false),
+      calcium: getCol(c, 'calcium_mg', 'calcium', false),
+      vitaminB: getCol(c, 'vitamin_b', 'vitb_mg', false),
+      magnesium: getCol(c, 'magnesium_mg', 'magnesium', false),
+      zinc: getCol(c, 'zinc_mg', 'zinc', false),
+      vitaminC: getCol(c, 'vitc_mg', 'vitaminc', false),
+      omega3: getCol(c, 'omega_3', 'omega3', false),
+      cholesterol: getCol(c, 'cholesterol_mg', 'cholesterol', false),
+      phosphorus: getCol(c, 'phosphorus_mg', 'phosphorus', false),
+      vitaminA: getCol(c, 'vita_ug', 'vita', false),
+      vitaminE: getCol(c, 'vite_mg', 'vite', false),
+      vitaminB1: getCol(c, 'vitb1_mg', 'thiamin', false),
+      vitaminB2: getCol(c, 'vitb2_mg', 'riboflavin', false),
+      vitaminB3: getCol(c, 'vitb3_mg', 'niacin', false),
+      vitaminB9: getCol(c, 'vitb9_ug', 'vitb9', false),
+      folate: getCol(c, 'folate_ug', 'folate', false),
+      _local: { kind: 'tarla' },
+    }
+  })
+
   // Group to prioritize matches cleanly
-  const merged = [...recipeResults.filter(Boolean), ...ingredientResults, ...indbResults, ...mfpResults]
+  const merged = [...recipeResults.filter(Boolean), ...ingredientResults, ...indbResults, ...mfpResults, ...tarlaResults]
   return merged.slice(0, limit)
 }
 

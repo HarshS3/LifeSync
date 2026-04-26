@@ -1,5 +1,7 @@
-const { MentalLog, NutritionLog } = require('../../models/Logs');
+const { MentalLog, NutritionLog, WeightLog } = require('../../models/Logs');
 const { dayKeyFromDate } = require('../dailyLifeState/dayKey');
+
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 function clamp(n, min, max) {
   const x = Number(n);
@@ -19,32 +21,16 @@ function endOfDay(date) {
   return d;
 }
 
+// ── parsers (unchanged from original) ────────────────────────────────────────
+
 function parseSleepHours(text) {
   const s = String(text || '').toLowerCase();
-  // Be conservative: only infer sleep hours when the phrase strongly indicates duration.
-  // Common STT variants:
-  // - "slept 7h", "slept 6.5 hrs", "sleep 6 hours"
-  // - "got 7 hours of sleep", "had 8 hours sleep"
-  // - "slept 7" (sometimes the unit is omitted)
-
-  // With explicit units.
   let m = s.match(/\b(?:slept|sleep)\s*(?:for\s*)?(\d{1,2}(?:\.\d)?)\s*(?:h|hr|hrs|hour|hours)\b/);
-  if (!m) {
-    m = s.match(/\b(?:got|had)\s*(\d{1,2}(?:\.\d)?)\s*(?:h|hr|hrs|hour|hours)\s*(?:of\s*)?sleep\b/);
-  }
-
-  // Unit-less but strongly indicated by "slept".
-  if (!m) {
-    m = s.match(/\bslept\s*(?:for\s*)?(\d{1,2}(?:\.\d)?)\b/);
-  }
-
+  if (!m) m = s.match(/\b(?:got|had)\s*(\d{1,2}(?:\.\d)?)\s*(?:h|hr|hrs|hour|hours)\s*(?:of\s*)?sleep\b/);
+  if (!m) m = s.match(/\bslept\s*(?:for\s*)?(\d{1,2}(?:\.\d)?)\b/);
   if (!m) return null;
-
   const hours = clamp(m[1], 0, 24);
-  if (hours == null) return null;
-  // Reject unlikely values for chat ingestion.
-  if (hours > 16) return null;
-  // If someone says "slept 7/10" treat that as not sleep-hours.
+  if (hours == null || hours > 16) return null;
   if (/(?:^|\s)\/\s*(?:10|ten)\b/.test(s.slice(m.index + m[0].length))) return null;
   return hours;
 }
@@ -53,177 +39,215 @@ function parseNumberToken10(token) {
   const raw = String(token || '').trim().toLowerCase();
   if (!raw) return null;
   if (/^\d+$/.test(raw)) return clamp(raw, 1, 10);
-  const map = {
-    one: 1,
-    two: 2,
-    three: 3,
-    four: 4,
-    five: 5,
-    six: 6,
-    seven: 7,
-    eight: 8,
-    nine: 9,
-    ten: 10,
-  };
-  if (Object.prototype.hasOwnProperty.call(map, raw)) return map[raw];
-  return null;
+  const map = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10 };
+  return Object.prototype.hasOwnProperty.call(map, raw) ? map[raw] : null;
 }
 
 function parseScale10(text, label) {
   const s = String(text || '').toLowerCase();
-
-  // Accept natural variants:
-  // - "energy was 6 out of 10"
-  // - "my stress level is six out of ten"
-  // - "energy 6/10"
-  // - "stress: 7"
   const labelPattern = `${label}(?:\\s*level)?`;
   const numToken = '(\\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)';
-  // Allow plain whitespace: "energy 6/10" as well as "energy was 6/10", "energy: 6/10".
   const sep = '(?:\\s*(?:(?:[:=])|is|was|at)?\\s*)';
-
-  // Prefer explicit /10 or out-of-10.
   const reExplicit = new RegExp(`\\b${labelPattern}\\b${sep}${numToken}\\s*(?:\\/\\s*(?:10|ten)|out\\s*of\\s*(?:10|ten))\\b`);
   const mExplicit = s.match(reExplicit);
   if (mExplicit) return parseNumberToken10(mExplicit[1]);
-
-  // Bare: "stress 7" / "energy was 4"
   const reBare = new RegExp(`\\b${labelPattern}\\b${sep}${numToken}\\b`);
   const mBare = s.match(reBare);
   if (mBare) return parseNumberToken10(mBare[1]);
-
   return null;
 }
 
 function parseMoodEnum(text) {
   const s = String(text || '').toLowerCase();
-  // Very conservative mapping to existing enum.
-  // We only map when the user uses a direct "mood" statement.
-  // Examples: "mood good", "mood: neutral", "mood low".
   const m = s.match(/\bmood\s*[:=]?\s*(very\s*low|very-low|low|neutral|good|great)\b/);
   if (!m) return null;
   const raw = m[1].replace(/\s+/g, '-');
-  if (['very-low', 'low', 'neutral', 'good', 'great'].includes(raw)) return raw;
-  return null;
+  return ['very-low', 'low', 'neutral', 'good', 'great'].includes(raw) ? raw : null;
 }
 
 function parseWaterMl(text) {
   const s = String(text || '').toLowerCase();
-  // Examples: "water 2l", "drank 1500 ml water", "hydration 1.5 liters"
   const m = s.match(/\b(?:water|hydration|drank)\s*(\d+(?:\.\d+)?)\s*(ml|l|liter|liters)\b/);
   if (!m) return null;
   const qty = Number(m[1]);
   if (!Number.isFinite(qty) || qty <= 0) return null;
-  const unit = m[2];
-  const ml = unit === 'ml' ? qty : qty * 1000;
+  const ml = m[2] === 'ml' ? qty : qty * 1000;
   const rounded = Math.round(ml);
-  // Reject obviously wrong values.
-  if (rounded > 10000) return null;
-  return rounded;
+  return rounded > 10000 ? null : rounded;
 }
+
+function parseWeight(text) {
+  const s = String(text || '').toLowerCase();
+  // Matches "weight 75", "weight is 75.5", "75kg", "75.5 kg", "weighed 75.5"
+  const m = s.match(/\b(?:weight|weighed|is|at)?\s*(\d{2,3}(?:\.\d)?)\s*(?:kg|kilo|kilos)?\b/);
+  if (!m) return null;
+  // If no weight-specific keyword, check if it's "75 kg"
+  if (!/weight|weighed/.test(s) && !/kg|kilo/.test(s)) return null;
+
+  const val = Number(m[1]);
+  if (val < 30 || val > 300) return null; // safety bounds
+  return val;
+}
+
+// ── NEW: Food intent detection ────────────────────────────────────────────────
+
+/**
+ * Returns true when the message looks like a meal/food log description.
+ * Conservative: requires at least ONE food signal + ONE quantity/food-context word.
+ * Will NOT fire on greetings, questions, or general wellness statements.
+ */
+function detectFoodLogIntent(message) {
+  const s = String(message || '').toLowerCase().trim();
+  if (!s) return false;
+
+  // Exclude clear questions
+  if (/^(why|what|how|when|where|who|do|does|did|am|are|is|can|could|would|should|will|have|has)\b/.test(s)) return false;
+  if (s.endsWith('?')) return false;
+
+  // Must NOT be a pure wellness / mood statement
+  const wellnessOnly = /^(feeling|i feel|my stress|my energy|my mood|slept|woke up|tired|stressed|anxious|happy|sad|energy level)/i.test(s);
+  if (wellnessOnly && !/(ate|had|eat|breakfast|lunch|dinner|snack|drank|cup|bowl|plate|roti|rice|dal|protein)/i.test(s)) return false;
+
+  // Food verb signals — strong indicator
+  const hasFoodVerb = /\b(ate|had|eat|eaten|drinking|drank|having|finished|consumed|ordered|made)\b/i.test(s);
+
+  // Meal context signals
+  const hasMealContext = /\b(breakfast|lunch|dinner|snack|meal|brunch)\b/i.test(s);
+
+  // Food/ingredient words (Indian + common)
+  const hasFoodWord = /\b(roti|chapati|rice|dal|daal|sabzi|curry|paratha|idli|dosa|upma|poha|egg|eggs|chicken|paneer|tofu|salad|bread|oats|yogurt|curd|milk|protein|shake|smoothie|soup|fruit|banana|apple|mango|sandwich|toast|pasta|noodles|pizza|burger|coffee|tea|chai|juice|water|glass|bowl|cup|plate|serving|spoon|grams|kg)\b/i.test(s);
+
+  // Quantity signals
+  const hasQuantity = /\b(\d+\s*(g|kg|ml|l|cup|cups|bowl|bowls|plate|plates|roti|chapati|piece|pieces|slice|slices|serving|scoop)|\d+\s+\w+)\b/i.test(s);
+
+  // At least: (food verb OR meal context) AND (food word OR quantity)
+  return (hasFoodVerb || hasMealContext) && (hasFoodWord || hasQuantity);
+}
+
+// ── DB helpers ────────────────────────────────────────────────────────────────
 
 async function upsertTodayMentalLog({ userId, now, patch }) {
   const start = startOfDay(now);
   const end = endOfDay(now);
-
-  const existing = await MentalLog.findOne({
-    user: userId,
-    date: { $gte: start, $lt: end },
-  }).sort({ date: -1 });
-
+  const existing = await MentalLog.findOne({ user: userId, date: { $gte: start, $lt: end } }).sort({ date: -1 });
   if (existing) {
     Object.assign(existing, patch);
     return existing.save();
   }
-
-  return MentalLog.create({
-    user: userId,
-    date: now,
-    ...patch,
-  });
+  return MentalLog.create({ user: userId, date: now, ...patch });
 }
 
 async function upsertTodayNutritionLog({ userId, now, patch }) {
   const start = startOfDay(now);
   const end = endOfDay(now);
-
-  const existing = await NutritionLog.findOne({
-    user: userId,
-    date: { $gte: start, $lt: end },
-  }).sort({ date: -1 });
-
+  const existing = await NutritionLog.findOne({ user: userId, date: { $gte: start, $lt: end } }).sort({ date: -1 });
   if (existing) {
     Object.assign(existing, patch);
     return existing.save();
   }
-
-  return NutritionLog.create({
-    user: userId,
-    date: now,
-    ...patch,
-  });
+  return NutritionLog.create({ user: userId, date: now, ...patch });
+}
+async function upsertTodayWeightLog({ userId, now, weight }) {
+  const start = startOfDay(now);
+  const end = endOfDay(now);
+  const existing = await WeightLog.findOne({ user: userId, date: { $gte: start, $lt: end } }).sort({ date: -1 });
+  if (existing) {
+    existing.weight = weight;
+    return existing.save();
+  }
+  return WeightLog.create({ user: userId, date: now, weight });
 }
 
+// ── Food logging via Nutrition Agent ─────────────────────────────────────────
+
+async function tryLogFoodViaAgent({ userId, message }) {
+  try {
+    const { NutritionAgentSession } = require('../nutritionAI/nutritionAgent');
+    const agent = new NutritionAgentSession(userId);
+    const result = await agent.handleVoiceInput(message);
+    return {
+      handled: true,
+      foodLogged: result.foodLogged || false,
+      agentReply: result.audioResponseText || null,
+      committedMealId: result.committedMealId || null,
+      isComplete: result.isComplete,
+    };
+  } catch (err) {
+    console.error('[ingestFromChat] Food agent error:', err.message);
+    return { handled: false, foodLogged: false, agentReply: null, error: err.message };
+  }
+}
+
+// ── Main export ───────────────────────────────────────────────────────────────
+
 /**
- * Deterministic chat ingestion (safe + conservative).
+ * Deterministic chat ingestion — extracts wellness signals AND detects food logs.
  *
- * Goal:
- * - Extract high-confidence daily signals from chat messages
- * - Persist into existing log models
- * - Return a summary of what was ingested (for debugging / observability)
+ * Returns:
+ *  { ingested, dayKey, updates, foodIngestion? }
  */
 async function ingestFromChat({ userId, message, now = new Date() }) {
   if (!userId) return { ingested: false, dayKey: null, updates: [] };
 
-  const dryRun = Boolean(arguments?.[0]?.dryRun);
-
   const updates = [];
 
-  const sleepHours = parseSleepHours(message);
+  // ── 1. Wellness signal extraction (unchanged) ──────────────────────────────
+  const sleepHours  = parseSleepHours(message);
   const stressLevel = parseScale10(message, 'stress');
   const energyLevel = parseScale10(message, 'energy');
-  const mood = parseMoodEnum(message);
-  const waterMl = parseWaterMl(message);
+  const mood        = parseMoodEnum(message);
+  const waterMl     = parseWaterMl(message);
+  const weight      = parseWeight(message);
 
-  // MentalLog updates
   const mentalPatch = {};
-  if (sleepHours != null) mentalPatch.sleepHours = sleepHours;
+  if (sleepHours  != null) mentalPatch.sleepHours  = sleepHours;
   if (stressLevel != null) mentalPatch.stressLevel = stressLevel;
   if (energyLevel != null) mentalPatch.energyLevel = energyLevel;
-  if (mood) mentalPatch.mood = mood;
+  if (mood)                mentalPatch.mood        = mood;
 
   if (Object.keys(mentalPatch).length) {
-    if (!dryRun) {
-      await upsertTodayMentalLog({ userId, now, patch: mentalPatch });
-    }
+    await upsertTodayMentalLog({ userId, now, patch: mentalPatch });
     updates.push({ model: 'MentalLog', patch: mentalPatch });
   }
 
-  // NutritionLog updates
-  if (waterMl != null) {
-    if (dryRun) {
-      updates.push({ model: 'NutritionLog', patch: { waterIntakeDeltaMl: waterMl } });
-    } else {
-      // Incrementally add water intake for the day.
-      const start = startOfDay(now);
-      const end = endOfDay(now);
-      const existing = await NutritionLog.findOne({ user: userId, date: { $gte: start, $lt: end } }).sort({ date: -1 });
+  // Weight check
+  if (weight != null) {
+    await upsertTodayWeightLog({ userId, now, weight });
+    updates.push({ model: 'WeightLog', patch: { weight } });
+  }
 
-      if (existing) {
-        existing.waterIntake = (Number(existing.waterIntake) || 0) + waterMl;
-        await existing.save();
-        updates.push({ model: 'NutritionLog', patch: { waterIntakeDeltaMl: waterMl, waterIntakeTotalMl: existing.waterIntake } });
-      } else {
-        const created = await upsertTodayNutritionLog({ userId, now, patch: { waterIntake: waterMl } });
-        updates.push({ model: 'NutritionLog', patch: { waterIntakeDeltaMl: waterMl, waterIntakeTotalMl: created.waterIntake } });
-      }
+  // Water intake
+  if (waterMl != null) {
+    const start = startOfDay(now);
+    const end = endOfDay(now);
+    const existing = await NutritionLog.findOne({ user: userId, date: { $gte: start, $lt: end } }).sort({ date: -1 });
+    if (existing) {
+      existing.waterIntake = (Number(existing.waterIntake) || 0) + waterMl;
+      await existing.save();
+      updates.push({ model: 'NutritionLog', patch: { waterIntakeDeltaMl: waterMl, waterIntakeTotalMl: existing.waterIntake } });
+    } else {
+      const created = await upsertTodayNutritionLog({ userId, now, patch: { waterIntake: waterMl } });
+      updates.push({ model: 'NutritionLog', patch: { waterIntakeDeltaMl: waterMl, waterIntakeTotalMl: created.waterIntake } });
+    }
+  }
+
+  // ── 2. Food intent detection → Nutrition Agent ────────────────────────────
+  let foodIngestion = null;
+  if (detectFoodLogIntent(message)) {
+    console.log('[ingestFromChat] Food intent detected — routing to NutritionAgentSession');
+    foodIngestion = await tryLogFoodViaAgent({ userId, message });
+    if (foodIngestion.foodLogged) {
+      updates.push({ model: 'NutritionLog', patch: { mealLogged: true, committedMealId: foodIngestion.committedMealId } });
     }
   }
 
   const dayKey = dayKeyFromDate(now);
-  return { ingested: updates.length > 0, dayKey, updates };
+  return {
+    ingested: updates.length > 0,
+    dayKey,
+    updates,
+    foodIngestion,
+  };
 }
 
-module.exports = {
-  ingestFromChat,
-};
+module.exports = { ingestFromChat, detectFoodLogIntent };

@@ -87,6 +87,13 @@ const NutritionLogSchema = new mongoose.Schema(
         },
       },
     ],
+    supplements: [
+      {
+        name: String,
+        nutriments: { type: mongoose.Schema.Types.Mixed, default: {} },
+        takenAt: String,
+      }
+    ],
     waterIntake: { type: Number, default: 0 }, // in ml
     dailyTotals: {
       calories: { type: Number, default: 0 },

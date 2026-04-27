@@ -1,6 +1,7 @@
 import ExpandableSection from './ExpandableSection'
 import NutritionInsights from './NutritionInsights'
 import WeightTracker from './WeightTracker'
+import KitchenInventory from './KitchenInventory'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import RecipeExplorer from './RecipeExplorer'
 import Box from '@mui/material/Box'
@@ -13,6 +14,7 @@ import Tab from '@mui/material/Tab'
 import Chip from '@mui/material/Chip'
 import LinearProgress from '@mui/material/LinearProgress'
 import Divider from '@mui/material/Divider'
+import Alert from '@mui/material/Alert'
 import Stack from '@mui/material/Stack'
 import Grid from '@mui/material/Grid'
 import FormControl from '@mui/material/FormControl'
@@ -33,6 +35,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import InfoIcon from '@mui/icons-material/Info'
 import BookmarkIcon from '@mui/icons-material/Bookmark'
 import DeleteIcon from '@mui/icons-material/Delete'
+import HistoryIcon from '@mui/icons-material/History'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
@@ -139,6 +142,9 @@ const TARGET_KEY_TO_TOTAL_KEY = {
   fiber: 'fiber',
   sugar: 'sugar',
   saturatedFat: 'saturatedFat',
+  monounsaturatedFat: 'monounsaturatedFat',
+  polyunsaturatedFat: 'polyunsaturatedFat',
+  cholesterol: 'cholesterol',
   sodium: 'sodium',
   potassium: 'potassium',
   iron: 'iron',
@@ -178,6 +184,7 @@ const MICRO_TO_TARGET_KEY = {
   vitaminD: 'vitaminD',
   vitaminE: 'vitaminE',
   cholesterol: 'cholesterol',
+  saturatedFat: 'saturatedFat',
 }
 const EMPTY_TOTALS = {
   calories: 0,
@@ -247,7 +254,7 @@ const MACRO_FIELD_META = [
   { key: 'fat', label: 'Fat', unit: 'g' },
   { key: 'fiber', label: 'Fiber', unit: 'g' },
   { key: 'sugar', label: 'Sugar', unit: 'g' },
-  { key: 'omega3', label: 'Omega-3', unit: 'g' },
+  { key: 'omega3', label: 'Omega-3', unit: 'mg' },
   { key: 'saturatedFat', label: 'Sat. fat', unit: 'g' },
   { key: 'monounsaturatedFat', label: 'MUFA', unit: 'g' },
   { key: 'polyunsaturatedFat', label: 'PUFA', unit: 'g' },
@@ -319,6 +326,25 @@ const createEmptyFoodRow = () => ({
   vitaminD: '',
   folate: '',
 })
+
+const hydrateFoodsForEditing = (foodsArray) => {
+  if (!foodsArray || foodsArray.length === 0) return [createEmptyFoodRow()]
+  return JSON.parse(JSON.stringify(foodsArray)).map(food => {
+    delete food._id
+    delete food.id
+    
+    if (food.baseServingQty === undefined || food.baseServingQty === null || food.baseServingQty === '') {
+      food.baseServingQty = food.quantity || 1
+      food.baseServingUnit = food.unit || ''
+      FOOD_NUTRIENT_FIELDS.forEach(field => {
+        if (food[field] !== undefined && food[field] !== null && food[field] !== '') {
+          food[`${field}_base`] = food[field]
+        }
+      })
+    }
+    return food
+  })
+}
 
 const roundNutrient = (value) => {
   const num = Number(value)
@@ -394,6 +420,7 @@ function NutritionTracker() {
   const [clinicalTargets, setClinicalTargets] = useState(null)
   const [clinicalTargetsRequiresSetup, setClinicalTargetsRequiresSetup] = useState(false)
   const [clinicalTargetsMissingFields, setClinicalTargetsMissingFields] = useState([])
+  const [clinicalTargetsError, setClinicalTargetsError] = useState(null)
   const [dynamicTargets, setDynamicTargets] = useState({})
 
   const [weightValue, setWeightValue] = useState('')
@@ -788,12 +815,14 @@ function NutritionTracker() {
 
   const loadClinicalTargets = async () => {
     try {
+      setClinicalTargetsError(null)
       const headers = getAuthHeaders()
       const res = await fetch(`${API_BASE}/api/nutrition/clinical-targets`, { headers })
       if (!res.ok) {
+        const errData = await safeReadJson(res)
         setClinicalTargets(null)
         setClinicalTargetsRequiresSetup(false)
-        setClinicalTargetsMissingFields([])
+        setClinicalTargetsError(errData?.error || `Server error: ${res.status}`)
         return
       }
       const data = await safeReadJson(res)
@@ -810,7 +839,7 @@ function NutritionTracker() {
       console.error('Failed to load clinical targets:', err)
       setClinicalTargets(null)
       setClinicalTargetsRequiresSetup(false)
-      setClinicalTargetsMissingFields([])
+      setClinicalTargetsError(err.message)
     }
   }
 
@@ -935,10 +964,7 @@ function NutritionTracker() {
   const useTemplate = (tpl) => {
     // Check if it's a frequent meal (t.mealName) or saved template (t.name)
     const name = tpl.mealName || tpl.name
-    const foods = tpl.foods.map(f => {
-       const { _id, id, ...rest } = f;
-       return { ...rest };
-    })
+    const foods = hydrateFoodsForEditing(tpl.foods)
     
     setNewMeal({
       name: name || '',
@@ -1508,7 +1534,7 @@ function NutritionTracker() {
       name: mealToEdit.name || '',
       mealType: mealToEdit.mealType || 'breakfast',
       time: mealToEdit.time || '',
-      foods: mealToEdit.foods && mealToEdit.foods.length > 0 ? JSON.parse(JSON.stringify(mealToEdit.foods)) : [createEmptyFoodRow()],
+      foods: hydrateFoodsForEditing(mealToEdit.foods),
       notes: mealToEdit.notes || '',
     })
 
@@ -1906,6 +1932,27 @@ function NutritionTracker() {
         </Button>
       </Box>
 
+      {clinicalTargetsError && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          Error loading nutrition targets: {clinicalTargetsError}. 
+          Calculations may be inaccurate.
+        </Alert>
+      )}
+
+      {clinicalTargetsRequiresSetup && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          Daily targets are disabled because your clinical profile is incomplete. 
+          Missing fields: {clinicalTargetsMissingFields?.length > 0 ? clinicalTargetsMissingFields.join(', ') : 'none specified'}. 
+          Please update your profile in the Profile tab.
+        </Alert>
+      )}
+
+      {!clinicalTargetsRequiresSetup && !clinicalTargets?.targets && !clinicalTargetsError && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          Initialising nutrition engine... If this persists, please ensure your profile is completed.
+        </Alert>
+      )}
+
       <Tabs
         value={activeTab}
         onChange={(e, v) => setActiveTab(v)}
@@ -1919,6 +1966,7 @@ function NutritionTracker() {
         <Tab label="Scan Product" />
         <Tab label="Insights" />
         <Tab label="Recipes" />
+        <Tab label="Kitchen" />
       </Tabs>
 
       {activeTab === 0 && (
@@ -2979,34 +3027,53 @@ function NutritionTracker() {
 
             const rowMap = new Map()
 
-            const getRequiredForPeriod = (targetKey) => {
-              let total = 0
-              const staticTargets = clinicalTargets?.targets || {}
-              const staticMicros = staticTargets.micronutrients || {}
-              const staticVal = (targetKey in staticTargets) ? staticTargets[targetKey] : staticMicros[targetKey]
+              const getRequiredForPeriod = (targetKey) => {
+                if (!targetKey) return 0
+                let total = 0
+                const staticTargets = clinicalTargets?.targets || {}
+                const staticMicros = staticTargets.micronutrients || {}
+                let staticVal = (targetKey in staticTargets) ? staticTargets[targetKey] : staticMicros[targetKey]
 
-              for (let d = new Date(pStart); d <= pEnd; d.setDate(d.getDate() + 1)) {
-                const dateKey = d.toISOString().split('T')[0]
-                const dyn = dynamicTargets[dateKey]
-                if (dyn) {
-                  const dynMicros = dyn.micronutrients || {}
-                  const val = (targetKey in dyn) ? dyn[targetKey] : dynMicros[targetKey]
-                  total += Number(val || 0)
-                } else {
-                  total += Number(staticVal || 0)
+                // Fallback to user-level targets if clinical targets are missing (e.g. before profile setup)
+                if (staticVal == null || staticVal === 0) {
+                  if (targetKey === 'calories') staticVal = user?.dailyCalorieTarget
+                  if (targetKey === 'protein') staticVal = user?.dailyProteinTarget
+                  // If we still have nothing for primary macros, use reasonable defaults consistent with backend
+                  if (!staticVal) {
+                    if (targetKey === 'calories') staticVal = 2100
+                    if (targetKey === 'protein') staticVal = 150
+                    if (targetKey === 'carbs') staticVal = 250
+                    if (targetKey === 'fat') staticVal = 70
+                    if (targetKey === 'saturatedFat') staticVal = 22
+                    if (targetKey === 'monounsaturatedFat') staticVal = 30
+                    if (targetKey === 'polyunsaturatedFat') staticVal = 15
+                    if (targetKey === 'cholesterol') staticVal = 300
+                  }
                 }
-              }
-              return total
-            }
 
-            Object.entries(TARGET_KEY_TO_TOTAL_KEY).forEach(([targetKey, totalKey]) => {
-              const required = getRequiredForPeriod(targetKey)
-              const consumed = Number(totalsForPeriod?.[totalKey] || 0)
-              const unit =
-                targetKey === 'calories' ? 'kcal' :
-                targetKey === 'omega3' ? 'mg' :
-                ['vitaminD', 'vitaminA', 'folate', 'selenium'].includes(targetKey) ? 'ug' :
-                ['protein', 'fat', 'carbs', 'fiber', 'sugar'].includes(targetKey) ? 'g' : 'mg'
+                for (let d = new Date(pStart); d <= pEnd; d.setDate(d.getDate() + 1)) {
+                  const dateKey = d.toISOString().split('T')[0]
+                  const dyn = dynamicTargets[dateKey]
+                  if (dyn) {
+                    const actualDyn = dyn.targets || {}
+                    const dynMicros = actualDyn.micronutrients || {}
+                    const val = (targetKey in actualDyn) ? actualDyn[targetKey] : dynMicros[targetKey]
+                    total += Number(val || 0)
+                  } else {
+                    total += Number(staticVal || 0)
+                  }
+                }
+                return total
+              }
+
+              Object.entries(TARGET_KEY_TO_TOTAL_KEY).forEach(([targetKey, totalKey]) => {
+                const required = getRequiredForPeriod(targetKey)
+                const consumed = Number(totalsForPeriod?.[totalKey] || 0)
+                const unit =
+                  targetKey === 'calories' ? 'kcal' :
+                  targetKey === 'omega3' || targetKey === 'cholesterol' ? 'mg' :
+                  ['vitaminD', 'vitaminA', 'folate', 'selenium'].includes(targetKey) ? 'ug' :
+                  ['protein', 'fat', 'carbs', 'fiber', 'sugar', 'saturatedFat', 'monounsaturatedFat', 'polyunsaturatedFat'].includes(targetKey) ? 'g' : 'mg'
               const label = targetKey.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase())
               rowMap.set(totalKey, {
                 key: `${period}-${targetKey}`,
@@ -3412,6 +3479,9 @@ function NutritionTracker() {
       )}
       {activeTab === 7 && (
         <RecipeExplorer token={token} />
+      )}
+      {activeTab === 8 && (
+        <KitchenInventory />
       )}
     </Box>
   )

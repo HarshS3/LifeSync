@@ -8,6 +8,12 @@ const MfpFoodSchema = new mongoose.Schema(
     servingQty: { type: String, default: '' },
     servingSize: { type: String, default: '' },
 
+    embedding: {
+      type: [Number],
+      default: null,
+      index: false
+    },
+
     // All INDB-matched columns preserved in the exact same array structure
     columns: {
       type: [

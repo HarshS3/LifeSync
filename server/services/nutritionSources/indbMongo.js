@@ -440,4 +440,5 @@ module.exports = {
   importIndbXlsxToMongo,
   ensureIndbDataLoaded,
   searchIndbFoods,
+  toSearchResult,
 };

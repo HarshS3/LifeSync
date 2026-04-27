@@ -169,6 +169,8 @@ const MentalLogSchema = new mongoose.Schema(
     energyLevel: { type: Number, min: 1, max: 10 },
     bodyFeel: { type: Number, min: 1, max: 10 },
     sleepHours: { type: Number, min: 0, max: 24 },
+    sleepQuality: { type: Number, min: 1, max: 10 },
+    restingHeartRate: { type: Number, min: 30, max: 200 },
     medsTaken: [String], // Names of medications taken that day
     journalSnippet: String,
     notes: String,

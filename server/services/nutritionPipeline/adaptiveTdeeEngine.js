@@ -1,4 +1,5 @@
-const { NutritionLog, WeightLog } = require('../../models/Logs');
+const { NutritionLog, WeightLog, MentalLog } = require('../../models/Logs');
+const Workout = require('../../models/Workout');
 
 /**
  * Calculates the running 7-day average of an array of data points.
@@ -166,8 +167,186 @@ async function calculateAdaptiveTDEEForRange(userId, startDate, endDate) {
   return results;
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * PERSONAL METABOLIC MAP
+ * ═══════════════════════════════════════════════════════════════
+ * Goes beyond a single TDEE number. Builds a dynamic model
+ * that adjusts for:
+ *   1. Stress load  — cortisol suppresses NEAT (-50 to -200 cal)
+ *   2. Training load — EPOC & muscle mass elevate TDEE (+50 to +300 cal)
+ *   3. Diet adaptation — prolonged deficit triggers metabolic slowdown
+ *
+ * Scientific basis:
+ *   - Cortisol chronically elevated → reduces spontaneous movement (NEAT)
+ *     Ref: Dallman et al., 2004; Epel et al., 2001
+ *   - Resistance training EPOC: ~5-9% elevation for 24-48h post session
+ *     Ref: Schuenke et al., 2002; Speakman & Selman, 2003
+ *   - Metabolic adaptation in sustained deficit: ~5-15% below predicted
+ *     Ref: Rosenbaum & Leibel, 2010; Muller & Bosy-Westphal, 2013
+ */
+async function calculateMetabolicMap(userId, daysBack = 60) {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - daysBack);
+
+  // ── Fetch all data in parallel ──────────────────────────────────
+  const [nutritionLogs, weightLogs, mentalLogs, workouts] = await Promise.all([
+    NutritionLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 }).lean(),
+    WeightLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 }).lean(),
+    MentalLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 }).lean(),
+    Workout.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 }).lean(),
+  ]);
+
+  const validNutriLogs = nutritionLogs.filter(l => (l.dailyTotals?.calories || 0) > 800);
+
+  if (validNutriLogs.length < 5 || weightLogs.length < 3) {
+    return { status: 'insufficient_data', message: 'Need at least 5 nutrition logs and 3 weight logs for a metabolic map.' };
+  }
+
+  // ── 1. BASE TDEE (calorie-vs-weight method) ─────────────────────
+  const weightPoints = weightLogs.map(w => ({ date: w.date, value: w.weightKg }));
+  const smoothedWeights = calculateSmoothTrend(weightPoints, 7);
+  const firstW = smoothedWeights[0];
+  const lastW = smoothedWeights[smoothedWeights.length - 1];
+  const daysElapsed = Math.max(1, (new Date(lastW.date) - new Date(firstW.date)) / 86400000);
+  const weightChangeKg = lastW.value - firstW.value;
+  const avgIntake = validNutriLogs.reduce((s, l) => s + (l.dailyTotals?.calories || 0), 0) / validNutriLogs.length;
+  const baseTDEE = Math.round(avgIntake - (weightChangeKg * 7700) / daysElapsed);
+
+  // ── 2. STRESS MODIFIER ──────────────────────────────────────────
+  // Recent 7-day stress vs historical baseline
+  const recentWeekMentals = mentalLogs.filter(l => {
+    const daysAgo = (endDate - new Date(l.date)) / 86400000;
+    return daysAgo <= 7;
+  });
+  const olderMentals = mentalLogs.filter(l => {
+    const daysAgo = (endDate - new Date(l.date)) / 86400000;
+    return daysAgo > 7 && daysAgo <= 56;
+  });
+
+  const avgRecentStress = recentWeekMentals.length > 0
+    ? recentWeekMentals.reduce((s, l) => s + (l.stressLevel || 5), 0) / recentWeekMentals.length
+    : 5;
+  const avgBaselineStress = olderMentals.length > 0
+    ? olderMentals.reduce((s, l) => s + (l.stressLevel || 5), 0) / olderMentals.length
+    : 5;
+
+  // Each point above baseline stress reduces NEAT by ~25 cal
+  const stressDelta = avgRecentStress - avgBaselineStress;
+  const stressModifier = Math.round(Math.max(-200, Math.min(50, stressDelta * -25)));
+  const stressLabel = stressDelta > 1.5
+    ? `High stress week detected (avg ${avgRecentStress.toFixed(1)}/10). Cortisol suppressing NEAT by ~${Math.abs(stressModifier)} cal/day.`
+    : stressDelta < -1.5
+    ? `Lower stress than baseline — NEAT likely elevated by ~${Math.abs(stressModifier)} cal/day.`
+    : `Stress within normal range.`;
+
+  // ── 3. TRAINING LOAD MODIFIER ───────────────────────────────────
+  // Recent week volume vs rolling 4-week average
+  const recentWeekWorkouts = workouts.filter(w => (endDate - new Date(w.date)) / 86400000 <= 7);
+  const olderWorkouts = workouts.filter(w => {
+    const daysAgo = (endDate - new Date(w.date)) / 86400000;
+    return daysAgo > 7 && daysAgo <= 35;
+  });
+
+  const calcVolume = (ws) => ws.reduce((total, w) => {
+    const wVol = (w.exercises || []).reduce((ex, e) =>
+      ex + (e.sets || []).reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0), 0);
+    return total + wVol;
+  }, 0);
+
+  const recentVolume = calcVolume(recentWeekWorkouts);
+  const avgWeeklyVolume = olderWorkouts.length > 0
+    ? calcVolume(olderWorkouts) / Math.max(1, olderWorkouts.length / 3)
+    : recentVolume;
+
+  const volumeRatio = avgWeeklyVolume > 0 ? recentVolume / avgWeeklyVolume : 1;
+  // Scale modifier: 1.5x volume → +~150 cal; 0.5x volume → -~75 cal
+  const trainingModifier = Math.round(Math.max(-150, Math.min(300, (volumeRatio - 1) * 200)));
+  const trainingLabel = recentWeekWorkouts.length === 0
+    ? `No workouts logged this week — EPOC contribution is zero.`
+    : volumeRatio > 1.3
+    ? `Heavy training week (${recentWeekWorkouts.length} sessions). EPOC elevating TDEE by ~${trainingModifier} cal/day.`
+    : volumeRatio < 0.7
+    ? `Lighter training week than usual. TDEE adjusted down by ~${Math.abs(trainingModifier)} cal/day.`
+    : `Training load is at your normal level.`;
+
+  // ── 4. METABOLIC ADAPTATION MODIFIER ───────────────────────────
+  // Detect sustained caloric deficit (8+ weeks below TDEE)
+  let adaptationModifier = 0;
+  let adaptationLabel = 'No metabolic adaptation detected.';
+  let deficitStreak = 0;
+
+  // Walk through nutrition logs weekly and check if intake < baseTDEE
+  const weeklyCalories = {};
+  validNutriLogs.forEach(l => {
+    const weekKey = Math.floor((endDate - new Date(l.date)) / (7 * 86400000));
+    if (!weeklyCalories[weekKey]) weeklyCalories[weekKey] = [];
+    weeklyCalories[weekKey].push(l.dailyTotals?.calories || 0);
+  });
+
+  Object.values(weeklyCalories).forEach(weekLogs => {
+    const weekAvg = weekLogs.reduce((s, c) => s + c, 0) / weekLogs.length;
+    if (weekAvg < baseTDEE - 200) deficitStreak++;
+  });
+
+  if (deficitStreak >= 8) {
+    adaptationModifier = -Math.round(baseTDEE * 0.12); // 12% suppression
+    adaptationLabel = `${deficitStreak} weeks of sustained deficit detected. Metabolic adaptation likely — actual TDEE suppressed by ~${Math.abs(adaptationModifier)} cal/day. Consider a diet break.`;
+  } else if (deficitStreak >= 6) {
+    adaptationModifier = -Math.round(baseTDEE * 0.08);
+    adaptationLabel = `${deficitStreak} weeks of sustained deficit. Early metabolic adaptation (~${Math.abs(adaptationModifier)} cal/day suppression). Monitor closely.`;
+  } else if (deficitStreak >= 4) {
+    adaptationModifier = -Math.round(baseTDEE * 0.05);
+    adaptationLabel = `${deficitStreak} weeks of deficit — mild adaptation signal. Adjusted TDEE by ~${Math.abs(adaptationModifier)} cal/day.`;
+  }
+
+  // ── 5. DYNAMIC TDEE ─────────────────────────────────────────────
+  const dynamicTDEE = baseTDEE + stressModifier + trainingModifier + adaptationModifier;
+
+  // ── 6. DIET PHASE DETECTION ─────────────────────────────────────
+  const intakeVsDynamic = avgIntake - dynamicTDEE;
+  const dietPhase =
+    intakeVsDynamic < -400 ? 'aggressive_cut'
+    : intakeVsDynamic < -100 ? 'moderate_cut'
+    : intakeVsDynamic < 100  ? 'maintenance'
+    : intakeVsDynamic < 400  ? 'moderate_bulk'
+    : 'aggressive_bulk';
+
+  return {
+    status: 'success',
+    baseTDEE,
+    dynamicTDEE: Math.round(dynamicTDEE),
+    avgDailyIntake: Math.round(avgIntake),
+    dietPhase,
+    modifiers: {
+      stress: {
+        value: stressModifier,
+        avgRecentStress: parseFloat(avgRecentStress.toFixed(1)),
+        avgBaselineStress: parseFloat(avgBaselineStress.toFixed(1)),
+        label: stressLabel,
+      },
+      training: {
+        value: trainingModifier,
+        sessionsThisWeek: recentWeekWorkouts.length,
+        volumeRatio: parseFloat(volumeRatio.toFixed(2)),
+        label: trainingLabel,
+      },
+      adaptation: {
+        value: adaptationModifier,
+        deficitStreakWeeks: deficitStreak,
+        label: adaptationLabel,
+      },
+    },
+    insight: `Your real TDEE right now is ~${Math.round(dynamicTDEE)} cal/day — not the formula's estimate of ${baseTDEE}. This accounts for your current stress load, training volume, and diet history.`,
+    weightChangeKg: parseFloat(weightChangeKg.toFixed(2)),
+    daysAnalyzed: Math.round(daysElapsed),
+  };
+}
+
 module.exports = {
   calculateAdaptiveTDEE,
   calculateAdaptiveTDEEForRange,
-  calculateSmoothTrend
+  calculateSmoothTrend,
+  calculateMetabolicMap
 };

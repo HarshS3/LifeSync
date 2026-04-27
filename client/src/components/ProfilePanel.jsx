@@ -157,6 +157,12 @@ function ProfilePanel() {
     dailyCalorieTarget: '',
     dailyProteinTarget: '',
     hydrationGoal: 8,
+    mealSchedule: {
+      breakfast: '08:00',
+      lunch: '13:00',
+      dinner: '20:00',
+      snack: '16:00',
+    },
     
     // Workout Preferences
     trainingExperience: 'intermediate',
@@ -232,6 +238,10 @@ function ProfilePanel() {
           skills: data.skills || [],
           avoidFoods: data.avoidFoods || [],
           favoriteFoods: data.favoriteFoods || [],
+          mealSchedule: {
+            ...prev.mealSchedule,
+            ...(data.mealSchedule || {}),
+          },
           preferredWorkouts: data.preferredWorkouts || [],
           homeEquipment: data.homeEquipment || [],
           trainingGoals: data.trainingGoals || [],
@@ -1726,6 +1736,51 @@ function ProfilePanel() {
                 step={1}
                 sx={{ color: '#171717' }}
               />
+            </Box>
+
+            <Box>
+              <SectionTitle>Typical Meal Schedule</SectionTitle>
+              <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+                Used by the Nutrition Agent to automatically assign meal times if you don't mention a specific time in your log.
+              </Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 2 }}>
+                <TextField
+                  label="Breakfast"
+                  type="time"
+                  InputLabelProps={{ shrink: true }}
+                  value={profile.mealSchedule?.breakfast || '08:00'}
+                  onChange={(e) => setProfile(prev => ({ ...prev, mealSchedule: { ...prev.mealSchedule, breakfast: e.target.value } }))}
+                  sx={inputSx}
+                  size="small"
+                />
+                <TextField
+                  label="Lunch"
+                  type="time"
+                  InputLabelProps={{ shrink: true }}
+                  value={profile.mealSchedule?.lunch || '13:00'}
+                  onChange={(e) => setProfile(prev => ({ ...prev, mealSchedule: { ...prev.mealSchedule, lunch: e.target.value } }))}
+                  sx={inputSx}
+                  size="small"
+                />
+                <TextField
+                  label="Dinner"
+                  type="time"
+                  InputLabelProps={{ shrink: true }}
+                  value={profile.mealSchedule?.dinner || '20:00'}
+                  onChange={(e) => setProfile(prev => ({ ...prev, mealSchedule: { ...prev.mealSchedule, dinner: e.target.value } }))}
+                  sx={inputSx}
+                  size="small"
+                />
+                <TextField
+                  label="Snack"
+                  type="time"
+                  InputLabelProps={{ shrink: true }}
+                  value={profile.mealSchedule?.snack || '16:00'}
+                  onChange={(e) => setProfile(prev => ({ ...prev, mealSchedule: { ...prev.mealSchedule, snack: e.target.value } }))}
+                  sx={inputSx}
+                  size="small"
+                />
+              </Box>
             </Box>
 
             <Box>

@@ -99,7 +99,47 @@ async function analyzeMealTiming(userId, date) {
     }
   });
 
-  // 4. Sleep-related timing
+  // 4. Muscle Protein Synthesis (MPS) & Protein Distribution
+  const weight = user?.biologicalProfile?.weightKg || user?.weight || 75;
+  const optimalMealProtein = weight * 0.4; // ~0.4g/kg maximizes MPS
+
+  let totalDailyProtein = 0;
+  let maxProteinMeal = null;
+  let maxProteinAmount = 0;
+
+  meals.forEach(m => {
+    const mealProtein = m.foods.reduce((sum, f) => sum + (f.protein || 0), 0);
+    totalDailyProtein += mealProtein;
+    if (mealProtein > maxProteinAmount) {
+      maxProteinAmount = mealProtein;
+      maxProteinMeal = m.name || m.mealType || 'one meal';
+    }
+  });
+
+  if (totalDailyProtein > 40 && maxProteinAmount > (totalDailyProtein * 0.55)) {
+    // If more than 55% of daily protein is in a single meal
+    alerts.push({
+      type: 'timing_warning',
+      title: 'Suboptimal Protein Distribution (MPS)',
+      text: `You got ${Math.round(totalDailyProtein)}g protein today but ${Math.round(maxProteinAmount)}g was in ${maxProteinMeal}. Muscle Protein Synthesis (MPS) maxes out around ${Math.round(optimalMealProtein)}g per meal and returns to baseline after 3-5 hours. Spreading your protein across 3-4 meals would significantly improve muscle retention and growth.`
+    });
+  } else if (totalDailyProtein > optimalMealProtein * 3) {
+    // Check if they are hitting the optimal per-meal threshold at least 3 times
+    const optimalMealsCount = meals.filter(m => {
+      const p = m.foods.reduce((sum, f) => sum + (f.protein || 0), 0);
+      return p >= optimalMealProtein * 0.8; // Allow a 20% buffer
+    }).length;
+
+    if (optimalMealsCount < 3 && meals.length >= 3) {
+      alerts.push({
+        type: 'timing_info',
+        title: 'Optimize Muscle Protein Synthesis',
+        text: `You have great total protein (${Math.round(totalDailyProtein)}g), but only hit the MPS threshold (~${Math.round(optimalMealProtein)}g) in ${optimalMealsCount} meal(s). Aim for ${Math.round(optimalMealProtein)}g across at least 3 meals to keep muscle building elevated all day.`
+      });
+    }
+  }
+
+  // 5. Sleep-related timing
   const userSleepTime = user?.biologicalProfile?.defaultSleepTime || '22:30';
   const estimatedBedTimeMin = toMin(userSleepTime); 
   const lastMeal = meals.reduce((prev, curr) => {
@@ -117,8 +157,8 @@ async function analyzeMealTiming(userId, date) {
     });
   }
 
-  // 5. Hydration Intelligence
-  const weight = user?.biologicalProfile?.weightKg || user?.weight || 75;
+  // 6. Hydration Intelligence
+  // weight is already declared above
   const totalWorkoutHours = workouts.reduce((sum, w) => sum + (w.duration || 0) / 3600, 0);
   const hydrationGoalMl = (weight * 35) + (totalWorkoutHours * 500);
   const waterIntake = nutriLog.waterIntake || 0;

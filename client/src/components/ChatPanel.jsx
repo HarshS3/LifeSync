@@ -18,6 +18,7 @@ import CameraAltIcon from '@mui/icons-material/CameraAlt'
 import HistoryIcon from '@mui/icons-material/History'
 import { useAuth } from '../context/AuthContext'
 import MealTemplates from './MealTemplates'
+import { API_BASE } from '../config'
 import { VoiceNutritionLogger } from '../services/voiceNutritionLogger'
 import PhotoLogFlow from './PhotoLogFlow'
 
@@ -52,7 +53,9 @@ function ChatPanel() {
   };
   const [showPhotoLog, setShowPhotoLog] = useState(false);
   const [showMealTemplates, setShowMealTemplates] = useState(false);
+  const [undoingId, setUndoingId] = useState(null);
 
+  const messagesContainerRef = useRef(null)
   const messagesEndRef  = useRef(null)
   const mediaRecorderRef = useRef(null)
   const streamRef        = useRef(null)
@@ -63,10 +66,12 @@ function ChatPanel() {
   const voiceTextRef     = useRef('')
   const submitOnStopRef  = useRef(false)
 
-  // Auto-scroll to latest message
+  // Auto-scroll to latest message — scroll the container directly to avoid
+  // triggering a window-level scroll via scrollIntoView.
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    const el = messagesContainerRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [messages, isSending])
 
   useEffect(() => {
     return () => {
@@ -312,7 +317,7 @@ function ChatPanel() {
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
 
       {/* Messages list */}
-      <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+      <Box ref={messagesContainerRef} sx={{ flex: 1, overflow: 'auto', p: 3 }}>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           {messages.map((m, idx) => (
             <Box key={idx} sx={{ display: 'flex', gap: 2, flexDirection: m.from === 'user' ? 'row-reverse' : 'row', alignItems: 'flex-start' }}>
@@ -375,7 +380,7 @@ function ChatPanel() {
             </Box>
           )}
 
-          <div ref={messagesEndRef} />
+          <div ref={messagesEndRef} style={{ height: 1 }} />
         </Box>
       </Box>
 

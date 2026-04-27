@@ -12,6 +12,7 @@ const NutritionInsights = ({ selectedDate }) => {
   const { token } = useAuth();
   const [macroData, setMacroData] = useState(null);
   const [microData, setMicroData] = useState(null);
+  const [metabolicMap, setMetabolicMap] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('macro');
@@ -57,14 +58,16 @@ const NutritionInsights = ({ selectedDate }) => {
         setLoading(true);
         const weekKey = getWeekKey(selectedDate);
 
-        const [macroRes, microRes] = await Promise.all([
+        const [macroRes, microRes, metabolicRes] = await Promise.all([
           fetch(`${API_BASE}/api/nutrition/aggregation/weekly-macros/${weekKey}`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch(`${API_BASE}/api/nutrition/aggregation/weekly-micros/${weekKey}`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_BASE}/api/nutrition/metabolic-map?daysBack=60`, { headers: { Authorization: `Bearer ${token}` } }),
         ]);
 
         if (!macroRes.ok || !microRes.ok) throw new Error('Failed to fetch aggregation data');
         setMacroData(await macroRes.json());
         setMicroData(await microRes.json());
+        if (metabolicRes.ok) setMetabolicMap(await metabolicRes.json());
         setError(null);
       } catch (err) {
         setError(err.message);
@@ -90,13 +93,13 @@ const NutritionInsights = ({ selectedDate }) => {
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 3 }}>
-          {['macro', 'micro'].map(tab => (
-            <Typography key={tab} component="button" onClick={() => setActiveTab(tab)} sx={{ 
-              background: 'none', border: 'none', borderBottom: activeTab === tab ? '2px solid var(--ls-text)' : '2px solid transparent', 
+          {['macro', 'micro', 'metabolic'].map(tab => (
+            <Typography key={tab} component="button" onClick={() => setActiveTab(tab)} sx={{
+              background: 'none', border: 'none', borderBottom: activeTab === tab ? '2px solid var(--ls-text)' : '2px solid transparent',
               pb: 0.5, cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.85rem',
               color: activeTab === tab ? 'var(--ls-text)' : 'var(--ls-text-muted)', transition: 'all 0.2s', '&:hover': { color: 'var(--ls-text)' }
             }}>
-              {tab === 'macro' ? 'Macros' : 'Micronutrients'}
+              {tab === 'macro' ? 'Macros' : tab === 'micro' ? 'Micronutrients' : 'Metabolic Map'}
             </Typography>
           ))}
         </Box>
@@ -105,6 +108,7 @@ const NutritionInsights = ({ selectedDate }) => {
       <Box sx={{ animation: 'fadeIn 0.5s ease-out' }}>
         {activeTab === 'macro' && macroData && <MacroEditorialView data={macroData} />}
         {activeTab === 'micro' && microData && <MicroEditorialView data={microData} />}
+        {activeTab === 'metabolic' && <MetabolicMapView data={metabolicMap} />}
       </Box>
     </Box>
   );
@@ -133,9 +137,9 @@ const MacroEditorialView = ({ data }) => {
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 6 }}>
         <MacroBlock title="Protein" subtitle="Daily, Non-Storable" data={data} nKey="protein" hex="#27272a" />
-        <MacroBlock title="Carbohydrates" subtitle="Immediate Energy & Storage" data={data} nKey="carbs" hex="#71717a" extra={data.carbs.excessGrams > 0 && `+${data.carbs.excessGrams}g (≈ ${data.carbs.estimatedFatStored}g fat stored)`}/>
-        <MacroBlock title="Fat" subtitle="Hormonal Baseline" data={data} nKey="fat" hex="#a1a1aa" extra={data.fat.satFatPercent > 0 && `${data.fat.satFatPercent}% Density (${data.fat.status === 'excellent' ? 'Optimal' : 'Monitor'})`}/>
-        <MacroBlock title="Calories" subtitle="Weekly Aggregate Load" data={data} nKey="calories" hex="var(--ls-text)" extra={data.estimatedWeeklyWeightChange !== undefined && `Forecast: ${data.estimatedWeeklyWeightChange > 0 ? '+' : ''}${data.estimatedWeeklyWeightChange} lbs (≈ ${Math.round(data.estimatedWeeklyWeightChange * 4.33 * 10)/10} lbs/mo)`}/>
+        <MacroBlock title="Carbohydrates" subtitle="Immediate Energy & Storage" data={data} nKey="carbs" hex="#71717a" extra={data.carbs.excessGrams > 0 && `+${data.carbs.excessGrams}g (≈ ${data.carbs.estimatedFatStored}g fat stored)`} />
+        <MacroBlock title="Fat" subtitle="Hormonal Baseline" data={data} nKey="fat" hex="#a1a1aa" extra={data.fat.satFatPercent > 0 && `${data.fat.satFatPercent}% Density (${data.fat.status === 'excellent' ? 'Optimal' : 'Monitor'})`} />
+        <MacroBlock title="Calories" subtitle="Weekly Aggregate Load" data={data} nKey="calories" hex="var(--ls-text)" extra={data.estimatedWeeklyWeightChange !== undefined && `Forecast: ${data.estimatedWeeklyWeightChange > 0 ? '+' : ''}${data.estimatedWeeklyWeightChange} lbs (≈ ${Math.round(data.estimatedWeeklyWeightChange * 4.33 * 10) / 10} lbs/mo)`} />
       </Box>
     </Box>
   );
@@ -171,8 +175,8 @@ const MacroBlock = ({ title, subtitle, data, nKey, hex, extra }) => {
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--ls-text)' }}>
-        <Box><Typography sx={{ fontSize: '0.65rem', opacity: 0.5, mb: 0.5, textTransform: 'uppercase' }}>Target</Typography><Typography sx={{ fontWeight: 700 }}>{target}g / day</Typography></Box>
-        <Box><Typography sx={{ fontSize: '0.65rem', opacity: 0.5, mb: 0.5, textTransform: 'uppercase' }}>Trajectory</Typography><Typography sx={{ fontWeight: 700 }}>{weeklyAvg}g <span style={{ opacity: 0.6, fontWeight: 400 }}>({weeklyPercent}%)</span></Typography></Box>
+        <Box><Typography sx={{ fontSize: '0.65rem', opacity: 0.5, mb: 0.5, textTransform: 'uppercase' }}>Target</Typography><Typography sx={{ fontWeight: 700 }}>{target}{nKey === 'calories' ? 'kcal' : 'g'} / day</Typography></Box>
+        <Box><Typography sx={{ fontSize: '0.65rem', opacity: 0.5, mb: 0.5, textTransform: 'uppercase' }}>Trajectory</Typography><Typography sx={{ fontWeight: 700 }}>{weeklyAvg}{nKey === 'calories' ? 'kcal' : 'g'} <span style={{ opacity: 0.6, fontWeight: 400 }}>({weeklyPercent}%)</span></Typography></Box>
       </Box>
 
       {extra && (
@@ -241,11 +245,11 @@ const BioavailabilityMatrix = () => {
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5, alignItems: 'center' }}>
               <Typography sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '0.02em' }}>{p.name}</Typography>
-              <Typography sx={{ 
-                fontFamily: 'monospace', fontSize: '0.65rem', px: 1, py: 0.2, 
-                bgcolor: p.type === 'Synergy' ? 'var(--ls-text)' : 'var(--ls-accent-2)', 
+              <Typography sx={{
+                fontFamily: 'monospace', fontSize: '0.65rem', px: 1, py: 0.2,
+                bgcolor: p.type === 'Synergy' ? 'var(--ls-text)' : 'var(--ls-accent-2)',
                 color: 'white',
-                borderRadius: '2px', 
+                borderRadius: '2px',
                 textTransform: 'uppercase',
                 letterSpacing: '0.1em'
               }}>{p.type}</Typography>
@@ -274,7 +278,7 @@ const MicroGroup = ({ title, subtitle, nutrients, isStorage }) => {
         <Typography sx={{ fontFamily: 'var(--font-serif, "Georgia", serif)', fontSize: '1.5rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--ls-text)' }}>{title}</Typography>
         <Typography sx={{ fontFamily: 'monospace', fontSize: '0.7rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{subtitle}</Typography>
       </Box>
-      
+
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {Object.entries(nutrients).map(([name, info]) => {
           const isOptimal = info.status === 'excellent' || info.status === 'good';
@@ -299,6 +303,118 @@ const MicroGroup = ({ title, subtitle, nutrients, isStorage }) => {
             </Box>
           );
         })}
+      </Box>
+    </Box>
+  );
+};
+
+const MetabolicMapView = ({ data }) => {
+  if (!data) return (
+    <Box sx={{ fontFamily: 'monospace', color: 'var(--ls-text-muted)', p: 8, textAlign: 'center' }}>
+      <Box sx={{ fontSize: '3rem', mb: 2 }}>⚡</Box>
+      <Box sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', mb: 1 }}>Metabolic Map Unavailable</Box>
+      <Box sx={{ opacity: 0.6, fontSize: '0.85rem' }}>Requires 5+ nutrition logs and 3+ weight entries over 60 days.</Box>
+    </Box>
+  );
+  if (data.status === 'insufficient_data') return (
+    <Box sx={{ fontFamily: 'monospace', color: '#b45309', p: 6, border: '1px solid #b45309', borderRadius: '4px' }}>⚠ {data.message}</Box>
+  );
+
+  const PHASE_LABEL = {
+    aggressive_cut: { label: 'Aggressive Cut', color: '#ef4444' },
+    moderate_cut: { label: 'Moderate Cut', color: '#f97316' },
+    maintenance: { label: 'Maintenance', color: '#22c55e' },
+    moderate_bulk: { label: 'Moderate Bulk', color: '#3b82f6' },
+    aggressive_bulk: { label: 'Aggressive Bulk', color: '#8b5cf6' },
+  };
+  const phase = PHASE_LABEL[data.dietPhase] || { label: data.dietPhase, color: 'var(--ls-text)' };
+  const { stress, training, adaptation } = data.modifiers;
+
+  const ModifierRow = ({ label, value, detail }) => (
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', py: 3, borderBottom: '1px solid var(--ls-border)', gap: 4 }}>
+      <Box sx={{ flex: 1 }}>
+        <Typography sx={{ fontFamily: 'monospace', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.5, mb: 0.5 }}>{label}</Typography>
+        <Typography sx={{ fontSize: '0.95rem', lineHeight: 1.6, color: 'var(--ls-text)', opacity: 0.8 }}>{detail}</Typography>
+      </Box>
+      <Box sx={{ textAlign: 'right', minWidth: 80 }}>
+        <Typography sx={{
+          fontFamily: 'monospace', fontWeight: 700, fontSize: '1.5rem',
+          color: value > 0 ? '#22c55e' : value < 0 ? '#ef4444' : 'var(--ls-text-muted)'
+        }}>
+          {value > 0 ? `+${value}` : value} cal
+        </Typography>
+      </Box>
+    </Box>
+  );
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* Header hero block */}
+      <Box sx={{ bgcolor: 'var(--ls-text)', color: 'var(--ls-bg)', p: { xs: 4, md: 6 }, borderRadius: '4px' }}>
+        <Typography sx={{ fontFamily: 'monospace', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.15em', opacity: 0.5, mb: 2 }}>Personal Metabolic Map — 60 Day Analysis</Typography>
+        <Box sx={{ display: 'flex', gap: { xs: 4, md: 8 }, flexWrap: 'wrap', alignItems: 'flex-end', mb: 4 }}>
+          <Box>
+            <Typography sx={{ fontFamily: 'monospace', fontSize: '0.65rem', opacity: 0.5, textTransform: 'uppercase', mb: 0.5 }}>Formula TDEE</Typography>
+            <Typography sx={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: '2.5rem', fontWeight: 700, lineHeight: 1, textDecoration: 'line-through', opacity: 0.4 }}>{data.baseTDEE}</Typography>
+          </Box>
+          <Box sx={{ fontSize: '1.5rem', opacity: 0.4, alignSelf: 'center' }}>→</Box>
+          <Box>
+            <Typography sx={{ fontFamily: 'monospace', fontSize: '0.65rem', opacity: 0.5, textTransform: 'uppercase', mb: 0.5 }}>Your Dynamic TDEE</Typography>
+            <Typography sx={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: '3.5rem', fontWeight: 700, lineHeight: 1 }}>{data.dynamicTDEE}</Typography>
+          </Box>
+          <Box sx={{ ml: 'auto' }}>
+            <Typography sx={{ fontFamily: 'monospace', fontSize: '0.65rem', opacity: 0.5, textTransform: 'uppercase', mb: 0.5 }}>Diet Phase</Typography>
+            <Box sx={{ px: 2, py: 0.5, bgcolor: phase.color, borderRadius: '3px', display: 'inline-block' }}>
+              <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', color: 'white' }}>{phase.label}</Typography>
+            </Box>
+          </Box>
+        </Box>
+        <Typography sx={{ fontSize: '1.1rem', lineHeight: 1.7, opacity: 0.85, fontStyle: 'italic', fontFamily: 'var(--font-serif, Georgia, serif)' }}>
+          "{data.insight}"
+        </Typography>
+      </Box>
+
+      {/* Modifier breakdown */}
+      <Box>
+        <Typography component="div" sx={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontStyle: 'italic', fontSize: '2rem', mb: 4, display: 'flex', alignItems: 'center', gap: 2, color: 'var(--ls-text)' }}>
+          Modifier Breakdown <Box sx={{ flex: 1, height: '1px', bgcolor: 'var(--ls-text)', opacity: 0.1 }} />
+        </Typography>
+        <Box>
+          <ModifierRow
+            label={`Stress Modifier (Recent: ${stress.avgRecentStress}/10 vs Baseline: ${stress.avgBaselineStress}/10)`}
+            value={stress.value}
+            detail={stress.label}
+          />
+          <ModifierRow
+            label={`Training Load Modifier (${training.sessionsThisWeek} sessions — ${(training.volumeRatio * 100).toFixed(0)}% of baseline volume)`}
+            value={training.value}
+            detail={training.label}
+          />
+          <ModifierRow
+            label={`Metabolic Adaptation (${adaptation.deficitStreakWeeks} consecutive deficit weeks)`}
+            value={adaptation.value}
+            detail={adaptation.label}
+          />
+        </Box>
+
+        {/* Breakdown math */}
+        <Box sx={{ mt: 4, p: 3, border: '1px solid var(--ls-border)', borderRadius: '4px', fontFamily: 'monospace', fontSize: '0.85rem', display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center', color: 'var(--ls-text-muted)' }}>
+          <span>{data.baseTDEE}</span>
+          <span style={{ color: stress.value < 0 ? '#ef4444' : '#22c55e' }}>{stress.value > 0 ? `+${stress.value}` : stress.value}</span>
+          <span>(stress)</span>
+          <span style={{ opacity: 0.4 }}>+</span>
+          <span style={{ color: training.value < 0 ? '#ef4444' : '#22c55e' }}>{training.value > 0 ? `+${training.value}` : training.value}</span>
+          <span>(training)</span>
+          <span style={{ opacity: 0.4 }}>+</span>
+          <span style={{ color: adaptation.value < 0 ? '#ef4444' : '#22c55e' }}>{adaptation.value > 0 ? `+${adaptation.value}` : adaptation.value}</span>
+          <span>(adaptation)</span>
+          <span style={{ opacity: 0.4 }}>=</span>
+          <span style={{ color: 'var(--ls-text)', fontWeight: 700, fontSize: '1rem' }}>{data.dynamicTDEE} cal/day</span>
+        </Box>
+      </Box>
+
+      <Box sx={{ fontFamily: 'monospace', fontSize: '0.7rem', opacity: 0.4, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.1em', pb: 4 }}>
+        * Stress modifier: Dallman et al., 2004 · Training modifier: Schuenke et al., 2002 · Adaptation: Rosenbaum & Leibel, 2010
       </Box>
     </Box>
   );

@@ -1,4 +1,5 @@
 const { MentalLog, NutritionLog, WeightLog } = require('../../models/Logs');
+const User = require('../../models/User');
 const { dayKeyFromDate } = require('../dailyLifeState/dayKey');
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -164,6 +165,13 @@ async function tryLogFoodViaAgent({ userId, message }) {
   try {
     const { NutritionAgentSession } = require('../nutritionAI/nutritionAgent');
     const agent = new NutritionAgentSession(userId);
+    
+    // Fetch user to pass meal schedule defaults
+    const user = await User.findById(userId).select('mealSchedule').lean();
+    if (user && user.mealSchedule) {
+      agent.userMealSchedule = user.mealSchedule;
+    }
+
     const result = await agent.handleVoiceInput(message);
     return {
       handled: true,

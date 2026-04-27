@@ -77,7 +77,16 @@ export class VoiceNutritionLogger {
     });
 
     if (!response.ok) {
-       throw new Error("Chat Agent Request Failed");
+       let errorMsg = "Chat Agent Request Failed";
+       try {
+           const errBody = await response.json();
+           if (errBody.error) {
+               errorMsg += `: ${errBody.error}`;
+           }
+       } catch (e) {
+           errorMsg += ` (${response.statusText})`;
+       }
+       throw new Error(errorMsg);
     }
 
     const result = await response.json();
@@ -96,7 +105,17 @@ export class VoiceNutritionLogger {
 
   speak(text) {
      return new Promise((resolve) => {
-         const ut = new SpeechSynthesisUtterance(text);
+         // Cancel any ongoing speech to reduce latency
+         window.speechSynthesis.cancel();
+
+         // Strip markdown characters that cause TTS engines to pause or mispronounce
+         const cleanText = text
+            .replace(/[*~_`#]/g, '')
+            .replace(/•/g, ', ')
+            .replace(/\n+/g, '. ')
+            .trim();
+
+         const ut = new SpeechSynthesisUtterance(cleanText);
          ut.rate = 1.0;
          ut.onend = resolve;
          window.speechSynthesis.speak(ut);

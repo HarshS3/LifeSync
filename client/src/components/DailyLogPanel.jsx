@@ -19,8 +19,12 @@ function DailyLogPanel() {
     bodyFeel: 5,
     stress: 5,
     sleep: 7,
+    sleepQuality: 7,
+    restingHeartRate: 65,
     notes: '',
-    medsTaken: [], // Track which medications were taken
+    medsTaken: [],
+    bloating: 0,
+    digestionQuality: 5,
   })
   const [journal, setJournal] = useState('')
   const [journalSaved, setJournalSaved] = useState(false)
@@ -47,8 +51,12 @@ function DailyLogPanel() {
       bodyFeel: Number(log.bodyFeel ?? prev.bodyFeel) || prev.bodyFeel,
       stress: Number(log.stressLevel ?? prev.stress) || prev.stress,
       sleep: Number(log.sleepHours ?? prev.sleep) || prev.sleep,
+      sleepQuality: Number(log.sleepQuality ?? prev.sleepQuality) || prev.sleepQuality,
+      restingHeartRate: Number(log.restingHeartRate ?? prev.restingHeartRate) || prev.restingHeartRate,
       notes: typeof log.notes === 'string' ? log.notes : prev.notes,
       medsTaken: Array.isArray(log.medsTaken) ? log.medsTaken : prev.medsTaken,
+      bloating: Number(log.bloating ?? prev.bloating) || prev.bloating,
+      digestionQuality: Number(log.digestionQuality ?? prev.digestionQuality) || prev.digestionQuality,
     }))
   }
 
@@ -87,12 +95,14 @@ function DailyLogPanel() {
       stressLevel: mentalData.stress,
       bodyFeel: mentalData.bodyFeel,
       sleepHours: mentalData.sleep,
+      sleepQuality: mentalData.sleepQuality,
+      restingHeartRate: mentalData.restingHeartRate,
       medsTaken: mentalData.medsTaken,
       notes: mentalData.notes,
     }
 
     try {
-      const res = await fetch(endpoint, {
+      await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -100,6 +110,38 @@ function DailyLogPanel() {
         },
         body: JSON.stringify(body),
       })
+
+      // Also log gut symptoms to SymptomLog API
+      if (mentalData.bloating > 0) {
+        await fetch(`${API_BASE}/api/symptoms`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            symptomName: 'Bloating',
+            severity: mentalData.bloating,
+            notes: 'Logged via Daily Check-in'
+          }),
+        })
+      }
+
+      if (mentalData.digestionQuality < 4) {
+        await fetch(`${API_BASE}/api/symptoms`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            symptomName: 'Digestive Discomfort',
+            severity: 10 - mentalData.digestionQuality,
+            notes: 'Logged via Daily Check-in'
+          }),
+        })
+      }
+
       if (res.ok) {
         const saved = await res.json().catch(() => null)
         applyMentalLogToForm(saved)
@@ -268,10 +310,88 @@ function DailyLogPanel() {
                 }}
               />
             </Box>
+
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
+                Sleep Quality: {mentalData.sleepQuality}/10
+              </Typography>
+              <Slider
+                value={mentalData.sleepQuality}
+                onChange={(e, v) => setMentalData({ ...mentalData, sleepQuality: v })}
+                min={1}
+                max={10}
+                sx={{
+                  color: '#171717',
+                  '& .MuiSlider-thumb': { width: 16, height: 16 },
+                }}
+              />
+            </Box>
+
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
+                Resting Heart Rate (RHR): {mentalData.restingHeartRate} bpm
+              </Typography>
+              <Slider
+                value={mentalData.restingHeartRate}
+                onChange={(e, v) => setMentalData({ ...mentalData, restingHeartRate: v })}
+                min={40}
+                max={100}
+                sx={{
+                  color: '#171717',
+                  '& .MuiSlider-thumb': { width: 16, height: 16 },
+                }}
+              />
+            </Box>
           </Box>
         </Box>
 
-        {/* Stress block (Wellness-specific) */}
+        {/* Gut Health block */}
+        <Box
+          sx={{
+            p: 2.5,
+            bgcolor: '#f0f9ff',
+            borderRadius: 2,
+            border: '1px solid #bae6fd',
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#0369a1', mb: 2 }}>
+            Gut Health
+          </Typography>
+
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#0c4a6e' }}>
+              Bloating: {mentalData.bloating}/10
+            </Typography>
+            <Slider
+              value={mentalData.bloating}
+              onChange={(e, v) => setMentalData({ ...mentalData, bloating: v })}
+              min={0}
+              max={10}
+              sx={{
+                color: '#0ea5e9',
+                '& .MuiSlider-thumb': { width: 16, height: 16 },
+              }}
+            />
+          </Box>
+
+          <Box>
+            <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#0c4a6e' }}>
+              Digestion Quality: {mentalData.digestionQuality}/10
+            </Typography>
+            <Slider
+              value={mentalData.digestionQuality}
+              onChange={(e, v) => setMentalData({ ...mentalData, digestionQuality: v })}
+              min={1}
+              max={10}
+              sx={{
+                color: '#0ea5e9',
+                '& .MuiSlider-thumb': { width: 16, height: 16 },
+              }}
+            />
+          </Box>
+        </Box>
+
+        {/* Stress block */}
         <Box
           sx={{
             p: 2.5,

@@ -129,6 +129,13 @@ const UserSchema = new mongoose.Schema(
     // Diet Preferences
     dietType: { type: String, default: 'omnivore' },
     mealsPerDay: { type: Number, default: 3 },
+    // User's preferred meal times — used as defaults for chat-logged meals
+    mealSchedule: {
+      breakfast: { type: String, default: '08:00' },
+      lunch:     { type: String, default: '13:00' },
+      dinner:    { type: String, default: '20:00' },
+      snack:     { type: String, default: '16:00' },
+    },
     fastingWindow: String,
     avoidFoods: [String],
     favoriteFoods: [String],

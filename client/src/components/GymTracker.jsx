@@ -25,6 +25,15 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import TimerIcon from '@mui/icons-material/Timer'
 import WhatshotIcon from '@mui/icons-material/Whatshot'
 import CloseIcon from '@mui/icons-material/Close'
+import TimelineIcon from '@mui/icons-material/Timeline'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
+import InsightsIcon from '@mui/icons-material/Insights'
+import AutoGraphIcon from '@mui/icons-material/AutoGraph'
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
+import BarChartIcon from '@mui/icons-material/BarChart'
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
+} from 'recharts'
 import Calendar from './Calendar'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
@@ -123,6 +132,7 @@ function GymTracker() {
     weeklyWorkouts: 0,
     currentStreak: 0,
     hardSetsPerMuscle: {}, // New: weekly sets per muscle
+    muscleDistribution: {},
   })
 
   const [restTimerSeconds, setRestTimerSeconds] = useState(0)
@@ -133,14 +143,147 @@ function GymTracker() {
 
   const trainingInsights = useMemo(() => computeTrainingInsights(workouts), [workouts])
 
+  const [selectedAnalysisExercise, setSelectedAnalysisExercise] = useState('')
+  const [analysisChartMode, setAnalysisChartMode] = useState('1rm') // '1rm' or 'weight'
+  const [nutritionHistory, setNutritionHistory] = useState([])
+  const [correlatedInsights, setCorrelatedInsights] = useState([])
+  const [correlationLoading, setCorrelationLoading] = useState(false)
+  const [readiness, setReadiness] = useState(null)
+  const [readinessLoading, setReadinessLoading] = useState(false)
+  
+  const allExerciseNames = useMemo(() => {
+    const names = new Set()
+    workouts.forEach(w => w.exercises?.forEach(ex => {
+      if (ex.name) names.add(ex.name)
+    }))
+    return Array.from(names).sort()
+  }, [workouts])
+
+  useEffect(() => {
+    if (allExerciseNames.length > 0 && !selectedAnalysisExercise) {
+      setSelectedAnalysisExercise(allExerciseNames[0])
+    }
+  }, [allExerciseNames])
+
+  const exerciseProgressionData = useMemo(() => {
+    if (!selectedAnalysisExercise) return []
+    const data = []
+    workouts.slice().reverse().forEach(w => {
+      const ex = w.exercises?.find(e => e.name === selectedAnalysisExercise)
+      if (ex && ex.sets?.length > 0) {
+        const maxWeight = Math.max(...ex.sets.map(s => s.weight || 0))
+        // Brzycki formula for 1RM: Weight / (1.0278 - (0.0278 * Reps))
+        const est1RM = Math.max(...ex.sets.map(s => {
+          if (s.reps > 1) return (s.weight || 0) / (1.0278 - (0.0278 * (s.reps || 1)))
+          return s.weight || 0
+        }))
+        
+        data.push({
+          date: new Date(w.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          weight: maxWeight,
+          oneRepMax: Math.round(est1RM),
+          workoutName: w.name
+        })
+      }
+    })
+    return data
+  }, [workouts, selectedAnalysisExercise])
+
+  const loadCorrelationData = async () => {
+    if (!token) return
+    setCorrelationLoading(true)
+    try {
+      // Fetch last 30 days of nutrition
+      const end = new Date()
+      const start = new Date()
+      start.setDate(start.getDate() - 30)
+      
+      const res = await fetch(`${API_BASE}/api/nutrition/logs/range?start=${start.toISOString()}&end=${end.toISOString()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setNutritionHistory(data.dailyLogs || [])
+      }
+    } catch (err) {
+      console.error('Failed to load correlation data:', err)
+    } finally {
+      setCorrelationLoading(false)
+    }
+  }
+
+  const loadCorrelatedInsights = async () => {
+    if (!token) return
+    try {
+      const res = await fetch(`${API_BASE}/api/gym/correlations`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setCorrelatedInsights(data || [])
+      }
+    } catch (err) {
+      console.error('Failed to load correlated insights:', err)
+    }
+  }
+
+  const loadReadiness = async () => {
+    if (!token) return
+    setReadinessLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/gym/readiness`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) setReadiness(await res.json())
+    } catch (err) {
+      console.error('Failed to load readiness:', err)
+    } finally {
+      setReadinessLoading(false)
+    }
+  }
+
+  const correlationChartData = useMemo(() => {
+    // Map of date string -> { volume, calories, protein }
+    const dayMap = {}
+    
+    // Process Workouts
+    workouts.forEach(w => {
+      const d = new Date(w.date).toDateString()
+      const vol = w.exercises?.reduce((sum, ex) => sum + (ex.sets?.reduce((s, set) => s + (set.reps * set.weight), 0) || 0), 0) || 0
+      if (!dayMap[d]) dayMap[d] = { date: d, volume: 0, calories: 0, protein: 0 }
+      dayMap[d].volume += vol
+    })
+    
+    // Process Nutrition
+    nutritionHistory.forEach(log => {
+      const d = new Date(log.date).toDateString()
+      if (!dayMap[d]) dayMap[d] = { date: d, volume: 0, calories: 0, protein: 0 }
+      dayMap[d].calories = log.macros?.calories || 0
+      dayMap[d].protein = log.macros?.protein || 0
+    })
+    
+    return Object.values(dayMap).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-14)
+  }, [workouts, nutritionHistory])
+
   useEffect(() => {
     loadWorkouts()
     loadTemplates()
+    loadCorrelationData()
+    loadCorrelatedInsights()
+    loadReadiness()
   }, [token])
 
   useEffect(() => {
     loadStepsDayAndRange()
   }, [token, stepsDate, stepsRangeMode])
+
+  const volumeChartData = useMemo(() => {
+    return workouts.slice().reverse().map(w => ({
+      date: new Date(w.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      volume: w.exercises?.reduce((sum, ex) => sum + (ex.sets?.reduce((s, set) => s + (set.reps * set.weight), 0) || 0), 0) || 0,
+      duration: w.duration || 0
+    }))
+  }, [workouts])
 
   const safeReadJson = async (res) => {
     try {
@@ -763,7 +906,8 @@ function GymTracker() {
   }))
 
   // Muscle distribution for chart
-  const muscleTotal = Object.values(stats.muscleDistribution).reduce((a, b) => a + b, 0) || 1
+  const muscleDistribution = stats.muscleDistribution || {}
+  const muscleTotal = Object.values(muscleDistribution).reduce((a, b) => a + b, 0) || 1
 
   return (
     <Box>
@@ -874,7 +1018,6 @@ function GymTracker() {
                 </Typography>
               </Box>
             </Box>
-            </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
                 variant="outlined"
@@ -968,6 +1111,11 @@ function GymTracker() {
                         type="number"
                         value={set.weight || ''}
                         onChange={(e) => updateSet(exIdx, setIdx, 'weight', e.target.value)}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            bgcolor: 'rgba(255,255,255,0.1)',
+                            color: '#fff',
+                            '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
                           },
                           '& input': { color: '#fff', textAlign: 'center' },
                         }}
@@ -1080,6 +1228,286 @@ function GymTracker() {
                   sublabel="days"
                   color="#9333ea"
                 />
+              </Box>
+
+              {/* ── Training Readiness Score ────────────────────────────── */}
+              <Box sx={{ gridColumn: { md: '1 / -1' } }}>
+                <Box sx={{
+                  p: 3, borderRadius: 2,
+                  background: readiness
+                    ? `linear-gradient(135deg, ${readiness.color}12 0%, #fff 60%)`
+                    : '#fff',
+                  border: `1px solid ${readiness ? readiness.color + '40' : '#e5e7eb'}`,
+                  position: 'relative', overflow: 'hidden'
+                }}>
+                  {/* Background glow */}
+                  {readiness && (
+                    <Box sx={{
+                      position: 'absolute', top: -40, right: -40,
+                      width: 180, height: 180, borderRadius: '50%',
+                      bgcolor: readiness.color, opacity: 0.06, pointerEvents: 'none'
+                    }} />
+                  )}
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
+                    <WhatshotIcon sx={{ color: readiness?.color || '#f59e0b' }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#0f172a' }}>
+                      Today's Training Readiness
+                    </Typography>
+                    {readinessLoading && (
+                      <Typography variant="caption" sx={{ color: '#94a3b8', ml: 'auto' }}>Calculating…</Typography>
+                    )}
+                  </Box>
+
+                  {!readiness && !readinessLoading && (
+                    <Typography variant="body2" sx={{ color: '#94a3b8', py: 2 }}>
+                      Log your daily wellness check-in (sleep, energy, stress) for 3+ days to unlock your readiness score.
+                    </Typography>
+                  )}
+
+                  {readiness && (
+                    <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                      {/* Score ring */}
+                      <Box sx={{ textAlign: 'center', minWidth: 120 }}>
+                        <Box sx={{
+                          width: 120, height: 120, borderRadius: '50%', mx: 'auto',
+                          border: `8px solid ${readiness.color}`,
+                          display: 'flex', flexDirection: 'column',
+                          alignItems: 'center', justifyContent: 'center',
+                          boxShadow: `0 0 24px ${readiness.color}40`
+                        }}>
+                          <Typography sx={{ fontSize: '2.2rem', fontWeight: 900, color: readiness.color, lineHeight: 1 }}>
+                            {readiness.readinessScore}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600 }}>/10</Typography>
+                        </Box>
+                        <Box sx={{
+                          mt: 1.5, px: 2, py: 0.5, borderRadius: 2,
+                          bgcolor: readiness.color, display: 'inline-block'
+                        }}>
+                          <Typography variant="caption" sx={{ fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
+                            {readiness.status === 'push_hard' ? '🔥 Push Hard'
+                              : readiness.status === 'train_normal' ? '💪 Train Normal'
+                              : readiness.status === 'train_light' ? '🔄 Train Light'
+                              : '😴 Rest Day'}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      {/* Recommendation + Components */}
+                      <Box sx={{ flex: 1, minWidth: 200 }}>
+                        <Typography variant="body2" sx={{ color: '#334155', lineHeight: 1.7, mb: 2, fontSize: '0.95rem' }}>
+                          {readiness.recommendation}
+                        </Typography>
+
+                        {/* Component scores */}
+                        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+                          {[
+                            { label: 'Sleep', score: readiness.components.sleep.score, detail: `${readiness.components.sleep.avgHours}h (${readiness.components.sleep.quality}/10 qual)`, emoji: '😴' },
+                            { label: 'RHR', score: readiness.components.rhr.score, detail: `${readiness.components.rhr.avgRhr} bpm`, emoji: '🫀' },
+                            { label: 'Energy', score: readiness.components.energy.score, detail: `${readiness.components.energy.avgRating}/10`, emoji: '⚡' },
+                            { label: 'Stress', score: readiness.components.stress.score, detail: `${readiness.components.stress.avgRating}/10 stress`, emoji: '🧘' },
+                            { label: 'Load', score: readiness.components.trainingLoad.score, detail: `${Math.round(readiness.components.trainingLoad.volumeRatio * 100)}% base${readiness.components.trainingLoad.daysSinceRestDay > 3 ? ` (${readiness.components.trainingLoad.daysSinceRestDay}d no rest)` : ''}`, emoji: '🏋️' },
+                          ].map(comp => {
+                            const pct = (comp.score / 10) * 100
+                            const c = comp.score >= 7 ? '#22c55e' : comp.score >= 5 ? '#f59e0b' : '#ef4444'
+                            return (
+                              <Box key={comp.label} sx={{ p: 1.5, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#334155' }}>
+                                    {comp.emoji} {comp.label}
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ fontWeight: 800, color: c }}>{comp.score}/10</Typography>
+                                </Box>
+                                <LinearProgress
+                                  variant="determinate" value={pct}
+                                  sx={{ height: 4, borderRadius: 2, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { bgcolor: c, borderRadius: 2 } }}
+                                />
+                                <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.65rem' }}>{comp.detail}</Typography>
+                              </Box>
+                            )
+                          })}
+                        </Box>
+                      </Box>
+
+                      {/* Overtraining risk */}
+                      {readiness.overtraining.risk !== 'low' && (
+                        <Box sx={{
+                          p: 2, borderRadius: 2, minWidth: 200, flex: 1,
+                          bgcolor: readiness.overtraining.risk === 'high' ? '#fef2f2' : '#fffbeb',
+                          border: `1px solid ${readiness.overtraining.risk === 'high' ? '#fca5a5' : '#fde68a'}`
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                            <WarningAmberIcon sx={{ fontSize: 18, color: readiness.overtraining.risk === 'high' ? '#ef4444' : '#f59e0b' }} />
+                            <Typography variant="caption" sx={{ fontWeight: 800, color: readiness.overtraining.risk === 'high' ? '#991b1b' : '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              {readiness.overtraining.risk === 'high' ? 'Overtraining Risk: HIGH' : 'Overtraining Risk: Moderate'}
+                            </Typography>
+                          </Box>
+                          <Typography variant="caption" sx={{ color: '#475569', lineHeight: 1.6, display: 'block' }}>
+                            {readiness.overtraining.detail}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+
+                  {/* Stagnation Alerts */}
+                  {readiness?.stagnationAlerts?.length > 0 && (
+                    <Box sx={{ mt: 3, pt: 2.5, borderTop: '1px solid #e2e8f0' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                        <TrendingUpIcon sx={{ color: '#7c3aed', fontSize: 20 }} />
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: '#4c1d95', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                          Stagnation Detected — {readiness.stagnationAlerts.length} exercise{readiness.stagnationAlerts.length > 1 ? 's' : ''} plateaued
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        {readiness.stagnationAlerts.map((alert, i) => (
+                          <Box key={i} sx={{
+                            p: 2, bgcolor: '#faf5ff', borderRadius: 1.5,
+                            borderLeft: '4px solid #7c3aed', display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap'
+                          }}>
+                            <Box>
+                              <Typography variant="caption" sx={{ fontWeight: 800, color: '#3b0764', display: 'block' }}>
+                                {alert.exercise}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: '#6b21a8' }}>
+                                No progress in {alert.sessionsStagnated} sessions — best: {alert.currentBest}kg
+                              </Typography>
+                            </Box>
+                            <Typography variant="caption" sx={{ color: '#475569', lineHeight: 1.6, maxWidth: 300 }}>
+                              💡 {alert.suggestion}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Performance Charts */}
+              <Box sx={{ gridColumn: { md: '1 / -1' } }}>
+                <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                    <BarChartIcon sx={{ color: '#8b5cf6' }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                      Volume & Intensity Trends
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ height: 300, width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={volumeChartData}>
+                        <defs>
+                          <linearGradient id="colorVol" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis 
+                          dataKey="date" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fill: '#94a3b8' }} 
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fill: '#94a3b8' }}
+                          tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v}
+                        />
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="volume" 
+                          stroke="#8b5cf6" 
+                          strokeWidth={3}
+                          fillOpacity={1} 
+                          fill="url(#colorVol)" 
+                          name="Volume (kg)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Exercise Specific Progression */}
+              <Box sx={{ gridColumn: { md: '1 / -1' } }}>
+                <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AutoGraphIcon sx={{ color: '#ec4899' }} />
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                        Exercise Progression
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Select
+                        size="small"
+                        value={selectedAnalysisExercise}
+                        onChange={(e) => setSelectedAnalysisExercise(e.target.value)}
+                        sx={{ minWidth: 200, height: 32, fontSize: '0.8rem' }}
+                      >
+                        {allExerciseNames.map(name => (
+                          <MenuItem key={name} value={name}>{name}</MenuItem>
+                        ))}
+                      </Select>
+                      <Select
+                        size="small"
+                        value={analysisChartMode}
+                        onChange={(e) => setAnalysisChartMode(e.target.value)}
+                        sx={{ height: 32, fontSize: '0.8rem' }}
+                      >
+                        <MenuItem value="1rm">Est. 1RM</MenuItem>
+                        <MenuItem value="weight">Max Weight</MenuItem>
+                      </Select>
+                    </Box>
+                  </Box>
+
+                  {exerciseProgressionData.length > 1 ? (
+                    <Box sx={{ height: 300, width: '100%' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={exerciseProgressionData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis 
+                            dataKey="date" 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fontSize: 10, fill: '#94a3b8' }} 
+                          />
+                          <YAxis 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fontSize: 10, fill: '#94a3b8' }}
+                            unit="kg"
+                          />
+                          <Tooltip 
+                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey={analysisChartMode === '1rm' ? 'oneRepMax' : 'weight'} 
+                            stroke="#ec4899" 
+                            strokeWidth={3}
+                            dot={{ r: 4, fill: '#ec4899', strokeWidth: 2, stroke: '#fff' }}
+                            activeDot={{ r: 6, strokeWidth: 0 }}
+                            name={analysisChartMode === '1rm' ? 'Est. 1RM' : 'Max Weight'}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  ) : (
+                    <Box sx={{ p: 4, textAlign: 'center', bgcolor: '#f8fafc', borderRadius: 2 }}>
+                      <Typography variant="body2" sx={{ color: '#94a3b8' }}>
+                        Need at least 2 sessions with this exercise to show a trend.
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
               </Box>
 
               {/* Training Insights - Advanced Analysis */}
@@ -1219,6 +1647,102 @@ function GymTracker() {
                 </Box>
               </Box>
 
+              {/* Life Sync: Cross-Domain Correlation */}
+              <Box sx={{ gridColumn: { md: '1 / -1' } }}>
+                <Box sx={{ p: 3, bgcolor: '#0f172a', borderRadius: 2, border: '1px solid rgba(56, 189, 248, 0.2)', color: '#fff' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                    <InsightsIcon sx={{ color: '#38bdf8' }} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#38bdf8' }}>
+                      Correlation Center: Fuel vs. Output
+                    </Typography>
+                  </Box>
+                  
+                  <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 3 }}>
+                    This chart connects your vertical health slices. See how your nutrition (Protein/Calories) directly impacts your gym performance over the last 14 days.
+                  </Typography>
+
+                  <Box sx={{ height: 300, width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={correlationChartData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                        <XAxis 
+                          dataKey="date" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 9, fill: '#64748b' }} 
+                          tickFormatter={(d) => new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        />
+                        <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                        <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
+                        <Tooltip 
+                          contentStyle={{ bgcolor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                        />
+                        <Line 
+                          yAxisId="left"
+                          type="monotone" 
+                          dataKey="volume" 
+                          stroke="#38bdf8" 
+                          strokeWidth={2}
+                          dot={{ r: 3 }}
+                          name="Workout Volume (kg)"
+                        />
+                        <Line 
+                          yAxisId="right"
+                          type="monotone" 
+                          dataKey="protein" 
+                          stroke="#f472b6" 
+                          strokeWidth={2}
+                          strokeDasharray="5 5"
+                          dot={{ r: 3 }}
+                          name="Protein Intake (g)"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Box>
+              </Box>
+
+              {/* Life Sync: Deep Correlation Insights */}
+              {correlatedInsights.length > 0 && (
+                <Box sx={{ gridColumn: { md: '1 / -1' } }}>
+                  <Box sx={{ p: 3, bgcolor: '#fff7ed', borderRadius: 2, border: '1px solid #ffedd5' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+                      <AutoGraphIcon sx={{ color: '#ea580c' }} />
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: '1.2rem', color: '#9a3412' }}>
+                        Deep Sync: Clinical Pattern Analysis
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {correlatedInsights.map((insight, idx) => (
+                        <Box key={idx} sx={{ 
+                          p: 3, 
+                          bgcolor: '#fff', 
+                          borderRadius: 2, 
+                          borderLeft: `6px solid ${insight.impact === 'high' ? '#ef4444' : '#f97316'}`,
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                        }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#1e293b', mb: 1 }}>
+                            {insight.title}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.6, mb: 2 }}>
+                            {insight.detail}
+                          </Typography>
+                          <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px dashed #e2e8f0' }}>
+                            <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
+                              Recommended Action
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                              {insight.action}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                </Box>
+              )}
+
               {/* Monthly Muscle Heatmap */}
               <Box sx={{ gridColumn: { md: '1 / -1' } }}>
                 <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
@@ -1267,7 +1791,7 @@ function GymTracker() {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {Object.entries(EXERCISE_LIBRARY).map(([key, data]) => {
                     if (key === 'cardio') return null;
-                    const count = stats.muscleDistribution[key] || 0
+                    const count = muscleDistribution[key] || 0
                     const target = 10;
                     const percentage = Math.min((count / target) * 100, 100)
                     const statusColor = count >= 10 ? '#10b981' : count >= 5 ? '#f59e0b' : '#64748b'

@@ -1368,13 +1368,24 @@ router.post('/nutrition-agent', async (req, res) => {
     global.agentSessions = {};
   }
   
-  let agentId = sessionId || `session_${userId}_${Date.now()}`;
+  const SESSION_TTL_MS = 15 * 60 * 1000; // 15 minutes
+  const nowTs = Date.now();
+  
+  // Cleanup stale sessions
+  Object.keys(global.agentSessions).forEach(id => {
+    if (nowTs - global.agentSessions[id].lastActive > SESSION_TTL_MS) {
+      delete global.agentSessions[id];
+    }
+  });
+  
+  let agentId = sessionId || `session_${userId}_${nowTs}`;
   if (!global.agentSessions[agentId]) {
     const { NutritionAgentSession } = require('../services/nutritionAI/nutritionAgent');
     global.agentSessions[agentId] = new NutritionAgentSession(userId);
   }
   
   const agent = global.agentSessions[agentId];
+  agent.lastActive = nowTs;
   
   try {
     const result = await agent.handleVoiceInput(message);

@@ -45,17 +45,18 @@ const stopBootText = startBootSplashTextRotation()
 let bootSplashHideScheduled = false
 
 function hideBootSplash() {
+  window.__lifesync_ready = true
+  if (typeof window.__lifesync_cancel_splash === 'function') {
+    window.__lifesync_cancel_splash()
+  }
+
   const el = document.getElementById('boot-splash')
   if (!el) return
 
   if (bootSplashHideScheduled) return
   bootSplashHideScheduled = true
 
-  // Ensure a minimum dwell so the animation reads as intentional.
-  const minMs = 3000
-  const elapsed = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - bootStart
-  const remaining = Math.max(0, minMs - elapsed)
-
+  // If it's already showing, fade it out. If not, it won't show at all.
   window.setTimeout(() => {
     try {
       stopBootText()
@@ -71,14 +72,14 @@ function hideBootSplash() {
         // ignore
       }
     }, 650)
-  }, remaining)
+  }, 0)
 }
 
 // Hide when the app signals it's ready (auth init complete).
 window.addEventListener('lifesync:app:ready', hideBootSplash, { once: true })
 
 // Fallback: never block longer than a few seconds.
-window.setTimeout(hideBootSplash, 6500)
+window.setTimeout(hideBootSplash, 5000)
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

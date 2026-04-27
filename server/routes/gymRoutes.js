@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const { StepsLog } = require('../models/Logs');
 const Workout = require('../models/Workout');
 const WorkoutTemplate = require('../models/WorkoutTemplate');
+const { analyzeCorrelations } = require('../services/insights/correlationEngine');
+const { calculateReadiness } = require('../services/insights/readinessEngine');
 const { triggerDailyLifeStateRecompute } = require('../services/dailyLifeState/triggerDailyLifeStateRecompute');
 
 const router = express.Router();
@@ -315,6 +317,28 @@ router.delete('/templates/:id', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Failed to delete template:', err);
     res.status(500).json({ error: 'Failed to delete template' });
+  }
+});
+
+// Get correlated life-sync insights
+router.get('/correlations', authMiddleware, async (req, res) => {
+  try {
+    const insights = await analyzeCorrelations(req.userId);
+    res.json(insights);
+  } catch (err) {
+    console.error('Failed to fetch correlations:', err);
+    res.status(500).json({ error: 'Failed to fetch correlations' });
+  }
+});
+
+// Get daily training readiness score + stagnation alerts
+router.get('/readiness', authMiddleware, async (req, res) => {
+  try {
+    const result = await calculateReadiness(req.userId);
+    res.json(result);
+  } catch (err) {
+    console.error('Failed to calculate readiness:', err);
+    res.status(500).json({ error: 'Failed to calculate readiness' });
   }
 });
 

@@ -16,8 +16,11 @@ const { evaluateMealInteractions, evaluateDayInteractions } = require('../servic
 const { calculateEffectiveNutrients } = require('../services/nutritionPipeline/bioavailabilityEngine');
 const BarcodeProduct = require('../models/BarcodeProduct');
 const MealTemplate = require('../models/MealTemplate');
-const { calculateAdaptiveTDEE, calculateAdaptiveTDEEForRange } = require('../services/nutritionPipeline/adaptiveTdeeEngine');
+const { calculateAdaptiveTDEE, calculateAdaptiveTDEEForRange, calculateMetabolicMap } = require('../services/nutritionPipeline/adaptiveTdeeEngine');
+const { analyzeMealTiming } = require('../services/nutritionPipeline/mealTimingEngine');
 const { calculateDailyTargets } = require('../services/nutritionEngine');
+const KitchenInventory = require('../models/KitchenInventory');
+const { computeWeeklyDiversity } = require('../services/nutritionPipeline/sourceDiversityEngine');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
@@ -851,12 +854,15 @@ router.get('/clinical-targets', authMiddleware, async (req, res) => {
     const user = await User.findById(req.userId).select('biologicalProfile height weight gender bodyFat age dob clinicalTargets');
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // If we already have stored clinical targets, return them
-    if (user.clinicalTargets && user.clinicalTargets.targets) {
+    const useAdaptiveTdee = user.biologicalProfile?.useAdaptiveTdee !== false;
+    const storedClinicalTargets = user.clinicalTargets && user.clinicalTargets.targets ? user.clinicalTargets : null;
+
+    // For non-adaptive users, stored targets are authoritative.
+    if (storedClinicalTargets && !useAdaptiveTdee) {
       console.log('[ClinicalTargets] Returning stored targets for user:', req.userId);
       return res.status(200).json({
         requiresSetup: false,
-        ...user.clinicalTargets
+        ...storedClinicalTargets
       });
     }
 
@@ -896,7 +902,7 @@ router.get('/clinical-targets', authMiddleware, async (req, res) => {
     const calculatedBase = calculateDailyTargets(effectiveProfile);
     
     let adaptiveOverride = null;
-    if (user.biologicalProfile?.useAdaptiveTdee !== false) {
+    if (useAdaptiveTdee) {
       const adaptiveResult = await calculateAdaptiveTDEE(req.userId, 30);
       if (adaptiveResult.status === 'success') {
         adaptiveOverride = adaptiveResult.adaptiveTdee;
@@ -909,6 +915,13 @@ router.get('/clinical-targets', authMiddleware, async (req, res) => {
       : calculatedBase;
 
     if (!calculated) {
+      if (storedClinicalTargets) {
+        console.log('[ClinicalTargets] Calculation failed, falling back to stored targets for user:', req.userId);
+        return res.status(200).json({
+          requiresSetup: false,
+          ...storedClinicalTargets,
+        });
+      }
       return res.status(200).json({
         requiresSetup: true,
         targets: null,
@@ -1114,9 +1127,6 @@ router.get('/barcode/:code', authMiddleware, async (req, res) => {
 
 // ==================== AGGREGATION ROUTES (for Insights tab) ====================
 
-const { calculateAdaptiveTDEE } = require('../services/nutritionPipeline/adaptiveTdeeEngine');
-const { analyzeMealTiming } = require('../services/nutritionPipeline/mealTimingEngine');
-
 // Get Adaptive TDEE
 router.get('/adaptive-tdee', authMiddleware, async (req, res) => {
   try {
@@ -1126,6 +1136,18 @@ router.get('/adaptive-tdee', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('[NutritionRoutes] Adaptive TDEE error:', err);
     res.status(500).json({ error: 'Failed to calculate adaptive TDEE' });
+  }
+});
+
+// Get Personal Metabolic Map (Dynamic TDEE with stress/training/adaptation modifiers)
+router.get('/metabolic-map', authMiddleware, async (req, res) => {
+  try {
+    const daysBack = parseInt(req.query.daysBack) || 60;
+    const result = await calculateMetabolicMap(req.userId, daysBack);
+    res.json(result);
+  } catch (err) {
+    console.error('[NutritionRoutes] Metabolic Map error:', err);
+    res.status(500).json({ error: 'Failed to calculate metabolic map' });
   }
 });
 
@@ -1393,6 +1415,48 @@ router.delete('/saved-templates/:id', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('[NutritionRoutes] DELETE /saved-templates error:', err);
     res.status(500).json({ error: 'Failed to delete template.' });
+  }
+});
+
+// ── Dietary Diversity & Inflammation ───────────────────────────────────────
+router.get('/insights/diversity', authMiddleware, async (req, res) => {
+  try {
+    const data = await computeWeeklyDiversity(req.userId);
+    res.json(data);
+  } catch (err) {
+    console.error('[NutritionRoutes] GET /insights/diversity error:', err);
+    res.status(500).json({ error: 'Failed to compute diversity insights.' });
+  }
+});
+
+// ── Kitchen Inventory ──────────────────────────────────────────────────────
+// GET  /api/nutrition/kitchen-inventory   → returns { items: [...] }
+// PUT  /api/nutrition/kitchen-inventory   → body { items: [...] } replaces list
+
+router.get('/kitchen-inventory', authMiddleware, async (req, res) => {
+  try {
+    const inv = await KitchenInventory.findOne({ user: req.userId }).lean();
+    res.json({ items: inv?.items || [] });
+  } catch (err) {
+    console.error('[KitchenInventory] GET error:', err);
+    res.status(500).json({ error: 'Failed to fetch kitchen inventory' });
+  }
+});
+
+router.put('/kitchen-inventory', authMiddleware, async (req, res) => {
+  try {
+    const { items } = req.body;
+    if (!Array.isArray(items)) return res.status(400).json({ error: 'items must be an array' });
+    const cleaned = [...new Set(items.map(i => String(i).trim()).filter(Boolean))];
+    const inv = await KitchenInventory.findOneAndUpdate(
+      { user: req.userId },
+      { $set: { items: cleaned } },
+      { upsert: true, new: true }
+    );
+    res.json({ items: inv.items });
+  } catch (err) {
+    console.error('[KitchenInventory] PUT error:', err);
+    res.status(500).json({ error: 'Failed to update kitchen inventory' });
   }
 });
 

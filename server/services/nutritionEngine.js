@@ -205,6 +205,8 @@ const calculateDailyTargets = (biologicalProfile, adaptiveTdeeOverride = null) =
       // Clinical deep limits
       sugar: Math.round((targetCalories * 0.1) / 4), // WHO recommends keeping added sugar < 10% of cals
       saturatedFat: Math.round((targetCalories * 0.1) / 9), // AHA < 10% of cals from sat fat
+      monounsaturatedFat: Math.round((targetCalories * 0.15) / 9), // Clinical baseline ~15-20%
+      polyunsaturatedFat: Math.round((targetCalories * 0.08) / 9), // Clinical baseline ~5-10%
       cholesterol: 300, // mg (standard clinical cap)
 
       micronutrients: {

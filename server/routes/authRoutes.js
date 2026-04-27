@@ -2,15 +2,13 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-
 const crypto = require('crypto');
 const transporter = require('../services/emailTransporter');
+const auth = require('../middleware/authMiddleware');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
-
-// In-memory store for reset tokens (for demo; use DB in production)
-const resetTokens = {};
+const resetTokens = {}; // Back-compat for in-memory tokens
 
 function getClientBaseUrl() {
   return (
@@ -114,45 +112,22 @@ router.post('/login', async (req, res) => {
 });
 
 // Get current user (protected)
-router.get('/me', async (req, res) => {
+// Get current user (protected)
+router.get('/me', auth, async (req, res) => {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(decoded.userId).select('-password');
-    
+    const user = await User.findById(req.userId).select('-password');
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-
     res.json(user);
   } catch (err) {
-    res.status(401).json({ error: 'Invalid token' });
+    console.error('[auth/me] error:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
 
-// --- Direct Password Reset (no email verification) ---
-router.post('/direct-reset', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'Email and new password are required' });
-  if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
-  try {
-    const normalizedEmail = String(email).toLowerCase().trim();
-    const user = await User.findOne({ email: normalizedEmail });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(String(password), salt);
-    await user.save();
-    res.json({ message: 'Password updated successfully.' });
-  } catch (err) {
-    console.error('Direct reset error:', err);
-    res.status(500).json({ error: 'Password update failed.' });
-  }
-});
+// Direct reset is removed for security. Use forgot-password flow.
 
 // --- Forgot Password ---
 router.post('/forgot-password', async (req, res) => {

@@ -166,12 +166,19 @@ function Onboarding({ onComplete }) {
       if (res.ok) {
         await refreshUser()
         onComplete()
+      } else {
+        const errData = await res.json().catch(() => ({}))
+        setError(errData.error || 'Failed to save profile. Please check your data.')
       }
     } catch (err) {
       console.error('Failed to save onboarding:', err)
+      setError('Network error. Please try again.')
     }
     setSaving(false)
   }
+
+  // Add error state
+  const [error, setError] = useState(null)
 
   const progress = ((step + 1) / steps.length) * 100
 
@@ -241,6 +248,11 @@ function Onboarding({ onComplete }) {
                 <Typography variant="body2" sx={{ color: '#6b7280' }}>
                   {steps[step].subtitle}
                 </Typography>
+                {error && (
+                  <Typography variant="body2" sx={{ color: '#dc2626', mt: 2, fontWeight: 500 }}>
+                    Error: {error}
+                  </Typography>
+                )}
               </Box>
 
               {/* Step 0: Goals */}

@@ -5,39 +5,10 @@ const { triggerDailyLifeStateRecompute } = require('../services/dailyLifeState/t
 
 const router = express.Router();
 
-// Helper to extract userId from token
-const getUserIdFromToken = (req) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) return null;
-    const token = authHeader.split(' ')[1];
-    const secret = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
-    const decoded = jwt.verify(token, secret);
-    return decoded.userId;
-  } catch (err) {
-    return null;
-  }
-};
-
-// Auth middleware for log routes
-const authMiddleware = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  try {
-    const token = authHeader.split(' ')[1];
-    const secret = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
-    const decoded = jwt.verify(token, secret);
-    req.userId = decoded.userId;
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
+const auth = require('../middleware/authMiddleware');
 
 // GET all logs for authenticated user
-router.get('/fitness', authMiddleware, async (req, res) => {
+router.get('/fitness', auth, async (req, res) => {
   try {
     const logs = await FitnessLog.find({ user: req.userId }).sort({ date: -1 }).limit(30);
     res.json(logs);
@@ -47,7 +18,7 @@ router.get('/fitness', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/nutrition', authMiddleware, async (req, res) => {
+router.get('/nutrition', auth, async (req, res) => {
   try {
     const logs = await NutritionLog.find({ user: req.userId }).sort({ date: -1 }).limit(30);
     res.json(logs);
@@ -57,7 +28,7 @@ router.get('/nutrition', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/mental', authMiddleware, async (req, res) => {
+router.get('/mental', auth, async (req, res) => {
   try {
     const logs = await MentalLog.find({ user: req.userId }).sort({ date: -1 }).limit(30);
     res.json(logs);
@@ -67,9 +38,9 @@ router.get('/mental', authMiddleware, async (req, res) => {
   }
 });
 
-router.post('/fitness', async (req, res) => {
+router.post('/fitness', auth, async (req, res) => {
   try {
-    const userId = getUserIdFromToken(req);
+    const userId = req.userId;
     const log = await FitnessLog.create({
       ...req.body,
       user: userId,
@@ -92,9 +63,9 @@ router.get('/fitness/:userId', async (req, res) => {
   }
 });
 
-router.post('/nutrition', async (req, res) => {
+router.post('/nutrition', auth, async (req, res) => {
   try {
-    const userId = getUserIdFromToken(req);
+    const userId = req.userId;
     const log = await NutritionLog.create({
       ...req.body,
       user: userId,
@@ -177,14 +148,14 @@ async function createMentalLog(req, res, userId) {
 }
 
 // Canonical (token-based)
-router.post('/mental', async (req, res) => {
-  const userId = getUserIdFromToken(req);
+router.post('/mental', auth, async (req, res) => {
+  const userId = req.userId;
   return createMentalLog(req, res, userId);
 });
 
 // Back-compat: older client called /mental/:userId
-router.post('/mental/:userId', async (req, res) => {
-  const userId = getUserIdFromToken(req) || req.params.userId;
+router.post('/mental/:userId', auth, async (req, res) => {
+  const userId = req.userId || req.params.userId;
   return createMentalLog(req, res, userId);
 });
 

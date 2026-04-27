@@ -228,7 +228,11 @@ const UserSchema = new mongoose.Schema(
 
     // Scientific Metabolic & Dietary Profile (DRI/BMR Calculation Engine)
     biologicalProfile: {
-      biologicalSex: { type: String, enum: ['male', 'female'] },
+      biologicalSex: { 
+        type: String, 
+        enum: ['male', 'female', 'other', 'prefer-not'],
+        default: 'other'
+      },
       dob: Date,
       heightCm: Number,
       weightKg: Number,

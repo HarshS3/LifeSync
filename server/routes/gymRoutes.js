@@ -10,22 +10,7 @@ const { triggerDailyLifeStateRecompute } = require('../services/dailyLifeState/t
 
 const router = express.Router();
 
-// Auth middleware
-const authMiddleware = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  try {
-    const token = authHeader.split(' ')[1];
-    const secret = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
-    const decoded = jwt.verify(token, secret);
-    req.userId = decoded.userId;
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
+const auth = require('../middleware/authMiddleware');
 
 async function getStepsForDate(req, res, dateStr) {
   try {
@@ -54,12 +39,12 @@ async function getStepsForDate(req, res, dateStr) {
 }
 
 // Get steps for a specific date
-router.get('/steps/date/:date', authMiddleware, async (req, res) => {
+router.get('/steps/date/:date', auth, async (req, res) => {
   return getStepsForDate(req, res, req.params.date);
 });
 
 // Upsert steps for a date
-router.post('/steps', authMiddleware, async (req, res) => {
+router.post('/steps', auth, async (req, res) => {
   try {
     const { date, stepsCount } = req.body;
     const d = new Date(date);
@@ -97,7 +82,7 @@ router.post('/steps', authMiddleware, async (req, res) => {
 });
 
 // Range fetch for charting
-router.get('/steps/range/:start/:end', authMiddleware, async (req, res) => {
+router.get('/steps/range/:start/:end', auth, async (req, res) => {
   try {
     const start = new Date(req.params.start);
     const end = new Date(req.params.end);
@@ -119,7 +104,7 @@ router.get('/steps/range/:start/:end', authMiddleware, async (req, res) => {
 });
 
 // Get all workouts for user
-router.get('/workouts', authMiddleware, async (req, res) => {
+router.get('/workouts', auth, async (req, res) => {
   try {
     const workouts = await Workout.find({ user: req.userId }).sort({ date: -1 }).limit(100);
     res.json(workouts);
@@ -130,7 +115,7 @@ router.get('/workouts', authMiddleware, async (req, res) => {
 });
 
 // Get workout by ID (user-specific)
-router.get('/workouts/:id', authMiddleware, async (req, res) => {
+router.get('/workouts/:id', auth, async (req, res) => {
   try {
     const workout = await Workout.findOne({ _id: req.params.id, user: req.userId });
     if (!workout) {
@@ -144,7 +129,7 @@ router.get('/workouts/:id', authMiddleware, async (req, res) => {
 });
 
 // Create workout (user-specific)
-router.post('/workouts', authMiddleware, async (req, res) => {
+router.post('/workouts', auth, async (req, res) => {
   try {
     const { name, exercises, duration, date, notes } = req.body;
 
@@ -165,7 +150,7 @@ router.post('/workouts', authMiddleware, async (req, res) => {
 });
 
 // Update workout (user-specific)
-router.put('/workouts/:id', authMiddleware, async (req, res) => {
+router.put('/workouts/:id', auth, async (req, res) => {
   try {
     const workout = await Workout.findOneAndUpdate(
       { _id: req.params.id, user: req.userId },
@@ -183,7 +168,7 @@ router.put('/workouts/:id', authMiddleware, async (req, res) => {
 });
 
 // Delete workout (user-specific)
-router.delete('/workouts/:id', authMiddleware, async (req, res) => {
+router.delete('/workouts/:id', auth, async (req, res) => {
   try {
     const workout = await Workout.findOneAndDelete({ _id: req.params.id, user: req.userId });
     if (!workout) {
@@ -197,7 +182,7 @@ router.delete('/workouts/:id', authMiddleware, async (req, res) => {
 });
 
 // Get workout stats (user-specific)
-router.get('/stats', authMiddleware, async (req, res) => {
+router.get('/stats', auth, async (req, res) => {
   try {
     const workouts = await Workout.find({ user: req.userId }).sort({ date: -1 });
     
@@ -261,7 +246,7 @@ router.get('/stats', authMiddleware, async (req, res) => {
 });
 
 // Get workouts by date range (for calendar, user-specific)
-router.get('/workouts/range/:start/:end', authMiddleware, async (req, res) => {
+router.get('/workouts/range/:start/:end', auth, async (req, res) => {
   try {
     const { start, end } = req.params;
     const workouts = await Workout.find({
@@ -281,7 +266,7 @@ router.get('/workouts/range/:start/:end', authMiddleware, async (req, res) => {
 // ── Workout Templates ────────────────────────────────────────────────────────
 
 // Get all templates for user
-router.get('/templates', authMiddleware, async (req, res) => {
+router.get('/templates', auth, async (req, res) => {
   try {
     const templates = await WorkoutTemplate.find({ userId: req.userId }).sort({ lastUsed: -1, createdAt: -1 });
     res.json(templates);
@@ -292,7 +277,7 @@ router.get('/templates', authMiddleware, async (req, res) => {
 });
 
 // Create template
-router.post('/templates', authMiddleware, async (req, res) => {
+router.post('/templates', auth, async (req, res) => {
   try {
     const { name, exercises, description } = req.body;
     const template = await WorkoutTemplate.create({
@@ -309,7 +294,7 @@ router.post('/templates', authMiddleware, async (req, res) => {
 });
 
 // Delete template
-router.delete('/templates/:id', authMiddleware, async (req, res) => {
+router.delete('/templates/:id', auth, async (req, res) => {
   try {
     const template = await WorkoutTemplate.findOneAndDelete({ _id: req.params.id, userId: req.userId });
     if (!template) return res.status(404).json({ error: 'Template not found' });
@@ -321,7 +306,7 @@ router.delete('/templates/:id', authMiddleware, async (req, res) => {
 });
 
 // Get correlated life-sync insights
-router.get('/correlations', authMiddleware, async (req, res) => {
+router.get('/correlations', auth, async (req, res) => {
   try {
     const insights = await analyzeCorrelations(req.userId);
     res.json(insights);
@@ -332,7 +317,7 @@ router.get('/correlations', authMiddleware, async (req, res) => {
 });
 
 // Get daily training readiness score + stagnation alerts
-router.get('/readiness', authMiddleware, async (req, res) => {
+router.get('/readiness', auth, async (req, res) => {
   try {
     const result = await calculateReadiness(req.userId);
     res.json(result);

@@ -36,11 +36,15 @@ export function AuthProvider({ children }) {
         setUser(userData)
         localStorage.setItem(USER_KEY, JSON.stringify(userData))
       } else {
-        // Token invalid, clear auth
+        // Token invalid or user not found, clear auth
+        console.warn('[AuthContext] Token verification failed:', res.status)
         logout()
       }
     } catch (err) {
-      console.error('Token verification failed:', err)
+      console.error('[AuthContext] Verify token failed:', err)
+      // On network error, we don't necessarily want to log out immediately 
+      // but for consistency we will if the error is persistent.
+      logout()
     } finally {
       setLoading(false)
     }

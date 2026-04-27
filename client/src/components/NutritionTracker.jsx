@@ -1,5 +1,6 @@
 import ExpandableSection from './ExpandableSection'
 import NutritionInsights from './NutritionInsights'
+import WeeklyReview from './WeeklyReview'
 import WeightTracker from './WeightTracker'
 import KitchenInventory from './KitchenInventory'
 import { useState, useEffect, useMemo, useRef } from 'react'
@@ -1967,6 +1968,7 @@ function NutritionTracker() {
         <Tab label="Insights" />
         <Tab label="Recipes" />
         <Tab label="Kitchen" />
+        <Tab label="Review" />
       </Tabs>
 
       {activeTab === 0 && (
@@ -3482,6 +3484,27 @@ function NutritionTracker() {
       )}
       {activeTab === 8 && (
         <KitchenInventory />
+      )}
+
+      {activeTab === 9 && (
+        <WeeklyReview weekKey={(() => {
+          const d = new Date(selectedDate);
+          const istDateStr = d.toLocaleString('en-CA', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }).substring(0, 10).replace(/\//g, '-');
+          const [y, m, dDay] = istDateStr.split('-').map(Number);
+          const dUTC = new Date(Date.UTC(y, m - 1, dDay, 0, 0, 0));
+          const dayNum = dUTC.getUTCDay();
+          dUTC.setUTCDate(dUTC.getUTCDate() - dayNum);
+          const yearStart = new Date(Date.UTC(dUTC.getUTCFullYear(), 0, 1));
+          const yearStartDay = yearStart.getUTCDay();
+          yearStart.setUTCDate(yearStart.getUTCDate() - yearStartDay);
+          const weekNum = Math.floor(((dUTC - yearStart) / 86400000) / 7) + 1;
+          return `${dUTC.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+        })()} />
       )}
     </Box>
   )

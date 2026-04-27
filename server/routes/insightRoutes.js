@@ -8,27 +8,13 @@ const User = require('../models/User');
 const { fetchTextbookRag } = require('../services/ragClient');
 const { generateLLMReply } = require('../aiClient');
 const { buildNutritionReview } = require('../services/nutritionReview/buildNutritionReview');
+const { generateWeeklyReview } = require('../services/insights/weeklyReviewGenerator');
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
-
-const authMiddleware = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-  try {
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.userId = decoded.userId;
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
+const auth = require('../middleware/authMiddleware');
 
 // GET /api/insights/daily?date=YYYY-MM-DD (or ISO) [&refresh=1]
-router.get('/daily', authMiddleware, async (req, res) => {
+router.get('/daily', auth, async (req, res) => {
   try {
     const date = req.query.date || new Date().toISOString();
     const start = new Date(date);
@@ -73,7 +59,7 @@ router.get('/daily', authMiddleware, async (req, res) => {
 });
 
 // POST /api/insights/daily/recompute { date }
-router.post('/daily/recompute', authMiddleware, async (req, res) => {
+router.post('/daily/recompute', auth, async (req, res) => {
   try {
     const date = req.body?.date || new Date().toISOString();
     const start = new Date(date);
@@ -118,7 +104,7 @@ router.post('/daily/recompute', authMiddleware, async (req, res) => {
 });
 
 // GET /api/insights/learning/overall?days=60
-router.get('/learning/overall', authMiddleware, async (req, res) => {
+router.get('/learning/overall', auth, async (req, res) => {
   try {
     const daysRaw = Number(req.query.days ?? 60);
     const days = Number.isFinite(daysRaw) ? Math.min(365, Math.max(7, Math.floor(daysRaw))) : 60;
@@ -215,7 +201,7 @@ router.get('/learning/overall', authMiddleware, async (req, res) => {
 });
 
 // GET /api/insights/nutrition/review?dayKey=YYYY-MM-DD&narrate=1
-router.get('/nutrition/review', authMiddleware, async (req, res) => {
+router.get('/nutrition/review', auth, async (req, res) => {
   try {
     const rawDayKey = String(req.query.dayKey || '').trim();
 
@@ -308,6 +294,21 @@ router.get('/nutrition/review', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('[InsightRoutes] GET /nutrition/review error:', err);
     res.status(err?.status || 500).json({ error: err?.message || 'Failed to build nutrition review' });
+  }
+});
+
+// GET /api/insights/weekly-review?weekKey=YYYY-Wnn
+router.get('/weekly-review', auth, async (req, res) => {
+  try {
+    const weekKey = String(req.query.weekKey || '').trim();
+    if (!/^\d{4}-W\d{2}$/.test(weekKey)) {
+      return res.status(400).json({ error: 'Invalid weekKey format' });
+    }
+    const review = await generateWeeklyReview(req.userId, weekKey);
+    res.json(review);
+  } catch (err) {
+    console.error('[InsightRoutes] GET /weekly-review error:', err);
+    res.status(500).json({ error: 'Failed to generate weekly review' });
   }
 });
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -37,10 +37,11 @@ import {
 import Calendar from './Calendar'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
+import { toast } from 'react-hot-toast'
 import { computeTrainingInsights } from '../lib/trainingInsights'
 import { computeMuscleHeatmap } from '../lib/muscleHeatmap'
 import MuscleHeatmapFigure from './MuscleHeatmapFigure'
-import GlbModelViewer from './GlbModelViewer.jsx'
+const GlbModelViewer = lazy(() => import('./GlbModelViewer.jsx'))
 import RestTimer from './RestTimer'
 import PlateCalculator from './PlateCalculator'
 
@@ -120,6 +121,7 @@ function GymTracker() {
   // Dialog states
   const [exerciseDialogOpen, setExerciseDialogOpen] = useState(false)
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
+  const [saveRoutineDialogOpen, setSaveRoutineDialogOpen] = useState(false)
   const [templates, setTemplates] = useState([])
   const [templateLoading, setTemplateLoading] = useState(false)
   const [templateName, setTemplateName] = useState('')
@@ -449,10 +451,7 @@ function GymTracker() {
     const W = 560
     const H = 200
     const M = {
-      left: 64,
-      right: 16,
-      top: 16,
-      bottom: 44,
+        left: 80,
     }
     const innerW = W - M.left - M.right
     const innerH = H - M.top - M.bottom
@@ -491,29 +490,24 @@ function GymTracker() {
     setStepsLoading(true)
     setStepsError('')
     try {
-      const dayRes = await fetch(`${API_BASE}/api/gym/steps/date/${encodeURIComponent(stepsDate)}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const dayJson = await safeReadJson(dayRes)
-      if (!dayRes.ok) {
-        throw new Error(dayJson?.error || `Failed to load steps (${dayRes.status})`)
-      }
-      setStepsValue(dayJson?.stepsCount == null ? '' : String(dayJson.stepsCount))
+        const dayRes = await fetch(`${API_BASE}/api/gym/steps/date/${encodeURIComponent(stepsDate)}?t=${Date.now()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const dayJson = await safeReadJson(dayRes)
+        if (!dayRes.ok) {
+          throw new Error(dayJson?.error || `Failed to load steps (${dayRes.status})`)
+        }
+        setStepsValue(dayJson?.stepsCount == null ? '' : String(dayJson.stepsCount))
 
-      const end = new Date(stepsDate)
-      end.setHours(23, 59, 59, 999)
-      const start = new Date(end)
-      const days = stepsRangeMode === 'month' ? 30 : 7
-      start.setDate(start.getDate() - days + 1)
-      start.setHours(0, 0, 0, 0)
+        const end = new Date(stepsDate)
+        end.setHours(23, 59, 59, 999)
+        const start = new Date(end)
+        const days = stepsRangeMode === 'month' ? 30 : 7
+        start.setDate(start.getDate() - days + 1)
+        start.setHours(0, 0, 0, 0)
 
-      const rangeRes = await fetch(
-        `${API_BASE}/api/gym/steps/range/${encodeURIComponent(start.toISOString())}/${encodeURIComponent(end.toISOString())}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      const rangeJson = await safeReadJson(rangeRes)
-      if (!rangeRes.ok) {
-        throw new Error(rangeJson?.error || `Failed to load steps range (${rangeRes.status})`)
+        const rangeRes = await fetch(
+          `${API_BASE}/api/gym/steps/range/${encodeURIComponent(start.toISOString())}/${encodeURIComponent(end.toISOString())}?t=${Date.now()}`,
       }
       setStepsSeries(Array.isArray(rangeJson) ? rangeJson : [])
     } catch (e) {
@@ -625,16 +619,19 @@ function GymTracker() {
         body: JSON.stringify({
           name: name,
           exercises: currentWorkout.exercises,
-          description: `Created from ${currentWorkout.name}`
+          description: `Created from ${currentWorkout.name || 'workout'}`
         }),
       })
       if (res.ok) {
         setTemplateName('')
         loadTemplates()
-        alert('Routine saved successfully!')
+        toast.success('Routine saved successfully!')
+      } else {
+        toast.error('Failed to save routine')
       }
     } catch (err) {
       console.error('Failed to save template:', err)
+      toast.error('Failed to save routine')
     }
   }
 
@@ -645,7 +642,7 @@ function GymTracker() {
         ...ex,
         sets: ex.sets?.map(s => ({ ...s })) || [{ reps: 0, weight: 0, rpe: 8 }]
       })),
-      date: new Date(),
+      date: new Date().toISOString().split('T')[0],
     })
     setWorkoutStartTime(Date.now())
     setElapsedTime(0)
@@ -765,10 +762,11 @@ function GymTracker() {
   }
 
   const startWorkout = () => {
+    const now = new Date()
     setCurrentWorkout({
-      name: `Workout - ${new Date().toLocaleDateString()}`,
+      name: `Workout - ${now.toLocaleDateString()}`,
       exercises: [],
-      date: new Date(),
+      date: now.toISOString().split('T')[0],
     })
     setWorkoutStartTime(Date.now())
     setElapsedTime(0)
@@ -864,7 +862,7 @@ function GymTracker() {
     const workoutData = {
       ...currentWorkout,
       duration: elapsedTime,
-      date: new Date(),
+      date: currentWorkout.date ? new Date(currentWorkout.date) : new Date(),
     }
 
     try {
@@ -897,13 +895,18 @@ function GymTracker() {
   const calendarEventSource = calendarWorkouts.length ? calendarWorkouts : workouts
 
   // Calendar events from workouts
-  const calendarEvents = calendarEventSource.map(w => ({
-    date: w.date,
-    type: 'workout',
-    title: w.name || 'Workout',
-    details: `${w.exercises?.length || 0} exercises • ${Math.round((w.duration || 0) / 60)}min`,
-    exercises: w.exercises,
-  }))
+  const calendarEvents = calendarEventSource
+    .filter(w => {
+      const name = (w.name || '').toLowerCase()
+      return !name.includes('nutrition') && !name.includes('wellness')
+    })
+    .map(w => ({
+      date: w.date,
+      type: 'workout',
+      title: w.name || 'Workout',
+      details: `${w.exercises?.length || 0} exercises • ${Math.round((w.duration || 0) / 60)}min`,
+      exercises: w.exercises,
+    }))
 
   // Muscle distribution for chart
   const muscleDistribution = stats.muscleDistribution || {}
@@ -1007,25 +1010,46 @@ function GymTracker() {
           color: '#fff',
         }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Box>
-              <Typography variant="subtitle2" sx={{ color: '#9ca3af' }}>
-                Active Workout
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <TimerIcon sx={{ color: '#f59e0b' }} />
-                <Typography variant="h4" sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
-                  {formatTime(elapsedTime)}
+            <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ color: '#9ca3af' }}>
+                  Workout Date
                 </Typography>
+                <TextField
+                  type="date"
+                  size="small"
+                  value={currentWorkout.date}
+                  onChange={(e) => setCurrentWorkout(prev => ({ ...prev, date: e.target.value }))}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      bgcolor: 'rgba(255,255,255,0.05)',
+                      color: '#fff',
+                      fontSize: '0.875rem',
+                      '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
+                      '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
+                    },
+                    '& input': { color: '#fff', py: 0.5 },
+                  }}
+                />
+              </Box>
+              <Box>
+                <Typography variant="subtitle2" sx={{ color: '#9ca3af' }}>
+                  Elapsed Time
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <TimerIcon sx={{ color: '#f59e0b', fontSize: 20 }} />
+                  <Typography variant="h5" sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
+                    {formatTime(elapsedTime)}
+                  </Typography>
+                </Box>
               </Box>
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
                 variant="outlined"
                 onClick={() => {
-                  const name = prompt('Enter routine name:');
-                  if (name) {
-                    saveCurrentAsTemplate(name);
-                  }
+                  setTemplateName(currentWorkout.name || '');
+                  setSaveRoutineDialogOpen(true);
                 }}
                 sx={{ borderColor: 'rgba(255,255,255,0.3)', color: '#9ca3af', textTransform: 'none' }}
               >
@@ -1760,13 +1784,19 @@ function GymTracker() {
                       <Box>
                         <MuscleHeatmapFigure intensityByRegion={muscleHeatmap.normalized} />
                       </Box>
-                      <GlbModelViewer
-                        src={DEFAULT_BODY_MODEL_GLB_URL}
-                        intensityByRegion={muscleHeatmap.normalized}
-                        height={420}
-                        title="Body Model"
-                        subtitle="Use this as a base for muscle visualization"
-                      />
+                      <Suspense fallback={
+                        <Box sx={{ height: 420, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                          <Typography variant="body2" sx={{ color: '#94a3b8' }}>Loading 3D Body Model...</Typography>
+                        </Box>
+                      }>
+                        <GlbModelViewer
+                          src={DEFAULT_BODY_MODEL_GLB_URL}
+                          intensityByRegion={muscleHeatmap.normalized}
+                          height={420}
+                          title="Body Model"
+                          subtitle="Use this as a base for muscle visualization"
+                        />
+                      </Suspense>
                     </Box>
                   ) : (
                     <Typography variant="body2" sx={{ color: '#9ca3af' }}>
@@ -2184,6 +2214,44 @@ function GymTracker() {
             sx={{ bgcolor: '#171717', '&:hover': { bgcolor: '#374151' } }}
           >
             Add Exercise
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Save Routine Dialog */}
+      <Dialog open={saveRoutineDialogOpen} onClose={() => setSaveRoutineDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Save Routine</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 1, pt: 1 }}>
+            <TextField
+              fullWidth
+              label="Routine Name"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="e.g. Pull Day, Legs Focused..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && templateName.trim()) {
+                  saveCurrentAsTemplate(templateName.trim())
+                  setSaveRoutineDialogOpen(false)
+                }
+              }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          <Button onClick={() => setSaveRoutineDialogOpen(false)} sx={{ color: '#6b7280' }}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            onClick={() => {
+              if (templateName.trim()) {
+                saveCurrentAsTemplate(templateName.trim())
+                setSaveRoutineDialogOpen(false)
+              }
+            }}
+            sx={{ bgcolor: '#171717', '&:hover': { bgcolor: '#374151' } }}
+            disabled={!templateName.trim()}
+          >
+            Save
           </Button>
         </DialogActions>
       </Dialog>

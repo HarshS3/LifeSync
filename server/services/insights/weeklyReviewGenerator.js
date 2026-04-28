@@ -131,6 +131,7 @@ function generateReviewInsights(nutrition, strongestLift, weights, bio) {
   }
 
   // 2. Performance Wins
+  if (strongestLift) {
     messages.push(`Your strongest performance was the ${strongestLift.weight}kg ${strongestLift.exercise}. This indicates your central nervous system is adapting well to the current volume.`);
   } else {
     messages.push("No major lifts were recorded this week. Focus on consistent resistance training next week to drive metabolic adaptation.");

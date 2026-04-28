@@ -15,6 +15,7 @@ import IconButton from '@mui/material/IconButton'
 import Divider from '@mui/material/Divider'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import { toast } from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
 import ChipListInput from './ChipListInput'
@@ -506,13 +507,13 @@ function ProfilePanel() {
         }),
       })
       if (res.ok) {
-        alert('Profile saved!')
+        toast.success('Profile saved securely.')
       } else {
-        alert('Failed to save')
+        toast.error('Failed to save profile.')
       }
     } catch (err) {
       console.error(err)
-      alert('Failed to save profile')
+      toast.error('Failed to save profile')
     } finally {
       setSaving(false)
     }

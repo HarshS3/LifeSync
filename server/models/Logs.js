@@ -167,6 +167,7 @@ const MentalLogSchema = new mongoose.Schema(
     moodScore: { type: Number, min: 1, max: 10 },
     stressLevel: { type: Number, min: 1, max: 10 },
     energyLevel: { type: Number, min: 1, max: 10 },
+    hungerLevel: { type: Number, min: 1, max: 10 },
     bodyFeel: { type: Number, min: 1, max: 10 },
     sleepHours: { type: Number, min: 0, max: 24 },
     sleepQuality: { type: Number, min: 1, max: 10 },

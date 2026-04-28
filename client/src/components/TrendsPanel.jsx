@@ -9,6 +9,12 @@ import TextField from '@mui/material/TextField'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
 import { computeTrainingInsights } from '../lib/trainingInsights'
+import NutritionalDNA from './NutritionalDNA'
+import RecoveryCapacity from './RecoveryCapacity'
+import SleepArchitecture from './SleepArchitecture'
+import StressImpact from './StressImpact'
+import SatietyProfile from './SatietyProfile'
+import GutHealth from './GutHealth'
 
 function TrendsPanel() {
   const initialTab = useMemo(() => {
@@ -642,6 +648,7 @@ function TrendsPanel() {
 
       {activeTab === 0 && (
         <Box>
+          <RecoveryCapacity />
           <Box sx={{ display: 'flex', gap: 2, mb: 4, flexWrap: 'wrap' }}>
             <StatCard label="Avg Duration" value={calcAvg(data.fitness, 'duration')} unit="min" trend={8} />
             <StatCard label="Avg Intensity" value={calcAvg(data.fitness, 'intensity')} unit="/10" trend={-3} />
@@ -685,6 +692,9 @@ function TrendsPanel() {
 
       {activeTab === 1 && (
         <Box>
+          <NutritionalDNA />
+          <SatietyProfile />
+          <GutHealth />
           <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
             <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
               AI Insight (nutrition)
@@ -737,6 +747,8 @@ function TrendsPanel() {
 
       {activeTab === 2 && (
         <Box>
+          <SleepArchitecture />
+          <StressImpact />
           <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
             <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
               Wellness date

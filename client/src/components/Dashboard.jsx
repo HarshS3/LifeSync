@@ -17,9 +17,11 @@ import TrendingDownIcon from '@mui/icons-material/TrendingDown'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
+import RestaurantIcon from '@mui/icons-material/Restaurant'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
 import { GlowingEffect } from './ui/glowing-effect.jsx'
+import ProgressNarrative from './ProgressNarrative'
 
 function Dashboard() {
   const { user, token } = useAuth()
@@ -30,6 +32,7 @@ function Dashboard() {
     energy: 5,
     mood: 5,
     bodyFeel: 5,
+    hunger: 5,
     sleep: 7,
   })
   const [hasCheckedIn, setHasCheckedIn] = useState(false)
@@ -63,6 +66,7 @@ function Dashboard() {
         energy: Number(log.energyLevel ?? log.energy ?? 5) || 5,
         mood: Number(log.moodScore ?? log.mood ?? 5) || 5,
         bodyFeel: Number(log.bodyFeel ?? 5) || 5,
+        hunger: Number(log.hungerLevel ?? 5) || 5,
         sleep: Number(log.sleepHours ?? log.sleep ?? 7) || 7,
       })
 
@@ -174,6 +178,7 @@ function Dashboard() {
           energy: todayLog.energyLevel || 5,
           mood: todayLog.moodScore || 5,
           bodyFeel: todayLog.bodyFeel || 5,
+          hunger: todayLog.hungerLevel || 5,
           sleep: todayLog.sleepHours || 7,
         })
       }
@@ -366,6 +371,7 @@ function Dashboard() {
           moodScore: todayState.mood,
           energyLevel: todayState.energy,
           bodyFeel: todayState.bodyFeel,
+          hungerLevel: todayState.hunger,
           sleepHours: todayState.sleep,
           date: new Date(),
         }),
@@ -526,6 +532,7 @@ function Dashboard() {
 
       {/* CENTER: Today's State */}
       <Box>
+        <ProgressNarrative />
         <Box sx={{ p: 4, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3, position: 'relative', overflow: 'hidden' }}>
           <GlowingEffect
             spread={40}
@@ -624,6 +631,28 @@ function Dashboard() {
                 disabled={hasCheckedIn}
                 sx={{
                   color: getStateColor(todayState.bodyFeel),
+                  '& .MuiSlider-thumb': { width: 16, height: 16 },
+                }}
+              />
+            </Box>
+
+            {/* Hunger */}
+            <Box sx={{ p: 2, bgcolor: '#fafafa', borderRadius: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <RestaurantIcon sx={{ fontSize: 18, color: '#ec4899' }} />
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>Hunger</Typography>
+                <Typography variant="body2" sx={{ ml: 'auto', fontWeight: 600, color: getStateColor(11 - todayState.hunger) }}>
+                  {todayState.hunger}/10
+                </Typography>
+              </Box>
+              <Slider
+                value={todayState.hunger}
+                onChange={(e, v) => !hasCheckedIn && setTodayState(prev => ({ ...prev, hunger: v }))}
+                min={1}
+                max={10}
+                disabled={hasCheckedIn}
+                sx={{
+                  color: getStateColor(11 - todayState.hunger),
                   '& .MuiSlider-thumb': { width: 16, height: 16 },
                 }}
               />

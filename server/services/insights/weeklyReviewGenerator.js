@@ -3,6 +3,13 @@ const Workout = require('../../models/Workout');
 const User = require('../../models/User');
 const { computeWeeklyMacroAggregation } = require('../nutritionAggregation/weeklyAggregator');
 const { calculateDailyTargets } = require('../nutritionEngine');
+const { analyzeNutritionalDNA } = require('./nutritionalToleranceEngine');
+const { analyzeRecoveryCapacity } = require('./recoveryCapacityEngine');
+const { analyzeSleepArchitecture } = require('./sleepArchitectureEngine');
+const { analyzeSatietyPatterns } = require('./satietyEngine');
+const { analyzeStressImpact } = require('./stressImpactEngine');
+const { analyzeGutHealth } = require('./gutHealthEngine');
+const { analyzeProgressNarrative } = require('./progressEngine');
 
 /**
  * Generates a holistic weekly review for the user.
@@ -68,8 +75,19 @@ async function generateWeeklyReview(userId, weekKey) {
     }
   }
 
-  // 5. Generate AI Insights
-  const insights = generateReviewInsights(nutrition, strongestLift, weights);
+  // 5. Run Intelligence Modules (Holistic View)
+  const [dna, recovery, sleep, satiety, stress, gut, progress] = await Promise.all([
+    analyzeNutritionalDNA(userId),
+    analyzeRecoveryCapacity(userId),
+    analyzeSleepArchitecture(userId),
+    analyzeSatietyPatterns(userId),
+    analyzeStressImpact(userId),
+    analyzeGutHealth(userId),
+    analyzeProgressNarrative(userId)
+  ]);
+
+  // 6. Generate AI Insights
+  const insights = generateReviewInsights(nutrition, strongestLift, weights, { dna, recovery, sleep, satiety, stress, gut, progress });
 
   return {
     weekKey,
@@ -79,16 +97,40 @@ async function generateWeeklyReview(userId, weekKey) {
     bestDay,
     worstDay,
     insights,
+    biologicalPersona: {
+      nutritionalDNA: dna.status === 'success' ? dna.profile : null,
+      recoveryCapacity: recovery.status === 'success' ? recovery.overallSummary : null,
+      sleepArchitecture: sleep.status === 'success' ? sleep.optimalSleep : null,
+      gutDiversity: gut.status === 'success' ? gut.plantPoints : null,
+      stressResilience: stress.status === 'success' ? stress.stressSensitivity : null,
+    },
     nextWeekGoal: nutrition.daysHitTarget.protein < 5 
       ? "Focus on hitting your protein target for at least 5 days next week."
       : "Maintain your consistency and try to increase your daily activity (NEAT) by 10%.",
   };
 }
 
-function generateReviewInsights(nutrition, strongestLift, weights) {
+function generateReviewInsights(nutrition, strongestLift, weights, bio) {
   const messages = [];
   
-  if (strongestLift) {
+  // 1. Biological Wins
+  if (bio.gut?.status === 'success' && bio.gut.plantPoints > 20) {
+    messages.push(`Gut Health Win: You hit ${bio.gut.plantPoints} Plant Points this week! Your microbiome diversity is improving.`);
+  }
+
+  if (bio.progress?.narratives?.length > 0) {
+    messages.push(`Perspective Shift: ${bio.progress.narratives[0]}`);
+  }
+
+  if (bio.dna?.status === 'success' && bio.dna.profile.carbTolerance === 'high') {
+    messages.push("Metabolic Observation: You tolerate carbs exceptionally well. High-carb days resulted in minimal weight spikes and high performance.");
+  }
+
+  if (bio.sleep?.status === 'success' && bio.sleep.tankInsight) {
+    messages.push(`Recovery Insight: ${bio.sleep.tankInsight} Focus on hitting your sleep sweet spot next week.`);
+  }
+
+  // 2. Performance Wins
     messages.push(`Your strongest performance was the ${strongestLift.weight}kg ${strongestLift.exercise}. This indicates your central nervous system is adapting well to the current volume.`);
   } else {
     messages.push("No major lifts were recorded this week. Focus on consistent resistance training next week to drive metabolic adaptation.");

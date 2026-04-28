@@ -9,6 +9,13 @@ const { fetchTextbookRag } = require('../services/ragClient');
 const { generateLLMReply } = require('../aiClient');
 const { buildNutritionReview } = require('../services/nutritionReview/buildNutritionReview');
 const { generateWeeklyReview } = require('../services/insights/weeklyReviewGenerator');
+const { analyzeProgressNarrative } = require('../services/insights/progressEngine');
+const { analyzeNutritionalDNA } = require('../services/insights/nutritionalToleranceEngine');
+const { analyzeRecoveryCapacity } = require('../services/insights/recoveryCapacityEngine');
+const { analyzeSleepArchitecture } = require('../services/insights/sleepArchitectureEngine');
+const { analyzeSatietyPatterns } = require('../services/insights/satietyEngine');
+const { analyzeStressImpact } = require('../services/insights/stressImpactEngine');
+const { analyzeGutHealth } = require('../services/insights/gutHealthEngine');
 
 const router = express.Router();
 const auth = require('../middleware/authMiddleware');
@@ -309,6 +316,83 @@ router.get('/weekly-review', auth, async (req, res) => {
   } catch (err) {
     console.error('[InsightRoutes] GET /weekly-review error:', err);
     res.status(500).json({ error: 'Failed to generate weekly review' });
+  }
+});
+
+// GET /api/insights/gut-health — Microbiome & diversity analysis
+router.get('/gut-health', auth, async (req, res) => {
+  try {
+    const gut = await analyzeGutHealth(req.userId);
+    res.json(gut);
+  } catch (err) {
+    console.error('[InsightRoutes] gut health error:', err);
+    res.status(500).json({ error: 'Failed to generate gut health profile' });
+  }
+});
+
+// GET /api/insights/stress-impact — Stress & performance analysis
+router.get('/stress-impact', auth, async (req, res) => {
+  try {
+    const stress = await analyzeStressImpact(req.userId);
+    res.json(stress);
+  } catch (err) {
+    console.error('[InsightRoutes] stress impact error:', err);
+    res.status(500).json({ error: 'Failed to generate stress impact profile' });
+  }
+});
+
+// GET /api/insights/satiety-profile — Hunger and satiety analysis
+router.get('/satiety-profile', auth, async (req, res) => {
+  try {
+    const satiety = await analyzeSatietyPatterns(req.userId);
+    res.json(satiety);
+  } catch (err) {
+    console.error('[InsightRoutes] satiety profile error:', err);
+    res.status(500).json({ error: 'Failed to generate satiety profile' });
+  }
+});
+
+// GET /api/insights/sleep-architecture — Sleep impact analysis
+router.get('/sleep-architecture', auth, async (req, res) => {
+  try {
+    const sleep = await analyzeSleepArchitecture(req.userId);
+    res.json(sleep);
+  } catch (err) {
+    console.error('[InsightRoutes] sleep architecture error:', err);
+    res.status(500).json({ error: 'Failed to generate sleep architecture insights' });
+  }
+});
+
+// GET /api/insights/recovery-capacity — Training recovery analysis
+router.get('/recovery-capacity', auth, async (req, res) => {
+  try {
+    const recovery = await analyzeRecoveryCapacity(req.userId);
+    res.json(recovery);
+  } catch (err) {
+    console.error('[InsightRoutes] recovery capacity error:', err);
+    res.status(500).json({ error: 'Failed to generate recovery capacity insights' });
+  }
+});
+
+// GET /api/insights/nutritional-dna — Biological response analysis
+router.get('/nutritional-dna', auth, async (req, res) => {
+  try {
+    const dna = await analyzeNutritionalDNA(req.userId);
+    res.json(dna);
+  } catch (err) {
+    console.error('[InsightRoutes] nutritional dna error:', err);
+    res.status(500).json({ error: 'Failed to generate nutritional dna' });
+  }
+});
+
+// GET /api/insights/progress — Psychological progress narrative
+router.get('/progress', auth, async (req, res) => {
+  try {
+    const narrative = await analyzeProgressNarrative(req.userId);
+    res.json(narrative);
+  } catch (err) {
+    console.error('[InsightRoutes] progress narrative error:', err);
+    res.status(500).json({ error: 'Failed to generate progress narrative' });
   }
 });
 

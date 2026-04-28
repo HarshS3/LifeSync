@@ -10,7 +10,7 @@ function WeightTracker({ selectedDate }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Also fetch Adaptive TDEE which runs off the same trend
+  const [daysBack, setDaysBack] = useState(30);
   const [adaptiveTdee, setAdaptiveTdee] = useState(null);
 
   useEffect(() => {
@@ -19,7 +19,7 @@ function WeightTracker({ selectedDate }) {
       try {
         setLoading(true);
         // Fetch Adaptive TDEE (which natively calculates the smoothed weight curve)
-        const res = await fetch(`${API_BASE}/api/nutrition/adaptive-tdee?daysBack=30`, {
+        const res = await fetch(`${API_BASE}/api/nutrition/adaptive-tdee?daysBack=${daysBack}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (!res.ok) throw new Error('Failed to fetch weight data');
@@ -37,7 +37,7 @@ function WeightTracker({ selectedDate }) {
       }
     }
     fetchData();
-  }, [token, selectedDate]);
+  }, [token, selectedDate, daysBack]);
 
   if (loading) return <LinearProgress />;
   if (error) return <Typography color="error">{error}</Typography>;
@@ -82,8 +82,38 @@ function WeightTracker({ selectedDate }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>7-Day Rolling Average Weight</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>Weight Trend & Adaptive TDEE</Typography>
+            <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+              {[
+                { label: '7D', value: 7 },
+                { label: '30D', value: 30 },
+                { label: '90D', value: 90 },
+              ].map((opt) => (
+                <Button
+                  key={opt.value}
+                  size="small"
+                  variant={daysBack === opt.value ? 'contained' : 'outlined'}
+                  onClick={() => setDaysBack(opt.value)}
+                  sx={{
+                    minWidth: 50,
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    bgcolor: daysBack === opt.value ? '#111827' : 'transparent',
+                    borderColor: '#e5e7eb',
+                    color: daysBack === opt.value ? '#fff' : '#6b7280',
+                    '&:hover': {
+                      bgcolor: daysBack === opt.value ? '#000' : '#f9fafb',
+                      borderColor: '#d1d5db',
+                    },
+                  }}
+                >
+                  {opt.label}
+                </Button>
+              ))}
+            </Box>
+          </Box>
           <Box sx={{ textAlign: 'right' }}>
             <Typography variant="h4" sx={{ fontWeight: 700, color: '#111827' }}>
               {currentWeight.toFixed(1)} <span style={{ fontSize: '1rem', color: '#6b7280' }}>kg</span>

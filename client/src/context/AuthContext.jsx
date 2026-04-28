@@ -17,10 +17,16 @@ export function AuthProvider({ children }) {
     const savedUser = localStorage.getItem(USER_KEY)
     
     if (savedToken && savedUser) {
-      setToken(savedToken)
-      setUser(JSON.parse(savedUser))
-      // Verify token is still valid
-      verifyToken(savedToken)
+      try {
+        setUser(JSON.parse(savedUser))
+        setToken(savedToken)
+        // Verify token is still valid
+        verifyToken(savedToken)
+      } catch (err) {
+        console.error('Failed to parse user from local storage', err)
+        logout()
+        setLoading(false)
+      }
     } else {
       setLoading(false)
     }

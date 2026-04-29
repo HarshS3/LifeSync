@@ -31,4 +31,6 @@ const TarlaFoodSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+TarlaFoodSchema.index({ displayName: 'text', searchText: 'text' });
+
 module.exports = mongoose.model('TarlaFood', TarlaFoodSchema);

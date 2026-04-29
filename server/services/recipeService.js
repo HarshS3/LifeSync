@@ -35,14 +35,22 @@ const searchRecipes = async (query, limit = 10) => {
   if (!query) return [];
   
   try {
-    const results = await TarlaRecipe.find({
-      $or: [
-        { foodName: { $regex: query, $options: 'i' } },
-        { recipeTitle: { $regex: query, $options: 'i' } }
-      ]
-    })
-    .limit(limit)
-    .lean();
+    // Try $text search first (very fast)
+    let results = await TarlaRecipe.find({ $text: { $search: query } })
+      .limit(limit)
+      .lean();
+
+    // Fallback to regex (slower) if $text finds nothing
+    if (!results || results.length === 0) {
+      results = await TarlaRecipe.find({
+        $or: [
+          { foodName: { $regex: query, $options: 'i' } },
+          { recipeTitle: { $regex: query, $options: 'i' } }
+        ]
+      })
+      .limit(limit)
+      .lean();
+    }
 
     return results.map(mapToFrontend);
   } catch (error) {

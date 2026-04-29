@@ -115,12 +115,27 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
   const query = normalizeKey(q)
   if (!query) return []
 
+  const executeSearch = async (model, textQuery, regexQuery) => {
+    try {
+      // Try $text search first (very fast)
+      let results = await model.find(textQuery).limit(limit)
+      // Fallback to regex (slower) only if $text finds nothing
+      if (!results || results.length === 0) {
+        results = await model.find(regexQuery).limit(limit)
+      }
+      return results
+    } catch (err) {
+      console.error(`Search failed for model ${model.modelName}:`, err)
+      return []
+    }
+  }
+
   const [recipes, ingredients, indbFoods, mfpFoods, tarlaFoods] = await Promise.all([
-    RecipeTemplate.find({ name: { $regex: query, $options: 'i' }, locale }).limit(limit),
-    IngredientProfile.find({ displayName: { $regex: query, $options: 'i' }, locale }).limit(limit),
-    IndbFood.find({ searchText: { $regex: query, $options: 'i' } }).limit(limit),
-    MfpFood.find({ searchText: { $regex: query, $options: 'i' } }).limit(limit),
-    TarlaFood.find({ searchText: { $regex: query, $options: 'i' } }).limit(limit),
+    executeSearch(RecipeTemplate, { $text: { $search: query }, locale }, { name: { $regex: query, $options: 'i' }, locale }),
+    executeSearch(IngredientProfile, { $text: { $search: query }, locale }, { displayName: { $regex: query, $options: 'i' }, locale }),
+    executeSearch(IndbFood, { $text: { $search: query } }, { searchText: { $regex: query, $options: 'i' } }),
+    executeSearch(MfpFood, { $text: { $search: query } }, { searchText: { $regex: query, $options: 'i' } }),
+    executeSearch(TarlaFood, { $text: { $search: query } }, { searchText: { $regex: query, $options: 'i' } }),
   ])
 
   // Return in the same shape as your existing search API (name, servingQty, servingUnit, macros).

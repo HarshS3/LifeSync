@@ -36,4 +36,6 @@ const IngredientProfileSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+IngredientProfileSchema.index({ itemKey: 'text', displayName: 'text' });
+
 module.exports = mongoose.model('IngredientProfile', IngredientProfileSchema)

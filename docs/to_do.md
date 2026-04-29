@@ -1,17 +1,4 @@
-In the meal logging create template of mela so we can re-log again directly by that meal
 
-glucose spike
-glycemic index and glycemic load
-glycogen
-
-calories density
-
-if some food is not in our database,, then during logging fetch that data from myfitnesspal website by scraping
-
-
-muscle recovery adn sleep cortisol
-
-What research actually says (not broscience):
 
 <!-- Muscle Protein Synthesis (MPS) — the process that builds muscle — is maximally stimulated by ~0.4g protein per kg per meal
 MPS stays elevated ~3–5 hours after a protein-rich meal then drops back to baseline
@@ -24,13 +11,12 @@ Optimal distribution: 37.5g × 4 meals (breakfast, lunch, pre-workout, dinner)
 Your app should flag: "You got 120g protein today but 90g was in dinner — 
 spreading it out would improve muscle retention" -->
 
-
+<!-- 
 Domain 7 — Gut Health and Microbiome (Increasingly Important)
 Emerging research (2022–2025) is showing gut microbiome diversity strongly predicts fat loss response to the same diet. Two people eating identically can have very different outcomes based on gut bacteria composition.
-For your app's level: track fiber intake (target 25–35g/day), fermented food consumption, and flag when gut health indicators like energy, bloating, and digestion quality deteriorate.
+For your app's level: track fiber intake (target 25–35g/day), fermented food consumption, and flag when gut health indicators like energy, bloating, and digestion quality deteriorate. -->
 
 
-training volume in exercise
 
 
 Cortisol — Stress Makes Fat Loss Harder
@@ -39,7 +25,7 @@ Cortisol is the primary stress hormone. Under high cortisol: the body preferenti
 
 
 utenstils used for cooking and all lraw ingredinets and grocery being used 
-supplements they are consuming
+<!-- supplements they are consuming -->
 
 vitmain d vitmain b12 omega3
 
@@ -322,7 +308,7 @@ User's TDEE and macro targets
 Food preferences (learned from logs)
 Available foods (user inputs what's in their kitchen)
 Budget range
- food INB database
+ food  database
 Interaction rules from Engine 4
 Goal (fat loss, muscle gain, etc.)
 
@@ -451,7 +437,7 @@ Learn over 3-4 weeks:
   Identify correlations between specific foods and gut symptoms
   "This user consistently logs bloating on days with heavy dal + cabbage"
   "This user has no issues with full-fat dairy despite Indian average" -->
-
+<!-- 
 Adapt:
   Personalize meal plans to avoid trigger foods for this individual
   Suggest alternatives that hit the same nutrition without the symptoms
@@ -469,7 +455,7 @@ Learn:
 
 Adapt:
   Build their meal timing and macro distribution around their 
-  observed satiety patterns — not a generic 3-meals-a-day schedule
+  observed satiety patterns — not a generic 3-meals-a-day schedule -->
 8 — Stress-Performance Relationship
 Cortisol response to stress is highly individual. Some people train well under stress — they use exercise as a release valve. Others see dramatic performance decline. Some people's weight stays stable under stress. Others retain significant water. Some people overeat when stressed, others lose appetite entirely.
 Correlate over 8 weeks:

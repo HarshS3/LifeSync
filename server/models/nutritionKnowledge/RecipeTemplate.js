@@ -71,4 +71,6 @@ const RecipeTemplateSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+RecipeTemplateSchema.index({ name: 'text', displayName: 'text' });
+
 module.exports = mongoose.model('RecipeTemplate', RecipeTemplateSchema)

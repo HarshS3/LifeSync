@@ -29,4 +29,6 @@ const MfpFoodSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+MfpFoodSchema.index({ displayName: 'text', searchText: 'text' });
+
 module.exports = mongoose.model('MfpFood', MfpFoodSchema);

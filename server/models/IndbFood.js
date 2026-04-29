@@ -37,5 +37,6 @@ const IndbFoodSchema = new mongoose.Schema(
 );
 
 IndbFoodSchema.index({ sourceFile: 1, sheetName: 1, rowNumber: 1 }, { unique: true });
+IndbFoodSchema.index({ displayName: 'text', searchText: 'text' });
 
 module.exports = mongoose.model('IndbFood', IndbFoodSchema);

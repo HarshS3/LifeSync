@@ -300,6 +300,10 @@ function AppContent() {
             bgcolor: ui.surface,
             display: { xs: 'none', md: 'flex' },
             flexDirection: 'column',
+            position: 'sticky',
+            top: 0,
+            height: '100vh',
+            overflowY: 'auto',
           }}
         >
           {/* Logo */}

@@ -23,32 +23,41 @@ import { API_BASE } from '../config'
 import { GlowingEffect } from './ui/glowing-effect.jsx'
 import ProgressNarrative from './ProgressNarrative'
 
+// Global cache to prevent re-fetching on tab switch
+let dashboardCache = {
+  data: null,
+  token: null
+}
+
 function Dashboard() {
   const { user, token } = useAuth()
-  const [loading, setLoading] = useState(true)
-  const [dailyLifeState, setDailyLifeState] = useState(null)
-  const [stateReflection, setStateReflection] = useState(null)
-  const [todayState, setTodayState] = useState({
+  const [loading, setLoading] = useState(!dashboardCache.data)
+  const [dailyLifeState, setDailyLifeState] = useState(dashboardCache.data?.dailyLifeState || null)
+  const [stateReflection, setStateReflection] = useState(dashboardCache.data?.stateReflection || null)
+  const [todayState, setTodayState] = useState(dashboardCache.data?.todayState || {
     energy: 5,
     mood: 5,
     bodyFeel: 5,
     hunger: 5,
     sleep: 7,
   })
-  const [hasCheckedIn, setHasCheckedIn] = useState(false)
+  const [hasCheckedIn, setHasCheckedIn] = useState(dashboardCache.data?.hasCheckedIn || false)
   const [submitting, setSubmitting] = useState(false)
-  const [recentLogs, setRecentLogs] = useState({ fitness: [], mental: [], nutrition: [] })
-  const [recentGymWorkouts, setRecentGymWorkouts] = useState([])
-  const [weeklyStats, setWeeklyStats] = useState({
+  const [recentLogs, setRecentLogs] = useState(dashboardCache.data?.recentLogs || { fitness: [], mental: [], nutrition: [] })
+  const [recentGymWorkouts, setRecentGymWorkouts] = useState(dashboardCache.data?.recentGymWorkouts || [])
+  const [weeklyStats, setWeeklyStats] = useState(dashboardCache.data?.weeklyStats || {
     avgEnergy: 0,
     avgMood: 0,
     avgSleep: 0,
     workouts: 0,
     streak: 0,
   })
-  const [timeline, setTimeline] = useState([])
+  const [timeline, setTimeline] = useState(dashboardCache.data?.timeline || [])
 
   useEffect(() => {
+    if (dashboardCache.token !== token) {
+      dashboardCache = { data: null, token: token }
+    }
     loadData()
   }, [token])
 
@@ -114,10 +123,12 @@ function Dashboard() {
   }
 
   const loadData = async () => {
-    setLoading(true)
+    if (!dashboardCache.data) {
+      setLoading(true)
+    }
+    
     try {
-      // Fetch recent logs
-      if (!user || !user._id) throw new Error('User not found')
+      if (!user || !user._id) return
       const todayKey = dayKeyFromDate(new Date())
 
       const [fitness, mental, nutrition, gymWorkouts, dlsResult] = await Promise.all([
@@ -133,7 +144,6 @@ function Dashboard() {
       setDailyLifeState(dlsResult?.data || null)
       setStateReflection(dlsResult?.reflection || null)
       
-      // Calculate weekly stats
       const weekAgo = new Date()
       weekAgo.setDate(weekAgo.getDate() - 7)
       
@@ -147,41 +157,58 @@ function Dashboard() {
         return nums.reduce((a, b) => a + b, 0) / nums.length
       }
 
-      const avgEnergy = avgFrom(recentMental.map((m) => Number(m.energyLevel)))
+      const avgEnergy = avgFrom(recentMental.map((m) => m.energyLevel).filter(e => e != null))
       const avgMood = avgFrom(
         recentMental.map((m) => {
-          const direct = Number(m.moodScore)
-          if (Number.isFinite(direct) && direct > 0) return direct
-          return moodEnumToScore10(m.mood)
-        })
+          if (m.moodScore != null) return m.moodScore
+          if (m.mood != null) return moodEnumToScore10(m.mood)
+          return null
+        }).filter(v => v != null)
       )
-      const avgSleep = avgFrom(recentMental.map((m) => Number(m.sleepHours)))
+      const avgSleep = avgFrom(recentMental.map((m) => m.sleepHours).filter(s => s != null))
       
-      setWeeklyStats({
+      const newWeeklyStats = {
         avgEnergy: avgEnergy == null ? '—' : String(Math.round(avgEnergy)),
         avgMood: avgMood == null ? '—' : String(Math.round(avgMood)),
         avgSleep: avgSleep == null ? '—' : String(avgSleep.toFixed(1)),
         workouts: recentGym.length + recentFitness.length,
         streak: calculateStreak(mental),
-      })
+      }
+      setWeeklyStats(newWeeklyStats)
 
-      // Build timeline events
       const timelineEvents = buildTimeline(fitness, mental, nutrition)
       setTimeline(timelineEvents)
 
-      // Check if already checked in today
-      const today = new Date().toDateString()
-      const todayLog = mental.find(m => new Date(m.date).toDateString() === today)
+      const todayStr = new Date().toDateString()
+      const todayLog = mental.find(m => new Date(m.date).toDateString() === todayStr)
+      let currentTodayState = todayState
+      let currentHasCheckedIn = hasCheckedIn
+
       if (todayLog) {
-        setHasCheckedIn(true)
-        setTodayState({
+        currentHasCheckedIn = true
+        currentTodayState = {
           energy: todayLog.energyLevel || 5,
           mood: todayLog.moodScore || 5,
           bodyFeel: todayLog.bodyFeel || 5,
           hunger: todayLog.hungerLevel || 5,
           sleep: todayLog.sleepHours || 7,
-        })
+        }
+        setHasCheckedIn(true)
+        setTodayState(currentTodayState)
       }
+
+      // Update cache
+      dashboardCache.data = {
+        dailyLifeState: dlsResult?.data || null,
+        stateReflection: dlsResult?.reflection || null,
+        todayState: currentTodayState,
+        hasCheckedIn: currentHasCheckedIn,
+        recentLogs: { fitness, mental, nutrition },
+        recentGymWorkouts: gymWorkouts,
+        weeklyStats: newWeeklyStats,
+        timeline: timelineEvents
+      }
+      dashboardCache.token = token
     } catch (err) {
       console.error('Failed to load dashboard data:', err)
     }

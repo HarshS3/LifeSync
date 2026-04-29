@@ -1,5 +1,5 @@
 const SymptomLog = require('../../models/SymptomLog');
-const { DailyNutritionLog } = require('../../models/Logs');
+const { NutritionLog } = require('../../models/Logs');
 
 /**
  * Gut Correlation Engine identifies food-symptom triggers.
@@ -19,7 +19,7 @@ async function analyzeGutTriggers(userId, days = 30) {
   if (symptoms.length < 3) return [];
 
   // 2. Fetch Nutrition Logs (Meals)
-  const nutritionLogs = await DailyNutritionLog.find({
+  const nutritionLogs = await NutritionLog.find({
     user: userId,
     date: { $gte: startDate, $lte: endDate }
   }).sort({ date: 1 });

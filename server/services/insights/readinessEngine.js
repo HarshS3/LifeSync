@@ -29,7 +29,9 @@ async function calculateReadiness(userId) {
     Workout.find({ user: userId, date: { $gte: twentyEightDaysAgo } }).sort({ date: 1 }).lean(),
   ]);
 
-// Calculate days since last rest day
+  const workoutsLast7 = workoutsLast28.filter(w => new Date(w.date) >= sevenDaysAgo);
+
+  // Calculate days since last rest day
   let daysSinceRestDay = 0;
   for (let i = 0; i < 7; i++) {
     const checkDate = new Date(now);
@@ -92,7 +94,6 @@ async function calculateReadiness(userId) {
       ex + (e.sets || []).reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0), 0);
   }, 0);
 
-  const workoutsLast7 = workoutsLast28.filter(w => new Date(w.date) >= sevenDaysAgo);
   const workoutsOlder = workoutsLast28.filter(w => new Date(w.date) < sevenDaysAgo);
 
   const recentVolume = calcVolume(workoutsLast7);

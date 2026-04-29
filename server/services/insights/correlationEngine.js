@@ -1,5 +1,5 @@
 const Workout = require('../../models/Workout');
-const { DailyNutritionLog } = require('../../models/Logs');
+const { NutritionLog } = require('../../models/Logs');
 const { evaluateDayInteractions } = require('../nutritionPipeline/nutrientInteractions');
 const { analyzeGutTriggers } = require('./gutCorrelationEngine');
 
@@ -18,7 +18,7 @@ async function analyzeCorrelations(userId, days = 30) {
     date: { $gte: startDate, $lte: endDate }
   }).sort({ date: 1 });
 
-  const nutritionLogs = await DailyNutritionLog.find({
+  const nutritionLogs = await NutritionLog.find({
     user: userId,
     date: { $gte: startDate, $lte: endDate }
   }).sort({ date: 1 });

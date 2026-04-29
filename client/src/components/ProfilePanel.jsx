@@ -182,7 +182,7 @@ function ProfilePanel() {
       }
 
       try {
-        const res = await fetch(`${API_BASE}/api/user/profile`, {
+        const res = await fetch(`${API_BASE}/api/users/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         })
         if (res.ok) {
@@ -474,8 +474,8 @@ function ProfilePanel() {
     if (!token) return
     setSaving(true)
     try {
-      const res = await fetch(`${API_BASE}/api/user/profile`, {
-        method: 'POST',
+      const res = await fetch(`${API_BASE}/api/users/profile`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,

@@ -455,4 +455,43 @@ async function generateNutritionHypothesisJson({
   return null
 }
 
-module.exports = { generateLLMReply, generateNutritionSemanticJson, generateNutritionHypothesisJson, estimateMissingMicronutrients }
+async function analyzeImageWithGemini(imageBase64, mimeType, prompt) {
+  if (!GEMINI_API_KEY) return null
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: mimeType, data: imageBase64 } },
+          ],
+        }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
+      }),
+    })
+
+    if (!res.ok) {
+      console.error('Gemini Vision API error', await res.text())
+      return null
+    }
+
+    const data = await res.json()
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    return text.trim()
+  } catch (err) {
+    console.error('Failed to call Gemini Vision', err)
+    return null
+  }
+}
+
+module.exports = { 
+  generateLLMReply, 
+  generateNutritionSemanticJson, 
+  generateNutritionHypothesisJson, 
+  estimateMissingMicronutrients,
+  analyzeImageWithGemini
+}

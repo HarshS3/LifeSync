@@ -75,6 +75,18 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+const { analyzeImageWithGemini } = require('../aiClient');
+
+const MEDICAL_DOCUMENT_PROMPT = `You are a medical document OCR assistant. 
+Extract all readable text from this document. 
+Preserve the structure as much as possible, especially labels and their corresponding values (e.g., "BMI: 33.8").
+If it is a Body Composition report (like InBody or ACCUNIQ), ensure you capture:
+- Height, Weight
+- BMI, Body Fat %, Muscle Mass (SMM)
+- BMR, Biological/Metabolic Age
+- Segmental Analysis if present.
+Return ONLY the extracted text, formatted clearly.`;
+
 // OCR an uploaded lab image (temporary feature: prints OCR output to server console)
 // POST /api/labs/ocr (multipart/form-data: image=<file>)
 router.post('/ocr', authMiddleware, upload.single('image'), async (req, res) => {
@@ -103,7 +115,20 @@ router.post('/ocr', authMiddleware, upload.single('image'), async (req, res) => 
       return res.json({ text });
     }
 
-    const text = await enqueueOcr(() => ocrImageBuffer(req.file.buffer));
+    // Prefer Gemini Vision for images if API key is present
+    let text = '';
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        const base64 = req.file.buffer.toString('base64');
+        text = await analyzeImageWithGemini(base64, mimetype, MEDICAL_DOCUMENT_PROMPT);
+      } catch (err) {
+        console.warn('[Lab OCR] Gemini Vision failed, falling back to Tesseract:', err.message);
+      }
+    }
+
+    if (!text) {
+      text = await enqueueOcr(() => ocrImageBuffer(req.file.buffer));
+    }
 
     console.log('[Lab OCR] extracted text:\n' + text);
     res.json({ text });

@@ -80,7 +80,10 @@ export const parseBodyCompositionFromOcrText = (rawText) => {
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 
-  const flat = text.replace(/\s+/g, ' ')
+  // Strip arrow/dagger noise symbols that ACCUNIQ / InBody print after values
+  const flat = text
+    .replace(/[↑↓†‡⇑⇓▲▼]/g, '')
+    .replace(/\s+/g, ' ')
 
   const toNum = (s) => {
     if (s == null) return null
@@ -88,76 +91,99 @@ export const parseBodyCompositionFromOcrText = (rawText) => {
     return Number.isFinite(n) ? n : null
   }
 
-  const pick = (re, from = flat) => {
-    const m = re.exec(from)
+  // pick: regex must have capture group 1 = the number
+  const pick = (re) => {
+    const m = re.exec(flat)
     return m ? toNum(m[1]) : null
   }
 
-  const pickAfterLabel = (labelRe) => {
+  // pickAfter: find label, grab FIRST number that follows within 100 chars
+  const pickAfter = (labelRe) => {
     const m = labelRe.exec(flat)
     if (!m) return null
-    const after = flat.slice(m.index + m[0].length, m.index + m[0].length + 80)
-    const n = after.match(/(-?\d+(?:[\.,]\d+)?)/)
+    const after = flat.slice(m.index + m[0].length, m.index + m[0].length + 100)
+    const n = after.match(/(-?\d+(?:[.,]\d+)?)/)
     return n ? toNum(n[1]) : null
   }
 
   const heightCm =
-    pick(/\bheight\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*cm\b/i, flat) ||
-    pick(/\bheight\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i, flat)
+    pick(/\bheight\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*cm\b/i) ||
+    pickAfter(/\bheight\b/i)
 
   const weightKg =
-    pick(/\bweight\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i, flat) ||
-    pick(/\bweight\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i, flat)
+    pick(/\bweight\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
+    pickAfter(/\bweight\b/i)
 
-  const bmi = pick(/\bBMI\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i)
+  const bmi =
+    pick(/\bBMI\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+    pick(/body\s*mass\s*index\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+    pickAfter(/\bBMI\b/i)
+
   const bodyFatPercent =
-    pick(/\bPBF\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*%/i) ||
-    pick(/percent\s*body\s*fat\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*%?/i) ||
-    pick(/body\s*fat\s*(?:%|percentage)\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i)
+    pick(/\bPBF\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+    pick(/percentage\s*of\s*body\s*fat\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+    pick(/body\s*fat\s*(?:%|percentage)\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+    pick(/percent\s*body\s*fat\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+    pickAfter(/percentage\s*of\s*body\s*fat\b/i)
 
   const fatMassKg =
-    pick(/\bbody\s*fat\s*mass\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
-    pick(/\bfat\s*mass\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i)
+    pick(/\bbody\s*fat\s*mass\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
+    pick(/\bfat\s*mass\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
+    pickAfter(/\bfat\s*mass\b/i)
 
   const smmKg =
-    pick(/\bSMM\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
-    pick(/skeletal\s*muscle\s*mass\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i)
+    pick(/\bSMM\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
+    pick(/skeletal\s*muscle\s*mass\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
+    pickAfter(/\bSMM\b/i) ||
+    pickAfter(/skeletal\s*muscle\s*mass\b/i)
 
-  const proteinKg = pick(/\bprotein\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i)
+  // NOTE: ACCUNIQ uses "Proteins" (plural)
+  const proteinKg =
+    pick(/\bproteins?\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
+    pickAfter(/\bproteins?\b/i)
+
   const mineralKg =
-    pick(/\bminerals?\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
-    pick(/\bbone\s*mineral\s*content\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i)
+    pick(/\bminerals?\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
+    pick(/bone\s*mineral\s*content\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
+    pickAfter(/\bminerals?\b/i)
 
+  // TBW can be in litres (L) on ACCUNIQ
   const tbwKg =
-    pick(/\bTBW\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
-    pick(/total\s*body\s*water\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs|l)\b/i)
+    pick(/\bTBW\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs|l)\b/i) ||
+    pick(/total\s*body\s*water\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs|l)\b/i) ||
+    pickAfter(/\bTBW\b/i) ||
+    pickAfter(/total\s*body\s*water\b/i)
 
   const bmrKcal =
-    pick(/\bBMR\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kcal|kcals)?\b/i) ||
-    pick(/basal\s*metabolic\s*rate\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i)
+    pick(/\bBMR\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+    pick(/basal\s*metabolic\s*rate\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+    pickAfter(/\bBMR\b/i) ||
+    pickAfter(/basal\s*metabolic\s*rate\b/i)
 
   const metabolicAge =
-    pick(/metabolic\s*age\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i)
+    pick(/(?:metabolic|biological)\s*age\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+    pickAfter(/(?:metabolic|biological)\s*age\b/i)
 
   const visceralFatLevel =
-    pick(/visceral\s*fat\s*(?:level|rating)?\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i) ||
-    pick(/\bVFL\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i)
+    pick(/visceral\s*fat\s*(?:level|rating)?\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+    pick(/\bVFL\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+    pickAfter(/visceral\s*fat\s*level\b/i)
 
+  // --- Segmental block parser ---
+  // Use the original text (not flat) so line structure is preserved
   const segmentalFromBlock = (headerRegex) => {
     const m = text.match(headerRegex)
     if (!m || m.index == null) return null
     const startIdx = m.index
     const slice = text.slice(startIdx, startIdx + 900)
-    const endIdx = slice.search(/\n\s*(TBW\b|Body\s*Composition|InBody\b|Weight\b|BMR\b)\s*/i)
+    // Stop before the next major section (TBW is AFTER segmental on ACCUNIQ, don't use it as stop)
+    const endIdx = slice.search(/\n\s*(?:Proteins?\b|Minerals?\b|Body\s*Type\b|Biological\s*Age\b|Basal\s*Metabolic\b|Segmental\s*Fat\b|Segmental\s*Muscle\b)/i)
     const block = (endIdx > 30 ? slice.slice(0, endIdx) : slice)
+      .replace(/[↑↓†‡⇑⇓▲▼]/g, '') // strip noise arrows
 
-    const nums = Array.from(block.matchAll(/(-?\d+(?:[\.,]\d+)?)/g))
+    const nums = Array.from(block.matchAll(/(-?\d+(?:[.,]\d+)?)/g))
       .map((mm) => toNum(mm[1]))
-      .filter((v) => typeof v === 'number' && Number.isFinite(v))
-
-    const pcts = Array.from(block.matchAll(/(-?\d+(?:[\.,]\d+)?)\s*%/g))
-      .map((mm) => toNum(mm[1]))
-      .filter((v) => typeof v === 'number' && Number.isFinite(v))
+      .filter((v) => typeof v === 'number' && Number.isFinite(v) && v > 0 && v < 200)
 
     const map5 = (vals) => {
       if (!Array.isArray(vals) || vals.length < 5) return null
@@ -165,27 +191,24 @@ export const parseBodyCompositionFromOcrText = (rawText) => {
       const rest = vals.filter((x) => x !== trunk)
       if (rest.length < 4) return null
       return {
-        rightArm: rest[0],
-        leftArm: rest[1],
-        trunk: trunk,
-        rightLeg: rest[2],
-        leftLeg: rest[3],
+        leftArm: rest[0],
+        rightArm: rest[1],
+        trunk,
+        leftLeg: rest[2],
+        rightLeg: rest[3],
       }
     }
 
-    return {
-      kg: map5(nums),
-      pct: map5(pcts),
-    }
+    return { kg: map5(nums) }
   }
 
-  const segFat = segmentalFromBlock(/segmental\s*fat\s*mass/i)
+  const segFat    = segmentalFromBlock(/segmental\s*fat\s*mass/i)
   const segMuscle = segmentalFromBlock(/segmental\s*muscle\s*mass/i)
 
   return {
-    heightCm, weightKg, bmi, bodyFatPercent, fatMassKg, smmKg, proteinKg, mineralKg, tbwKg, bmrKcal, metabolicAge, visceralFatLevel,
-    ...(segFat?.kg ? { segmentalFatKg: segFat.kg } : {}),
-    ...(segFat?.pct ? { segmentalFatPercent: segFat.pct } : {}),
+    heightCm, weightKg, bmi, bodyFatPercent, fatMassKg, smmKg,
+    proteinKg, mineralKg, tbwKg, bmrKcal, metabolicAge, visceralFatLevel,
+    ...(segFat?.kg    ? { segmentalFatKg:    segFat.kg    } : {}),
     ...(segMuscle?.kg ? { segmentalMuscleKg: segMuscle.kg } : {}),
   }
 }

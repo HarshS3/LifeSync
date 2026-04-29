@@ -23,6 +23,8 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+const { analyzeImageWithGemini } = require('../aiClient');
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 const DAILY_FIELDS = ['calories','protein','carbs','fat','fiber','sugar','sodium','potassium','iron','calcium','vitaminB','magnesium','zinc','vitaminC','omega3','saturatedFat','monounsaturatedFat','polyunsaturatedFat','cholesterol','phosphorus','copper','vitaminB9','vitaminB12','folate'];
@@ -37,8 +39,6 @@ function recalcTotals(log) {
   DAILY_FIELDS.forEach(k => { t[k] = Math.round(t[k]*10)/10; });
   return t;
 }
-
-// ── Vision Analysis ──────────────────────────────────────────────────────────
 
 const VISION_PROMPT = `You are a nutrition expert identifying Indian and international food.
 Analyze this photo of food. Return ONLY valid JSON with this exact structure (no markdown):
@@ -68,35 +68,6 @@ Rules:
 - Set overallConfidence to "low" if fewer than half the items are identifiable.
 Return ONLY the JSON object, no explanation.`;
 
-async function analyzeImageWithGemini(imageBase64, mimeType) {
-  if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured');
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{
-        parts: [
-          { text: VISION_PROMPT },
-          { inline_data: { mime_type: mimeType, data: imageBase64 } },
-        ],
-      }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 1024 },
-    }),
-  });
-
-  if (!res.ok) throw new Error(`Gemini Vision error: ${res.status}`);
-  const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-  // Extract JSON from response
-  const start = text.indexOf('{');
-  const end   = text.lastIndexOf('}');
-  if (start < 0 || end < start) throw new Error('No valid JSON in Gemini response');
-  return JSON.parse(text.slice(start, end + 1));
-}
-
 // ── Routes ───────────────────────────────────────────────────────────────────
 
 // POST /api/photo-log/analyze
@@ -107,7 +78,14 @@ router.post('/analyze', authMiddleware, upload.single('image'), async (req, res)
     const mimeType = req.file.mimetype || 'image/jpeg';
     const base64   = req.file.buffer.toString('base64');
 
-    const result = await analyzeImageWithGemini(base64, mimeType);
+    const text = await analyzeImageWithGemini(base64, mimeType, VISION_PROMPT);
+    if (!text) throw new Error('Failed to analyze image with Gemini');
+
+    // Extract JSON from response
+    const start = text.indexOf('{');
+    const end   = text.lastIndexOf('}');
+    if (start < 0 || end < start) throw new Error('No valid JSON in Gemini response');
+    const result = JSON.parse(text.slice(start, end + 1));
 
     // Return detected items with flags for UI editing
     res.json({

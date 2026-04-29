@@ -19,23 +19,23 @@ router.put('/profile', auth, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    Object.assign(user, updateData);
-
     if (updateData.biologicalProfile) {
       const calculated = calculateDailyTargets({
-        ...user.biologicalProfile?.toObject?.() || user.biologicalProfile,
+        ...(user.biologicalProfile?.toObject?.() || user.biologicalProfile),
         ...updateData.biologicalProfile
       });
       if (calculated) {
-        user.dailyCalorieTarget = calculated.targets.calories;
-        user.dailyProteinTarget = calculated.targets.protein;
-        user.clinicalTargets = calculated;
+        updateData.dailyCalorieTarget = calculated.targets.calories;
+        updateData.dailyProteinTarget = calculated.targets.protein;
+        updateData.clinicalTargets = calculated;
       }
     }
 
-    await user.save();
-
-    const updatedUser = await User.findById(req.userId).select('-password');
+    const updatedUser = await User.findByIdAndUpdate(
+      req.userId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).select('-password');
 
     res.json(updatedUser);
   } catch (err) {
@@ -68,32 +68,27 @@ router.patch('/profile', auth, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    Object.keys(updateData).forEach(key => {
-      // Need to handle biologicalProfile deep merge
-      if (key === 'biologicalProfile') {
-        user.biologicalProfile = {
-           ...(user.biologicalProfile ? (user.biologicalProfile.toObject ? user.biologicalProfile.toObject() : user.biologicalProfile) : {}),
-           ...updateData.biologicalProfile
-        };
-      } else {
-        user[key] = updateData[key];
-      }
-    });
+    const updatePayload = { ...updateData };
 
     if (updateData.biologicalProfile) {
-      const calculated = calculateDailyTargets({
-        ...user.biologicalProfile.toObject?.() || user.biologicalProfile
-      });
+      updatePayload.biologicalProfile = {
+        ...(user.biologicalProfile?.toObject?.() || user.biologicalProfile),
+        ...updateData.biologicalProfile
+      };
+      const calculated = calculateDailyTargets(updatePayload.biologicalProfile);
       if (calculated) {
-        user.dailyCalorieTarget = calculated.targets.calories;
-        user.dailyProteinTarget = calculated.targets.protein;
-        user.clinicalTargets = calculated;
+        updatePayload.dailyCalorieTarget = calculated.targets.calories;
+        updatePayload.dailyProteinTarget = calculated.targets.protein;
+        updatePayload.clinicalTargets = calculated;
       }
     }
 
-    await user.save();
+    const updatedUser = await User.findByIdAndUpdate(
+      req.userId,
+      { $set: updatePayload },
+      { new: true, runValidators: true }
+    ).select('-password');
 
-    const updatedUser = await User.findById(req.userId).select('-password');
     res.json(updatedUser);
   } catch (err) {
     console.error(err);

@@ -41,7 +41,7 @@ async function calculateAdaptiveTDEE(userId, daysBack = 30, referenceDate = new 
   const weightLogsRaw = await WeightLog.find({
     user: userId,
     date: { $gte: cutoffDate, $lte: referenceDate }
-  }).sort({ date: 1 });
+  }).select('date weightKg').sort({ date: 1 }).lean();
 
   if (weightLogsRaw.length < 3) {
     return { status: 'insufficient_data', message: 'Need at least 3 weight logs to estimate Adaptive TDEE.' };
@@ -51,7 +51,7 @@ async function calculateAdaptiveTDEE(userId, daysBack = 30, referenceDate = new 
   const nutritionLogs = await NutritionLog.find({
     user: userId,
     date: { $gte: cutoffDate, $lte: referenceDate }
-  }).sort({ date: 1 });
+  }).select('date dailyTotals.calories').sort({ date: 1 }).lean();
 
   // Filter out days with < 800 calories (assume incomplete logging)
   const validNutriLogs = nutritionLogs.filter(log => (log.dailyTotals?.calories || 0) > 800);
@@ -125,8 +125,8 @@ async function calculateAdaptiveTDEEForRange(userId, startDate, endDate) {
   bufferStart.setDate(bufferStart.getDate() - 40); // 40 days for safety
 
   const [weights, nutrition] = await Promise.all([
-    WeightLog.find({ user: userId, date: { $gte: bufferStart, $lte: end } }).sort({ date: 1 }).lean(),
-    NutritionLog.find({ user: userId, date: { $gte: bufferStart, $lte: end } }).sort({ date: 1 }).lean()
+    WeightLog.find({ user: userId, date: { $gte: bufferStart, $lte: end } }).select('date weightKg').sort({ date: 1 }).lean(),
+    NutritionLog.find({ user: userId, date: { $gte: bufferStart, $lte: end } }).select('date dailyTotals.calories').sort({ date: 1 }).lean()
   ]);
 
   const results = {};
@@ -192,10 +192,10 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
 
   // ── Fetch all data in parallel ──────────────────────────────────
   const [nutritionLogs, weightLogs, mentalLogs, workouts] = await Promise.all([
-    NutritionLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 }).lean(),
-    WeightLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 }).lean(),
-    MentalLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 }).lean(),
-    Workout.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 }).lean(),
+    NutritionLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date dailyTotals.calories').sort({ date: 1 }).lean(),
+    WeightLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date weightKg').sort({ date: 1 }).lean(),
+    MentalLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date stressLevel').sort({ date: 1 }).lean(),
+    Workout.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date exercises.sets.weight exercises.sets.reps').sort({ date: 1 }).lean(),
   ]);
 
   const validNutriLogs = nutritionLogs.filter(l => (l.dailyTotals?.calories || 0) > 800);

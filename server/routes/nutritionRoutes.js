@@ -567,7 +567,8 @@ router.get('/weight/range/:start/:end', authMiddleware, async (req, res) => {
       date: { $gte: start, $lte: end },
     })
       .sort({ date: 1 })
-      .select('date weightKg');
+      .select('date weightKg')
+      .lean();
     res.json(docs);
   } catch (err) {
     console.error(err);

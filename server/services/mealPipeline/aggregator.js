@@ -118,10 +118,10 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
   const executeSearch = async (model, textQuery, regexQuery) => {
     try {
       // Try $text search first (very fast)
-      let results = await model.find(textQuery).limit(limit)
+      let results = await model.find(textQuery).lean().limit(limit)
       // Fallback to regex (slower) only if $text finds nothing
       if (!results || results.length === 0) {
-        results = await model.find(regexQuery).limit(limit)
+        results = await model.find(regexQuery).lean().limit(limit)
       }
       return results
     } catch (err) {

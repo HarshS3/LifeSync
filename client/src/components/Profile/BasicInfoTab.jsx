@@ -13,7 +13,7 @@ const inputSx = {
   '& .MuiInputLabel-root.Mui-focused': { color: '#171717' },
 }
 
-export default function BasicInfoTab({ profile, updateField }) {
+export default function BasicInfoTab({ profile, updateField, updateBiologicalProfileField }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
@@ -60,8 +60,8 @@ export default function BasicInfoTab({ profile, updateField }) {
         label="Date of Birth"
         type="date"
         InputLabelProps={{ shrink: true }}
-        value={profile.dob}
-        onChange={(e) => updateField('dob', e.target.value)}
+        value={profile.biologicalProfile?.dob ? profile.biologicalProfile.dob.substring(0, 10) : ''}
+        onChange={(e) => updateBiologicalProfileField('dob', e.target.value)}
         sx={inputSx}
       />
     </Box>

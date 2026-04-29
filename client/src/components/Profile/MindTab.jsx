@@ -23,7 +23,7 @@ const inputSx = {
   '& .MuiInputLabel-root.Mui-focused': { color: '#171717' },
 }
 
-export default function MindTab({ profile, updateField }) {
+export default function MindTab({ profile, updateField, updateBiologicalProfileField }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <Box>
@@ -63,8 +63,8 @@ export default function MindTab({ profile, updateField }) {
         <TextField
           type="time"
           InputLabelProps={{ shrink: true }}
-          value={profile.defaultSleepTime || '22:30'}
-          onChange={(e) => updateField('defaultSleepTime', e.target.value)}
+          value={profile.biologicalProfile?.defaultSleepTime || '22:30'}
+          onChange={(e) => updateBiologicalProfileField('defaultSleepTime', e.target.value)}
           sx={inputSx}
           fullWidth
         />

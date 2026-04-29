@@ -42,7 +42,6 @@ function ProfilePanel() {
     weight: '',
     bodyFat: '',
     restingHeartRate: '',
-    dob: '',
     mealsPerDay: 3,
     hydrationGoal: 8,
     conditions: [],
@@ -61,7 +60,6 @@ function ProfilePanel() {
     trainingGoals: [],
     chronotype: 'neutral',
     averageSleep: 7,
-    defaultSleepTime: '22:30',
     energyPeakTime: 'morning',
     stressTriggers: [],
     motivators: [],
@@ -84,6 +82,8 @@ function ProfilePanel() {
       activityLevel: 'moderately_active',
       metabolicGoal: 'maintenance',
       dietaryPreference: 'omnivore',
+      dob: '',
+      defaultSleepTime: '22:30',
     },
     mealSchedule: {
       breakfast: '08:00',
@@ -555,7 +555,7 @@ function ProfilePanel() {
       </Box>
 
       <Box sx={{ minHeight: 400 }}>
-        {activeTab === 0 && <BasicInfoTab profile={profile} updateField={updateField} />}
+        {activeTab === 0 && <BasicInfoTab profile={profile} updateField={updateField} updateBiologicalProfileField={updateBiologicalProfileField} />}
         {activeTab === 1 && <BodyStatsTab profile={profile} updateField={updateField} />}
         {activeTab === 2 && (
           <HealthTab
@@ -583,7 +583,7 @@ function ProfilePanel() {
           />
         )}
         {activeTab === 4 && <TrainingTab profile={profile} updateField={updateField} />}
-        {activeTab === 5 && <MindTab profile={profile} updateField={updateField} />}
+        {activeTab === 5 && <MindTab profile={profile} updateField={updateField} updateBiologicalProfileField={updateBiologicalProfileField} />}
         {activeTab === 6 && (
           <MeasurementsTab
             profile={profile}

@@ -12,14 +12,14 @@ function NutritionTab({ data, nutritionInsight, calcAvg }) {
       <NutritionalDNA />
       <SatietyProfile />
       <GutHealth />
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
-        <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+        <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>
           AI Insight (nutrition)
         </Typography>
 
         {nutritionInsight?.text ? (
           <>
-            <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.7 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', whiteSpace: 'pre-line', lineHeight: 1.7 }}>
               {nutritionInsight.text}
             </Typography>
             {nutritionInsight?.createdAt && (
@@ -29,7 +29,7 @@ function NutritionTab({ data, nutritionInsight, calcAvg }) {
             )}
           </>
         ) : (
-          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
             Generate a nutrition insight from the Daily Log tab.
           </Typography>
         )}
@@ -42,8 +42,8 @@ function NutritionTab({ data, nutritionInsight, calcAvg }) {
       </Box>
 
       {data.nutrition.length > 0 && (
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-          <Typography variant="subtitle2" sx={{ mb: 3, color: '#6b7280' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Typography variant="subtitle2" sx={{ mb: 3, color: 'text.secondary' }}>
             Calories (last 7 days)
           </Typography>
           <BarChart items={data.nutrition} maxValue={3000} valueKey="totalCalories" labelKey="date" />

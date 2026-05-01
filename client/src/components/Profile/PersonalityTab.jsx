@@ -5,7 +5,7 @@ import Slider from '@mui/material/Slider'
 
 const SectionTitle = ({ children }) => {
   return (
-    <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
+    <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
       {children}
     </Typography>
   )
@@ -24,11 +24,11 @@ export default function PersonalityTab({ profile, updatePersonalityField, update
           onChange={(e, v) => updatePersonalityField('introversion', v)}
           min={1}
           max={10}
-          sx={{ color: '#171717' }}
+          sx={{ color: 'text.primary' }}
         />
         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <Typography variant="caption" sx={{ color: '#6b7280' }}>More introvert</Typography>
-          <Typography variant="caption" sx={{ color: '#6b7280' }}>More extrovert</Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>More introvert</Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>More extrovert</Typography>
         </Box>
       </Box>
 
@@ -50,7 +50,7 @@ export default function PersonalityTab({ profile, updatePersonalityField, update
               onChange={(e, v) => updateBigFiveField(key, v)}
               min={1}
               max={10}
-              sx={{ color: '#171717' }}
+              sx={{ color: 'text.primary' }}
             />
           </Box>
         ))}
@@ -67,9 +67,9 @@ export default function PersonalityTab({ profile, updatePersonalityField, update
           onChange={(e) => updatePersonalityField('decisionStyle', e.target.value)}
           sx={{
             '& .MuiOutlinedInput-root': {
-              '& fieldset': { borderColor: '#e5e7eb' },
+              '& fieldset': { borderColor: 'divider' },
               '&:hover fieldset': { borderColor: '#d1d5db' },
-              '&.Mui-focused fieldset': { borderColor: '#171717' },
+              '&.Mui-focused fieldset': { borderColor: 'text.primary' },
             }
           }}
         />

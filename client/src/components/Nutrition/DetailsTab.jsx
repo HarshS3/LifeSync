@@ -36,13 +36,13 @@ function DetailsTab({
 }) {
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.4fr 1fr' }, gap: 3 }}>
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
           Today's Details
         </Typography>
 
         {(!log?.meals || log.meals.length === 0) && (
-          <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
             No meals logged for this selected date yet.
           </Typography>
         )}
@@ -73,7 +73,7 @@ function DetailsTab({
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-              <Typography variant="body2" sx={{ color: '#374151' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 Calories
               </Typography>
               <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -89,7 +89,7 @@ function DetailsTab({
 
           <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-              <Typography variant="body2" sx={{ color: '#374151' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 Protein
               </Typography>
               <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -105,7 +105,7 @@ function DetailsTab({
 
           <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
             <Box sx={{ flex: 1 }}>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 Carbs
               </Typography>
               <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -113,7 +113,7 @@ function DetailsTab({
               </Typography>
             </Box>
             <Box sx={{ flex: 1 }}>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 Fat
               </Typography>
               <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -121,7 +121,7 @@ function DetailsTab({
               </Typography>
             </Box>
             <Box sx={{ flex: 1 }}>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 Fiber
               </Typography>
               <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -139,7 +139,7 @@ function DetailsTab({
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
             {SUMMARY_MICRO_META.map(({ key, label, unit }) => (
               <Box key={key}>
-                <Typography variant="caption" sx={{ color: '#6b7280' }}>{label}</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>{label}</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 500 }}>
                   {Number(totals?.[key] || 0).toFixed(unit === 'ug' ? 0 : 1)} {unit}
                 </Typography>
@@ -161,7 +161,7 @@ function DetailsTab({
                           mt: 0.5,
                           height: 5,
                           borderRadius: 99,
-                          bgcolor: '#f3f4f6',
+                          bgcolor: 'action.selected',
                           '& .MuiLinearProgress-bar': {
                             bgcolor: hasTarget ? '#10b981' : '#d1d5db',
                           },
@@ -184,7 +184,7 @@ function DetailsTab({
                 {clinicalTargetRows.map((row) => (
                   <Box key={row.key}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
-                      <Typography variant="caption" sx={{ color: '#6b7280' }}>{row.label}</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>{row.label}</Typography>
                       <Typography variant="caption" sx={{ fontWeight: 600 }}>
                         {Number(row.currentValue || 0).toFixed(row.unit === 'kcal' ? 0 : 1)} / {Number(row.targetValue || 0).toFixed(row.unit === 'kcal' ? 0 : 1)} {row.unit}
                       </Typography>
@@ -192,7 +192,7 @@ function DetailsTab({
                     <LinearProgress
                       variant="determinate"
                       value={percent(row.currentValue, row.targetValue)}
-                      sx={{ height: 6, borderRadius: 99, bgcolor: '#f3f4f6' }}
+                      sx={{ height: 6, borderRadius: 99, bgcolor: 'action.selected' }}
                     />
                   </Box>
                 ))}
@@ -239,10 +239,10 @@ function DetailsTab({
 
           {nutritionStatsLoading && <LinearProgress sx={{ height: 6, borderRadius: 99, mb: 1 }} />}
 
-          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
             7d avg: {nutritionStats?.weeklyAvg?.calories ?? '—'} kcal · P {nutritionStats?.weeklyAvg?.protein ?? '—'}g · Water {nutritionStats?.weeklyAvg?.water ?? '—'} ml
           </Typography>
-          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
             30d avg: {nutritionStats?.monthlyAvg?.calories ?? '—'} kcal · P {nutritionStats?.monthlyAvg?.protein ?? '—'}g · Water {nutritionStats?.monthlyAvg?.water ?? '—'} ml
           </Typography>
           <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block', mt: 0.5 }}>
@@ -251,7 +251,7 @@ function DetailsTab({
         </Box>
       </Box>
 
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
           Notes
         </Typography>

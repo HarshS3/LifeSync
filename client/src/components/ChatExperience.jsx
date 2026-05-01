@@ -26,15 +26,15 @@ function ChatExperience() {
           <Box
             sx={{
               p: 3,
-              bgcolor: '#fff',
+              bgcolor: 'background.paper',
               borderRadius: 2,
               border: '1px solid #e5e7eb',
             }}
           >
-            <Typography variant="subtitle2" sx={{ mb: 1, color: '#171717' }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.primary' }}>
               How it works
             </Typography>
-            <Typography variant="body2" sx={{ color: '#6b7280', lineHeight: 1.6 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.6 }}>
               The assistant reads your recent logs to give personalized advice. 
               Ask about your training load, nutrition patterns, or wellness trends.
             </Typography>
@@ -44,7 +44,7 @@ function ChatExperience() {
           <Box
             sx={{
               p: 3,
-              bgcolor: '#fff',
+              bgcolor: 'background.paper',
               borderRadius: 2,
               border: '1px solid #e5e7eb',
             }}
@@ -56,12 +56,12 @@ function ChatExperience() {
           <Box
             sx={{
               p: 3,
-              bgcolor: '#fff',
+              bgcolor: 'background.paper',
               borderRadius: 2,
               border: '1px solid #e5e7eb',
             }}
           >
-            <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280' }}>
+            <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary' }}>
               Try asking
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -76,14 +76,14 @@ function ChatExperience() {
                     px: 2,
                     py: 1.5,
                     borderRadius: 1.5,
-                    bgcolor: '#f9fafb',
+                    bgcolor: 'action.hover',
                     border: '1px solid #e5e7eb',
                     cursor: 'pointer',
                     transition: 'all 0.15s',
-                    '&:hover': { bgcolor: '#f3f4f6', borderColor: '#d1d5db' },
+                    '&:hover': { bgcolor: 'action.selected', borderColor: '#d1d5db' },
                   }}
                 >
-                  <Typography variant="body2" sx={{ color: '#374151' }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                     {q}
                   </Typography>
                 </Box>

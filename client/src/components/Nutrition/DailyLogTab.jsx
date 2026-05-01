@@ -35,7 +35,7 @@ function DailyLogTab({
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       {/* Meals list */}
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
             Meals
@@ -75,7 +75,7 @@ function DailyLogTab({
                   p: 2,
                   borderRadius: 1.5,
                   border: '1px solid #e5e7eb',
-                  bgcolor: '#f9fafb',
+                  bgcolor: 'action.hover',
                 }}
               >
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -87,10 +87,10 @@ function DailyLogTab({
                       <Chip
                         label={meal.mealType}
                         size="small"
-                        sx={{ height: 20, fontSize: '0.7rem', bgcolor: '#e5e7eb' }}
+                        sx={{ height: 20, fontSize: '0.7rem', bgcolor: 'divider' }}
                       />
                       {meal.time && (
-                        <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           {(() => {
                             const [h, m] = meal.time.split(':');
                             const hours = parseInt(h);
@@ -124,7 +124,7 @@ function DailyLogTab({
                         <CloseIcon fontSize="small" />
                       </IconButton>
                     </Box>
-                    <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                       P {fmt(mealTotals.protein)}g · C {fmt(mealTotals.carbs)}g · F {fmt(mealTotals.fat)}g
                     </Typography>
                   </Box>
@@ -132,7 +132,7 @@ function DailyLogTab({
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   {meal.foods?.map((food, i) => (
-                    <Typography key={i} variant="caption" sx={{ color: '#6b7280' }}>
+                    <Typography key={i} variant="caption" sx={{ color: 'text.secondary' }}>
                       {food.name} {food.quantity ? `· ${food.quantity}${food.unit}` : ''}{' '}
                       {food.calories ? `· ${food.calories} kcal` : ''}
                     </Typography>
@@ -145,7 +145,7 @@ function DailyLogTab({
                       title="Nutrient Interactions & Bioavailability" 
                       defaultOpen={false}
                     >
-                      <Box sx={{ p: 1.5, bgcolor: '#fff', borderRadius: 1.5, border: '1px dashed #d1d5db' }}>
+                      <Box sx={{ p: 1.5, bgcolor: 'background.paper', borderRadius: 1.5, border: '1px dashed #d1d5db' }}>
                         {meal.insights.synergies?.map((syn, i) => (
                           <Box key={`syn-${i}`} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'start' }}>
                             <Box sx={{ mt: 0.25, width: 6, height: 6, borderRadius: '50%', bgcolor: '#10b981', flexShrink: 0 }} />
@@ -182,7 +182,7 @@ function DailyLogTab({
                       title={`Absorption Analysis (${meal.bioavailability.overallConfidence || 'medium'} confidence)`}
                       defaultOpen={false}
                     >
-                      <Box sx={{ p: 1.5, bgcolor: '#fff', borderRadius: 1.5, border: '1px dashed #c7d2fe' }}>
+                      <Box sx={{ p: 1.5, bgcolor: 'background.paper', borderRadius: 1.5, border: '1px dashed #c7d2fe' }}>
                         {meal.bioavailability.narratives?.length > 0 && (
                           <Box sx={{ mb: 1.5, p: 1, bgcolor: '#f0f9ff', borderRadius: 1, border: '1px solid #bae6fd' }}>
                             {meal.bioavailability.narratives.map((n, i) => (
@@ -200,7 +200,7 @@ function DailyLogTab({
                             return (
                               <Box key={nutrient}>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 0.5 }}>
-                                  <Typography variant="caption" sx={{ fontWeight: 600, color: '#374151' }}>{label}</Typography>
+                                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>{label}</Typography>
                                   <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'baseline' }}>
                                     <Typography variant="caption" sx={{ color: '#9ca3af', textDecoration: 'line-through' }}>
                                       {data.consumed_amount}{data.unit}
@@ -210,12 +210,12 @@ function DailyLogTab({
                                     </Typography>
                                   </Box>
                                 </Box>
-                                <Box sx={{ position: 'relative', height: 6, bgcolor: '#f3f4f6', borderRadius: 99, overflow: 'hidden' }}>
-                                  <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '100%', bgcolor: '#e5e7eb', borderRadius: 99 }} />
+                                <Box sx={{ position: 'relative', height: 6, bgcolor: 'action.selected', borderRadius: 99, overflow: 'hidden' }}>
+                                  <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '100%', bgcolor: 'divider', borderRadius: 99 }} />
                                   <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(pctAbsorbed, 100)}%`, bgcolor: barColor, borderRadius: 99, transition: 'width 0.5s' }} />
                                 </Box>
                                 {data.interactions?.length > 0 && (
-                                  <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mt: 0.25, lineHeight: 1.3 }}>
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25, lineHeight: 1.3 }}>
                                     {data.interactions.filter(i => i.type !== 'neutral').map(i => `${i.agent.replace(/_/g,' ')}: ${i.effect}`).join(' · ')}
                                   </Typography>
                                 )}
@@ -242,13 +242,13 @@ function DailyLogTab({
           { label: 'Carbs',    val: fmt(totals.carbs),       unit: 'g',    pct: null, color: '#d97706' },
           { label: 'Fat',      val: fmt(totals.fat),         unit: 'g',    pct: null, color: '#dc2626' },
         ].map((m) => (
-          <Box key={m.label} sx={{ p: 2, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-            <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.25 }}>{m.label}</Typography>
+          <Box key={m.label} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>{m.label}</Typography>
             <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>
               {m.val} <span style={{ fontWeight: 400, fontSize: '0.8em', color: '#9ca3af' }}>{m.unit}</span>
             </Typography>
             {m.pct != null && (
-              <LinearProgress variant="determinate" value={m.pct} sx={{ mt: 1, height: 4, borderRadius: 99, bgcolor: '#f3f4f6', '& .MuiLinearProgress-bar': { bgcolor: m.color } }} />
+              <LinearProgress variant="determinate" value={m.pct} sx={{ mt: 1, height: 4, borderRadius: 99, bgcolor: 'action.selected', '& .MuiLinearProgress-bar': { bgcolor: m.color } }} />
             )}
           </Box>
         ))}
@@ -285,7 +285,7 @@ function DailyLogTab({
         if (alerts.length === 0) return null;
 
         return (
-          <Box sx={{ p: 2.5, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 2.5, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#111827' }}>
               Daily Medical Alerts & Insights
             </Typography>
@@ -305,7 +305,7 @@ function DailyLogTab({
 
       {/* Effective Daily Absorption Summary */}
       {log.effectiveNutrientTotals && Object.keys(log.effectiveNutrientTotals).length > 0 && (
-        <Box sx={{ p: 2.5, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 2.5, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <ExpandableSection title="Daily Effective Absorption Summary" defaultOpen={false}>
             <Box sx={{ pt: 1.5, display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3, 1fr)', md: 'repeat(5, 1fr)' }, gap: 2 }}>
               {Object.entries(log.effectiveNutrientTotals).map(([nutrient, data]) => {
@@ -315,15 +315,15 @@ function DailyLogTab({
                 const color = isLow ? '#ef4444' : isMed ? '#f59e0b' : '#10b981'
                 const label = nutrient.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
                 return (
-                  <Box key={nutrient} sx={{ p: 1.5, bgcolor: '#f9fafb', borderRadius: 1.5, border: '1px solid #f3f4f6' }}>
-                    <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.65rem' }}>{label}</Typography>
+                  <Box key={nutrient} sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1.5, border: '1px solid #f3f4f6' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.65rem' }}>{label}</Typography>
                     <Typography variant="caption" sx={{ fontWeight: 700, color, display: 'block' }}>
                       ~{data.effective}{data.unit}
                     </Typography>
                     <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block', fontSize: '0.65rem' }}>
                       of {data.consumed}{data.unit} ({pctVal}% absorbed)
                     </Typography>
-                    <Box sx={{ mt: 0.75, height: 4, bgcolor: '#e5e7eb', borderRadius: 99, overflow: 'hidden' }}>
+                    <Box sx={{ mt: 0.75, height: 4, bgcolor: 'divider', borderRadius: 99, overflow: 'hidden' }}>
                       <Box sx={{ height: '100%', width: `${Math.min(pctVal, 100)}%`, bgcolor: color, borderRadius: 99, transition: 'width 0.5s' }} />
                     </Box>
                   </Box>
@@ -335,11 +335,11 @@ function DailyLogTab({
       )}
 
       {/* Simulated CGM Graph */}
-      <Box sx={{ p: 2.5, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+      <Box sx={{ p: 2.5, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
           <Box>
             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Simulated Glucose Response</Typography>
-            <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>Based on meal Glycemic Pressure & macro buffering.</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Based on meal Glycemic Pressure & macro buffering.</Typography>
           </Box>
           <Chip label="Simulation" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600 }} />
         </Box>
@@ -353,13 +353,13 @@ function DailyLogTab({
                   <stop offset="65%" stopColor="#10b981" stopOpacity={0.4}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-              <XAxis dataKey="time" minTickGap={30} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-              <YAxis domain={[70, 180]} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} width={50} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke='divider' />
+              <XAxis dataKey="time" minTickGap={30} tick={{ fontSize: 11, fill: 'text.secondary' }} axisLine={false} tickLine={false} />
+              <YAxis domain={[70, 180]} tick={{ fontSize: 11, fill: 'text.secondary' }} axisLine={false} tickLine={false} width={50} />
               <Tooltip 
                 contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 itemStyle={{ fontSize: 13, fontWeight: 700 }}
-                labelStyle={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}
+                labelStyle={{ fontSize: 12, color: 'text.secondary', marginBottom: 4 }}
               />
               <Area type="monotone" dataKey="glucose" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#glucoseGradient)" animationDuration={1500} />
             </AreaChart>
@@ -369,11 +369,11 @@ function DailyLogTab({
 
       {/* AI insight + hydration */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>AI Insight</Typography>
           {insightMatchesSelectedDay && nutritionInsight?.text ? (
             <>
-              <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.7 }}>{nutritionInsight.text}</Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', whiteSpace: 'pre-line', lineHeight: 1.7 }}>{nutritionInsight.text}</Typography>
               {nutritionInsight?.createdAt && (
                 <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block', mt: 1 }}>
                   Updated {new Date(nutritionInsight.createdAt).toLocaleString()}
@@ -381,28 +381,28 @@ function DailyLogTab({
               )}
             </>
           ) : (
-            <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>Generate an insight for today.</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Generate an insight for today.</Typography>
           )}
           {mealSuggestions && (
-            <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.7, mt: 2, pt: 2, borderTop: '1px solid #f3f4f6' }}>{mealSuggestions}</Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary', whiteSpace: 'pre-line', lineHeight: 1.7, mt: 2, pt: 2, borderTop: '1px solid #f3f4f6' }}>{mealSuggestions}</Typography>
           )}
           <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
-            <Button variant="outlined" size="small" onClick={generateNutritionInsight} disabled={nutritionInsightGenerating} sx={{ textTransform: 'none', borderColor: '#e5e7eb', color: '#374151' }}>
+            <Button variant="outlined" size="small" onClick={generateNutritionInsight} disabled={nutritionInsightGenerating} sx={{ textTransform: 'none', borderColor: 'divider', color: 'text.secondary' }}>
               {nutritionInsightGenerating ? 'Generating...' : 'Generate Insight'}
             </Button>
-            <Button variant="outlined" size="small" onClick={generateMealSuggestions} disabled={mealSuggestionsGenerating} sx={{ textTransform: 'none', borderColor: '#e5e7eb', color: '#374151' }}>
+            <Button variant="outlined" size="small" onClick={generateMealSuggestions} disabled={mealSuggestionsGenerating} sx={{ textTransform: 'none', borderColor: 'divider', color: 'text.secondary' }}>
               {mealSuggestionsGenerating ? 'Thinking...' : 'Suggest Meals'}
             </Button>
           </Box>
         </Box>
 
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>Hydration</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
             <WaterDropIcon sx={{ color: '#0ea5e9', fontSize: 28 }} />
             <Box>
               <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>{Math.round((log.waterIntake || 0) / 250)} glasses</Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 {log.waterIntake || 0} / {timingAlerts?.hydrationGoalMl || 2500} ml total
               </Typography>
             </Box>
@@ -423,7 +423,7 @@ function DailyLogTab({
           <Typography variant="body2" sx={{ fontWeight: 600, color: '#166534' }}>Ready to log a meal?</Typography>
           <Typography variant="caption" sx={{ color: '#15803d' }}>Search the food database, set your portion, and add it to today.</Typography>
         </Box>
-        <Button variant="contained" size="small" onClick={() => setActiveTab(1)} sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, color: '#fff', fontWeight: 700 }}>
+        <Button variant="contained" size="small" onClick={() => setActiveTab(1)} sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, color: 'background.paper', fontWeight: 700 }}>
           + Log Meal
         </Button>
       </Box>

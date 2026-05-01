@@ -9,7 +9,7 @@ function GymCalendarTab({
   calendarLoading
 }) {
   return (
-    <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+    <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
       <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 3 }}>Workout Calendar</Typography>
       <Calendar 
         events={calendarEvents} 

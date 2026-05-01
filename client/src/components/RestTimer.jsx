@@ -70,7 +70,7 @@ export default function RestTimer({ open, onClose, initialSeconds = 60 }) {
       right: { xs: 16, md: 24 },
       width: 220,
       bgcolor: '#1e293b',
-      color: '#fff',
+      color: 'background.paper',
       borderRadius: 4,
       boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.4)',
       p: 2.5,
@@ -90,7 +90,7 @@ export default function RestTimer({ open, onClose, initialSeconds = 60 }) {
             Resting
           </Typography>
         </Box>
-        <IconButton size="small" onClick={onClose} sx={{ color: '#94a3b8', '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' } }}>
+        <IconButton size="small" onClick={onClose} sx={{ color: '#94a3b8', '&:hover': { color: 'background.paper', bgcolor: 'rgba(255,255,255,0.1)' } }}>
           <CloseIcon sx={{ fontSize: 18 }} />
         </IconButton>
       </Box>
@@ -107,7 +107,7 @@ export default function RestTimer({ open, onClose, initialSeconds = 60 }) {
             transform="rotate(-90 50 50)"
           />
         </svg>
-        <Typography variant="h4" sx={{ position: 'absolute', fontWeight: 800, fontFamily: '"JetBrains Mono", monospace', color: seconds <= 5 ? '#f43f5e' : '#fff' }}>
+        <Typography variant="h4" sx={{ position: 'absolute', fontWeight: 800, fontFamily: '"JetBrains Mono", monospace', color: seconds <= 5 ? '#f43f5e' : 'background.paper' }}>
           {formatTime(seconds)}
         </Typography>
       </Box>
@@ -151,7 +151,7 @@ export default function RestTimer({ open, onClose, initialSeconds = 60 }) {
           onClick={reset}
           sx={{ 
             bgcolor: 'rgba(255,255,255,0.05)', 
-            color: '#fff', 
+            color: 'background.paper', 
             borderRadius: 2,
             '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } 
           }}

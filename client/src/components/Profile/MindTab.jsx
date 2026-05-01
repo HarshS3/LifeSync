@@ -8,7 +8,7 @@ import ChipListInput from '../ChipListInput'
 
 const SectionTitle = ({ children }) => {
   return (
-    <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
+    <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
       {children}
     </Typography>
   )
@@ -16,11 +16,11 @@ const SectionTitle = ({ children }) => {
 
 const inputSx = {
   '& .MuiOutlinedInput-root': {
-    '& fieldset': { borderColor: '#e5e7eb' },
+    '& fieldset': { borderColor: 'divider' },
     '&:hover fieldset': { borderColor: '#d1d5db' },
-    '&.Mui-focused fieldset': { borderColor: '#171717' },
+    '&.Mui-focused fieldset': { borderColor: 'text.primary' },
   },
-  '& .MuiInputLabel-root.Mui-focused': { color: '#171717' },
+  '& .MuiInputLabel-root.Mui-focused': { color: 'text.primary' },
 }
 
 export default function MindTab({ profile, updateField, updateBiologicalProfileField }) {
@@ -35,9 +35,9 @@ export default function MindTab({ profile, updateField, updateBiologicalProfileF
               label={type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
               onClick={() => updateField('chronotype', type)}
               sx={{
-                bgcolor: profile.chronotype === type ? '#171717' : '#f3f4f6',
-                color: profile.chronotype === type ? '#fff' : '#374151',
-                '&:hover': { bgcolor: profile.chronotype === type ? '#171717' : '#e5e7eb' },
+                bgcolor: profile.chronotype === type ? 'text.primary' : 'action.selected',
+                color: profile.chronotype === type ? 'background.paper' : 'text.secondary',
+                '&:hover': { bgcolor: profile.chronotype === type ? 'text.primary' : 'divider' },
               }}
             />
           ))}
@@ -54,7 +54,7 @@ export default function MindTab({ profile, updateField, updateBiologicalProfileF
           min={4}
           max={12}
           step={0.5}
-          sx={{ color: '#171717' }}
+          sx={{ color: 'text.primary' }}
         />
       </Box>
 
@@ -79,9 +79,9 @@ export default function MindTab({ profile, updateField, updateBiologicalProfileF
               label={time.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
               onClick={() => updateField('energyPeakTime', time)}
               sx={{
-                bgcolor: profile.energyPeakTime === time ? '#171717' : '#f3f4f6',
-                color: profile.energyPeakTime === time ? '#fff' : '#374151',
-                '&:hover': { bgcolor: profile.energyPeakTime === time ? '#171717' : '#e5e7eb' },
+                bgcolor: profile.energyPeakTime === time ? 'text.primary' : 'action.selected',
+                color: profile.energyPeakTime === time ? 'background.paper' : 'text.secondary',
+                '&:hover': { bgcolor: profile.energyPeakTime === time ? 'text.primary' : 'divider' },
               }}
             />
           ))}

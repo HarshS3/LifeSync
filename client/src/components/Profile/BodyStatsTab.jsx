@@ -5,7 +5,7 @@ import TextField from '@mui/material/TextField'
 
 const SectionTitle = ({ children }) => {
   return (
-    <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
+    <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
       {children}
     </Typography>
   )
@@ -13,11 +13,11 @@ const SectionTitle = ({ children }) => {
 
 const inputSx = {
   '& .MuiOutlinedInput-root': {
-    '& fieldset': { borderColor: '#e5e7eb' },
+    '& fieldset': { borderColor: 'divider' },
     '&:hover fieldset': { borderColor: '#d1d5db' },
-    '&.Mui-focused fieldset': { borderColor: '#171717' },
+    '&.Mui-focused fieldset': { borderColor: 'text.primary' },
   },
-  '& .MuiInputLabel-root.Mui-focused': { color: '#171717' },
+  '& .MuiInputLabel-root.Mui-focused': { color: 'text.primary' },
 }
 
 export default function BodyStatsTab({ profile, updateField }) {

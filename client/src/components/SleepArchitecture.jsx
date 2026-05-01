@@ -35,7 +35,7 @@ const SleepArchitecture = () => {
   if (loading) return <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 3, mb: 3 }} />
   if (!data || data.status === 'insufficient_data') {
     return (
-      <Paper sx={{ p: 3, borderRadius: 3, bgcolor: '#f8fafc', border: '1px dashed #cbd5e1', textAlign: 'center' }}>
+      <Paper sx={{ p: 3, borderRadius: 3, bgcolor: 'background.default', border: '1px dashed #cbd5e1', textAlign: 'center' }}>
         <NightsStayIcon sx={{ color: '#94a3b8', fontSize: 40, mb: 1 }} />
         <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#475569' }}>
           Sleep Architecture: Analyzing...
@@ -63,7 +63,7 @@ const SleepArchitecture = () => {
             borderRadius: 4,
             border: '1px solid',
             borderColor: '#e2e8f0',
-            bgcolor: '#fff',
+            bgcolor: 'background.paper',
             position: 'relative',
             overflow: 'hidden'
           }}
@@ -100,7 +100,7 @@ const SleepArchitecture = () => {
             borderRadius: 4,
             border: '1px solid',
             borderColor: '#e2e8f0',
-            bgcolor: '#f8fafc',
+            bgcolor: 'background.default',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',

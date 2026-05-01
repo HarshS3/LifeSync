@@ -128,7 +128,7 @@ function RemindersSettings() {
         alignItems: 'center',
         justifyContent: 'space-between',
         p: 2,
-        bgcolor: '#fff',
+        bgcolor: 'background.paper',
         borderRadius: 2,
         border: '1px solid #e5e7eb',
       }}
@@ -139,20 +139,20 @@ function RemindersSettings() {
             width: 40,
             height: 40,
             borderRadius: 2,
-            bgcolor: '#f3f4f6',
+            bgcolor: 'action.selected',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#6b7280',
+            color: 'text.secondary',
           }}
         >
           {icon}
         </Box>
         <Box>
-          <Typography variant="body2" sx={{ fontWeight: 500, color: '#171717' }}>
+          <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
             {title}
           </Typography>
-          <Typography variant="caption" sx={{ color: '#6b7280' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             {description}
           </Typography>
         </Box>
@@ -162,10 +162,10 @@ function RemindersSettings() {
         onChange={onChange}
         sx={{
           '& .MuiSwitch-switchBase.Mui-checked': {
-            color: '#171717',
+            color: 'text.primary',
           },
           '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-            backgroundColor: '#171717',
+            backgroundColor: 'text.primary',
           },
         }}
       />
@@ -174,10 +174,10 @@ function RemindersSettings() {
 
   return (
     <Box sx={{ maxWidth: 600 }}>
-      <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: '#171717' }}>
+      <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
         Reminders & Notifications
       </Typography>
-      <Typography variant="body2" sx={{ mb: 3, color: '#6b7280' }}>
+      <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
         Stay on track with personalized reminders
       </Typography>
 
@@ -192,7 +192,7 @@ function RemindersSettings() {
       )}
 
       {/* Notification Channels */}
-      <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280' }}>
+      <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary' }}>
         Notification Channels
       </Typography>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 4 }}>
@@ -215,7 +215,7 @@ function RemindersSettings() {
       <Divider sx={{ my: 3 }} />
 
       {/* Reminder Types */}
-      <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280' }}>
+      <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary' }}>
         Reminder Types
       </Typography>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 4 }}>
@@ -259,7 +259,7 @@ function RemindersSettings() {
       <Divider sx={{ my: 3 }} />
 
       {/* Monthly Report Download */}
-      <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280' }}>
+      <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary' }}>
         Monthly Report
       </Typography>
 
@@ -267,15 +267,15 @@ function RemindersSettings() {
         sx={{
           p: 2,
           mb: 4,
-          bgcolor: '#fff',
+          bgcolor: 'background.paper',
           borderRadius: 2,
           border: '1px solid #e5e7eb',
         }}
       >
-        <Typography variant="body2" sx={{ fontWeight: 500, color: '#171717', mb: 0.5 }}>
+        <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary', mb: 0.5 }}>
           Download your monthly report
         </Typography>
-        <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 2 }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 2 }}>
           Generates a deterministic summary from your DailyLifeState (no AI).
         </Typography>
 
@@ -301,11 +301,11 @@ function RemindersSettings() {
             disabled={!token || downloading}
             onClick={() => downloadMonthlyReport('json')}
             sx={{
-              borderColor: '#e5e7eb',
-              color: '#171717',
+              borderColor: 'divider',
+              color: 'text.primary',
               textTransform: 'none',
               fontWeight: 600,
-              '&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' },
+              '&:hover': { borderColor: '#cbd5e1', bgcolor: 'background.default' },
             }}
           >
             {downloading ? 'Preparing…' : 'Download JSON'}
@@ -316,11 +316,11 @@ function RemindersSettings() {
             disabled={!token || downloading}
             onClick={() => downloadMonthlyReport('csv')}
             sx={{
-              borderColor: '#e5e7eb',
-              color: '#171717',
+              borderColor: 'divider',
+              color: 'text.primary',
               textTransform: 'none',
               fontWeight: 600,
-              '&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' },
+              '&:hover': { borderColor: '#cbd5e1', bgcolor: 'background.default' },
             }}
           >
             {downloading ? 'Preparing…' : 'Download CSV'}
@@ -329,7 +329,7 @@ function RemindersSettings() {
       </Box>
 
       {/* Reminder Times */}
-      <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280' }}>
+      <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary' }}>
         Reminder Times
       </Typography>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 4 }}>
@@ -380,11 +380,11 @@ function RemindersSettings() {
         disabled={saving}
         sx={{
           py: 1.5,
-          bgcolor: '#171717',
+          bgcolor: 'text.primary',
           textTransform: 'none',
           fontWeight: 600,
           borderRadius: 2,
-          '&:hover': { bgcolor: '#374151' },
+          '&:hover': { bgcolor: 'text.secondary' },
         }}
       >
         {saving ? 'Saving...' : 'Save Settings'}

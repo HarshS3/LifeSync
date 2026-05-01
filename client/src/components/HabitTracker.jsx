@@ -245,10 +245,10 @@ function HabitTracker() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 600, color: '#171717' }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary' }}>
             Habit Tracker
           </Typography>
-          <Typography variant="body2" sx={{ color: '#6b7280' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Build better habits, one day at a time
           </Typography>
         </Box>
@@ -269,10 +269,10 @@ function HabitTracker() {
             setDialogOpen(true)
           }}
           sx={{
-            bgcolor: '#171717',
+            bgcolor: 'text.primary',
             textTransform: 'none',
             fontWeight: 600,
-            '&:hover': { bgcolor: '#374151' },
+            '&:hover': { bgcolor: 'text.secondary' },
           }}
         >
           New Habit
@@ -284,7 +284,7 @@ function HabitTracker() {
         sx={{
           p: 3,
           mb: 3,
-          bgcolor: '#f8fafc',
+          bgcolor: 'background.default',
           borderRadius: 3,
           border: '1px solid #e5e7eb',
         }}
@@ -295,8 +295,8 @@ function HabitTracker() {
             icon={<LocalFireDepartmentIcon sx={{ fontSize: 16 }} />}
             label={`${completedToday}/${totalHabits} completed`}
             sx={{
-              bgcolor: completedToday === totalHabits && totalHabits > 0 ? '#dcfce7' : '#f3f4f6',
-              color: completedToday === totalHabits && totalHabits > 0 ? '#15803d' : '#374151',
+              bgcolor: completedToday === totalHabits && totalHabits > 0 ? '#dcfce7' : 'action.selected',
+              color: completedToday === totalHabits && totalHabits > 0 ? '#15803d' : 'text.secondary',
               fontWeight: 600,
             }}
           />
@@ -307,7 +307,7 @@ function HabitTracker() {
           sx={{
             height: 8,
             borderRadius: 4,
-            bgcolor: '#e5e7eb',
+            bgcolor: 'divider',
             '& .MuiLinearProgress-bar': {
               bgcolor: completedToday === totalHabits && totalHabits > 0 ? '#22c55e' : '#6366f1',
               borderRadius: 4,
@@ -325,10 +325,10 @@ function HabitTracker() {
             '& .MuiTab-root': {
               textTransform: 'none',
               fontWeight: 500,
-              color: '#6b7280',
-              '&.Mui-selected': { color: '#171717' },
+              color: 'text.secondary',
+              '&.Mui-selected': { color: 'text.primary' },
             },
-            '& .MuiTabs-indicator': { bgcolor: '#171717' },
+            '& .MuiTabs-indicator': { bgcolor: 'text.primary' },
           }}
         >
           <Tab label="Today" icon={<TodayIcon sx={{ fontSize: 18 }} />} iconPosition="start" />
@@ -343,7 +343,7 @@ function HabitTracker() {
       {activeTab === 0 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {habits.length === 0 ? (
-            <Box sx={{ textAlign: 'center', py: 6, color: '#6b7280' }}>
+            <Box sx={{ textAlign: 'center', py: 6, color: 'text.secondary' }}>
               <Typography variant="body1" sx={{ mb: 1 }}>No habits yet</Typography>
               <Typography variant="body2">Create your first habit to get started!</Typography>
             </Box>
@@ -359,8 +359,8 @@ function HabitTracker() {
                 <Box
                   key={habit._id}
                   sx={{
-                    bgcolor: isCompleted ? `${habit.color}10` : '#fff',
-                    border: `1px solid ${isCompleted ? habit.color : '#e5e7eb'}`,
+                    bgcolor: isCompleted ? `${habit.color}10` : 'background.paper',
+                    border: `1px solid ${isCompleted ? habit.color : 'divider'}`,
                     borderRadius: 2,
                     overflow: 'hidden',
                     transition: 'all 0.2s',
@@ -374,7 +374,7 @@ function HabitTracker() {
                       gap: 2,
                       p: 2,
                       cursor: 'pointer',
-                      '&:hover': { bgcolor: isCompleted ? `${habit.color}15` : '#f9fafb' },
+                      '&:hover': { bgcolor: isCompleted ? `${habit.color}15` : 'action.hover' },
                     }}
                   >
                     <Box
@@ -395,7 +395,7 @@ function HabitTracker() {
                       }}
                     >
                       {isCompleted ? (
-                        <CheckCircleIcon sx={{ fontSize: 24, color: '#fff' }} />
+                        <CheckCircleIcon sx={{ fontSize: 24, color: 'background.paper' }} />
                       ) : null}
                     </Box>
                     <Box 
@@ -406,7 +406,7 @@ function HabitTracker() {
                         variant="body1"
                         sx={{
                           fontWeight: 600,
-                          color: '#171717',
+                          color: 'text.primary',
                           textDecoration: isCompleted ? 'line-through' : 'none',
                           opacity: isCompleted ? 0.7 : 1,
                         }}
@@ -424,8 +424,8 @@ function HabitTracker() {
                         )}
                         {savedNote && !isExpanded && (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <NotesIcon sx={{ fontSize: 14, color: '#6b7280' }} />
-                            <Typography variant="caption" sx={{ color: '#6b7280', fontStyle: 'italic' }}>
+                            <NotesIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                            <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
                               {savedNote.length > 30 ? savedNote.slice(0, 30) + '...' : savedNote}
                             </Typography>
                           </Box>
@@ -439,7 +439,7 @@ function HabitTracker() {
                           e.stopPropagation()
                           setExpandedHabit(isExpanded ? null : habit._id)
                         }}
-                        sx={{ color: '#6b7280' }}
+                        sx={{ color: 'text.secondary' }}
                       >
                         <NotesIcon fontSize="small" />
                       </IconButton>
@@ -464,7 +464,7 @@ function HabitTracker() {
                         pb: 2,
                         pt: 0,
                         borderTop: '1px solid #e5e7eb',
-                        bgcolor: '#f9fafb',
+                        bgcolor: 'action.hover',
                       }}
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -478,9 +478,9 @@ function HabitTracker() {
                         sx={{
                           mt: 1.5,
                           '& .MuiOutlinedInput-root': {
-                            bgcolor: '#fff',
+                            bgcolor: 'background.paper',
                             fontSize: '0.875rem',
-                            '& fieldset': { borderColor: '#e5e7eb' },
+                            '& fieldset': { borderColor: 'divider' },
                             '&:hover fieldset': { borderColor: '#d1d5db' },
                             '&.Mui-focused fieldset': { borderColor: habit.color },
                           },
@@ -493,7 +493,7 @@ function HabitTracker() {
                             setHabitNotes(prev => ({ ...prev, [habit._id]: savedNote }))
                             setExpandedHabit(null)
                           }}
-                          sx={{ color: '#6b7280', textTransform: 'none' }}
+                          sx={{ color: 'text.secondary', textTransform: 'none' }}
                         >
                           Cancel
                         </Button>
@@ -519,7 +519,7 @@ function HabitTracker() {
                           size="small"
                           startIcon={<EditIcon />}
                           onClick={() => openEditDialog(habit)}
-                          sx={{ color: '#6b7280', textTransform: 'none' }}
+                          sx={{ color: 'text.secondary', textTransform: 'none' }}
                         >
                           Edit
                         </Button>
@@ -555,7 +555,7 @@ function HabitTracker() {
                 {' - '}
                 {new Date(new Date(weekData.weekEnd).setDate(new Date(weekData.weekEnd).getDate() - 1)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 {weekData.stats.completionRate}% completion rate
               </Typography>
             </Box>
@@ -576,11 +576,11 @@ function HabitTracker() {
                       p: 1.5,
                       borderRadius: 2,
                       border: '1px solid #e5e7eb',
-                      bgcolor: day.isToday ? '#f8fafc' : '#fff',
+                      bgcolor: day.isToday ? 'background.default' : 'background.paper',
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 700, color: '#171717' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                         {`${day.dayName} ${day.dayNumber}`}
                       </Typography>
                       <Chip
@@ -592,13 +592,13 @@ function HabitTracker() {
                               ? '#dcfce7'
                               : day.completedCount > 0
                               ? '#fef3c7'
-                              : '#f3f4f6',
+                              : 'action.selected',
                           color:
                             day.completedCount === day.totalHabits && day.totalHabits > 0
                               ? '#15803d'
                               : day.completedCount > 0
                               ? '#92400e'
-                              : '#6b7280',
+                              : 'text.secondary',
                           fontWeight: 600,
                         }}
                       />
@@ -633,7 +633,7 @@ function HabitTracker() {
                               <Typography
                                 variant="body2"
                                 sx={{
-                                  color: '#171717',
+                                  color: 'text.primary',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
                                   whiteSpace: 'nowrap',
@@ -654,7 +654,7 @@ function HabitTracker() {
                                     ? habit.color
                                     : isPastDay
                                     ? '#fecaca'
-                                    : '#e5e7eb',
+                                    : 'divider',
                                 }}
                               >
                                 {isCompleted ? (
@@ -689,9 +689,9 @@ function HabitTracker() {
                   sx={{
                     p: 1,
                     textAlign: 'center',
-                    bgcolor: day.isToday ? '#171717' : 'transparent',
+                    bgcolor: day.isToday ? 'text.primary' : 'transparent',
                     borderRadius: 2,
-                    color: day.isToday ? '#fff' : '#6b7280',
+                    color: day.isToday ? 'background.paper' : 'text.secondary',
                   }}
                 >
                   <Typography variant="caption" sx={{ fontWeight: 500 }}>
@@ -727,7 +727,7 @@ function HabitTracker() {
                       variant="body2"
                       sx={{
                         fontWeight: 500,
-                        color: '#171717',
+                        color: 'text.primary',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
@@ -763,7 +763,7 @@ function HabitTracker() {
                                 ? habit.color
                                 : isPast
                                 ? '#fecaca'
-                                : '#e5e7eb',
+                                : 'divider',
                             }}
                           >
                             {isCompleted ? (
@@ -781,7 +781,7 @@ function HabitTracker() {
 
               {/* Completion Row */}
               <Box sx={{ p: 1, display: 'flex', alignItems: 'center' }}>
-                <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 500 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                   Daily Total
                 </Typography>
               </Box>
@@ -799,13 +799,13 @@ function HabitTracker() {
                           ? '#dcfce7'
                           : day.completedCount > 0
                           ? '#fef3c7'
-                          : '#f3f4f6',
+                          : 'action.selected',
                       color:
                         day.completedCount === day.totalHabits && day.totalHabits > 0
                           ? '#15803d'
                           : day.completedCount > 0
                           ? '#92400e'
-                          : '#6b7280',
+                          : 'text.secondary',
                       fontWeight: 600,
                       fontSize: '0.7rem',
                     }}
@@ -832,32 +832,32 @@ function HabitTracker() {
               <Typography variant="h4" sx={{ fontWeight: 700, color: '#15803d' }}>
                 {analytics.summary.overallRate}%
               </Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>Completion Rate</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>Completion Rate</Typography>
             </Box>
             <Box sx={{ p: 2, bgcolor: '#fef3c7', borderRadius: 2, textAlign: 'center' }}>
               <LocalFireDepartmentIcon sx={{ color: '#f97316', fontSize: 28 }} />
               <Typography variant="h5" sx={{ fontWeight: 700, color: '#92400e' }}>
                 {analytics.summary.currentStreak}
               </Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>Current Streak</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>Current Streak</Typography>
             </Box>
             <Box sx={{ p: 2, bgcolor: '#eef2ff', borderRadius: 2, textAlign: 'center' }}>
               <EmojiEventsIcon sx={{ color: '#6366f1', fontSize: 28 }} />
               <Typography variant="h5" sx={{ fontWeight: 700, color: '#4f46e5' }}>
                 {habitStats?.longestStreak ?? analytics.summary.longestStreak}
               </Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>Longest Streak</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>Longest Streak</Typography>
             </Box>
-            <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, textAlign: 'center' }}>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: '#171717' }}>
+            <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2, textAlign: 'center' }}>
+              <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
                 {habitStats?.totalCompletionsLast30Days ?? analytics.summary.totalCompletions}
               </Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>Total (30 days)</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>Total (30 days)</Typography>
             </Box>
           </Box>
 
           {/* Daily Completion Trend */}
-          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
               <TrendingUpIcon sx={{ fontSize: 20, mr: 1, verticalAlign: 'middle' }} />
               Daily Completion Rate (Last 30 Days)
@@ -870,21 +870,21 @@ function HabitTracker() {
                     <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <CartesianGrid strokeDasharray="3 3" stroke='divider' />
                 <XAxis 
                   dataKey="dayNum" 
-                  tick={{ fontSize: 12, fill: '#6b7280' }}
-                  axisLine={{ stroke: '#e5e7eb' }}
+                  tick={{ fontSize: 12, fill: 'text.secondary' }}
+                  axisLine={{ stroke: 'divider' }}
                 />
                 <YAxis 
-                  tick={{ fontSize: 12, fill: '#6b7280' }}
-                  axisLine={{ stroke: '#e5e7eb' }}
+                  tick={{ fontSize: 12, fill: 'text.secondary' }}
+                  axisLine={{ stroke: 'divider' }}
                   domain={[0, 100]}
                   tickFormatter={(v) => `${v}%`}
                 />
                 <RechartsTooltip 
                   contentStyle={{ 
-                    backgroundColor: '#fff', 
+                    backgroundColor: 'background.paper', 
                     border: '1px solid #e5e7eb',
                     borderRadius: 8,
                     fontSize: 12,
@@ -904,27 +904,27 @@ function HabitTracker() {
           </Box>
 
           {/* Weekly Progress */}
-          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
               Weekly Progress (Last 4 Weeks)
             </Typography>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={analytics.weeklyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <CartesianGrid strokeDasharray="3 3" stroke='divider' />
                 <XAxis 
                   dataKey="weekLabel" 
-                  tick={{ fontSize: 12, fill: '#6b7280' }}
-                  axisLine={{ stroke: '#e5e7eb' }}
+                  tick={{ fontSize: 12, fill: 'text.secondary' }}
+                  axisLine={{ stroke: 'divider' }}
                 />
                 <YAxis 
-                  tick={{ fontSize: 12, fill: '#6b7280' }}
-                  axisLine={{ stroke: '#e5e7eb' }}
+                  tick={{ fontSize: 12, fill: 'text.secondary' }}
+                  axisLine={{ stroke: 'divider' }}
                   domain={[0, 100]}
                   tickFormatter={(v) => `${v}%`}
                 />
                 <RechartsTooltip 
                   contentStyle={{ 
-                    backgroundColor: '#fff', 
+                    backgroundColor: 'background.paper', 
                     border: '1px solid #e5e7eb',
                     borderRadius: 8,
                     fontSize: 12,
@@ -940,7 +940,7 @@ function HabitTracker() {
           </Box>
 
           {/* Per-Habit Progress */}
-          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
               Habit Performance (Last 30 Days)
             </Typography>
@@ -972,7 +972,7 @@ function HabitTracker() {
                     sx={{
                       height: 8,
                       borderRadius: 4,
-                      bgcolor: '#e5e7eb',
+                      bgcolor: 'divider',
                       '& .MuiLinearProgress-bar': {
                         bgcolor: habit.color,
                         borderRadius: 4,
@@ -987,7 +987,7 @@ function HabitTracker() {
           {/* Category Breakdown */}
           {analytics.categoryData.length > 0 && (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-              <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+              <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
                   By Category
                 </Typography>
@@ -1009,7 +1009,7 @@ function HabitTracker() {
                     </Pie>
                     <RechartsTooltip 
                       contentStyle={{ 
-                        backgroundColor: '#fff', 
+                        backgroundColor: 'background.paper', 
                         border: '1px solid #e5e7eb',
                         borderRadius: 8,
                         fontSize: 12,
@@ -1019,7 +1019,7 @@ function HabitTracker() {
                 </ResponsiveContainer>
               </Box>
 
-              <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+              <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
                   Category Completion Rates
                 </Typography>
@@ -1028,7 +1028,7 @@ function HabitTracker() {
                     <Box key={cat.name}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>{cat.name}</Typography>
-                        <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                           {cat.habits} habits • {cat.rate}%
                         </Typography>
                       </Box>
@@ -1038,7 +1038,7 @@ function HabitTracker() {
                         sx={{
                           height: 6,
                           borderRadius: 3,
-                          bgcolor: '#e5e7eb',
+                          bgcolor: 'divider',
                           '& .MuiLinearProgress-bar': {
                             bgcolor: HABIT_COLORS[idx % HABIT_COLORS.length],
                             borderRadius: 3,
@@ -1053,7 +1053,7 @@ function HabitTracker() {
           )}
 
           {/* Completion Heatmap */}
-          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
               Activity Heatmap (Last 30 Days)
             </Typography>
@@ -1066,7 +1066,7 @@ function HabitTracker() {
                       height: 20,
                       borderRadius: 0.5,
                       bgcolor: day.count === 0 
-                        ? '#f3f4f6' 
+                        ? 'action.selected' 
                         : day.count <= 2 
                         ? '#bbf7d0' 
                         : day.count <= 4 
@@ -1081,11 +1081,11 @@ function HabitTracker() {
               ))}
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2 }}>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>Less</Typography>
-              {['#f3f4f6', '#bbf7d0', '#4ade80', '#15803d'].map((color, i) => (
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>Less</Typography>
+              {['action.selected', '#bbf7d0', '#4ade80', '#15803d'].map((color, i) => (
                 <Box key={i} sx={{ width: 12, height: 12, borderRadius: 0.5, bgcolor: color }} />
               ))}
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>More</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>More</Typography>
             </Box>
           </Box>
         </Box>
@@ -1095,7 +1095,7 @@ function HabitTracker() {
       {activeTab === 3 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {habits.length === 0 ? (
-            <Box sx={{ textAlign: 'center', py: 6, color: '#6b7280' }}>
+            <Box sx={{ textAlign: 'center', py: 6, color: 'text.secondary' }}>
               <Typography variant="body1">No habits created yet</Typography>
             </Box>
           ) : (
@@ -1107,7 +1107,7 @@ function HabitTracker() {
                   alignItems: 'center',
                   gap: 2,
                   p: 2,
-                  bgcolor: '#fff',
+                  bgcolor: 'background.paper',
                   border: '1px solid #e5e7eb',
                   borderRadius: 2,
                 }}
@@ -1121,7 +1121,7 @@ function HabitTracker() {
                   }}
                 />
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="body1" sx={{ fontWeight: 600, color: '#171717' }}>
+                  <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }}>
                     {habit.name}
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
@@ -1141,7 +1141,7 @@ function HabitTracker() {
                   <EditIcon fontSize="small" />
                 </IconButton>
                 <Tooltip title="Archive habit">
-                  <IconButton size="small" onClick={() => handleDeleteHabit(habit._id)} sx={{ color: '#6b7280' }}>
+                  <IconButton size="small" onClick={() => handleDeleteHabit(habit._id)} sx={{ color: 'text.secondary' }}>
                     <ArchiveIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
@@ -1181,7 +1181,7 @@ function HabitTracker() {
             />
 
             <Box>
-              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: 'text.secondary' }}>
                 Color
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -1234,7 +1234,7 @@ function HabitTracker() {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDialogOpen(false)} sx={{ color: '#6b7280' }}>
+          <Button onClick={() => setDialogOpen(false)} sx={{ color: 'text.secondary' }}>
             Cancel
           </Button>
           <Button
@@ -1242,8 +1242,8 @@ function HabitTracker() {
             onClick={handleSaveHabit}
             disabled={!newHabit.name}
             sx={{
-              bgcolor: '#171717',
-              '&:hover': { bgcolor: '#374151' },
+              bgcolor: 'text.primary',
+              '&:hover': { bgcolor: 'text.secondary' },
             }}
           >
             {editingHabit ? 'Save Changes' : 'Create Habit'}

@@ -155,7 +155,7 @@ function WeightTracker({ selectedDate }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       {/* Logging Section */}
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>Log Weight</Typography>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <TextField
@@ -175,14 +175,14 @@ function WeightTracker({ selectedDate }) {
             {saving ? 'Saving...' : 'Save Weight'}
           </Button>
           {logError && <Typography variant="caption" color="error">{logError}</Typography>}
-          <Typography variant="caption" sx={{ color: '#6b7280' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             Logging for: {new Date(selectedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
           </Typography>
         </Box>
       </Box>
 
       {/* Graph Section */}
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>Weight Trend</Typography>
@@ -202,9 +202,9 @@ function WeightTracker({ selectedDate }) {
                     borderRadius: 2,
                     textTransform: 'none',
                     bgcolor: daysBack === opt.value ? '#111827' : 'transparent',
-                    borderColor: '#e5e7eb',
-                    color: daysBack === opt.value ? '#fff' : '#6b7280',
-                    '&:hover': { bgcolor: daysBack === opt.value ? '#000' : '#f9fafb' },
+                    borderColor: 'divider',
+                    color: daysBack === opt.value ? 'background.paper' : 'text.secondary',
+                    '&:hover': { bgcolor: daysBack === opt.value ? '#000' : 'action.hover' },
                   }}
                 >
                   {opt.label}
@@ -214,7 +214,7 @@ function WeightTracker({ selectedDate }) {
           </Box>
           <Box sx={{ textAlign: 'right' }}>
             <Typography variant="h4" sx={{ fontWeight: 700, color: '#111827' }}>
-              {displayWeight.toFixed(1)} <span style={{ fontSize: '1rem', color: '#6b7280' }}>kg</span>
+              {displayWeight.toFixed(1)} <span style={{ fontSize: '1rem', color: 'text.secondary' }}>kg</span>
             </Typography>
             {status === 'success' && (
               <Typography variant="caption" sx={{ color: weightChangeKg < 0 ? '#10b981' : '#f59e0b', fontWeight: 600 }}>
@@ -228,9 +228,9 @@ function WeightTracker({ selectedDate }) {
           <Box sx={{ height: 300, width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={data.map(d => ({ ...d, time: new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }))} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-                <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} width={40} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke='divider' />
+                <XAxis dataKey="time" tick={{ fontSize: 11, fill: 'text.secondary' }} axisLine={false} tickLine={false} />
+                <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11, fill: 'text.secondary' }} axisLine={false} tickLine={false} width={40} />
                 <Tooltip 
                   contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 />
@@ -239,7 +239,7 @@ function WeightTracker({ selectedDate }) {
             </ResponsiveContainer>
           </Box>
         ) : (
-          <Box sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#f9fafb', borderRadius: 2 }}>
+          <Box sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'action.hover', borderRadius: 2 }}>
             <Typography variant="body2" color="textSecondary">No weight data logged for this period.</Typography>
           </Box>
         )}
@@ -248,19 +248,19 @@ function WeightTracker({ selectedDate }) {
       {/* Adaptive TDEE Section (only if sufficient data) */}
       {status === 'success' ? (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Metabolic Engine</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box>
-                <Typography variant="caption" sx={{ color: '#6b7280' }}>Calculated Adaptive TDEE</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>Calculated Adaptive TDEE</Typography>
                 <Typography variant="h5" sx={{ fontWeight: 700 }}>{tdeeKcal} <span style={{ fontSize: '0.9rem', fontWeight: 400 }}>kcal</span></Typography>
               </Box>
               <Box>
-                <Typography variant="caption" sx={{ color: '#6b7280' }}>Average Intake (Last {daysAnalyzed} days)</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>Average Intake (Last {daysAnalyzed} days)</Typography>
                 <Typography variant="h6">{avgDailyIntake} <span style={{ fontSize: '0.9rem', fontWeight: 400 }}>kcal</span></Typography>
               </Box>
               <Box>
-                <Typography variant="caption" sx={{ color: '#6b7280' }}>Caloric Deficit / Surplus</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>Caloric Deficit / Surplus</Typography>
                 <Typography variant="h6" sx={{ color: avgDailyIntake < tdeeKcal ? '#10b981' : '#ef4444' }}>
                   {avgDailyIntake - tdeeKcal > 0 ? '+' : ''}{(avgDailyIntake - tdeeKcal).toFixed(0)} <span style={{ fontSize: '0.9rem', fontWeight: 400 }}>kcal / day</span>
                 </Typography>
@@ -276,17 +276,17 @@ function WeightTracker({ selectedDate }) {
             </Box>
           </Box>
 
-          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>Rate of Loss Monitoring</Typography>
             <Box>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>Current Trajectory</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>Current Trajectory</Typography>
               <Typography variant="h5" sx={{ fontWeight: 700, color: rateColor }}>
-                {weeklyRate.toFixed(2)}% <span style={{ fontSize: '0.9rem', fontWeight: 400, color: '#374151' }}>per week</span>
+                {weeklyRate.toFixed(2)}% <span style={{ fontSize: '0.9rem', fontWeight: 400, color: 'text.secondary' }}>per week</span>
               </Typography>
             </Box>
-            <Box sx={{ mt: 2, p: 1.5, bgcolor: '#f9fafb', borderRadius: 1, border: '1px solid #f3f4f6' }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#374151' }}>Status: {rateLabel}</Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mt: 0.5 }}>
+            <Box sx={{ mt: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid #f3f4f6' }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary' }}>Status: {rateLabel}</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
                 Green (≤0.8% loss): Ideal for fat loss while maintaining muscle.<br/>
                 Yellow (0.8-1.2% loss): Aggressive loss.<br/>
                 Red (&gt;1.2% loss): Extreme risk of muscle loss.<br/>
@@ -296,7 +296,7 @@ function WeightTracker({ selectedDate }) {
           </Box>
         </Box>
       ) : (
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', textAlign: 'center' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb', textAlign: 'center' }}>
           <Typography variant="h6" color="textSecondary">Metabolic Insights Unavailable</Typography>
           <Typography variant="body2" color="textSecondary">Log your weight for at least 5-7 days to unlock Adaptive TDEE and Rolling Averages.</Typography>
         </Box>

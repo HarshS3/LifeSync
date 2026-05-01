@@ -220,14 +220,14 @@ function DailyLogPanel() {
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: '#171717' }}>
+      <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
         Wellness Check-in
       </Typography>
-      <Typography variant="body2" sx={{ mb: 3, color: '#6b7280' }}>
+      <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
         Track your mood, energy, body feel, stress, sleep, and medications for today
       </Typography>
       {!checkinLoaded && token && (
-        <Typography variant="caption" sx={{ display: 'block', mb: 2, color: '#6b7280' }}>
+        <Typography variant="caption" sx={{ display: 'block', mb: 2, color: 'text.secondary' }}>
           Loading today's check-in…
         </Typography>
       )}
@@ -236,18 +236,18 @@ function DailyLogPanel() {
         <Box
           sx={{
             p: 2.5,
-            bgcolor: '#fff',
+            bgcolor: 'background.paper',
             borderRadius: 2,
             border: '1px solid #e5e7eb',
           }}
         >
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#171717', mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', mb: 2 }}>
             Today’s State
           </Typography>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <Box>
-              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: 'text.secondary' }}>
                 Mood: {mentalData.mood}/10
               </Typography>
               <Slider
@@ -256,14 +256,14 @@ function DailyLogPanel() {
                 min={1}
                 max={10}
                 sx={{
-                  color: '#171717',
+                  color: 'text.primary',
                   '& .MuiSlider-thumb': { width: 16, height: 16 },
                 }}
               />
             </Box>
 
             <Box>
-              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: 'text.secondary' }}>
                 Energy: {mentalData.energy}/10
               </Typography>
               <Slider
@@ -272,14 +272,14 @@ function DailyLogPanel() {
                 min={1}
                 max={10}
                 sx={{
-                  color: '#171717',
+                  color: 'text.primary',
                   '& .MuiSlider-thumb': { width: 16, height: 16 },
                 }}
               />
             </Box>
 
             <Box>
-              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: 'text.secondary' }}>
                 Body Feel: {mentalData.bodyFeel}/10
               </Typography>
               <Slider
@@ -288,14 +288,14 @@ function DailyLogPanel() {
                 min={1}
                 max={10}
                 sx={{
-                  color: '#171717',
+                  color: 'text.primary',
                   '& .MuiSlider-thumb': { width: 16, height: 16 },
                 }}
               />
             </Box>
 
             <Box>
-              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: 'text.secondary' }}>
                 Sleep: {mentalData.sleep} hrs
               </Typography>
               <Slider
@@ -305,14 +305,14 @@ function DailyLogPanel() {
                 max={12}
                 step={0.5}
                 sx={{
-                  color: '#171717',
+                  color: 'text.primary',
                   '& .MuiSlider-thumb': { width: 16, height: 16 },
                 }}
               />
             </Box>
 
             <Box>
-              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: 'text.secondary' }}>
                 Sleep Quality: {mentalData.sleepQuality}/10
               </Typography>
               <Slider
@@ -321,14 +321,14 @@ function DailyLogPanel() {
                 min={1}
                 max={10}
                 sx={{
-                  color: '#171717',
+                  color: 'text.primary',
                   '& .MuiSlider-thumb': { width: 16, height: 16 },
                 }}
               />
             </Box>
 
             <Box>
-              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: '#374151' }}>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500, color: 'text.secondary' }}>
                 Resting Heart Rate (RHR): {mentalData.restingHeartRate} bpm
               </Typography>
               <Slider
@@ -337,7 +337,7 @@ function DailyLogPanel() {
                 min={40}
                 max={100}
                 sx={{
-                  color: '#171717',
+                  color: 'text.primary',
                   '& .MuiSlider-thumb': { width: 16, height: 16 },
                 }}
               />
@@ -400,7 +400,7 @@ function DailyLogPanel() {
             border: '1px solid #fed7aa',
           }}
         >
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#171717', mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', mb: 2 }}>
             Stress
           </Typography>
 
@@ -426,14 +426,14 @@ function DailyLogPanel() {
             <Box
               sx={{
                 p: 2,
-                bgcolor: '#f9fafb',
+                bgcolor: 'action.hover',
                 borderRadius: 2,
                 border: '1px solid #e5e7eb',
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <MedicationIcon sx={{ fontSize: 20, color: '#6b7280' }} />
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#374151' }}>
+                <MedicationIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
+                <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary' }}>
                   Medications Taken Today
                 </Typography>
               </Box>
@@ -453,11 +453,11 @@ function DailyLogPanel() {
                     }
                     label={
                       <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 500, color: '#171717' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
                           {med.name}
                         </Typography>
                         {(med.dosage || med.schedule) && (
-                          <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                             {[med.dosage, med.schedule].filter(Boolean).join(' • ')}
                           </Typography>
                         )}
@@ -479,14 +479,14 @@ function DailyLogPanel() {
             <Box
               sx={{
                 p: 2,
-                bgcolor: '#f9fafb',
+                bgcolor: 'action.hover',
                 borderRadius: 2,
                 border: '1px dashed #d1d5db',
                 textAlign: 'center',
               }}
             >
               <MedicationIcon sx={{ fontSize: 24, color: '#9ca3af', mb: 1 }} />
-              <Typography variant="body2" sx={{ color: '#6b7280' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 No medications added yet
               </Typography>
               <Typography variant="caption" sx={{ color: '#9ca3af' }}>
@@ -503,11 +503,11 @@ function DailyLogPanel() {
             onChange={(e) => setMentalData({ ...mentalData, notes: e.target.value })}
             sx={{
               '& .MuiOutlinedInput-root': {
-                '& fieldset': { borderColor: '#e5e7eb' },
+                '& fieldset': { borderColor: 'divider' },
                 '&:hover fieldset': { borderColor: '#d1d5db' },
-                '&.Mui-focused fieldset': { borderColor: '#171717' },
+                '&.Mui-focused fieldset': { borderColor: 'text.primary' },
               },
-              '& .MuiInputLabel-root.Mui-focused': { color: '#171717' },
+              '& .MuiInputLabel-root.Mui-focused': { color: 'text.primary' },
             }}
           />
         </Box>
@@ -519,12 +519,12 @@ function DailyLogPanel() {
         sx={{
           mt: 4,
           py: 1.5,
-          bgcolor: '#171717',
+          bgcolor: 'text.primary',
           textTransform: 'none',
           fontWeight: 600,
           borderRadius: 2,
           boxShadow: 'none',
-          '&:hover': { bgcolor: '#374151', boxShadow: 'none' },
+          '&:hover': { bgcolor: 'text.secondary', boxShadow: 'none' },
         }}
       >
         Save Entry

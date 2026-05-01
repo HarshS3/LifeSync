@@ -36,7 +36,7 @@ export default function PlateCalculator({ targetWeight = 60, barWeight = 20 }) {
           label="Target kg"
           value={weight}
           onChange={(e) => setWeight(Number(e.target.value))}
-          InputProps={{ sx: { height: 32, fontSize: '0.8rem', color: '#fff' } }}
+          InputProps={{ sx: { height: 32, fontSize: '0.8rem', color: 'background.paper' } }}
           InputLabelProps={{ sx: { fontSize: '0.7rem', color: '#94a3b8' } }}
           sx={{ width: 100 }}
         />
@@ -55,7 +55,7 @@ export default function PlateCalculator({ targetWeight = 60, barWeight = 20 }) {
                 size="small" 
                 sx={{ 
                   bgcolor: p >= 20 ? '#ef4444' : p >= 10 ? '#3b82f6' : '#10b981', 
-                  color: '#fff', 
+                  color: 'background.paper', 
                   fontWeight: 700,
                   fontSize: '0.7rem',
                   height: 20

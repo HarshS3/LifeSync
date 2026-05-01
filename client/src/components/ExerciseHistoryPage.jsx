@@ -94,7 +94,7 @@ function ExerciseHistoryPage() {
           onClick={() => navigate(-1)}
           sx={{
             transition: 'all 0.2s ease',
-            '&:hover': { bgcolor: '#f3f4f6', transform: 'translateX(-2px)' },
+            '&:hover': { bgcolor: 'action.selected', transform: 'translateX(-2px)' },
             '&:active': { transform: 'translateX(0px)' }
           }}
         >
@@ -103,11 +103,11 @@ function ExerciseHistoryPage() {
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <FitnessCenterIcon sx={{ fontSize: 32, color: '#3b82f6' }} />
-            <Typography variant="h4" sx={{ fontWeight: 700, color: '#171717' }}>
+            <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
               {exerciseName}
             </Typography>
           </Box>
-          <Typography variant="body2" sx={{ color: '#6b7280', mt: 0.5 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
             Exercise progression and history
           </Typography>
         </Box>
@@ -116,17 +116,17 @@ function ExerciseHistoryPage() {
       {/* Stats Cards */}
       {stats && (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2, mb: 4 }}>
-          <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: '#fff' }}>
+          <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper' }}>
             <CardContent>
               <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.75rem' }}>
                 Total Logs
               </Typography>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#171717', mt: 0.5 }}>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
                 {stats.totalLogs}
               </Typography>
             </CardContent>
           </Card>
-          <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: '#fff' }}>
+          <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper' }}>
             <CardContent>
               <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.75rem' }}>
                 Max Weight
@@ -139,7 +139,7 @@ function ExerciseHistoryPage() {
               </Typography>
             </CardContent>
           </Card>
-          <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: '#fff' }}>
+          <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper' }}>
             <CardContent>
               <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.75rem' }}>
                 Est. 1RM
@@ -152,7 +152,7 @@ function ExerciseHistoryPage() {
               </Typography>
             </CardContent>
           </Card>
-          <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: '#fff' }}>
+          <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper' }}>
             <CardContent>
               <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.75rem' }}>
                 Avg Sets/Log
@@ -195,15 +195,15 @@ function ExerciseHistoryPage() {
 
       {/* Chart */}
       {chartData.length > 0 && (
-        <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: '#fff', mb: 4, p: 2 }}>
+        <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper', mb: 4, p: 2 }}>
           <ResponsiveContainer width="100%" height={isTablet ? 300 : 400}>
             {chartView === 'weight' ? (
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <CartesianGrid strokeDasharray="3 3" stroke='divider' />
                 <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: 8 }}
+                  contentStyle={{ backgroundColor: 'background.paper', border: '1px solid #e5e7eb', borderRadius: 8 }}
                   formatter={(value) => [value.toFixed(1), '']}
                 />
                 <Legend />
@@ -211,11 +211,11 @@ function ExerciseHistoryPage() {
               </LineChart>
             ) : chartView === 'volume' ? (
               <ComposedChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <CartesianGrid strokeDasharray="3 3" stroke='divider' />
                 <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: 8 }}
+                  contentStyle={{ backgroundColor: 'background.paper', border: '1px solid #e5e7eb', borderRadius: 8 }}
                   formatter={(value) => [value.toFixed(0), '']}
                 />
                 <Legend />
@@ -224,11 +224,11 @@ function ExerciseHistoryPage() {
               </ComposedChart>
             ) : (
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <CartesianGrid strokeDasharray="3 3" stroke='divider' />
                 <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: 8 }}
+                  contentStyle={{ backgroundColor: 'background.paper', border: '1px solid #e5e7eb', borderRadius: 8 }}
                   formatter={(value) => [value.toFixed(1), '']}
                 />
                 <Legend />
@@ -245,7 +245,7 @@ function ExerciseHistoryPage() {
       </Typography>
 
       {history.length === 0 ? (
-        <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: '#fff' }}>
+        <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper' }}>
           <CardContent sx={{ py: 4, textAlign: 'center' }}>
             <Typography variant="body2" sx={{ color: '#9ca3af' }}>
               No history found for this exercise
@@ -255,13 +255,13 @@ function ExerciseHistoryPage() {
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {history.map((log, idx) => (
-            <Card key={idx} sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: '#fff', overflow: 'hidden' }}>
+            <Card key={idx} sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper', overflow: 'hidden' }}>
               <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <CalendarMonthIcon sx={{ color: '#6b7280' }} />
+                    <CalendarMonthIcon sx={{ color: 'text.secondary' }} />
                     <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#171717' }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                         {new Date(log.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
                       </Typography>
                       <Typography variant="caption" sx={{ color: '#9ca3af' }}>
@@ -289,20 +289,20 @@ function ExerciseHistoryPage() {
                 </Box>
 
                 {/* Sets Detail */}
-                <Box sx={{ mt: 2, bgcolor: '#f9fafb', borderRadius: 1.5, p: 1.5 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', display: 'block', mb: 1 }}>
+                <Box sx={{ mt: 2, bgcolor: 'action.hover', borderRadius: 1.5, p: 1.5 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', display: 'block', mb: 1 }}>
                     Sets
                   </Typography>
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(3, 1fr)', sm: 'repeat(4, 1fr)', md: 'repeat(6, 1fr)' }, gap: 1 }}>
                     {log.sets?.map((set, setIdx) => (
-                      <Box key={setIdx} sx={{ p: 1, bgcolor: '#fff', borderRadius: 1, border: '1px solid #e5e7eb', textAlign: 'center' }}>
+                      <Box key={setIdx} sx={{ p: 1, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid #e5e7eb', textAlign: 'center' }}>
                         <Typography variant="caption" sx={{ display: 'block', color: '#9ca3af', fontWeight: 600 }}>
                           Set {setIdx + 1}
                         </Typography>
                         <Typography variant="body2" sx={{ fontWeight: 700, color: '#1d4ed8' }}>
                           {set.weight}kg
                         </Typography>
-                        <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           x{set.reps}
                         </Typography>
                         {set.rpe && (

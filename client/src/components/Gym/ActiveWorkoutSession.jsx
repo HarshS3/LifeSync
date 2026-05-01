@@ -30,9 +30,9 @@ function ActiveWorkoutSession({
     <Box sx={{ 
       p: 3, 
       mb: 3, 
-      bgcolor: '#171717', 
+      bgcolor: 'text.primary', 
       borderRadius: 2,
-      color: '#fff',
+      color: 'background.paper',
     }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
@@ -60,12 +60,12 @@ function ActiveWorkoutSession({
               sx={{
                 '& .MuiOutlinedInput-root': {
                   bgcolor: 'rgba(255,255,255,0.05)',
-                  color: '#fff',
+                  color: 'background.paper',
                   fontSize: '0.875rem',
                   '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
                   '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
                 },
-                '& input': { color: '#fff', py: 0.5 },
+                '& input': { color: 'background.paper', py: 0.5 },
               }}
             />
           </Box>
@@ -136,8 +136,8 @@ function ActiveWorkoutSession({
                   label={EXERCISE_LIBRARY[exercise.muscleGroup]?.label || exercise.muscleGroup}
                   size="small"
                   sx={{
-                    bgcolor: EXERCISE_LIBRARY[exercise.muscleGroup]?.color || '#6b7280',
-                    color: '#fff',
+                    bgcolor: EXERCISE_LIBRARY[exercise.muscleGroup]?.color || 'text.secondary',
+                    color: 'background.paper',
                     fontWeight: 600,
                   }}
                 />
@@ -167,7 +167,7 @@ function ActiveWorkoutSession({
               </Box>
               {exercise.sets.map((set, setIdx) => (
                 <Box key={setIdx} sx={{ display: 'grid', gridTemplateColumns: '40px 1fr 1fr 1fr 40px 40px', gap: 1, mb: 1, alignItems: 'center' }}>
-                  <Typography variant="body2" sx={{ color: '#6b7280', fontWeight: 600 }}>{setIdx + 1}</Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>{setIdx + 1}</Typography>
                   <TextField
                     size="small"
                     type="number"
@@ -176,10 +176,10 @@ function ActiveWorkoutSession({
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         bgcolor: set.completed ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.1)',
-                        color: '#fff',
+                        color: 'background.paper',
                         '& fieldset': { borderColor: set.completed ? '#10b981' : 'rgba(255,255,255,0.2)' },
                       },
-                      '& input': { color: '#fff', textAlign: 'center' },
+                      '& input': { color: 'background.paper', textAlign: 'center' },
                     }}
                   />
                   <TextField
@@ -190,10 +190,10 @@ function ActiveWorkoutSession({
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         bgcolor: set.completed ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.1)',
-                        color: '#fff',
+                        color: 'background.paper',
                         '& fieldset': { borderColor: set.completed ? '#10b981' : 'rgba(255,255,255,0.2)' },
                       },
-                      '& input': { color: '#fff', textAlign: 'center' },
+                      '& input': { color: 'background.paper', textAlign: 'center' },
                     }}
                   />
                   <TextField
@@ -204,16 +204,16 @@ function ActiveWorkoutSession({
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         bgcolor: set.completed ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.1)',
-                        color: '#fff',
+                        color: 'background.paper',
                         '& fieldset': { borderColor: set.completed ? '#10b981' : 'rgba(255,255,255,0.2)' },
                       },
-                      '& input': { color: '#fff', textAlign: 'center' },
+                      '& input': { color: 'background.paper', textAlign: 'center' },
                     }}
                   />
                   <IconButton 
                     size="small" 
                     onClick={() => completeSet(exIdx, setIdx)}
-                    sx={{ color: set.completed ? '#10b981' : '#6b7280' }}
+                    sx={{ color: set.completed ? '#10b981' : 'text.secondary' }}
                   >
                     {set.completed ? <CheckCircleIcon /> : <CheckCircleOutlineIcon />}
                   </IconButton>
@@ -221,7 +221,7 @@ function ActiveWorkoutSession({
                     size="small" 
                     onClick={() => removeSet(exIdx, setIdx)}
                     disabled={exercise.sets.length <= 1}
-                    sx={{ color: '#6b7280' }}
+                    sx={{ color: 'text.secondary' }}
                   >
                     <CloseIcon fontSize="small" />
                   </IconButton>
@@ -244,10 +244,10 @@ function ActiveWorkoutSession({
           onClick={() => setExerciseDialogOpen(true)}
           sx={{
             borderColor: 'rgba(255,255,255,0.3)',
-            color: '#fff',
+            color: 'background.paper',
             textTransform: 'none',
             py: 1.5,
-            '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' },
+            '&:hover': { borderColor: 'background.paper', bgcolor: 'rgba(255,255,255,0.1)' },
           }}
         >
           Add Exercise

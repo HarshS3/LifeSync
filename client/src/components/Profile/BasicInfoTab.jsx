@@ -6,23 +6,23 @@ import Avatar from '@mui/material/Avatar'
 
 const inputSx = {
   '& .MuiOutlinedInput-root': {
-    '& fieldset': { borderColor: '#e5e7eb' },
+    '& fieldset': { borderColor: 'divider' },
     '&:hover fieldset': { borderColor: '#d1d5db' },
-    '&.Mui-focused fieldset': { borderColor: '#171717' },
+    '&.Mui-focused fieldset': { borderColor: 'text.primary' },
   },
-  '& .MuiInputLabel-root.Mui-focused': { color: '#171717' },
+  '& .MuiInputLabel-root.Mui-focused': { color: 'text.primary' },
 }
 
 export default function BasicInfoTab({ profile, updateField, updateBiologicalProfileField }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-        <Avatar sx={{ width: 64, height: 64, bgcolor: '#171717', fontSize: '1.5rem' }}>
+        <Avatar sx={{ width: 64, height: 64, bgcolor: 'text.primary', fontSize: '1.5rem' }}>
           {profile.name?.[0]?.toUpperCase() || 'U'}
         </Avatar>
         <Box>
           <Typography variant="body1" sx={{ fontWeight: 500 }}>{profile.name || 'Your Name'}</Typography>
-          <Typography variant="body2" sx={{ color: '#6b7280' }}>{profile.email}</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>{profile.email}</Typography>
         </Box>
       </Box>
 

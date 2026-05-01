@@ -96,13 +96,13 @@ const WeeklyReview = ({ weekKey }) => {
                         dataKey="weight" 
                         stroke="#3b82f6" 
                         strokeWidth={4} 
-                        dot={{ r: 6, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                        dot={{ r: 6, fill: '#3b82f6', strokeWidth: 2, stroke: 'background.paper' }}
                         activeDot={{ r: 8, strokeWidth: 0 }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#f8fafc', borderRadius: 2 }}>
+                  <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default', borderRadius: 2 }}>
                     <Typography variant="body2" color="text.secondary">Log weight daily to see trends here.</Typography>
                   </Box>
                 )}
@@ -113,7 +113,7 @@ const WeeklyReview = ({ weekKey }) => {
 
         {/* STRONGEST LIFT */}
         <Grid item xs={12} md={4}>
-          <Card sx={{ height: '100%', borderRadius: 3, bgcolor: '#111827', color: '#fff' }}>
+          <Card sx={{ height: '100%', borderRadius: 3, bgcolor: '#111827', color: 'background.paper' }}>
             <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', height: '100%' }}>
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 4, display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 <FitnessCenterIcon sx={{ color: '#10b981' }} />
@@ -151,7 +151,7 @@ const WeeklyReview = ({ weekKey }) => {
                   <Box sx={{ mt: 1, p: 2, bgcolor: '#ecfdf5', borderRadius: 2, border: '1px solid #d1fae5' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                       <Typography variant="body1" sx={{ fontWeight: 700 }}>{new Date(bestDay.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</Typography>
-                      <Chip label={`${bestDay.proteinPercent}% Protein Target`} size="small" sx={{ bgcolor: '#059669', color: '#fff', fontWeight: 700 }} />
+                      <Chip label={`${bestDay.proteinPercent}% Protein Target`} size="small" sx={{ bgcolor: '#059669', color: 'background.paper', fontWeight: 700 }} />
                     </Box>
                     <Typography variant="body2" color="text.secondary">{bestDay.calories} kcal consumed · Balanced macros.</Typography>
                   </Box>
@@ -164,7 +164,7 @@ const WeeklyReview = ({ weekKey }) => {
                   <Box sx={{ mt: 1, p: 2, bgcolor: '#fef2f2', borderRadius: 2, border: '1px solid #fee2e2' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                       <Typography variant="body1" sx={{ fontWeight: 700 }}>{new Date(worstDay.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</Typography>
-                      <Chip label={`${worstDay.proteinPercent}% Protein Target`} size="small" sx={{ bgcolor: '#dc2626', color: '#fff', fontWeight: 700 }} />
+                      <Chip label={`${worstDay.proteinPercent}% Protein Target`} size="small" sx={{ bgcolor: '#dc2626', color: 'background.paper', fontWeight: 700 }} />
                     </Box>
                     <Typography variant="body2" color="text.secondary">{worstDay.explanation || "Missing protein targets led to potential catabolic stress."}</Typography>
                   </Box>

@@ -29,13 +29,13 @@ export default function StepTracker({
   const fmtSteps = (v) => (typeof v === 'number' ? `${Math.round(v).toLocaleString()} steps` : '')
 
   return (
-    <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+    <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 2, flexWrap: 'wrap' }}>
         <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#171717' }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>
             Daily steps
           </Typography>
-          <Typography variant="body2" sx={{ color: '#6b7280' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Log your steps for a day and view trends.
           </Typography>
         </Box>
@@ -94,50 +94,50 @@ export default function StepTracker({
           </Typography>
         ) : (
           <Box>
-            <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 1 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
               {fmt(start)} – {fmt(end)}
             </Typography>
             <Box sx={{ width: '100%', overflowX: 'auto' }}>
               <Box sx={{ minWidth: 560 }}>
                 <svg width="560" height="200" viewBox="0 0 560 200" role="img" aria-label="Steps chart">
-                  <rect x="0" y="0" width="560" height="200" fill="#ffffff" />
+                  <rect x="0" y="0" width="560" height="200" fill='background.paper' />
 
                   {/* axes */}
-                  <line x1={chart.dims.x0} y1={chart.dims.y1} x2={chart.dims.x1} y2={chart.dims.y1} stroke="#e5e7eb" strokeWidth="1" />
-                  <line x1={chart.dims.x0} y1={chart.dims.y0} x2={chart.dims.x0} y2={chart.dims.y1} stroke="#e5e7eb" strokeWidth="1" />
+                  <line x1={chart.dims.x0} y1={chart.dims.y1} x2={chart.dims.x1} y2={chart.dims.y1} stroke='divider' strokeWidth="1" />
+                  <line x1={chart.dims.x0} y1={chart.dims.y0} x2={chart.dims.x0} y2={chart.dims.y1} stroke='divider' strokeWidth="1" />
 
                   {/* y grid */}
-                  <line x1={chart.dims.x0} y1={chart.dims.y0} x2={chart.dims.x1} y2={chart.dims.y0} stroke="#f3f4f6" strokeWidth="1" />
+                  <line x1={chart.dims.x0} y1={chart.dims.y0} x2={chart.dims.x1} y2={chart.dims.y0} stroke='action.selected' strokeWidth="1" />
                   <line
                     x1={chart.dims.x0}
                     y1={(chart.dims.y0 + chart.dims.y1) / 2}
                     x2={chart.dims.x1}
                     y2={(chart.dims.y0 + chart.dims.y1) / 2}
-                    stroke="#f3f4f6"
+                    stroke='action.selected'
                     strokeWidth="1"
                   />
-                  <line x1={chart.dims.x0} y1={chart.dims.y1} x2={chart.dims.x1} y2={chart.dims.y1} stroke="#f3f4f6" strokeWidth="1" />
+                  <line x1={chart.dims.x0} y1={chart.dims.y1} x2={chart.dims.x1} y2={chart.dims.y1} stroke='action.selected' strokeWidth="1" />
 
                   {/* y labels */}
-                  <text x={chart.dims.x0 - 8} y={chart.dims.y0 + 3} fontSize="10" fill="#6b7280" textAnchor="end">
+                  <text x={chart.dims.x0 - 8} y={chart.dims.y0 + 3} fontSize="10" fill='text.secondary' textAnchor="end">
                     {fmtSteps(chart.max)}
                   </text>
                   <text x={chart.dims.x0 - 8} y={(chart.dims.y0 + chart.dims.y1) / 2 + 3} fontSize="10" fill="#9ca3af" textAnchor="end">
                     {fmtSteps(chart.min != null && chart.max != null ? (chart.min + chart.max) / 2 : null)}
                   </text>
-                  <text x={chart.dims.x0 - 8} y={chart.dims.y1 + 3} fontSize="10" fill="#6b7280" textAnchor="end">
+                  <text x={chart.dims.x0 - 8} y={chart.dims.y1 + 3} fontSize="10" fill='text.secondary' textAnchor="end">
                     {fmtSteps(chart.min)}
                   </text>
 
                   {/* axis titles */}
-                  <text x={(chart.dims.x0 + chart.dims.x1) / 2} y={200 - 8} fontSize="10" fill="#6b7280" textAnchor="middle">
+                  <text x={(chart.dims.x0 + chart.dims.x1) / 2} y={200 - 8} fontSize="10" fill='text.secondary' textAnchor="middle">
                     Date
                   </text>
                   <text
                     x="16"
                     y={(chart.dims.y0 + chart.dims.y1) / 2}
                     fontSize="10"
-                    fill="#6b7280"
+                    fill='text.secondary'
                     textAnchor="middle"
                     transform={`rotate(-90 16 ${(chart.dims.y0 + chart.dims.y1) / 2})`}
                   >
@@ -145,7 +145,7 @@ export default function StepTracker({
                   </text>
 
                   {/* line */}
-                  <polyline fill="none" stroke="#171717" strokeWidth="2" points={chart.points} />
+                  <polyline fill="none" stroke='text.primary' strokeWidth="2" points={chart.points} />
 
                   {/* dots */}
                   {chart.labels.map((l, i) => {
@@ -154,7 +154,7 @@ export default function StepTracker({
                     const [px, py] = ptsArr[i].split(',')
                     return (
                       <g key={i}>
-                        <circle cx={px} cy={py} r="3" fill="#171717" />
+                        <circle cx={px} cy={py} r="3" fill='text.primary' />
                         <text x={px} y={chart.dims.y1 + 14} fontSize="9" fill="#9ca3af" textAnchor="middle">
                           {l}
                         </text>

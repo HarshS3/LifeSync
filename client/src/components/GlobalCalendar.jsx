@@ -180,10 +180,10 @@ function GlobalCalendar() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 600, color: '#171717' }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary' }}>
             Calendar
           </Typography>
-          <Typography variant="body2" sx={{ color: '#6b7280' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             All your activities in one view
           </Typography>
         </Box>
@@ -198,30 +198,30 @@ function GlobalCalendar() {
           mb: 3,
         }}
       >
-        <Box sx={{ p: 2, bgcolor: '#eff6ff', borderRadius: 2, textAlign: 'center' }}>
+        <Box sx={{ p: 2, bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(37, 99, 235, 0.1)' : '#eff6ff', borderRadius: 2, textAlign: 'center' }}>
           <FitnessCenterIcon sx={{ color: '#2563eb', mb: 0.5 }} />
           <Typography variant="h5" sx={{ fontWeight: 700, color: '#2563eb' }}>{stats.workouts}</Typography>
-          <Typography variant="caption" sx={{ color: '#6b7280' }}>Workouts</Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Workouts</Typography>
         </Box>
-        <Box sx={{ p: 2, bgcolor: '#faf5ff', borderRadius: 2, textAlign: 'center' }}>
+        <Box sx={{ p: 2, bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(147, 51, 234, 0.1)' : '#faf5ff', borderRadius: 2, textAlign: 'center' }}>
           <SpaIcon sx={{ color: '#9333ea', mb: 0.5 }} />
           <Typography variant="h5" sx={{ fontWeight: 700, color: '#9333ea' }}>{stats.checkins}</Typography>
-          <Typography variant="caption" sx={{ color: '#6b7280' }}>Check-ins</Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Check-ins</Typography>
         </Box>
-        <Box sx={{ p: 2, bgcolor: '#f0fdf4', borderRadius: 2, textAlign: 'center' }}>
+        <Box sx={{ p: 2, bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(21, 128, 61, 0.1)' : '#f0fdf4', borderRadius: 2, textAlign: 'center' }}>
           <RestaurantIcon sx={{ color: '#15803d', mb: 0.5 }} />
           <Typography variant="h5" sx={{ fontWeight: 700, color: '#15803d' }}>{stats.nutrition}</Typography>
-          <Typography variant="caption" sx={{ color: '#6b7280' }}>Nutrition</Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Nutrition</Typography>
         </Box>
-        <Box sx={{ p: 2, bgcolor: '#eef2ff', borderRadius: 2, textAlign: 'center' }}>
+        <Box sx={{ p: 2, bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(99, 102, 241, 0.1)' : '#eef2ff', borderRadius: 2, textAlign: 'center' }}>
           <CheckCircleIcon sx={{ color: '#6366f1', mb: 0.5 }} />
           <Typography variant="h5" sx={{ fontWeight: 700, color: '#6366f1' }}>{stats.habits}</Typography>
-          <Typography variant="caption" sx={{ color: '#6b7280' }}>Habits</Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Habits</Typography>
         </Box>
       </Box>
 
       {/* Filter Tabs */}
-      <Box sx={{ borderBottom: '1px solid #e5e7eb', mb: 3 }}>
+      <Box sx={{ borderBottom: '1px solid', borderColor: 'divider', mb: 3 }}>
         <Tabs
           value={filterTab}
           onChange={(e, v) => setFilterTab(v)}
@@ -229,12 +229,12 @@ function GlobalCalendar() {
             '& .MuiTab-root': {
               textTransform: 'none',
               fontWeight: 500,
-              color: '#6b7280',
+              color: 'text.secondary',
               minWidth: 'auto',
               px: 2,
-              '&.Mui-selected': { color: '#171717' },
+              '&.Mui-selected': { color: 'text.primary' },
             },
-            '& .MuiTabs-indicator': { bgcolor: '#171717' },
+            '& .MuiTabs-indicator': { bgcolor: 'text.primary' },
           }}
         >
           <Tab label="All" />
@@ -245,7 +245,7 @@ function GlobalCalendar() {
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 350px' }, gap: 3 }}>
         {/* Calendar */}
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <Calendar 
             events={filteredEvents} 
             onDateClick={handleDateClick}
@@ -253,7 +253,7 @@ function GlobalCalendar() {
         </Box>
 
         {/* Upcoming Events Sidebar */}
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
             Recent Activity
           </Typography>
@@ -271,14 +271,14 @@ function GlobalCalendar() {
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <Box sx={{ color: event.color }}>{event.icon}</Box>
-                  <Typography variant="body2" sx={{ fontWeight: 600, color: '#171717', flex: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', flex: 1 }}>
                     {event.title}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                     {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </Typography>
                 </Box>
-                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                   {event.details}
                 </Typography>
                 {event.summary && (
@@ -308,7 +308,7 @@ function GlobalCalendar() {
             <Typography variant="h6">
               {selectedDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </Typography>
-            <Typography variant="caption" sx={{ color: '#6b7280' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               {selectedEvents.length} {selectedEvents.length === 1 ? 'event' : 'events'}
             </Typography>
           </Box>
@@ -333,7 +333,7 @@ function GlobalCalendar() {
                     p: 1, 
                     borderRadius: 1, 
                     bgcolor: event.color,
-                    color: '#fff',
+                    color: 'background.paper',
                     display: 'flex',
                   }}>
                     {event.icon}
@@ -342,7 +342,7 @@ function GlobalCalendar() {
                     <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                       {event.title}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                       {event.details}
                     </Typography>
                   </Box>
@@ -371,7 +371,7 @@ function GlobalCalendar() {
                           />
                           <Typography variant="body2">{ex.name}</Typography>
                         </Box>
-                        <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           {ex.sets?.map(s => `${s.weight}×${s.reps}`).join(', ')}
                         </Typography>
                       </Box>
@@ -383,26 +383,26 @@ function GlobalCalendar() {
                 {event.type === 'mental' && event.data && (
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
                     <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.5)', borderRadius: 1 }}>
-                      <Typography variant="caption" sx={{ color: '#6b7280' }}>Mood</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>Mood</Typography>
                       <Typography variant="h6" sx={{ fontWeight: 600 }}>{event.data.moodScore || 5}/10</Typography>
                     </Box>
                     <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.5)', borderRadius: 1 }}>
-                      <Typography variant="caption" sx={{ color: '#6b7280' }}>Energy</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>Energy</Typography>
                       <Typography variant="h6" sx={{ fontWeight: 600 }}>{event.data.energyLevel || 5}/10</Typography>
                     </Box>
                     <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.5)', borderRadius: 1 }}>
-                      <Typography variant="caption" sx={{ color: '#6b7280' }}>Sleep</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>Sleep</Typography>
                       <Typography variant="h6" sx={{ fontWeight: 600 }}>{event.data.sleepHours || 0}h</Typography>
                     </Box>
                     <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.5)', borderRadius: 1 }}>
-                      <Typography variant="caption" sx={{ color: '#6b7280' }}>Stress</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>Stress</Typography>
                       <Typography variant="h6" sx={{ fontWeight: 600 }}>{event.data.stressLevel || 0}/10</Typography>
                     </Box>
                     {event.data.medsTaken?.length > 0 && (
                       <Box sx={{ gridColumn: '1 / -1', p: 1.5, bgcolor: 'rgba(255,255,255,0.5)', borderRadius: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                          <MedicationIcon sx={{ fontSize: 16, color: '#6b7280' }} />
-                          <Typography variant="caption" sx={{ color: '#6b7280' }}>Medications Taken</Typography>
+                          <MedicationIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>Medications Taken</Typography>
                         </Box>
                         <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                           {event.data.medsTaken.map((med, i) => (
@@ -426,7 +426,7 @@ function GlobalCalendar() {
                       }}>
                         <Typography variant="body2">{meal.name}</Typography>
                         {meal.calories && (
-                          <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                             {meal.calories} kcal
                           </Typography>
                         )}

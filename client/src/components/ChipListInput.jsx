@@ -7,11 +7,11 @@ import AddIcon from '@mui/icons-material/Add'
 
 const inputSx = {
   '& .MuiOutlinedInput-root': {
-    '& fieldset': { borderColor: '#e5e7eb' },
+    '& fieldset': { borderColor: 'divider' },
     '&:hover fieldset': { borderColor: '#d1d5db' },
-    '&.Mui-focused fieldset': { borderColor: '#171717' },
+    '&.Mui-focused fieldset': { borderColor: 'text.primary' },
   },
-  '& .MuiInputLabel-root.Mui-focused': { color: '#171717' },
+  '& .MuiInputLabel-root.Mui-focused': { color: 'text.primary' },
 }
 
 function ChipListInput({ items = [], onChange, placeholder }) {
@@ -48,7 +48,7 @@ function ChipListInput({ items = [], onChange, placeholder }) {
         />
         <IconButton
           onClick={handleAdd}
-          sx={{ bgcolor: '#f3f4f6', '&:hover': { bgcolor: '#e5e7eb' } }}
+          sx={{ bgcolor: 'action.selected', '&:hover': { bgcolor: 'divider' } }}
         >
           <AddIcon fontSize="small" />
         </IconButton>
@@ -59,7 +59,7 @@ function ChipListInput({ items = [], onChange, placeholder }) {
             key={`${item}-${idx}`}
             label={item}
             onDelete={() => handleRemove(idx)}
-            sx={{ bgcolor: '#f3f4f6' }}
+            sx={{ bgcolor: 'action.selected' }}
           />
         ))}
       </Box>

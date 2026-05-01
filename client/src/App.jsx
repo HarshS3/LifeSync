@@ -119,17 +119,17 @@ function AppContent() {
     return isNoir
       ? {
           name: 'Noir',
-          bg: '#0b0e14',
-          surface: '#0f1623',
-          surface2: '#0c121e',
-          text: '#f3f0ea',
-          muted: 'rgba(243, 240, 234, 0.66)',
-          border: 'rgba(243, 240, 234, 0.14)',
-          accent: '#5de4c7',
-          accent2: '#e6b450',
-          danger: '#fb7185',
-          navActiveBg: 'rgba(93, 228, 199, 0.10)',
-          navHoverBg: 'rgba(93, 228, 199, 0.06)',
+          bg: '#09090b',
+          surface: '#121212',
+          surface2: '#18181b',
+          text: '#ffffff',
+          muted: '#a1a1aa',
+          border: 'rgba(255, 255, 255, 0.1)',
+          accent: '#3b82f6',
+          accent2: '#8b5cf6',
+          danger: '#ef4444',
+          navActiveBg: 'rgba(59, 130, 246, 0.1)',
+          navHoverBg: 'rgba(255, 255, 255, 0.04)',
         }
       : {
           name: 'Paper',
@@ -317,6 +317,9 @@ function AppContent() {
         <Box
           sx={{
             width: 240,
+            height: '100vh',
+            position: 'sticky',
+            top: 0,
             borderRight: `1px solid ${ui.border}`,
             bgcolor: ui.surface,
             display: { xs: 'none', md: 'flex' },

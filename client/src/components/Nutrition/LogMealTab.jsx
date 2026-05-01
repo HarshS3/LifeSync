@@ -73,9 +73,9 @@ function LogMealTab({
 
       {/* LEFT: Search + Deep Analysis */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>Search Food Database</Typography>
-          <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>Find any dish or ingredient to auto-fill nutrition data.</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>Find any dish or ingredient to auto-fill nutrition data.</Typography>
           <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
             <TextField
               placeholder="e.g. paneer tikka, dal, rice, tea"
@@ -84,13 +84,13 @@ function LogMealTab({
               size="small"
               fullWidth
               InputProps={{
-                endAdornment: foodSearchLoading ? <Typography variant="caption" sx={{ color: '#6b7280' }}>Searching...</Typography> : null
+                endAdornment: foodSearchLoading ? <Typography variant="caption" sx={{ color: 'text.secondary' }}>Searching...</Typography> : null
               }}
             />
           </Box>
 
           {!foodSearchLoading && foodSearchAttempted && foodResults.length === 0 && (
-            <Typography variant="body2" sx={{ color: '#6b7280', fontStyle: 'italic', textAlign: 'center', py: 2 }}>No item found</Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', textAlign: 'center', py: 2 }}>No item found</Typography>
           )}
 
           {foodResults.length > 0 && (
@@ -110,12 +110,12 @@ function LogMealTab({
                         </Typography>
                       )}
                     </Typography>
-                    <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                       {formatServingDisplay(f.servingLabel || `${f.servingQty} ${f.servingUnit}`, f.servingWeightG)} · {Math.round(f.calories)} kcal
                     </Typography>
                   </Box>
                   <Box sx={{ textAlign: 'right', ml: 1, flexShrink: 0 }}>
-                    <Typography variant="caption" sx={{ color: '#374151', display: 'block' }}>P {Math.round(f.protein)}g</Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>P {Math.round(f.protein)}g</Typography>
                     <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block' }}>C {Math.round(f.carbs)}g · F {Math.round(f.fat)}g</Typography>
                   </Box>
                 </Box>
@@ -124,7 +124,7 @@ function LogMealTab({
           )}
         </Box>
 
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>Deep Food Analysis</Typography>
           <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
             <TextField
@@ -143,7 +143,7 @@ function LogMealTab({
           </Box>
           {foodAnalysisError && <Typography variant="caption" sx={{ color: '#b91c1c', display: 'block', mb: 1 }}>{foodAnalysisError}</Typography>}
           {foodAnalysis && (
-            <Box sx={{ borderRadius: 1.5, border: '1px solid #e5e7eb', bgcolor: '#f9fafb', p: 1.5, mt: 1 }}>
+            <Box sx={{ borderRadius: 1.5, border: '1px solid #e5e7eb', bgcolor: 'action.hover', p: 1.5, mt: 1 }}>
               <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>
                 {foodAnalysis.canonical_id || '-'} · {Math.round((foodAnalysis.resolver?.confidence || 0) * 100)}% confidence
               </Typography>
@@ -155,22 +155,22 @@ function LogMealTab({
                 </Box>
               )}
               {foodAnalysis.explanation?.narrative && (
-                <Typography variant="caption" sx={{ display: 'block', color: '#374151', lineHeight: 1.6 }}>{foodAnalysis.explanation.narrative}</Typography>
+                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', lineHeight: 1.6 }}>{foodAnalysis.explanation.narrative}</Typography>
               )}
               {foodAnalysis.llm?.narrative && (
-                <Typography variant="caption" sx={{ display: 'block', color: '#374151', lineHeight: 1.6, mt: 0.5 }}>{foodAnalysis.llm.narrative}</Typography>
+                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', lineHeight: 1.6, mt: 0.5 }}>{foodAnalysis.llm.narrative}</Typography>
               )}
             </Box>
           )}
         </Box>
 
         {/* SAVED TEMPLATES SECTION */}
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
             <BookmarkIcon sx={{ color: '#6366f1' }} />
             Saved Templates
           </Typography>
-          <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>Quickly load your favorite meal combinations.</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>Quickly load your favorite meal combinations.</Typography>
           
           {savedTemplatesLoading ? (
             <LinearProgress />
@@ -197,7 +197,7 @@ function LogMealTab({
                       <DeleteIcon sx={{ fontSize: '0.9rem', color: '#9ca3af' }} />
                     </IconButton>
                   </Box>
-                  <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                     {tpl.foods.length} items · {Math.round(tpl.foods.reduce((s, f) => s + (f.calories || 0), 0))} kcal
                   </Typography>
                 </Box>
@@ -207,12 +207,12 @@ function LogMealTab({
         </Box>
 
         {/* FREQUENT MEALS (AUTO-CALCULATED) */}
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
             <HistoryIcon sx={{ color: '#10b981' }} />
             Frequent Meals
           </Typography>
-          <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>Auto-calculated from your last 60 days of logs.</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>Auto-calculated from your last 60 days of logs.</Typography>
           
           {frequentMealsLoading ? (
             <LinearProgress />
@@ -237,7 +237,7 @@ function LogMealTab({
                     <Typography variant="body2" sx={{ fontWeight: 700, color: '#059669' }}>{tpl.mealName}</Typography>
                     <Chip label={`${tpl.frequency}x`} size="small" sx={{ height: 18, fontSize: '0.6rem', bgcolor: '#d1fae5', color: '#065f46', fontWeight: 700 }} />
                   </Box>
-                  <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                     {tpl.foods?.length || 0} items · {Math.round(tpl.totalCalories || 0)} kcal
                   </Typography>
                 </Box>
@@ -248,7 +248,7 @@ function LogMealTab({
       </Box>
 
       {/* RIGHT: Meal Builder */}
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
         <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
           <TextField
             label="Meal name"
@@ -283,7 +283,7 @@ function LogMealTab({
         <Divider sx={{ my: 2 }} />
 
         {newMeal.foods.map((food, idx) => (
-          <Box key={idx} sx={{ mb: 3, p: 2, bgcolor: '#f9fafb', borderRadius: 1.5, position: 'relative' }}>
+          <Box key={idx} sx={{ mb: 3, p: 2, bgcolor: 'action.hover', borderRadius: 1.5, position: 'relative' }}>
             <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
               <TextField
                 label="Food Name"
@@ -325,13 +325,13 @@ function LogMealTab({
 
             <ExpandableSection title="Detailed Nutrients (Click to edit)" defaultOpen={false}>
               <Box sx={{ mt: 1 }}>
-                <Typography variant="caption" sx={{ fontWeight: 700, color: '#374151' }}>Macros</Typography>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>Macros</Typography>
                 {renderNutrientInputs(food, idx, MACRO_FIELD_META)}
                 
-                <Typography variant="caption" sx={{ fontWeight: 700, color: '#374151', mt: 2, display: 'block' }}>Minerals</Typography>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', mt: 2, display: 'block' }}>Minerals</Typography>
                 {renderNutrientInputs(food, idx, MINERAL_FIELD_META)}
 
-                <Typography variant="caption" sx={{ fontWeight: 700, color: '#374151', mt: 2, display: 'block' }}>Vitamins</Typography>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', mt: 2, display: 'block' }}>Vitamins</Typography>
                 {renderNutrientInputs(food, idx, VITAMIN_FIELD_META)}
               </Box>
             </ExpandableSection>
@@ -343,7 +343,7 @@ function LogMealTab({
           variant="outlined" 
           startIcon={<AddIcon />} 
           onClick={addFoodRow}
-          sx={{ mb: 3, textTransform: 'none', borderColor: '#e5e7eb', color: '#374151' }}
+          sx={{ mb: 3, textTransform: 'none', borderColor: 'divider', color: 'text.secondary' }}
         >
           Add Food Row
         </Button>
@@ -390,14 +390,14 @@ function LogMealTab({
             fullWidth 
             variant="contained" 
             onClick={addMealToDay}
-            sx={{ bgcolor: '#171717', '&:hover': { bgcolor: '#374151' }, py: 1.25, fontWeight: 700 }}
+            sx={{ bgcolor: 'text.primary', '&:hover': { bgcolor: 'text.secondary' }, py: 1.25, fontWeight: 700 }}
           >
             Log Meal to Today
           </Button>
           
           <Box sx={{ flexShrink: 0 }}>
             <ExpandableSection title="Save as Template" defaultOpen={false}>
-              <Box sx={{ mt: 1, p: 2, border: '1px solid #e5e7eb', borderRadius: 1.5, bgcolor: '#f9fafb', minWidth: 250 }}>
+              <Box sx={{ mt: 1, p: 2, border: '1px solid #e5e7eb', borderRadius: 1.5, bgcolor: 'action.hover', minWidth: 250 }}>
                 <TextField
                   fullWidth
                   size="small"

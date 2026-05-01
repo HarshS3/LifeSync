@@ -19,9 +19,9 @@ function SummaryTab({
   dynamicTargets
 }) {
   return (
-    <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+    <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
       <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>Nutrition Summary</Typography>
-      <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
         Weekly and monthly nutrient consumption vs total required amount for each period.
       </Typography>
 
@@ -120,7 +120,7 @@ function SummaryTab({
               {rows.map((row) => (
                 <Box key={row.key}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
-                    <Typography variant="caption" sx={{ color: '#6b7280' }}>{row.label}</Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>{row.label}</Typography>
                     <Typography variant="caption" sx={{ fontWeight: 600 }}>
                       {fmt(row.consumed, row.unit === 'kcal' ? 0 : 1)} / {row.required == null ? '—' : fmt(row.required, row.unit === 'kcal' ? 0 : 1)} {row.unit}
                     </Typography>
@@ -131,7 +131,7 @@ function SummaryTab({
                     sx={{
                       height: 6,
                       borderRadius: 99,
-                      bgcolor: '#f3f4f6',
+                      bgcolor: 'action.selected',
                       '& .MuiLinearProgress-bar': {
                         bgcolor: row.required == null ? '#d1d5db' : '#2563eb',
                       },

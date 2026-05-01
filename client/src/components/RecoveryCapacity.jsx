@@ -35,7 +35,7 @@ const RecoveryCapacity = () => {
   if (loading) return <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3, mb: 3 }} />
   if (!data || data.status === 'insufficient_data') {
     return (
-      <Paper sx={{ p: 3, borderRadius: 3, bgcolor: '#f8fafc', border: '1px dashed #cbd5e1', textAlign: 'center' }}>
+      <Paper sx={{ p: 3, borderRadius: 3, bgcolor: 'background.default', border: '1px dashed #cbd5e1', textAlign: 'center' }}>
         <FitnessCenterIcon sx={{ color: '#94a3b8', fontSize: 40, mb: 1 }} />
         <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#475569' }}>
           Recovery Capacity: Analyzing...
@@ -64,7 +64,7 @@ const RecoveryCapacity = () => {
             borderRadius: 4,
             border: '1px solid',
             borderColor: '#e2e8f0',
-            bgcolor: '#fff'
+            bgcolor: 'background.paper'
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
@@ -76,7 +76,7 @@ const RecoveryCapacity = () => {
             {mgs.map(mg => {
               const info = data.recoveryInsights[mg]
               return (
-                <Box key={mg} sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
+                <Box key={mg} sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                     <Typography variant="body2" sx={{ fontWeight: 700 }}>{mg}</Typography>
                     {info.optimalGap && (
@@ -100,7 +100,7 @@ const RecoveryCapacity = () => {
             borderRadius: 4,
             border: '1px solid',
             borderColor: '#e2e8f0',
-            bgcolor: '#fff'
+            bgcolor: 'background.paper'
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>

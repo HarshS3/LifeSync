@@ -30,9 +30,9 @@ function GymHistoryTab({
 
   if (workouts.length === 0) {
     return (
-      <Box sx={{ py: 10, textAlign: 'center', bgcolor: '#f9fafb', borderRadius: 2, border: '1px dashed #e5e7eb' }}>
+      <Box sx={{ py: 10, textAlign: 'center', bgcolor: 'action.hover', borderRadius: 2, border: '1px dashed #e5e7eb' }}>
         <HistoryIcon sx={{ fontSize: 48, color: '#d1d5db', mb: 2 }} />
-        <Typography variant="body1" sx={{ color: '#6b7280', fontWeight: 500 }}>No workouts logged yet.</Typography>
+        <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 500 }}>No workouts logged yet.</Typography>
         <Typography variant="body2" sx={{ color: '#9ca3af' }}>Your completed workouts will appear here.</Typography>
       </Box>
     )
@@ -46,20 +46,20 @@ function GymHistoryTab({
           onClick={() => handleWorkoutClick(workout)}
           sx={{
             p: 3,
-            bgcolor: '#fff',
+            bgcolor: 'background.paper',
             borderRadius: 2,
             border: '1px solid #e5e7eb',
             cursor: 'pointer',
             transition: 'all 0.2s',
-            '&:hover': { borderColor: '#171717', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }
+            '&:hover': { borderColor: 'text.primary', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }
           }}
         >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
             <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#171717' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
                 {workout.name}
               </Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 {new Date(workout.date).toLocaleDateString(undefined, { 
                   weekday: 'long', 
                   year: 'numeric', 
@@ -73,7 +73,7 @@ function GymHistoryTab({
                 icon={<TimerIcon sx={{ fontSize: '14px !important' }} />}
                 label={`${Math.round((workout.duration || 0) / 60)} min`} 
                 size="small" 
-                sx={{ height: 24, fontSize: '0.75rem', bgcolor: '#f3f4f6' }} 
+                sx={{ height: 24, fontSize: '0.75rem', bgcolor: 'action.selected' }} 
               />
               <Chip 
                 icon={<FitnessCenterIcon sx={{ fontSize: '14px !important' }} />}
@@ -94,8 +94,8 @@ function GymHistoryTab({
                 sx={{ 
                   height: 22, 
                   fontSize: '0.7rem', 
-                  borderColor: EXERCISE_LIBRARY[ex.muscleGroup]?.color || '#e5e7eb',
-                  color: EXERCISE_LIBRARY[ex.muscleGroup]?.color || '#6b7280',
+                  borderColor: EXERCISE_LIBRARY[ex.muscleGroup]?.color || 'divider',
+                  color: EXERCISE_LIBRARY[ex.muscleGroup]?.color || 'text.secondary',
                   bgcolor: `${EXERCISE_LIBRARY[ex.muscleGroup]?.color}05` || 'transparent'
                 }}
               />
@@ -112,7 +112,7 @@ function GymHistoryTab({
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             {selectedWorkout?.name}
           </Typography>
-          <Typography variant="caption" sx={{ color: '#6b7280' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             {selectedWorkout?.date && new Date(selectedWorkout.date).toLocaleDateString(undefined, {
               weekday: 'long',
               year: 'numeric',
@@ -134,7 +134,7 @@ function GymHistoryTab({
                 icon={<TimerIcon sx={{ fontSize: '14px !important' }} />}
                 label={`${Math.round((selectedWorkout.duration || 0) / 60)} min`}
                 size="small"
-                sx={{ height: 24, fontSize: '0.75rem', bgcolor: '#f3f4f6' }}
+                sx={{ height: 24, fontSize: '0.75rem', bgcolor: 'action.selected' }}
               />
               <Chip
                 icon={<FitnessCenterIcon sx={{ fontSize: '14px !important' }} />}
@@ -156,7 +156,7 @@ function GymHistoryTab({
                   key={idx}
                   sx={{
                     p: 2,
-                    bgcolor: '#f9fafb',
+                    bgcolor: 'action.hover',
                     borderRadius: 1.5,
                     border: '1px solid #e5e7eb'
                   }}
@@ -171,8 +171,8 @@ function GymHistoryTab({
                       sx={{
                         height: 20,
                         fontSize: '0.65rem',
-                        bgcolor: EXERCISE_LIBRARY[ex.muscleGroup]?.color || '#e5e7eb',
-                        color: '#fff'
+                        bgcolor: EXERCISE_LIBRARY[ex.muscleGroup]?.color || 'divider',
+                        color: 'background.paper'
                       }}
                     />
                   </Box>
@@ -183,13 +183,13 @@ function GymHistoryTab({
                         key={setIdx}
                         sx={{
                           p: 1,
-                          bgcolor: '#fff',
+                          bgcolor: 'background.paper',
                           borderRadius: 1,
                           border: '1px solid #e5e7eb',
                           textAlign: 'center'
                         }}
                       >
-                        <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                           Set {setIdx + 1}
                         </Typography>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>

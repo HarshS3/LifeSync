@@ -37,7 +37,7 @@ const PLANS = [
       'No integrations',
       'No export data',
     ],
-    color: '#6b7280',
+    color: 'text.secondary',
     popular: false,
   },
   {
@@ -77,7 +77,7 @@ const PLANS = [
       'White-glove onboarding',
     ],
     limitations: [],
-    color: '#171717',
+    color: 'text.primary',
     popular: false,
   },
 ]
@@ -190,7 +190,7 @@ function PremiumPage() {
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
           Choose Your Plan
         </Typography>
-        <Typography variant="body1" sx={{ color: '#6b7280' }}>
+        <Typography variant="body1" sx={{ color: 'text.secondary' }}>
           Unlock the full potential of your wellness journey
         </Typography>
       </Box>
@@ -246,7 +246,7 @@ function PremiumPage() {
                   left: '50%',
                   transform: 'translateX(-50%)',
                   bgcolor: '#6366f1',
-                  color: '#fff',
+                  color: 'background.paper',
                   fontWeight: 600,
                 }}
               />
@@ -258,7 +258,7 @@ function PremiumPage() {
               >
                 {plan.name}
               </Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 {plan.description}
               </Typography>
 
@@ -274,7 +274,7 @@ function PremiumPage() {
                   <Typography
                     variant="body2"
                     component="span"
-                    sx={{ color: '#6b7280' }}
+                    sx={{ color: 'text.secondary' }}
                   >
                     /{plan.period}
                   </Typography>
@@ -288,7 +288,7 @@ function PremiumPage() {
                     sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}
                   >
                     <CheckIcon sx={{ fontSize: 18, color: '#15803d' }} />
-                    <Typography variant="body2" sx={{ color: '#374151' }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                       {feature}
                     </Typography>
                   </Box>
@@ -317,7 +317,7 @@ function PremiumPage() {
                   fontWeight: 600,
                   ...(isPlanActive(plan.id)
                     ? {
-                        borderColor: '#e5e7eb',
+                        borderColor: 'divider',
                         color: '#9ca3af',
                       }
                     : {
@@ -353,7 +353,7 @@ function PremiumPage() {
             key={idx}
             sx={{
               p: 3,
-              bgcolor: '#fff',
+              bgcolor: 'background.paper',
               borderRadius: 2,
               border: '1px solid #e5e7eb',
             }}
@@ -364,7 +364,7 @@ function PremiumPage() {
             <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
               {feature.title}
             </Typography>
-            <Typography variant="caption" sx={{ color: '#6b7280' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               {feature.description}
             </Typography>
             <Chip
@@ -372,8 +372,8 @@ function PremiumPage() {
               size="small"
               sx={{
                 mt: 1,
-                bgcolor: feature.plan === 'premium' ? '#171717' : '#6366f1',
-                color: '#fff',
+                bgcolor: feature.plan === 'premium' ? 'text.primary' : '#6366f1',
+                color: 'background.paper',
                 fontSize: '0.65rem',
               }}
             />
@@ -388,14 +388,14 @@ function PremiumPage() {
         </DialogTitle>
         <DialogContent>
           <Box sx={{ py: 2 }}>
-            <Typography variant="body2" sx={{ mb: 3, color: '#6b7280' }}>
+            <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
               You're about to upgrade to the {selectedPlan?.name} plan for ${selectedPlan?.price}/{selectedPlan?.period}.
             </Typography>
 
             <Box
               sx={{
                 p: 3,
-                bgcolor: '#f9fafb',
+                bgcolor: 'action.hover',
                 borderRadius: 2,
                 border: '1px solid #e5e7eb',
               }}
@@ -432,9 +432,9 @@ function PremiumPage() {
             disabled={processing}
             startIcon={<RocketLaunchIcon />}
             sx={{
-              bgcolor: '#171717',
+              bgcolor: 'text.primary',
               textTransform: 'none',
-              '&:hover': { bgcolor: '#374151' },
+              '&:hover': { bgcolor: 'text.secondary' },
             }}
           >
             {processing ? 'Processing...' : 'Confirm Upgrade'}

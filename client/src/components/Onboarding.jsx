@@ -192,7 +192,7 @@ function Onboarding({ onComplete }) {
       }}
     >
       {/* Progress Header */}
-      <Box sx={{ p: 3, bgcolor: '#fff', borderBottom: '1px solid #e5e7eb' }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderBottom: '1px solid #e5e7eb' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
             <LifeSyncMark size={26} />
@@ -200,7 +200,7 @@ function Onboarding({ onComplete }) {
               LifeSync
             </Typography>
           </Box>
-          <Typography variant="body2" sx={{ color: '#6b7280' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Step {step + 1} of {steps.length}
           </Typography>
         </Box>
@@ -210,9 +210,9 @@ function Onboarding({ onComplete }) {
           sx={{
             height: 6,
             borderRadius: 3,
-            bgcolor: '#e5e7eb',
+            bgcolor: 'divider',
             '& .MuiLinearProgress-bar': {
-              bgcolor: '#171717',
+              bgcolor: 'text.primary',
               borderRadius: 3,
             }
           }}
@@ -231,8 +231,8 @@ function Onboarding({ onComplete }) {
                     width: 56,
                     height: 56,
                     borderRadius: '50%',
-                    bgcolor: '#171717',
-                    color: '#fff',
+                    bgcolor: 'text.primary',
+                    color: 'background.paper',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -245,7 +245,7 @@ function Onboarding({ onComplete }) {
                 <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
                   {steps[step].title}
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   {steps[step].subtitle}
                 </Typography>
                 {error && (
@@ -269,11 +269,11 @@ function Onboarding({ onComplete }) {
                         fontSize: '0.95rem',
                         borderRadius: 3,
                         border: '2px solid',
-                        borderColor: data.selectedGoals.includes(goal.id) ? '#171717' : '#e5e7eb',
-                        bgcolor: data.selectedGoals.includes(goal.id) ? '#171717' : '#fff',
-                        color: data.selectedGoals.includes(goal.id) ? '#fff' : '#374151',
+                        borderColor: data.selectedGoals.includes(goal.id) ? 'text.primary' : 'divider',
+                        bgcolor: data.selectedGoals.includes(goal.id) ? 'text.primary' : 'background.paper',
+                        color: data.selectedGoals.includes(goal.id) ? 'background.paper' : 'text.secondary',
                         '&:hover': {
-                          bgcolor: data.selectedGoals.includes(goal.id) ? '#374151' : '#f9fafb',
+                          bgcolor: data.selectedGoals.includes(goal.id) ? 'text.secondary' : 'action.hover',
                         },
                       }}
                     />
@@ -354,7 +354,7 @@ function Onboarding({ onComplete }) {
                       min={1}
                       max={7}
                       marks
-                      sx={{ color: '#171717' }}
+                      sx={{ color: 'text.primary' }}
                     />
                   </Box>
 
@@ -371,8 +371,8 @@ function Onboarding({ onComplete }) {
                           variant={data.preferredWorkouts.includes(workout) ? 'filled' : 'outlined'}
                           sx={{
                             ...(data.preferredWorkouts.includes(workout) && {
-                              bgcolor: '#171717',
-                              color: '#fff',
+                              bgcolor: 'text.primary',
+                              color: 'background.paper',
                             })
                           }}
                         />
@@ -408,7 +408,7 @@ function Onboarding({ onComplete }) {
                       min={1}
                       max={6}
                       marks
-                      sx={{ color: '#171717' }}
+                      sx={{ color: 'text.primary' }}
                     />
                   </Box>
 
@@ -449,7 +449,7 @@ function Onboarding({ onComplete }) {
                       min={4}
                       max={12}
                       step={0.5}
-                      sx={{ color: '#171717' }}
+                      sx={{ color: 'text.primary' }}
                     />
                   </Box>
 
@@ -466,8 +466,8 @@ function Onboarding({ onComplete }) {
                           variant={data.stressTriggers.includes(trigger) ? 'filled' : 'outlined'}
                           sx={{
                             ...(data.stressTriggers.includes(trigger) && {
-                              bgcolor: '#171717',
-                              color: '#fff',
+                              bgcolor: 'text.primary',
+                              color: 'background.paper',
                             })
                           }}
                         />
@@ -502,7 +502,7 @@ function Onboarding({ onComplete }) {
       <Box
         sx={{
           p: 3,
-          bgcolor: '#fff',
+          bgcolor: 'background.paper',
           borderTop: '1px solid #e5e7eb',
           display: 'flex',
           justifyContent: 'space-between',
@@ -512,7 +512,7 @@ function Onboarding({ onComplete }) {
           onClick={handleBack}
           disabled={step === 0}
           startIcon={<ArrowBackIcon />}
-          sx={{ textTransform: 'none', color: '#6b7280' }}
+          sx={{ textTransform: 'none', color: 'text.secondary' }}
         >
           Back
         </Button>
@@ -524,10 +524,10 @@ function Onboarding({ onComplete }) {
             endIcon={<ArrowForwardIcon />}
             disabled={step === 0 && data.selectedGoals.length === 0}
             sx={{
-              bgcolor: '#171717',
+              bgcolor: 'text.primary',
               textTransform: 'none',
               px: 4,
-              '&:hover': { bgcolor: '#374151' },
+              '&:hover': { bgcolor: 'text.secondary' },
             }}
           >
             Continue
@@ -538,10 +538,10 @@ function Onboarding({ onComplete }) {
             onClick={handleComplete}
             disabled={saving}
             sx={{
-              bgcolor: '#171717',
+              bgcolor: 'text.primary',
               textTransform: 'none',
               px: 4,
-              '&:hover': { bgcolor: '#374151' },
+              '&:hover': { bgcolor: 'text.secondary' },
             }}
           >
             {saving ? 'Saving...' : 'Get Started 🚀'}

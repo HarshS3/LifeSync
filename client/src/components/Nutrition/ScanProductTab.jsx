@@ -26,9 +26,9 @@ function ScanProductTab({
 }) {
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.1fr 1fr' }, gap: 3 }}>
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>Scan Product Barcode</Typography>
-        <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
           Scan with camera or enter barcode manually to fetch product details and nutrient values.
         </Typography>
 
@@ -87,7 +87,7 @@ function ScanProductTab({
             />
             {scanBusy && (
               <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
-                <CircularProgress size={32} sx={{ color: '#fff' }} />
+                <CircularProgress size={32} sx={{ color: 'background.paper' }} />
               </Box>
             )}
             <Box sx={{ position: 'absolute', top: 12, right: 12, zIndex: 20 }}>
@@ -112,30 +112,30 @@ function ScanProductTab({
         )}
 
         {barcodeResult && (
-          <Box sx={{ p: 2.5, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 2.5, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
               <Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{barcodeResult.product_name || 'Unknown Product'}</Typography>
-                <Typography variant="caption" sx={{ color: '#6b7280' }}>Brand: {barcodeResult.brands || 'N/A'}</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>Brand: {barcodeResult.brands || 'N/A'}</Typography>
               </Box>
               <Chip label={barcodeResult.code} size="small" variant="outlined" />
             </Box>
 
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 3 }}>
               <Box>
-                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>Energy</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Energy</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 700 }}>{fmt(barcodeResult.nutriments?.['energy-kcal_100g'] || 0, 0)} kcal / 100g</Typography>
               </Box>
               <Box>
-                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>Protein</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Protein</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 700 }}>{fmt(barcodeResult.nutriments?.proteins_100g || 0)} g / 100g</Typography>
               </Box>
               <Box>
-                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>Carbs</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Carbs</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 700 }}>{fmt(barcodeResult.nutriments?.carbohydrates_100g || 0)} g / 100g</Typography>
               </Box>
               <Box>
-                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>Fat</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Fat</Typography>
                 <Typography variant="body2" sx={{ fontWeight: 700 }}>{fmt(barcodeResult.nutriments?.fat_100g || 0)} g / 100g</Typography>
               </Box>
             </Box>

@@ -89,12 +89,12 @@ export default function MuscleHeatmapFigure({ intensityByRegion }) {
           </defs>
 
           {/* backdrop */}
-          <rect x="0" y="0" width="520" height="240" fill="#ffffff" />
+          <rect x="0" y="0" width="520" height="240" fill='background.paper' />
           <rect x="0" y="0" width="520" height="240" filter="url(#grain)" opacity="0.35" />
 
           {/* FRONT */}
           <g transform="translate(40,18)">
-            <text x="90" y="16" fontSize="12" fill="#6b7280">Front</text>
+            <text x="90" y="16" fontSize="12" fill='text.secondary'>Front</text>
 
             {/* head + torso silhouette */}
             <circle cx="90" cy="40" r="16" fill="#0b0f14" opacity="0.9" />
@@ -202,7 +202,7 @@ export default function MuscleHeatmapFigure({ intensityByRegion }) {
 
           {/* BACK */}
           <g transform="translate(290,18)">
-            <text x="90" y="16" fontSize="12" fill="#6b7280">Back</text>
+            <text x="90" y="16" fontSize="12" fill='text.secondary'>Back</text>
 
             <circle cx="90" cy="40" r="16" fill="#0b0f14" opacity="0.9" />
             <path d="M70 58 C64 74, 62 92, 66 112 C68 122, 66 136, 60 148 C56 156, 60 166, 72 172 C80 176, 100 176, 108 172 C120 166, 124 156, 120 148 C114 136, 112 122, 114 112 C118 92, 116 74, 110 58 Z" fill="#0b0f14" opacity="0.92" />
@@ -272,10 +272,10 @@ export default function MuscleHeatmapFigure({ intensityByRegion }) {
       <Box sx={{
         borderRadius: 2,
         border: '1px solid #e5e7eb',
-        bgcolor: '#fff',
+        bgcolor: 'background.paper',
         p: 2,
       }}>
-        <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 1 }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
           Intensity scale
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
@@ -284,7 +284,7 @@ export default function MuscleHeatmapFigure({ intensityByRegion }) {
           ))}
         </Box>
 
-        <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 1 }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
           Regions
         </Typography>
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 1.5, rowGap: 1 }}>
@@ -300,7 +300,7 @@ export default function MuscleHeatmapFigure({ intensityByRegion }) {
                   flex: '0 0 auto',
                 }}
               />
-              <Typography variant="caption" sx={{ color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {r.label}
               </Typography>
             </Box>

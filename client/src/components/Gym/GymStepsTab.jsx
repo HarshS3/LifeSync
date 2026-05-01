@@ -32,7 +32,7 @@ function GymStepsTab({
   })
 
   return (
-    <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+    <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
       <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 3 }}>Daily Step Count</Typography>
       <Box sx={{ display: 'flex', gap: 2, mb: 4, alignItems: 'flex-start' }}>
         <TextField
@@ -53,7 +53,7 @@ function GymStepsTab({
           variant="contained"
           onClick={saveSteps}
           disabled={stepsSaving || stepsLoading}
-          sx={{ bgcolor: '#171717', '&:hover': { bgcolor: '#374151' } }}
+          sx={{ bgcolor: 'text.primary', '&:hover': { bgcolor: 'text.secondary' } }}
         >
           {stepsSaving ? 'Saving...' : 'Save'}
         </Button>
@@ -90,10 +90,10 @@ function GymStepsTab({
 
       {stepsLoading ? (
         <Box sx={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <CircularProgress size={30} sx={{ color: '#171717' }} />
+          <CircularProgress size={30} sx={{ color: 'text.primary' }} />
         </Box>
       ) : (
-        <Box sx={{ position: 'relative', width: '100%', height: 260, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #f1f5f9', p: 2 }}>
+        <Box sx={{ position: 'relative', width: '100%', height: 260, bgcolor: 'background.default', borderRadius: 2, border: '1px solid #f1f5f9', p: 2 }}>
           {chartData.points ? (
             <svg viewBox={`0 0 ${chartData.dims.W} ${chartData.dims.H}`} style={{ width: '100%', height: '100%', overflow: 'visible' }}>
               {/* Grid Lines */}
@@ -115,7 +115,7 @@ function GymStepsTab({
               <polyline
                 points={chartData.points}
                 fill="none"
-                stroke="#171717"
+                stroke='text.primary'
                 strokeWidth="3"
                 strokeLinejoin="round"
                 strokeLinecap="round"
@@ -123,7 +123,7 @@ function GymStepsTab({
               {/* Dots */}
               {chartData.points.split(' ').map((p, i) => {
                 const [x, y] = p.split(',')
-                return <circle key={i} cx={x} cy={y} r="4" fill="#fff" stroke="#171717" strokeWidth="2" />
+                return <circle key={i} cx={x} cy={y} r="4" fill='background.paper' stroke='text.primary' strokeWidth="2" />
               })}
               {/* X Labels */}
               {chartData.labels.map((lab, i) => {

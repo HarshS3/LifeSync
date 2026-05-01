@@ -270,7 +270,7 @@ function LongTermGoalsTab() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h6" sx={{ fontWeight: 600 }}>Long Term Goals</Typography>
-          <Typography variant="body2" sx={{ color: '#6b7280' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Track major life goals & recovery journeys
           </Typography>
         </Box>
@@ -294,9 +294,9 @@ function LongTermGoalsTab() {
 
       {/* Goals List */}
       {goals.length === 0 ? (
-        <Box sx={{ textAlign: 'center', py: 6, bgcolor: '#f8fafc', borderRadius: 3 }}>
+        <Box sx={{ textAlign: 'center', py: 6, bgcolor: 'background.default', borderRadius: 3 }}>
           <FlagIcon sx={{ fontSize: 48, color: '#d1d5db', mb: 2 }} />
-          <Typography variant="body1" sx={{ color: '#6b7280', mb: 1 }}>
+          <Typography variant="body1" sx={{ color: 'text.secondary', mb: 1 }}>
             No long-term goals yet
           </Typography>
           <Typography variant="body2" sx={{ color: '#9ca3af' }}>
@@ -315,7 +315,7 @@ function LongTermGoalsTab() {
                 key={goal._id}
                 sx={{
                   p: 3,
-                  bgcolor: '#fff',
+                  bgcolor: 'background.paper',
                   border: '1px solid #e5e7eb',
                   borderRadius: 3,
                   borderLeft: `4px solid ${goal.color}`,
@@ -339,10 +339,10 @@ function LongTermGoalsTab() {
                       {category?.icon || '🎯'}
                     </Box>
                     <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 600, color: '#171717' }}>
+                      <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
                         {goal.name}
                       </Typography>
-                      <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                         {goal.description || category?.label}
                       </Typography>
                     </Box>
@@ -352,7 +352,7 @@ function LongTermGoalsTab() {
                     <IconButton 
                       size="small" 
                       onClick={() => loadAnalytics(goal)}
-                      sx={{ color: '#6b7280' }}
+                      sx={{ color: 'text.secondary' }}
                     >
                       <TimelineIcon fontSize="small" />
                     </IconButton>
@@ -371,14 +371,14 @@ function LongTermGoalsTab() {
                         })
                         setDialogOpen(true)
                       }}
-                      sx={{ color: '#6b7280' }}
+                      sx={{ color: 'text.secondary' }}
                     >
                       <EditIcon fontSize="small" />
                     </IconButton>
                     <IconButton 
                       size="small" 
                       onClick={() => handleDeleteGoal(goal._id)}
-                      sx={{ color: '#6b7280' }}
+                      sx={{ color: 'text.secondary' }}
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
@@ -395,13 +395,13 @@ function LongTermGoalsTab() {
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <EmojiEventsIcon sx={{ color: '#eab308', fontSize: 20 }} />
-                    <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                       Best: {goal.longestStreak} days
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <WarningIcon sx={{ color: '#ef4444', fontSize: 20 }} />
-                    <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                       {goal.totalRelapses} relapses
                     </Typography>
                   </Box>
@@ -410,10 +410,10 @@ function LongTermGoalsTab() {
                 {/* Progress Bar */}
                 <Box sx={{ mb: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                       Progress to {goal.targetDays} days
                     </Typography>
-                    <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                       {progress}%
                     </Typography>
                   </Box>
@@ -423,7 +423,7 @@ function LongTermGoalsTab() {
                     sx={{
                       height: 8,
                       borderRadius: 4,
-                      bgcolor: '#e5e7eb',
+                      bgcolor: 'divider',
                       '& .MuiLinearProgress-bar': {
                         bgcolor: goal.color,
                         borderRadius: 4,
@@ -524,7 +524,7 @@ function LongTermGoalsTab() {
             </FormControl>
 
             <Box>
-              <Typography variant="body2" sx={{ mb: 1, color: '#6b7280' }}>
+              <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
                 Target Days: {newGoal.targetDays}
               </Typography>
               <Slider
@@ -543,7 +543,7 @@ function LongTermGoalsTab() {
             </Box>
 
             <Box>
-              <Typography variant="body2" sx={{ mb: 1, color: '#6b7280' }}>Color</Typography>
+              <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>Color</Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
                 {GOAL_COLORS.map((color) => (
                   <Box
@@ -574,7 +574,7 @@ function LongTermGoalsTab() {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDialogOpen(false)} sx={{ color: '#6b7280' }}>Cancel</Button>
+          <Button onClick={() => setDialogOpen(false)} sx={{ color: 'text.secondary' }}>Cancel</Button>
           <Button
             variant="contained"
             onClick={handleSaveGoal}
@@ -716,7 +716,7 @@ function LongTermGoalsTab() {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setLogDialogOpen(false)} sx={{ color: '#6b7280' }}>Cancel</Button>
+          <Button onClick={() => setLogDialogOpen(false)} sx={{ color: 'text.secondary' }}>Cancel</Button>
           <Button
             variant="contained"
             onClick={handleLogEntry}
@@ -781,12 +781,12 @@ function LongTermGoalsTab() {
               </Box>
 
               {/* Progress to Goal */}
-              <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2 }}>
+              <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
                     Progress to {selectedGoal?.targetDays} Day Goal
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                     {analytics.stats.daysToTarget} days to go
                   </Typography>
                 </Box>
@@ -796,7 +796,7 @@ function LongTermGoalsTab() {
                   sx={{
                     height: 12,
                     borderRadius: 6,
-                    bgcolor: '#e5e7eb',
+                    bgcolor: 'divider',
                     '& .MuiLinearProgress-bar': {
                       bgcolor: selectedGoal?.color,
                       borderRadius: 6,
@@ -862,7 +862,7 @@ function LongTermGoalsTab() {
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontSize: 10,
-                          color: '#fff',
+                          color: 'background.paper',
                         }}
                         title={new Date(log.date).toLocaleDateString()}
                       >

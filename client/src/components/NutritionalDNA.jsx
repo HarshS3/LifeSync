@@ -35,7 +35,7 @@ const NutritionalDNA = () => {
   if (loading) return <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3, mb: 3 }} />
   if (!data || data.status === 'insufficient_data') {
     return (
-      <Paper sx={{ p: 3, borderRadius: 3, bgcolor: '#f8fafc', border: '1px dashed #cbd5e1', textAlign: 'center' }}>
+      <Paper sx={{ p: 3, borderRadius: 3, bgcolor: 'background.default', border: '1px dashed #cbd5e1', textAlign: 'center' }}>
         <HelpOutlineIcon sx={{ color: '#94a3b8', fontSize: 40, mb: 1 }} />
         <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#475569' }}>
           Nutritional DNA: Analyzing...
@@ -64,7 +64,7 @@ const NutritionalDNA = () => {
             borderRadius: 4,
             border: '1px solid',
             borderColor: '#e2e8f0',
-            bgcolor: '#fff',
+            bgcolor: 'background.paper',
             position: 'relative',
             overflow: 'hidden'
           }}
@@ -88,7 +88,7 @@ const NutritionalDNA = () => {
             {carbTolerance?.reasoning}
           </Typography>
 
-          <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #f1f5f9' }}>
+          <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2, border: '1px solid #f1f5f9' }}>
             <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
               Recommended Strategy
             </Typography>
@@ -109,7 +109,7 @@ const NutritionalDNA = () => {
             borderRadius: 4,
             border: '1px solid',
             borderColor: '#e2e8f0',
-            bgcolor: '#fff',
+            bgcolor: 'background.paper',
             opacity: 0.8
           }}
         >

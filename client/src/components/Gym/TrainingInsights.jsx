@@ -10,10 +10,10 @@ export default function TrainingInsights({ trainingInsights }) {
 
   return (
     <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
           <AutoGraphIcon sx={{ color: '#38bdf8' }} />
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem', color: 'text.primary' }}>
             Performance Analysis & Insights
           </Typography>
         </Box>
@@ -22,20 +22,25 @@ export default function TrainingInsights({ trainingInsights }) {
           {trainingInsights.map((insight, idx) => {
             let Icon = InsightsIcon;
             let color = '#64748b';
-            let bgColor = '#f8fafc';
+            let bgColor = 'background.default';
             
             if (insight.title.includes('Progression')) { Icon = TimelineIcon; color = '#10b981'; bgColor = '#ecfdf5'; }
             else if (insight.title.includes('Plateau')) { Icon = InsightsIcon; color = '#f59e0b'; bgColor = '#fffbeb'; }
             
             return (
-              <Box key={idx} sx={{ p: 2, bgcolor: bgColor, borderRadius: 2, border: `1px solid ${color}20` }}>
+              <Box key={idx} sx={{ 
+                p: 2, 
+                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : bgColor, 
+                borderRadius: 2, 
+                border: `1px solid ${color}20` 
+              }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                   <Icon sx={{ color, fontSize: '1.2rem' }} />
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b' }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                     {insight.title}
                   </Typography>
                 </Box>
-                <Typography variant="body2" sx={{ color: '#475569', lineHeight: 1.6 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.6 }}>
                   {insight.text}
                 </Typography>
               </Box>

@@ -57,17 +57,17 @@ function SupplementSection({ log, onUpdate }) {
   };
 
   return (
-    <Box sx={{ p: 2, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+    <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
       <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
         💊 Supplement Stack
       </Typography>
       
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
         {(log.supplements || []).map((s, i) => (
-          <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, bgcolor: '#f9fafb', borderRadius: 1 }}>
+          <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
             <Box>
               <Typography variant="body2" sx={{ fontWeight: 500 }}>{s.name}</Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 {Object.keys(s.nutriments || {}).length} nutrients · {s.takenAt}
               </Typography>
             </Box>

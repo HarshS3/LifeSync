@@ -43,10 +43,10 @@ const CATEGORIES = [
 ]
 
 const COLORS = [
-  { name: 'Black', hex: '#171717' },
-  { name: 'White', hex: '#ffffff' },
+  { name: 'Black', hex: 'text.primary' },
+  { name: 'White', hex: 'background.paper' },
   { name: 'Navy', hex: '#1e3a5f' },
-  { name: 'Gray', hex: '#6b7280' },
+  { name: 'Gray', hex: 'text.secondary' },
   { name: 'Beige', hex: '#d4c4a8' },
   { name: 'Brown', hex: '#8b4513' },
   { name: 'Red', hex: '#dc2626' },
@@ -262,10 +262,10 @@ function StylePanel() {
 
   return (
     <Box sx={{ maxWidth: 900 }}>
-      <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: '#171717' }}>
+      <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
         Style Assistant
       </Typography>
-      <Typography variant="body2" sx={{ mb: 3, color: '#6b7280' }}>
+      <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
         Manage your wardrobe and get AI-powered outfit suggestions
       </Typography>
 
@@ -280,8 +280,8 @@ function StylePanel() {
             minWidth: 'auto',
             px: 2,
           },
-          '& .Mui-selected': { color: '#171717' },
-          '& .MuiTabs-indicator': { backgroundColor: '#171717' },
+          '& .Mui-selected': { color: 'text.primary' },
+          '& .MuiTabs-indicator': { backgroundColor: 'text.primary' },
         }}
       >
         <Tab label="Wardrobe" />
@@ -315,10 +315,10 @@ function StylePanel() {
               startIcon={<AddIcon />}
               onClick={() => setDialogOpen(true)}
               sx={{
-                bgcolor: '#171717',
+                bgcolor: 'text.primary',
                 textTransform: 'none',
                 fontWeight: 500,
-                '&:hover': { bgcolor: '#374151' }
+                '&:hover': { bgcolor: 'text.secondary' }
               }}
             >
               Add Item
@@ -332,16 +332,16 @@ function StylePanel() {
               sx={{
                 p: 6,
                 textAlign: 'center',
-                bgcolor: '#f9fafb',
+                bgcolor: 'action.hover',
                 borderRadius: 2,
                 border: '1px dashed #d1d5db',
               }}
             >
               <CheckroomIcon sx={{ fontSize: 48, color: '#9ca3af', mb: 2 }} />
-              <Typography variant="h6" sx={{ mb: 1, color: '#374151' }}>
+              <Typography variant="h6" sx={{ mb: 1, color: 'text.secondary' }}>
                 Your wardrobe is empty
               </Typography>
-              <Typography variant="body2" sx={{ color: '#6b7280', mb: 3 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
                 Start adding clothes to get personalized outfit suggestions
               </Typography>
               <Button
@@ -376,7 +376,7 @@ function StylePanel() {
                       <Box
                         sx={{
                           height: 160,
-                          bgcolor: '#f3f4f6',
+                          bgcolor: 'action.selected',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -388,10 +388,10 @@ function StylePanel() {
                     <CardContent sx={{ pb: 1 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                         <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#171717' }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                             {item.name}
                           </Typography>
-                          <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                             {item.category} {item.brand && `• ${item.brand}`}
                           </Typography>
                         </Box>
@@ -441,7 +441,7 @@ function StylePanel() {
       {/* 3D Preview Tab */}
       {activeTab === 3 && (
         <Box>
-          <Typography variant="body2" sx={{ mb: 2, color: '#6b7280' }}>
+          <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
             Preview the uploaded GLB model from your local assets.
           </Typography>
 
@@ -459,10 +459,10 @@ function StylePanel() {
               onClick={getOutfitSuggestion}
               disabled={suggestingOutfit || wardrobe.length < 3}
               sx={{
-                bgcolor: '#171717',
+                bgcolor: 'text.primary',
                 textTransform: 'none',
                 fontWeight: 500,
-                '&:hover': { bgcolor: '#374151' }
+                '&:hover': { bgcolor: 'text.secondary' }
               }}
             >
               {suggestingOutfit ? 'Generating...' : 'Get Outfit Suggestion'}
@@ -487,16 +487,16 @@ function StylePanel() {
               sx={{
                 p: 6,
                 textAlign: 'center',
-                bgcolor: '#f9fafb',
+                bgcolor: 'action.hover',
                 borderRadius: 2,
                 border: '1px dashed #d1d5db',
               }}
             >
               <AutoAwesomeIcon sx={{ fontSize: 48, color: '#9ca3af', mb: 2 }} />
-              <Typography variant="h6" sx={{ mb: 1, color: '#374151' }}>
+              <Typography variant="h6" sx={{ mb: 1, color: 'text.secondary' }}>
                 No suggestions yet
               </Typography>
-              <Typography variant="body2" sx={{ color: '#6b7280' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 Click "Get Outfit Suggestion" to get AI-powered recommendations
               </Typography>
             </Box>
@@ -507,7 +507,7 @@ function StylePanel() {
                   key={idx}
                   sx={{
                     p: 3,
-                    bgcolor: '#fff',
+                    bgcolor: 'background.paper',
                     borderRadius: 2,
                     border: '1px solid #e5e7eb',
                   }}
@@ -525,7 +525,7 @@ function StylePanel() {
                     />
                   </Box>
                   
-                  <Typography variant="body2" sx={{ color: '#374151', mb: 2 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
                     {suggestion.description || 'A comfortable and stylish combination from your wardrobe.'}
                   </Typography>
                   
@@ -535,7 +535,7 @@ function StylePanel() {
                         key={i}
                         label={item.name || item}
                         variant="outlined"
-                        sx={{ borderColor: '#e5e7eb' }}
+                        sx={{ borderColor: 'divider' }}
                       />
                     ))}
                   </Box>
@@ -552,11 +552,11 @@ function StylePanel() {
           {statsLoading && <LinearProgress sx={{ mb: 2 }} />}
           <Grid container spacing={3}>
             <Grid item xs={6} sm={3}>
-              <Box sx={{ p: 3, bgcolor: '#f9fafb', borderRadius: 2, textAlign: 'center' }}>
-                <Typography variant="h4" sx={{ fontWeight: 600, color: '#171717' }}>
+              <Box sx={{ p: 3, bgcolor: 'action.hover', borderRadius: 2, textAlign: 'center' }}>
+                <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary' }}>
                   {stats.total}
                 </Typography>
-                <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   Total Items
                 </Typography>
               </Box>
@@ -566,14 +566,14 @@ function StylePanel() {
                 <Typography variant="h4" sx={{ fontWeight: 600, color: '#ef4444' }}>
                   {stats.favorites}
                 </Typography>
-                <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   Favorites
                 </Typography>
               </Box>
             </Grid>
           </Grid>
 
-          <Typography variant="subtitle2" sx={{ mt: 4, mb: 2, color: '#6b7280' }}>
+          <Typography variant="subtitle2" sx={{ mt: 4, mb: 2, color: 'text.secondary' }}>
             Items by Category
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -583,7 +583,7 @@ function StylePanel() {
                   <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
                     {cat}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                     {stats.byCategory?.[cat] || 0}
                   </Typography>
                 </Box>
@@ -593,8 +593,8 @@ function StylePanel() {
                   sx={{
                     height: 8,
                     borderRadius: 4,
-                    bgcolor: '#e5e7eb',
-                    '& .MuiLinearProgress-bar': { bgcolor: '#171717', borderRadius: 4 }
+                    bgcolor: 'divider',
+                    '& .MuiLinearProgress-bar': { bgcolor: 'text.primary', borderRadius: 4 }
                   }}
                 />
               </Box>
@@ -685,8 +685,8 @@ function StylePanel() {
                     sx={{
                       textTransform: 'capitalize',
                       ...(newItem.occasions.includes(occ) && {
-                        bgcolor: '#171717',
-                        color: '#fff',
+                        bgcolor: 'text.primary',
+                        color: 'background.paper',
                       })
                     }}
                   />
@@ -711,8 +711,8 @@ function StylePanel() {
                     sx={{
                       textTransform: 'capitalize',
                       ...(newItem.seasons.includes(season) && {
-                        bgcolor: '#171717',
-                        color: '#fff',
+                        bgcolor: 'text.primary',
+                        color: 'background.paper',
                       })
                     }}
                   />
@@ -754,9 +754,9 @@ function StylePanel() {
             onClick={handleSaveItem}
             disabled={!newItem.name}
             sx={{
-              bgcolor: '#171717',
+              bgcolor: 'text.primary',
               textTransform: 'none',
-              '&:hover': { bgcolor: '#374151' }
+              '&:hover': { bgcolor: 'text.secondary' }
             }}
           >
             {editingItem ? 'Save Changes' : 'Add Item'}

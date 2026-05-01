@@ -17,7 +17,7 @@ function JournalPanel({ onSave, initialValue = '' }) {
   };
 
   return (
-    <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+    <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
       <Typography variant="h6" sx={{ mb: 2 }}>
         Daily Journal
       </Typography>

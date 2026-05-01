@@ -191,7 +191,7 @@ export default function KitchenInventory() {
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 
       {/* Header */}
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
           <KitchenIcon sx={{ color: '#f59e0b' }} />
           <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#0f172a' }}>
@@ -201,14 +201,14 @@ export default function KitchenInventory() {
             <Typography variant="caption" sx={{ color: '#94a3b8', ml: 'auto' }}>Saving…</Typography>
           )}
         </Box>
-        <Typography variant="body2" sx={{ color: '#6b7280' }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
           Track what's in your kitchen. The meal plan generator uses this to suggest recipes you can actually make.
         </Typography>
       </Box>
 
       {/* Manual item entry */}
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: '#374151' }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: 'text.secondary' }}>
           Add Item Manually
         </Typography>
         <Box sx={{ display: 'flex', gap: 1.5 }}>
@@ -227,7 +227,7 @@ export default function KitchenInventory() {
             startIcon={<AddIcon />}
             sx={{
               textTransform: 'none', fontWeight: 600, borderRadius: 1.5,
-              bgcolor: '#f59e0b', color: '#fff', flexShrink: 0,
+              bgcolor: '#f59e0b', color: 'background.paper', flexShrink: 0,
               '&:hover': { bgcolor: '#d97706' }
             }}
           >
@@ -237,11 +237,11 @@ export default function KitchenInventory() {
       </Box>
 
       {/* OCR bill scanner */}
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#374151' }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.secondary' }}>
           Scan Grocery Bill (OCR)
         </Typography>
-        <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
           Take a photo of your grocery receipt or bill. We'll extract the item names automatically.
         </Typography>
 
@@ -259,7 +259,7 @@ export default function KitchenInventory() {
           disabled={ocrLoading}
           sx={{
             textTransform: 'none', borderRadius: 1.5, fontWeight: 600,
-            borderColor: '#e5e7eb', color: '#374151',
+            borderColor: 'divider', color: 'text.secondary',
             '&:hover': { borderColor: '#f59e0b', color: '#f59e0b', bgcolor: '#fffbeb' }
           }}
         >
@@ -274,7 +274,7 @@ export default function KitchenInventory() {
             <LinearProgress
               variant="determinate"
               value={ocrProgress}
-              sx={{ mt: 0.5, height: 6, borderRadius: 3, bgcolor: '#f3f4f6', '& .MuiLinearProgress-bar': { bgcolor: '#f59e0b' } }}
+              sx={{ mt: 0.5, height: 6, borderRadius: 3, bgcolor: 'action.selected', '& .MuiLinearProgress-bar': { bgcolor: '#f59e0b' } }}
             />
           </Box>
         )}
@@ -296,14 +296,14 @@ export default function KitchenInventory() {
               )}
               <Box sx={{ flex: 1, minWidth: 200 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     {ocrCandidates.length} items found — tap to deselect
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     <Button size="small" sx={{ textTransform: 'none', color: '#94a3b8', fontSize: '0.75rem' }} onClick={() => setSelectedCandidates([])}>
                       None
                     </Button>
-                    <Button size="small" sx={{ textTransform: 'none', color: '#374151', fontSize: '0.75rem' }} onClick={() => setSelectedCandidates(ocrCandidates)}>
+                    <Button size="small" sx={{ textTransform: 'none', color: 'text.secondary', fontSize: '0.75rem' }} onClick={() => setSelectedCandidates(ocrCandidates)}>
                       All
                     </Button>
                   </Box>
@@ -318,13 +318,13 @@ export default function KitchenInventory() {
                         label={item}
                         onClick={() => toggleCandidate(item)}
                         sx={{
-                          bgcolor: selected ? '#fef3c7' : '#f3f4f6',
-                          border: `1px solid ${selected ? '#f59e0b' : '#e5e7eb'}`,
-                          color: selected ? '#92400e' : '#6b7280',
+                          bgcolor: selected ? '#fef3c7' : 'action.selected',
+                          border: `1px solid ${selected ? '#f59e0b' : 'divider'}`,
+                          color: selected ? '#92400e' : 'text.secondary',
                           fontWeight: selected ? 600 : 400,
                           cursor: 'pointer',
                           transition: 'all 0.15s',
-                          '&:hover': { bgcolor: selected ? '#fde68a' : '#e5e7eb' }
+                          '&:hover': { bgcolor: selected ? '#fde68a' : 'divider' }
                         }}
                       />
                     )
@@ -338,7 +338,7 @@ export default function KitchenInventory() {
                   disabled={selectedCandidates.length === 0}
                   sx={{
                     textTransform: 'none', fontWeight: 700, borderRadius: 1.5,
-                    bgcolor: '#22c55e', color: '#fff',
+                    bgcolor: '#22c55e', color: 'background.paper',
                     '&:hover': { bgcolor: '#16a34a' },
                     '&:disabled': { bgcolor: '#d1fae5', color: '#86efac' }
                   }}
@@ -352,9 +352,9 @@ export default function KitchenInventory() {
       </Box>
 
       {/* Current inventory */}
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#374151' }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary' }}>
             In Your Kitchen
           </Typography>
           <Typography variant="caption" sx={{ color: '#94a3b8' }}>
@@ -362,11 +362,11 @@ export default function KitchenInventory() {
           </Typography>
         </Box>
 
-        {loading && <LinearProgress sx={{ borderRadius: 1, bgcolor: '#f3f4f6', '& .MuiLinearProgress-bar': { bgcolor: '#f59e0b' } }} />}
+        {loading && <LinearProgress sx={{ borderRadius: 1, bgcolor: 'action.selected', '& .MuiLinearProgress-bar': { bgcolor: '#f59e0b' } }} />}
 
         {!loading && items.length === 0 && (
           <Box sx={{ py: 4, textAlign: 'center' }}>
-            <KitchenIcon sx={{ fontSize: 40, color: '#e5e7eb', mb: 1 }} />
+            <KitchenIcon sx={{ fontSize: 40, color: 'divider', mb: 1 }} />
             <Typography variant="body2" sx={{ color: '#94a3b8' }}>
               Your kitchen is empty. Add items manually or scan a grocery bill.
             </Typography>
@@ -382,7 +382,7 @@ export default function KitchenInventory() {
                 onDelete={() => removeItem(item)}
                 deleteIcon={<DeleteIcon sx={{ fontSize: '14px !important' }} />}
                 sx={{
-                  bgcolor: '#f8fafc',
+                  bgcolor: 'background.default',
                   border: '1px solid #e2e8f0',
                   color: '#334155',
                   fontWeight: 500,

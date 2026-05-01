@@ -435,19 +435,19 @@ function Dashboard() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-        <CircularProgress sx={{ color: '#171717' }} />
+        <CircularProgress sx={{ color: 'text.primary' }} />
       </Box>
     )
   }
 
   const StatCard = ({ icon, label, value, unit, color }) => (
     <Box sx={{ textAlign: 'center', p: 2 }}>
-      <Box sx={{ color: color || '#6b7280', mb: 1 }}>{icon}</Box>
-      <Typography variant="h4" sx={{ fontWeight: 700, color: color || '#171717' }}>
+      <Box sx={{ color: color || 'text.secondary', mb: 1 }}>{icon}</Box>
+      <Typography variant="h4" sx={{ fontWeight: 700, color: color || 'text.primary' }}>
         {value}
-        {unit && <Typography component="span" variant="body2" sx={{ color: '#6b7280' }}>{unit}</Typography>}
+        {unit && <Typography component="span" variant="body2" sx={{ color: 'text.secondary' }}>{unit}</Typography>}
       </Typography>
-      <Typography variant="caption" sx={{ color: '#6b7280' }}>{label}</Typography>
+      <Typography variant="caption" sx={{ color: 'text.secondary' }}>{label}</Typography>
     </Box>
   )
 
@@ -560,7 +560,7 @@ function Dashboard() {
       {/* CENTER: Today's State */}
       <Box>
         <ProgressNarrative />
-        <Box sx={{ p: 4, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3, position: 'relative', overflow: 'hidden' }}>
+        <Box sx={{ p: 4, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', mb: 3, position: 'relative', overflow: 'hidden' }}>
           <GlowingEffect
             spread={40}
             glow={true}
@@ -571,14 +571,14 @@ function Dashboard() {
           />
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 600, color: '#171717' }}>
+              <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary' }}>
                 Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {user?.name?.split(' ')[0] || 'there'}
               </Typography>
-              <Typography variant="body2" sx={{ color: '#6b7280' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </Typography>
               {dayTone && (
-                <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: '#6b7280' }}>
+                <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'text.secondary' }}>
                   {dayTone}
                 </Typography>
               )}
@@ -592,13 +592,13 @@ function Dashboard() {
             )}
           </Box>
 
-          <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 2, fontWeight: 600 }}>
+          <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 2, fontWeight: 600 }}>
             {hasCheckedIn ? "Today's State" : "How are you feeling?"}
           </Typography>
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3, mb: 3 }}>
             {/* Energy */}
-            <Box sx={{ p: 2, bgcolor: '#fafafa', borderRadius: 2 }}>
+            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <BoltIcon sx={{ fontSize: 18, color: '#f59e0b' }} />
                 <Typography variant="body2" sx={{ fontWeight: 500 }}>Energy</Typography>
@@ -620,7 +620,7 @@ function Dashboard() {
             </Box>
 
             {/* Mood */}
-            <Box sx={{ p: 2, bgcolor: '#fafafa', borderRadius: 2 }}>
+            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <MoodIcon sx={{ fontSize: 18, color: '#8b5cf6' }} />
                 <Typography variant="body2" sx={{ fontWeight: 500 }}>Mood</Typography>
@@ -642,7 +642,7 @@ function Dashboard() {
             </Box>
 
             {/* Body Feel */}
-            <Box sx={{ p: 2, bgcolor: '#fafafa', borderRadius: 2 }}>
+            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <FitnessCenterIcon sx={{ fontSize: 18, color: '#10b981' }} />
                 <Typography variant="body2" sx={{ fontWeight: 500 }}>Body Feel</Typography>
@@ -664,7 +664,7 @@ function Dashboard() {
             </Box>
 
             {/* Hunger */}
-            <Box sx={{ p: 2, bgcolor: '#fafafa', borderRadius: 2 }}>
+            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <RestaurantIcon sx={{ fontSize: 18, color: '#ec4899' }} />
                 <Typography variant="body2" sx={{ fontWeight: 500 }}>Hunger</Typography>
@@ -686,7 +686,7 @@ function Dashboard() {
             </Box>
 
             {/* Sleep */}
-            <Box sx={{ p: 2, bgcolor: '#fafafa', borderRadius: 2 }}>
+            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <NightsStayIcon sx={{ fontSize: 18, color: '#6366f1' }} />
                 <Typography variant="body2" sx={{ fontWeight: 500 }}>Sleep</Typography>
@@ -717,12 +717,13 @@ function Dashboard() {
               disabled={submitting}
               sx={{
                 py: 1.5,
-                bgcolor: '#171717',
+                bgcolor: 'text.primary',
+                color: 'background.default',
                 textTransform: 'none',
                 fontWeight: 600,
                 borderRadius: 2,
                 boxShadow: 'none',
-                '&:hover': { bgcolor: '#374151', boxShadow: 'none' },
+                '&:hover': { bgcolor: 'text.secondary', boxShadow: 'none' },
               }}
             >
               {submitting ? 'Saving...' : 'Check In'}
@@ -748,16 +749,18 @@ function Dashboard() {
               onClick={() => navigateTo(action.section)}
               sx={{
                 p: 2,
-                bgcolor: action.color,
+                bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : action.color,
                 borderRadius: 2,
                 textAlign: 'center',
                 cursor: 'pointer',
+                border: '1px solid',
+                borderColor: (theme) => theme.palette.mode === 'dark' ? 'divider' : 'transparent',
                 transition: 'transform 0.15s',
                 '&:hover': { transform: 'translateY(-2px)' },
               }}
             >
               <Typography variant="h5" sx={{ mb: 0.5 }}>{action.icon}</Typography>
-              <Typography variant="body2" sx={{ fontWeight: 500, color: '#374151' }}>
+              <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
                 {action.label}
               </Typography>
             </Box>
@@ -767,7 +770,7 @@ function Dashboard() {
 
       {/* RIGHT: AI Reasoning */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', position: 'relative', overflow: 'hidden' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', position: 'relative', overflow: 'hidden' }}>
           <GlowingEffect
             spread={40}
             glow={true}
@@ -778,12 +781,12 @@ function Dashboard() {
           />
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             <TipsAndUpdatesIcon sx={{ color: '#f59e0b', fontSize: 20 }} />
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#171717' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
               Insights
             </Typography>
           </Box>
 
-          <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
             Insights are now centralized in the Insights tab.
           </Typography>
 
@@ -801,9 +804,9 @@ function Dashboard() {
               }}
               sx={{
                 textTransform: 'none',
-                borderColor: '#e5e7eb',
-                color: '#374151',
-                '&:hover': { borderColor: '#d1d5db', bgcolor: '#f9fafb' },
+                borderColor: 'divider',
+                color: 'text.secondary',
+                '&:hover': { borderColor: '#d1d5db', bgcolor: 'action.hover' },
               }}
             >
               Open Insights
@@ -822,9 +825,9 @@ function Dashboard() {
               }}
               sx={{
                 textTransform: 'none',
-                borderColor: '#e5e7eb',
-                color: '#374151',
-                '&:hover': { borderColor: '#d1d5db', bgcolor: '#f9fafb' },
+                borderColor: 'divider',
+                color: 'text.secondary',
+                '&:hover': { borderColor: '#d1d5db', bgcolor: 'action.hover' },
               }}
             >
               Open Insights
@@ -832,11 +835,11 @@ function Dashboard() {
           )}
         </Box>
 
-        <Box sx={{ p: 3, bgcolor: '#171717', borderRadius: 2, color: '#fff' }}>
+        <Box sx={{ p: 3, bgcolor: 'text.primary', borderRadius: 2, color: 'background.paper' }}>
           <Typography variant="subtitle2" sx={{ mb: 1, color: '#9ca3af' }}>
             AI Understanding
           </Typography>
-          <Typography variant="body2" sx={{ color: '#e5e7eb', lineHeight: 1.6, mb: 2 }}>
+          <Typography variant="body2" sx={{ color: 'divider', lineHeight: 1.6, mb: 2 }}>
             I'm learning your patterns. The more you check in, the better I understand:
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -854,14 +857,14 @@ function Dashboard() {
           </Box>
         </Box>
 
-        <Box sx={{ p: 3, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <TimelineIcon sx={{ fontSize: 18, color: '#6366f1' }} />
-            <Typography variant="subtitle2" sx={{ color: '#171717', fontWeight: 600 }}>
+            <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 600 }}>
               Patterns
             </Typography>
           </Box>
-          <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
             Pattern insights now live in the Insights tab.
           </Typography>
           <Button
@@ -877,9 +880,9 @@ function Dashboard() {
             }}
             sx={{
               textTransform: 'none',
-              borderColor: '#e5e7eb',
-              color: '#374151',
-              '&:hover': { borderColor: '#d1d5db', bgcolor: '#fff' },
+              borderColor: 'divider',
+              color: 'text.primary',
+              '&:hover': { borderColor: 'text.secondary', bgcolor: 'action.hover' },
             }}
           >
             Open Insights
@@ -887,12 +890,12 @@ function Dashboard() {
         </Box>
 
         {/* Mini Timeline */}
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="subtitle2" sx={{ color: '#171717', fontWeight: 600 }}>
+            <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 600 }}>
               Recent Timeline
             </Typography>
-            <Typography variant="caption" sx={{ color: '#9ca3af' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               Last 7 days
             </Typography>
           </Box>
@@ -906,7 +909,7 @@ function Dashboard() {
                 top: 8, 
                 bottom: 8, 
                 width: 2, 
-                bgcolor: '#e5e7eb',
+                bgcolor: 'divider',
                 borderRadius: 1,
               }} />
               
@@ -918,9 +921,7 @@ function Dashboard() {
                       width: 24,
                       height: 24,
                       borderRadius: '50%',
-                      bgcolor: event.type === 'mental' ? '#faf5ff'
-                             : event.type === 'fitness' ? '#eff6ff'
-                             : '#f0fdf4',
+                      bgcolor: 'background.paper',
                       border: `2px solid ${
                         event.type === 'mental' ? '#9333ea'
                         : event.type === 'fitness' ? '#2563eb'
@@ -939,14 +940,14 @@ function Dashboard() {
                     {/* Event content */}
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                        <Typography variant="body2" sx={{ fontWeight: 500, color: '#171717' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
                           {event.title}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: '#9ca3af', flexShrink: 0, ml: 1 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', flexShrink: 0, ml: 1 }}>
                           {event.date.toLocaleDateString('en-US', { weekday: 'short' })}
                         </Typography>
                       </Box>
-                      <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                         {event.detail}
                       </Typography>
                     </Box>

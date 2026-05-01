@@ -13,7 +13,7 @@ export default function ExpandableSection({ title, children, defaultOpen = false
         <IconButton size="small" sx={{ mr: 1 }}>
           {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
         </IconButton>
-        <Typography variant="caption" sx={{ fontWeight: 700, color: '#374151', userSelect: 'none' }}>{title}</Typography>
+        <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', userSelect: 'none' }}>{title}</Typography>
       </Box>
       {open && <Box sx={{ mt: 1 }}>{children}</Box>}
     </Box>

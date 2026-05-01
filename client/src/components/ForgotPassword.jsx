@@ -51,17 +51,17 @@ const ForgotPassword = () => {
         sx={{
           width: '100%',
           maxWidth: 400,
-          bgcolor: '#fff',
+          bgcolor: 'background.paper',
           borderRadius: 3,
           border: '1px solid #e5e7eb',
           p: 4,
         }}
       >
         <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <Typography variant="h5" sx={{ fontWeight: 700, color: '#171717', mb: 1 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary', mb: 1 }}>
             Forgot Password
           </Typography>
-          <Typography variant="body2" sx={{ color: '#6b7280' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Enter your email to get a reset link
           </Typography>
         </Box>
@@ -74,7 +74,7 @@ const ForgotPassword = () => {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              sx={{ '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: '#e5e7eb' }, '&:hover fieldset': { borderColor: '#d1d5db' }, '&.Mui-focused fieldset': { borderColor: '#171717' } }, '& .MuiInputLabel-root.Mui-focused': { color: '#171717' } }}
+              sx={{ '& .MuiOutlinedInput-root': { '& fieldset': { borderColor: 'divider' }, '&:hover fieldset': { borderColor: '#d1d5db' }, '&.Mui-focused fieldset': { borderColor: 'text.primary' } }, '& .MuiInputLabel-root.Mui-focused': { color: 'text.primary' } }}
             />
             {error && (
               <Typography variant="body2" sx={{ color: '#dc2626', textAlign: 'center' }}>
@@ -93,20 +93,20 @@ const ForgotPassword = () => {
               disabled={loading}
               sx={{
                 py: 1.5,
-                bgcolor: '#171717',
+                bgcolor: 'text.primary',
                 textTransform: 'none',
                 fontWeight: 600,
                 borderRadius: 2,
                 boxShadow: 'none',
-                '&:hover': { bgcolor: '#374151', boxShadow: 'none' },
+                '&:hover': { bgcolor: 'text.secondary', boxShadow: 'none' },
               }}
             >
-              {loading ? <CircularProgress size={24} sx={{ color: '#fff' }} /> : 'Send Reset Link'}
+              {loading ? <CircularProgress size={24} sx={{ color: 'background.paper' }} /> : 'Send Reset Link'}
             </Button>
             <Button
               variant="outlined"
               fullWidth
-              sx={{ mt: 1, borderRadius: 2, borderColor: '#e5e7eb', color: '#171717', fontWeight: 600, textTransform: 'none' }}
+              sx={{ mt: 1, borderRadius: 2, borderColor: 'divider', color: 'text.primary', fontWeight: 600, textTransform: 'none' }}
               onClick={() => window.location.href = '/'}
             >
               Return to Sign In

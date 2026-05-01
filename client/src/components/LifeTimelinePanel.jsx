@@ -76,7 +76,7 @@ function LifeTimelinePanel() {
 
   return (
     <Box>
-      <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280' }}>
+      <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary' }}>
         Recent Activity
       </Typography>
 
@@ -100,7 +100,7 @@ function LifeTimelinePanel() {
                   p: 2,
                   borderRadius: 1.5,
                   border: '1px solid #e5e7eb',
-                  bgcolor: '#fff',
+                  bgcolor: 'background.paper',
                   transition: 'border-color 0.15s',
                   '&:hover': { borderColor: '#d1d5db' },
                 }}
@@ -121,7 +121,7 @@ function LifeTimelinePanel() {
                 </Box>
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500, color: '#171717' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary' }}>
                       {e.title}
                     </Typography>
                     <Chip
@@ -136,7 +136,7 @@ function LifeTimelinePanel() {
                       }}
                     />
                   </Box>
-                  <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                     {e.summary}
                   </Typography>
                 </Box>

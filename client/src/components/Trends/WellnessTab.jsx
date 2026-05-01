@@ -47,7 +47,7 @@ function WellnessTab({
       <SleepArchitecture />
       <StressImpact />
 
-      <Box sx={{ mb: 4, p: 3, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+      <Box sx={{ mb: 4, p: 3, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid #e5e7eb' }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
           Date Explorer
         </Typography>
@@ -59,13 +59,13 @@ function WellnessTab({
           sx={{ maxWidth: 220 }}
           inputProps={{ max: defaultWellnessDayKey }}
         />
-        <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mt: 1 }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 1 }}>
           Tip for demos: pick a seeded date like 2025-12-15.
         </Typography>
       </Box>
 
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
-        <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+        <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>
           Today’s Life State (derived)
         </Typography>
 
@@ -74,7 +74,7 @@ function WellnessTab({
             {todayLifeStateError}
           </Typography>
         ) : todayLifeStateLoading ? (
-          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
             Loading today’s state…
           </Typography>
         ) : todayLifeState?.summaryState ? (
@@ -86,28 +86,28 @@ function WellnessTab({
                 : ''}
             </Typography>
             {Array.isArray(todayLifeState.summaryState.reasons) && todayLifeState.summaryState.reasons.length ? (
-              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mt: 0.75 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.75 }}>
                 {todayLifeState.summaryState.reasons.join(' • ')}
               </Typography>
             ) : null}
 
             {todayLifeStateReflection ? (
-              <Box sx={{ mt: 2, p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+              <Box sx={{ mt: 2, p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
                   Calm reflection
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.7 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', whiteSpace: 'pre-line', lineHeight: 1.7 }}>
                   {todayLifeStateReflection}
                 </Typography>
               </Box>
             ) : (
-              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mt: 1 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 1 }}>
                 No reflection generated (silence is normal when confidence is low).
               </Typography>
             )}
           </>
         ) : (
-          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
             No daily state yet. Add a check-in (sleep/stress/energy) or logs.
           </Typography>
         )}
@@ -135,14 +135,14 @@ function WellnessTab({
               .finally(() => setTodayLifeStateLoading(false))
           }}
           disabled={todayLifeStateLoading || !token}
-          sx={{ mt: 2, textTransform: 'none', borderColor: '#e5e7eb', color: '#374151' }}
+          sx={{ mt: 2, textTransform: 'none', borderColor: 'divider', color: 'text.secondary' }}
         >
           {todayLifeStateLoading ? 'Refreshing…' : 'Refresh'}
         </Button>
       </Box>
 
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
-        <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+        <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>
           Nutrition Review (medical-style)
         </Typography>
 
@@ -151,18 +151,18 @@ function WellnessTab({
             {nutritionReviewError}
           </Typography>
         ) : nutritionReviewLoading ? (
-          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
             Building nutrition review…
           </Typography>
         ) : nutritionReview ? (
           <>
-            <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 1 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
               confidence {Math.round((nutritionReview.confidence || 0) * 100)}% • completeness {Math.round((nutritionReview.completeness || 0) * 100)}%
             </Typography>
 
             {nutritionReviewNarration ? (
-              <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb', mb: 1.5 }}>
-                <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.7 }}>
+              <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid #e5e7eb', mb: 1.5 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', whiteSpace: 'pre-line', lineHeight: 1.7 }}>
                   {nutritionReviewNarration}
                 </Typography>
               </Box>
@@ -171,10 +171,10 @@ function WellnessTab({
             {Array.isArray(nutritionReview.flags) && nutritionReview.flags.length ? (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
                 {nutritionReview.flags.slice(0, 6).map((f) => (
-                  <Box key={f.key} sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                  <Box key={f.key} sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid #e5e7eb' }}>
                     <Typography variant="body2" sx={{ color: '#111827', fontWeight: 700 }}>
                       {f.title}
-                      <Typography component="span" variant="caption" sx={{ color: '#6b7280', fontWeight: 500, ml: 1 }}>
+                      <Typography component="span" variant="caption" sx={{ color: 'text.secondary', fontWeight: 500, ml: 1 }}>
                         ({f.severity})
                       </Typography>
                     </Typography>
@@ -182,7 +182,7 @@ function WellnessTab({
                 ))}
               </Box>
             ) : (
-              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                 No notable flags found for this day.
               </Typography>
             )}
@@ -190,17 +190,17 @@ function WellnessTab({
             {Array.isArray(nutritionReview.questionsForClinician) && nutritionReview.questionsForClinician.length ? (
               <>
                 <Divider sx={{ my: 2 }} />
-                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 1 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
                   Questions to discuss with a clinician (optional):
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.8 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', whiteSpace: 'pre-line', lineHeight: 1.8 }}>
                   {nutritionReview.questionsForClinician.map((q) => `• ${q}`).join('\n')}
                 </Typography>
               </>
             ) : null}
           </>
         ) : (
-          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
             No nutrition log found for this date.
           </Typography>
         )}
@@ -228,20 +228,20 @@ function WellnessTab({
               .finally(() => setNutritionReviewLoading(false))
           }}
           disabled={nutritionReviewLoading || !token}
-          sx={{ mt: 2, textTransform: 'none', borderColor: '#e5e7eb', color: '#374151' }}
+          sx={{ mt: 2, textTransform: 'none', borderColor: 'divider', color: 'text.secondary' }}
         >
           {nutritionReviewLoading ? 'Refreshing…' : 'Refresh'}
         </Button>
       </Box>
 
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', flex: 1, minWidth: 280 }}>
-          <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb', flex: 1, minWidth: 280 }}>
+          <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>
             AI Insight (check-in)
           </Typography>
           {checkinInsight?.text ? (
             <>
-              <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.7 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', whiteSpace: 'pre-line', lineHeight: 1.7 }}>
                 {checkinInsight.text}
               </Typography>
               {checkinInsight?.createdAt && (
@@ -251,7 +251,7 @@ function WellnessTab({
               )}
             </>
           ) : (
-            <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
               Generate an insight from your latest check-in.
             </Typography>
           )}
@@ -261,19 +261,19 @@ function WellnessTab({
             size="small"
             onClick={generateCheckinInsight}
             disabled={aiGenerating || !latestMentalLog}
-            sx={{ mt: 2, textTransform: 'none', borderColor: '#e5e7eb', color: '#374151' }}
+            sx={{ mt: 2, textTransform: 'none', borderColor: 'divider', color: 'text.secondary' }}
           >
             {aiGenerating ? 'Generating…' : 'Generate'}
           </Button>
         </Box>
 
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', flex: 1, minWidth: 280 }}>
-          <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb', flex: 1, minWidth: 280 }}>
+          <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>
             AI Insight (journal)
           </Typography>
           {journalInsight?.text ? (
             <>
-              <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.7 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', whiteSpace: 'pre-line', lineHeight: 1.7 }}>
                 {journalInsight.text}
               </Typography>
               {journalInsight?.createdAt && (
@@ -283,7 +283,7 @@ function WellnessTab({
               )}
             </>
           ) : (
-            <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
               Generate an insight from today’s journal.
             </Typography>
           )}
@@ -293,7 +293,7 @@ function WellnessTab({
             size="small"
             onClick={generateJournalInsight}
             disabled={aiGenerating || journalTodayLoading || !journalToday.trim()}
-            sx={{ mt: 2, textTransform: 'none', borderColor: '#e5e7eb', color: '#374151' }}
+            sx={{ mt: 2, textTransform: 'none', borderColor: 'divider', color: 'text.secondary' }}
           >
             {journalTodayLoading ? 'Loading journal…' : aiGenerating ? 'Generating…' : 'Generate'}
           </Button>
@@ -302,26 +302,26 @@ function WellnessTab({
 
       <Divider sx={{ mb: 3 }} />
 
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
-        <Typography variant="subtitle2" sx={{ color: '#6b7280', mb: 1 }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
+        <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>
           Pattern Insights
         </Typography>
 
         {patterns.length > 0 ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
             {patterns.map((p, idx) => (
-              <Box key={idx} sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-                <Typography variant="body2" sx={{ color: '#374151', fontWeight: 600, mb: 0.5 }}>
+              <Box key={idx} sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5 }}>
                   {p.insight}
                 </Typography>
-                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                   {p.action}
                 </Typography>
               </Box>
             ))}
           </Box>
         ) : (
-          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
             Keep logging to discover patterns.
           </Typography>
         )}
@@ -333,8 +333,8 @@ function WellnessTab({
         <StatCard label="Avg Sleep" value={calcAvg(data.mental, 'sleepHours')} unit="hrs" trend={3} />
       </Box>
       {data.mental.length > 0 && (
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-          <Typography variant="subtitle2" sx={{ mb: 3, color: '#6b7280' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Typography variant="subtitle2" sx={{ mb: 3, color: 'text.secondary' }}>
             Mood (last 7 days)
           </Typography>
           <BarChart items={data.mental} maxValue={10} valueKey="moodScore" labelKey="date" />

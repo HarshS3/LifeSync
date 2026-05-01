@@ -110,10 +110,10 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
             borderRadius: 1,
             position: 'relative',
             bgcolor: isToday ? '#3b82f6' : 'transparent',
-            color: isToday ? '#fff' : '#171717',
+            color: isToday ? 'background.paper' : 'text.primary',
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': {
-              bgcolor: isToday ? '#2563eb' : '#f3f4f6',
+              bgcolor: isToday ? '#2563eb' : 'action.selected',
               transform: 'scale(1.05)'
             },
             '&:active': { 
@@ -149,7 +149,7 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
                     bgcolor: type === 'workout' ? '#2563eb'
                            : type === 'mental' ? '#9333ea'
                            : type === 'nutrition' ? '#15803d'
-                           : '#6b7280',
+                           : 'text.secondary',
                     border: type === 'workout' ? '2px solid #2563eb' : 'none',
                     opacity: type === 'workout' ? 0.8 : 1,
                   }}
@@ -223,7 +223,7 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
             onClick={prevMonth}
             sx={{
               transition: 'all 0.2s ease',
-              '&:hover': { bgcolor: '#f3f4f6', transform: 'translateX(-2px)' },
+              '&:hover': { bgcolor: 'action.selected', transform: 'translateX(-2px)' },
               '&:active': { transform: 'translateX(0px)' },
               '&:focus': { outline: '2px solid #1f2937' }
             }}
@@ -238,7 +238,7 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
             onClick={nextMonth}
             sx={{
               transition: 'all 0.2s ease',
-              '&:hover': { bgcolor: '#f3f4f6', transform: 'translateX(2px)' },
+              '&:hover': { bgcolor: 'action.selected', transform: 'translateX(2px)' },
               '&:active': { transform: 'translateX(0px)' },
               '&:focus': { outline: '2px solid #1f2937' }
             }}
@@ -251,7 +251,7 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
             label="Today" 
             size="small" 
             onClick={goToToday}
-            sx={{ cursor: 'pointer', bgcolor: '#f3f4f6' }}
+            sx={{ cursor: 'pointer', bgcolor: 'action.selected' }}
           />
         )}
       </Box>
@@ -262,7 +262,7 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
           <Typography 
             key={day} 
             variant="caption" 
-            sx={{ textAlign: 'center', color: '#6b7280', fontWeight: 600 }}
+            sx={{ textAlign: 'center', color: 'text.secondary', fontWeight: 600 }}
           >
             {compact ? day[0] : day}
           </Typography>
@@ -279,7 +279,7 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
         <Box sx={{ display: 'flex', gap: 2, mt: 2, justifyContent: 'center' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#2563eb' }} />
-            <Typography variant="caption" sx={{ color: '#6b7280' }}>Workout</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>Workout</Typography>
           </Box>
         </Box>
       )}
@@ -320,14 +320,14 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
                     </Typography>
                   </Box>
                   {event.details && (
-                    <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                       {event.details}
                     </Typography>
                   )}
                   {event.exercises && (
                     <Box sx={{ mt: 1 }}>
                       {event.exercises.map((ex, i) => (
-                        <Typography key={i} variant="caption" sx={{ display: 'block', color: '#6b7280' }}>
+                        <Typography key={i} variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
                           • {ex.name}: {ex.sets?.length || 0} sets
                         </Typography>
                       ))}

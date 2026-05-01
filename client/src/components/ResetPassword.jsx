@@ -89,7 +89,7 @@ const ResetPassword = () => {
         sx={{
           width: '100%',
           maxWidth: 400,
-          bgcolor: '#ffffff',
+          bgcolor: 'background.paper',
           borderRadius: 3,
           border: '1px solid rgba(22, 19, 16, 0.10)',
           boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
@@ -164,7 +164,7 @@ const ResetPassword = () => {
                 '&:hover': { bgcolor: '#000000' },
               }}
             >
-              {loading ? <CircularProgress size={24} sx={{ color: '#fff' }} /> : 'Update Password'}
+              {loading ? <CircularProgress size={24} sx={{ color: 'background.paper' }} /> : 'Update Password'}
             </Button>
 
             <Button

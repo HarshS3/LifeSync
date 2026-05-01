@@ -12,6 +12,7 @@ import Stack from '@mui/material/Stack'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
+import { useTheme } from '@mui/material/styles'
 
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
@@ -57,6 +58,7 @@ function normalizeResults(rows) {
 
 function LabsPanel() {
   const { token } = useAuth()
+  const theme = useTheme()
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -138,8 +140,6 @@ function LabsPanel() {
       const data = await res.json().catch(() => null)
       const text = String(data?.text || '')
       setOcrText(text)
-      // For now: print OCR output in console (as requested)
-      // Server also prints it.
       // eslint-disable-next-line no-console
       console.log('[Lab OCR] Extracted text:\n' + text)
     } catch (e) {
@@ -266,10 +266,10 @@ function LabsPanel() {
   return (
     <Box>
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: '#171717' }}>
+        <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
           Labs
         </Typography>
-        <Typography variant="body2" sx={{ color: '#6b7280' }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
           Store lab panels and track changes over time.
         </Typography>
       </Box>
@@ -284,11 +284,11 @@ function LabsPanel() {
         </Alert>
       )}
 
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', mb: 3 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#171717', mb: 1 }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', mb: 3 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary', mb: 1 }}>
           OCR (image → text)
         </Typography>
-        <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
           Upload a lab image to extract text. (Temporary: prints OCR output to console.)
         </Typography>
 
@@ -314,7 +314,7 @@ function LabsPanel() {
             />
           </Button>
 
-          <Typography variant="body2" sx={{ color: '#6b7280', flex: 1 }} noWrap>
+          <Typography variant="body2" sx={{ color: 'text.secondary', flex: 1 }} noWrap>
             {ocrFile ? ocrFile.name : 'No file selected'}
           </Typography>
 
@@ -343,9 +343,9 @@ function LabsPanel() {
         }}
       >
         {/* List */}
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#171717' }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>
               Recent reports
             </Typography>
             <Button variant="outlined" onClick={load} disabled={loading || !token}>
@@ -357,10 +357,10 @@ function LabsPanel() {
 
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-              <CircularProgress sx={{ color: '#171717' }} />
+              <CircularProgress color="primary" />
             </Box>
           ) : reports.length === 0 ? (
-            <Typography variant="body2" sx={{ color: '#6b7280' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               No lab reports yet.
             </Typography>
           ) : (
@@ -373,16 +373,17 @@ function LabsPanel() {
                     sx={{
                       p: 2,
                       borderRadius: 2,
-                      border: '1px solid #e5e7eb',
-                      bgcolor: editingId === r._id ? '#f9fafb' : '#fff',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: editingId === r._id ? 'action.selected' : 'background.paper',
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
                       <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="body1" sx={{ fontWeight: 600, color: '#171717' }} noWrap>
+                        <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }} noWrap>
                           {r.panelName}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           {r.date ? new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                           {Array.isArray(r.results) ? ` • ${r.results.length} results` : ''}
                         </Typography>
@@ -393,7 +394,7 @@ function LabsPanel() {
                           <Chip
                             size="small"
                             label={`${abn} flagged`}
-                            sx={{ bgcolor: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' }}
+                            sx={{ bgcolor: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
                           />
                         )}
                         <IconButton size="small" onClick={() => startEdit(r)} title="Edit">
@@ -406,7 +407,7 @@ function LabsPanel() {
                     </Box>
 
                     {!!r.notes && (
-                      <Typography variant="body2" sx={{ color: '#374151', mt: 1, whiteSpace: 'pre-wrap' }}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1, whiteSpace: 'pre-wrap' }}>
                         {r.notes}
                       </Typography>
                     )}
@@ -422,9 +423,10 @@ function LabsPanel() {
                               size="small"
                               label={`${x.name}: ${x.value}${x.unit ? ` ${x.unit}` : ''} (${x.flag})`}
                               sx={{
-                                bgcolor: x.flag === 'high' ? '#fee2e2' : '#fef3c7',
-                                border: '1px solid #e5e7eb',
-                                color: '#171717',
+                                bgcolor: x.flag === 'high' ? 'rgba(239,68,68,0.12)' : 'rgba(234,179,8,0.12)',
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                color: 'text.primary',
                               }}
                             />
                           ))}
@@ -438,8 +440,8 @@ function LabsPanel() {
         </Box>
 
         {/* Editor */}
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#171717', mb: 2 }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary', mb: 2 }}>
             {editingId ? 'Edit lab report' : 'New lab report'}
           </Typography>
 
@@ -481,7 +483,7 @@ function LabsPanel() {
             <Divider />
 
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Typography variant="subtitle2" sx={{ color: '#6b7280' }}>
+              <Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>
                 Results
               </Typography>
               <Button
@@ -499,9 +501,10 @@ function LabsPanel() {
                   key={idx}
                   sx={{
                     p: 1.5,
-                    border: '1px solid #e5e7eb',
+                    border: '1px solid',
+                    borderColor: 'divider',
                     borderRadius: 2,
-                    bgcolor: '#fafafa',
+                    bgcolor: 'action.hover',
                   }}
                 >
                   <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 120px 90px' }, gap: 1.25 }}>

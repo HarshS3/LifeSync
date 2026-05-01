@@ -34,7 +34,7 @@ const SatietyProfile = () => {
   if (loading) return <Skeleton variant="rectangular" height={160} sx={{ borderRadius: 3, mb: 3 }} />
   if (!data || data.status === 'insufficient_data') {
     return (
-      <Paper sx={{ p: 3, borderRadius: 3, bgcolor: '#f8fafc', border: '1px dashed #cbd5e1', textAlign: 'center', mb: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3, bgcolor: 'background.default', border: '1px dashed #cbd5e1', textAlign: 'center', mb: 3 }}>
         <RestaurantIcon sx={{ color: '#94a3b8', fontSize: 40, mb: 1 }} />
         <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#475569' }}>
           Satiety Patterns: Mapping...

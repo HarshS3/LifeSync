@@ -386,8 +386,8 @@ function TrendsPanel() {
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: '#171717' }}>Insights</Typography>
-      <Typography variant="body2" sx={{ mb: 4, color: '#6b7280' }}>Insights from your logged data</Typography>
+      <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>Insights</Typography>
+      <Typography variant="body2" sx={{ mb: 4, color: 'text.secondary' }}>Insights from your logged data</Typography>
 
       <Box sx={{ borderBottom: '1px solid #e5e7eb', mb: 4 }}>
         <Tabs
@@ -397,10 +397,10 @@ function TrendsPanel() {
             '& .MuiTab-root': {
               textTransform: 'none',
               fontWeight: 500,
-              color: '#6b7280',
-              '&.Mui-selected': { color: '#171717' },
+              color: 'text.secondary',
+              '&.Mui-selected': { color: 'text.primary' },
             },
-            '& .MuiTabs-indicator': { bgcolor: '#171717', height: 2 },
+            '& .MuiTabs-indicator': { bgcolor: 'text.primary', height: 2 },
           }}
         >
           <Tab label="Training" />
@@ -462,8 +462,8 @@ function TrendsPanel() {
       )}
 
       {data.fitness.length === 0 && data.nutrition.length === 0 && data.mental.length === 0 && activeTab !== 3 && (
-        <Box sx={{ p: 6, textAlign: 'center', bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb', mt: 3 }}>
-          <Typography variant="body1" sx={{ color: '#6b7280', mb: 1 }}>No data yet</Typography>
+        <Box sx={{ p: 6, textAlign: 'center', bgcolor: 'action.hover', borderRadius: 2, border: '1px solid #e5e7eb', mt: 3 }}>
+          <Typography variant="body1" sx={{ color: 'text.secondary', mb: 1 }}>No data yet</Typography>
           <Typography variant="body2" sx={{ color: '#9ca3af' }}>Start logging your activities to see trends here</Typography>
         </Box>
       )}

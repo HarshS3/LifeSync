@@ -115,7 +115,7 @@ export default function GlbModelViewer({
         <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#111827' }}>
           {title}
         </Typography>
-        <Typography variant="body2" sx={{ color: '#6b7280', mt: 0.5 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
           No model source provided.
         </Typography>
       </Box>
@@ -125,7 +125,7 @@ export default function GlbModelViewer({
   return (
     <Box sx={{ border: '1px solid #e5e7eb', borderRadius: 2, overflow: 'hidden', bgcolor: '#0b0f14' }}>
       <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#f9fafb' }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'action.hover' }}>
           {title}
         </Typography>
         <Typography variant="caption" sx={{ color: 'rgba(249,250,251,0.72)' }}>

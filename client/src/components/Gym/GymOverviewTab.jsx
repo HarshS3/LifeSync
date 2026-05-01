@@ -21,17 +21,17 @@ const GlbModelViewer = lazy(() => import('../GlbModelViewer.jsx'))
 const DEFAULT_BODY_MODEL_GLB_URL = new URL('../../assets/Untitled.glb', import.meta.url).href
 
 const StatCard = ({ icon, label, value, sublabel, color }) => (
-  <Box sx={{ p: 2, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+  <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
       <Box sx={{ p: 1, borderRadius: 1.5, bgcolor: `${color}10`, color }}>
         {React.cloneElement(icon, { fontSize: 'small' })}
       </Box>
-      <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 600 }}>
+      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
         {label}
       </Typography>
     </Box>
     <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-      <Typography variant="h5" sx={{ fontWeight: 700, color: '#171717' }}>
+      <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary' }}>
         {value}
       </Typography>
       {sublabel && (
@@ -101,7 +101,7 @@ function GymOverviewTab({
 
       {/* Performance Charts */}
       <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
             <BarChartIcon sx={{ color: '#8b5cf6' }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
@@ -160,7 +160,7 @@ function GymOverviewTab({
 
       {/* Training Insights - Advanced Analysis */}
       <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
             <AutoGraphIcon sx={{ color: '#38bdf8' }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
@@ -175,11 +175,11 @@ function GymOverviewTab({
 
       {/* AI Suggestions */}
       <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
             AI Suggestions
           </Typography>
-          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 2 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 2 }}>
             Generated only when you ask—useful for demo or low-friction planning.
           </Typography>
 
@@ -207,22 +207,22 @@ function GymOverviewTab({
           {(aiWorkoutSuggestion || aiRecoverySuggestion) ? (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {aiWorkoutSuggestion ? (
-                <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-                  <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
                     Today’s Workout
                   </Typography>
-                  <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: '#374151', lineHeight: 1.7 }}>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary', lineHeight: 1.7 }}>
                     {aiWorkoutSuggestion}
                   </Typography>
                 </Box>
               ) : null}
 
               {aiRecoverySuggestion ? (
-                <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-                  <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
                     Recovery + Adjustment
                   </Typography>
-                  <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: '#374151', lineHeight: 1.7 }}>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary', lineHeight: 1.7 }}>
                     {aiRecoverySuggestion}
                   </Typography>
                 </Box>
@@ -238,7 +238,7 @@ function GymOverviewTab({
 
       {/* Life Sync: Cross-Domain Correlation */}
       <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-        <Box sx={{ p: 3, bgcolor: '#0f172a', borderRadius: 2, border: '1px solid rgba(56, 189, 248, 0.2)', color: '#fff' }}>
+        <Box sx={{ p: 3, bgcolor: '#0f172a', borderRadius: 2, border: '1px solid rgba(56, 189, 248, 0.2)', color: 'background.paper' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
             <InsightsIcon sx={{ color: '#38bdf8' }} />
             <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#38bdf8' }}>
@@ -264,7 +264,7 @@ function GymOverviewTab({
                 <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
                 <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
                 <Tooltip 
-                  contentStyle={{ bgcolor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                  contentStyle={{ bgcolor: '#1e293b', border: 'none', borderRadius: '8px', color: 'background.paper' }}
                 />
                 <Line 
                   yAxisId="left"
@@ -306,7 +306,7 @@ function GymOverviewTab({
               {correlatedInsights.map((insight, idx) => (
                 <Box key={idx} sx={{ 
                   p: 3, 
-                  bgcolor: '#fff', 
+                  bgcolor: 'background.paper', 
                   borderRadius: 2, 
                   borderLeft: `6px solid ${insight.impact === 'high' ? '#ef4444' : '#f97316'}`,
                   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
@@ -317,7 +317,7 @@ function GymOverviewTab({
                   <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.6, mb: 2 }}>
                     {insight.detail}
                   </Typography>
-                  <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px dashed #e2e8f0' }}>
+                  <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1.5, border: '1px dashed #e2e8f0' }}>
                     <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
                       Recommended Action
                     </Typography>
@@ -334,12 +334,12 @@ function GymOverviewTab({
 
       {/* Monthly Muscle Heatmap */}
       <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 2, mb: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
               Muscle Heatmap (30 days)
             </Typography>
-            <Typography variant="caption" sx={{ color: '#6b7280' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               Based on logged sets
             </Typography>
           </Box>
@@ -351,7 +351,7 @@ function GymOverviewTab({
               </Box>
               {/* === TEMPORARILY DISABLED 3D MODEL === 
               <Suspense fallback={
-                <Box sx={{ height: 420, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
+                <Box sx={{ height: 420, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default', borderRadius: 2, border: '1px solid #e2e8f0' }}>
                   <Typography variant="body2" sx={{ color: '#94a3b8' }}>Loading 3D Body Model...</Typography>
                 </Box>
               }>
@@ -374,7 +374,7 @@ function GymOverviewTab({
       </Box>
 
       {/* Weekly Hypertrophy Volume (Hard Sets) */}
-      <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+      <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
             Weekly Hypertrophy Volume
@@ -388,7 +388,7 @@ function GymOverviewTab({
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
           {Object.entries(stats.muscleDistribution || {}).map(([muscle, sets]) => (
             <Box key={muscle} sx={{ minWidth: 80 }}>
-              <Typography variant="caption" sx={{ color: '#6b7280', textTransform: 'capitalize' }}>{muscle}</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'capitalize' }}>{muscle}</Typography>
               <Typography variant="body2" sx={{ fontWeight: 700 }}>{sets} sets</Typography>
             </Box>
           ))}

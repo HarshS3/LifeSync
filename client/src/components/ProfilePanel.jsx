@@ -22,15 +22,15 @@ import ChipListInput from './ChipListInput'
 
 const inputSx = {
   '& .MuiOutlinedInput-root': {
-    '& fieldset': { borderColor: '#e5e7eb' },
+    '& fieldset': { borderColor: 'divider' },
     '&:hover fieldset': { borderColor: '#d1d5db' },
-    '&.Mui-focused fieldset': { borderColor: '#171717' },
+    '&.Mui-focused fieldset': { borderColor: 'text.primary' },
   },
-  '& .MuiInputLabel-root.Mui-focused': { color: '#171717' },
+  '& .MuiInputLabel-root.Mui-focused': { color: 'text.primary' },
 }
 
 const SectionTitle = ({ children }) => (
-  <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
+  <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
     {children}
   </Typography>
 )
@@ -1110,7 +1110,7 @@ function ProfilePanel() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-        <CircularProgress sx={{ color: '#171717' }} />
+        <CircularProgress sx={{ color: 'text.primary' }} />
       </Box>
     )
   }
@@ -1121,10 +1121,10 @@ function ProfilePanel() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
         <Box>
-          <Typography variant="h5" sx={{ mb: 0.5, fontWeight: 600, color: '#171717' }}>
+          <Typography variant="h5" sx={{ mb: 0.5, fontWeight: 600, color: 'text.primary' }}>
             Your Profile
           </Typography>
-          <Typography variant="body2" sx={{ color: '#6b7280' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             The more you share, the smarter your recommendations become
           </Typography>
         </Box>
@@ -1133,12 +1133,12 @@ function ProfilePanel() {
           onClick={handleSave}
           disabled={saving}
           sx={{
-            bgcolor: '#171717',
+            bgcolor: 'text.primary',
             textTransform: 'none',
             fontWeight: 600,
             px: 3,
             boxShadow: 'none',
-            '&:hover': { bgcolor: '#374151', boxShadow: 'none' },
+            '&:hover': { bgcolor: 'text.secondary', boxShadow: 'none' },
           }}
         >
           {saving ? 'Saving...' : 'Save All'}
@@ -1155,12 +1155,12 @@ function ProfilePanel() {
             '& .MuiTab-root': {
               textTransform: 'none',
               fontWeight: 500,
-              color: '#6b7280',
+              color: 'text.secondary',
               minWidth: 'auto',
               px: 2,
-              '&.Mui-selected': { color: '#171717' },
+              '&.Mui-selected': { color: 'text.primary' },
             },
-            '& .MuiTabs-indicator': { bgcolor: '#171717', height: 2 },
+            '& .MuiTabs-indicator': { bgcolor: 'text.primary', height: 2 },
           }}
         >
           {tabs.map((tab) => (
@@ -1174,12 +1174,12 @@ function ProfilePanel() {
         {activeTab === 0 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 2 }}>
-              <Avatar sx={{ width: 72, height: 72, bgcolor: '#171717', fontSize: 28 }}>
+              <Avatar sx={{ width: 72, height: 72, bgcolor: 'text.primary', fontSize: 28 }}>
                 {profile.name?.[0]?.toUpperCase() || 'U'}
               </Avatar>
               <Box>
                 <Typography variant="body1" sx={{ fontWeight: 500 }}>{profile.name || 'Your Name'}</Typography>
-                <Typography variant="body2" sx={{ color: '#6b7280' }}>{profile.email}</Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>{profile.email}</Typography>
               </Box>
             </Box>
 
@@ -1318,15 +1318,15 @@ function ProfilePanel() {
                   onChange={(e) => setNewMedication(prev => ({ ...prev, schedule: e.target.value }))}
                   sx={{ ...inputSx, flex: 1 }}
                 />
-                <IconButton onClick={addMedication} sx={{ bgcolor: '#f3f4f6' }}>
+                <IconButton onClick={addMedication} sx={{ bgcolor: 'action.selected' }}>
                   <AddIcon fontSize="small" />
                 </IconButton>
               </Box>
               {profile.medications.map((med, idx) => (
-                <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
+                <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
                   <Typography variant="body2" sx={{ flex: 2, fontWeight: 500 }}>{med.name}</Typography>
-                  <Typography variant="body2" sx={{ flex: 1, color: '#6b7280' }}>{med.dosage}</Typography>
-                  <Typography variant="body2" sx={{ flex: 1, color: '#6b7280' }}>{med.schedule}</Typography>
+                  <Typography variant="body2" sx={{ flex: 1, color: 'text.secondary' }}>{med.dosage}</Typography>
+                  <Typography variant="body2" sx={{ flex: 1, color: 'text.secondary' }}>{med.schedule}</Typography>
                   <IconButton size="small" onClick={() => removeMedication(idx)}>
                     <DeleteOutlineIcon fontSize="small" />
                   </IconButton>
@@ -1345,7 +1345,7 @@ function ProfilePanel() {
 
             <Box>
               <SectionTitle>Key Lab Markers</SectionTitle>
-              <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
                 Track a small set of labs that explain most fatigue, mood, recovery, and metabolic stability signals.
               </Typography>
 
@@ -1463,8 +1463,8 @@ function ProfilePanel() {
                   <Box sx={{ flex: 1 }} />
                 </Box>
 
-                <Box sx={{ mt: 1, p: 2, bgcolor: '#f9fafb', borderRadius: 1, border: '1px solid #e5e7eb' }}>
-                  <Typography variant="subtitle2" sx={{ mb: 1, color: '#374151', fontWeight: 600 }}>
+                <Box sx={{ mt: 1, p: 2, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid #e5e7eb' }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 600 }}>
                     Update from Lab Report (OCR)
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1477,7 +1477,7 @@ function ProfilePanel() {
                       variant="outlined"
                       disabled={!ocrFile || ocrLoading}
                       onClick={importLabMarkersFromOcr}
-                      sx={{ textTransform: 'none', borderColor: '#171717', color: '#171717', '&:hover': { borderColor: '#374151' } }}
+                      sx={{ textTransform: 'none', borderColor: 'text.primary', color: 'text.primary', '&:hover': { borderColor: 'text.secondary' } }}
                     >
                       {ocrLoading ? 'Reading...' : 'Import from Image'}
                     </Button>
@@ -1487,7 +1487,7 @@ function ProfilePanel() {
                       </Typography>
                     ) : null}
                   </Box>
-                  <Typography variant="body2" sx={{ color: '#6b7280', mt: 1 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
                     This will auto-fill the fields above; click “Save All” to persist.
                   </Typography>
                 </Box>
@@ -1501,7 +1501,7 @@ function ProfilePanel() {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>Metabolic & Dietary Engine Profile</Typography>
-              <Typography variant="body2" sx={{ color: '#6b7280', mb: 3 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
                 We use the scientific Mifflin-St Jeor / Katch-McArdle formulas to compute highly personalized clinical 
                 caloric and deep micronutrient targets (NIH DRIs) based on these precise biological metrics.
               </Typography>
@@ -1614,8 +1614,8 @@ function ProfilePanel() {
                       }}
                       sx={{
                         flex: 1,
-                        bgcolor: (profile.biologicalProfile?.biologicalSex || profile.gender) === val ? '#171717' : '#f3f4f6',
-                        color: (profile.biologicalProfile?.biologicalSex || profile.gender) === val ? '#fff' : '#374151',
+                        bgcolor: (profile.biologicalProfile?.biologicalSex || profile.gender) === val ? 'text.primary' : 'action.selected',
+                        color: (profile.biologicalProfile?.biologicalSex || profile.gender) === val ? 'background.paper' : 'text.secondary',
                       }}
                     />
                   ))}
@@ -1652,8 +1652,8 @@ function ProfilePanel() {
                       onClick={() => updateBiologicalProfileField('hypertension', val)}
                       sx={{
                         flex: 1,
-                        bgcolor: profile.biologicalProfile?.hypertension === val ? '#171717' : '#f3f4f6',
-                        color: profile.biologicalProfile?.hypertension === val ? '#fff' : '#374151',
+                        bgcolor: profile.biologicalProfile?.hypertension === val ? 'text.primary' : 'action.selected',
+                        color: profile.biologicalProfile?.hypertension === val ? 'background.paper' : 'text.secondary',
                       }}
                     />
                   ))}
@@ -1676,8 +1676,8 @@ function ProfilePanel() {
                     label={act.label}
                     onClick={() => updateBiologicalProfileField('activityLevel', act.id)}
                     sx={{
-                      bgcolor: profile.biologicalProfile?.activityLevel === act.id ? '#171717' : '#f3f4f6',
-                      color: profile.biologicalProfile?.activityLevel === act.id ? '#fff' : '#374151',
+                      bgcolor: profile.biologicalProfile?.activityLevel === act.id ? 'text.primary' : 'action.selected',
+                      color: profile.biologicalProfile?.activityLevel === act.id ? 'background.paper' : 'text.secondary',
                     }}
                   />
                 ))}
@@ -1699,8 +1699,8 @@ function ProfilePanel() {
                     label={goal.label}
                     onClick={() => updateBiologicalProfileField('metabolicGoal', goal.id)}
                     sx={{
-                      bgcolor: profile.biologicalProfile?.metabolicGoal === goal.id ? '#171717' : '#f3f4f6',
-                      color: profile.biologicalProfile?.metabolicGoal === goal.id ? '#fff' : '#374151',
+                      bgcolor: profile.biologicalProfile?.metabolicGoal === goal.id ? 'text.primary' : 'action.selected',
+                      color: profile.biologicalProfile?.metabolicGoal === goal.id ? 'background.paper' : 'text.secondary',
                     }}
                   />
                 ))}
@@ -1716,9 +1716,9 @@ function ProfilePanel() {
                     label={diet.charAt(0).toUpperCase() + diet.slice(1)}        
                     onClick={() => updateBiologicalProfileField('dietaryPreference', diet)}
                     sx={{
-                      bgcolor: profile.biologicalProfile?.dietaryPreference === diet ? '#171717' : '#f3f4f6',
-                      color: profile.biologicalProfile?.dietaryPreference === diet ? '#fff' : '#374151',    
-                      '&:hover': { bgcolor: profile.biologicalProfile?.dietaryPreference === diet ? '#171717' : '#e5e7eb' },
+                      bgcolor: profile.biologicalProfile?.dietaryPreference === diet ? 'text.primary' : 'action.selected',
+                      color: profile.biologicalProfile?.dietaryPreference === diet ? 'background.paper' : 'text.secondary',    
+                      '&:hover': { bgcolor: profile.biologicalProfile?.dietaryPreference === diet ? 'text.primary' : 'divider' },
                     }}
                   />
                 ))}
@@ -1735,13 +1735,13 @@ function ProfilePanel() {
                 min={1}
                 max={6}
                 step={1}
-                sx={{ color: '#171717' }}
+                sx={{ color: 'text.primary' }}
               />
             </Box>
 
             <Box>
               <SectionTitle>Typical Meal Schedule</SectionTitle>
-              <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
                 Used by the Nutrition Agent to automatically assign meal times if you don't mention a specific time in your log.
               </Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 2 }}>
@@ -1793,7 +1793,7 @@ function ProfilePanel() {
                 onChange={(e, v) => updateField('hydrationGoal', v)}
                 min={4}
                 max={16}
-                sx={{ color: '#171717' }}
+                sx={{ color: 'text.primary' }}
               />
             </Box>
 
@@ -1836,9 +1836,9 @@ function ProfilePanel() {
                     label={level.charAt(0).toUpperCase() + level.slice(1)}
                     onClick={() => updateField('trainingExperience', level)}
                     sx={{
-                      bgcolor: profile.trainingExperience === level ? '#171717' : '#f3f4f6',
-                      color: profile.trainingExperience === level ? '#fff' : '#374151',
-                      '&:hover': { bgcolor: profile.trainingExperience === level ? '#171717' : '#e5e7eb' },
+                      bgcolor: profile.trainingExperience === level ? 'text.primary' : 'action.selected',
+                      color: profile.trainingExperience === level ? 'background.paper' : 'text.secondary',
+                      '&:hover': { bgcolor: profile.trainingExperience === level ? 'text.primary' : 'divider' },
                     }}
                   />
                 ))}
@@ -1855,7 +1855,7 @@ function ProfilePanel() {
                 min={1}
                 max={7}
                 marks
-                sx={{ color: '#171717' }}
+                sx={{ color: 'text.primary' }}
               />
             </Box>
 
@@ -1869,7 +1869,7 @@ function ProfilePanel() {
                 min={15}
                 max={120}
                 step={15}
-                sx={{ color: '#171717' }}
+                sx={{ color: 'text.primary' }}
               />
             </Box>
 
@@ -1878,7 +1878,7 @@ function ProfilePanel() {
                 <Switch
                   checked={profile.gymAccess}
                   onChange={(e) => updateField('gymAccess', e.target.checked)}
-                  sx={{ '& .Mui-checked': { color: '#171717' }, '& .Mui-checked + .MuiSwitch-track': { bgcolor: '#171717' } }}
+                  sx={{ '& .Mui-checked': { color: 'text.primary' }, '& .Mui-checked + .MuiSwitch-track': { bgcolor: 'text.primary' } }}
                 />
               }
               label="I have gym access"
@@ -1925,9 +1925,9 @@ function ProfilePanel() {
                     label={type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                     onClick={() => updateField('chronotype', type)}
                     sx={{
-                      bgcolor: profile.chronotype === type ? '#171717' : '#f3f4f6',
-                      color: profile.chronotype === type ? '#fff' : '#374151',
-                      '&:hover': { bgcolor: profile.chronotype === type ? '#171717' : '#e5e7eb' },
+                      bgcolor: profile.chronotype === type ? 'text.primary' : 'action.selected',
+                      color: profile.chronotype === type ? 'background.paper' : 'text.secondary',
+                      '&:hover': { bgcolor: profile.chronotype === type ? 'text.primary' : 'divider' },
                     }}
                   />
                 ))}
@@ -1944,7 +1944,7 @@ function ProfilePanel() {
                 min={4}
                 max={12}
                 step={0.5}
-                sx={{ color: '#171717' }}
+                sx={{ color: 'text.primary' }}
               />
             </Box>
 
@@ -1969,9 +1969,9 @@ function ProfilePanel() {
                     label={time.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                     onClick={() => updateField('energyPeakTime', time)}
                     sx={{
-                      bgcolor: profile.energyPeakTime === time ? '#171717' : '#f3f4f6',
-                      color: profile.energyPeakTime === time ? '#fff' : '#374151',
-                      '&:hover': { bgcolor: profile.energyPeakTime === time ? '#171717' : '#e5e7eb' },
+                      bgcolor: profile.energyPeakTime === time ? 'text.primary' : 'action.selected',
+                      color: profile.energyPeakTime === time ? 'background.paper' : 'text.secondary',
+                      '&:hover': { bgcolor: profile.energyPeakTime === time ? 'text.primary' : 'divider' },
                     }}
                   />
                 ))}
@@ -2010,7 +2010,7 @@ function ProfilePanel() {
         {/* Tab 6: Measurements */}
         {activeTab === 6 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <Typography variant="body2" sx={{ color: '#6b7280' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               Log measurements by date. Add a new entry, then click any previous date to view or edit all fields.
             </Typography>
 
@@ -2020,7 +2020,7 @@ function ProfilePanel() {
                 variant="outlined"
                 size="small"
                 onClick={addMeasurementLog}
-                sx={{ textTransform: 'none', borderColor: '#171717', color: '#171717' }}
+                sx={{ textTransform: 'none', borderColor: 'text.primary', color: 'text.primary' }}
               >
                 + Add Measurement
               </Button>
@@ -2033,8 +2033,8 @@ function ProfilePanel() {
                   label={getMeasurementLogLabel(entry, idx)}
                   onClick={() => selectMeasurementLog(idx)}
                   sx={{
-                    bgcolor: idx === selectedMeasurementLogIndex ? '#171717' : '#f3f4f6',
-                    color: idx === selectedMeasurementLogIndex ? '#fff' : '#374151',
+                    bgcolor: idx === selectedMeasurementLogIndex ? 'text.primary' : 'action.selected',
+                    color: idx === selectedMeasurementLogIndex ? 'background.paper' : 'text.secondary',
                   }}
                 />
               ))}
@@ -2118,11 +2118,11 @@ function ProfilePanel() {
               </>
             )}
 
-            <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 1, border: '1px solid #e5e7eb' }}>
-              <Typography variant="subtitle2" sx={{ mb: 1, color: '#374151', fontWeight: 600 }}>
+            <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid #e5e7eb' }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 600 }}>
                 Body Composition (OCR)
               </Typography>
-              <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
                 Upload an InBody/Tanita/ACCUNIQ-style report (image or PDF). This fills Protein, SMM, Visceral Fat, Segmental Fat, etc.
               </Typography>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
@@ -2135,7 +2135,7 @@ function ProfilePanel() {
                   variant="outlined"
                   disabled={!bodyCompOcrFile || bodyCompOcrLoading}
                   onClick={importBodyCompositionFromOcr}
-                  sx={{ textTransform: 'none', borderColor: '#171717', color: '#171717', '&:hover': { borderColor: '#374151' } }}
+                  sx={{ textTransform: 'none', borderColor: 'text.primary', color: 'text.primary', '&:hover': { borderColor: 'text.secondary' } }}
                 >
                   {bodyCompOcrLoading ? 'Reading…' : 'Import Body Scan'}
                 </Button>
@@ -2221,7 +2221,7 @@ function ProfilePanel() {
 
               <Divider sx={{ my: 2 }} />
 
-              <Typography variant="subtitle2" sx={{ mb: 1, color: '#374151', fontWeight: 600 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 600 }}>
                 Segmental Fat
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
@@ -2302,7 +2302,7 @@ function ProfilePanel() {
 
               <Divider sx={{ my: 2 }} />
 
-              <Typography variant="subtitle2" sx={{ mb: 1, color: '#374151', fontWeight: 600 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 600 }}>
                 Segmental Muscle (kg)
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
@@ -2343,7 +2343,7 @@ function ProfilePanel() {
                 />
               </Box>
 
-              <Typography variant="body2" sx={{ color: '#6b7280', mt: 2 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 2 }}>
                 Click “Save All” to persist.
               </Typography>
             </Box>
@@ -2363,11 +2363,11 @@ function ProfilePanel() {
                 onChange={(e, v) => updatePersonalityField('introversion', v)}
                 min={1}
                 max={10}
-                sx={{ color: '#171717' }}
+                sx={{ color: 'text.primary' }}
               />
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="caption" sx={{ color: '#6b7280' }}>More introvert</Typography>
-                <Typography variant="caption" sx={{ color: '#6b7280' }}>More extrovert</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>More introvert</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>More extrovert</Typography>
               </Box>
             </Box>
 
@@ -2389,7 +2389,7 @@ function ProfilePanel() {
                     onChange={(e, v) => updateBigFiveField(key, v)}
                     min={1}
                     max={10}
-                    sx={{ color: '#171717' }}
+                    sx={{ color: 'text.primary' }}
                   />
                 </Box>
               ))}

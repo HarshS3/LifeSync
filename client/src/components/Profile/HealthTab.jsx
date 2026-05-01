@@ -10,7 +10,7 @@ import ChipListInput from '../ChipListInput'
 
 const SectionTitle = ({ children }) => {
   return (
-    <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
+    <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
       {children}
     </Typography>
   )
@@ -18,11 +18,11 @@ const SectionTitle = ({ children }) => {
 
 const inputSx = {
   '& .MuiOutlinedInput-root': {
-    '& fieldset': { borderColor: '#e5e7eb' },
+    '& fieldset': { borderColor: 'divider' },
     '&:hover fieldset': { borderColor: '#d1d5db' },
-    '&.Mui-focused fieldset': { borderColor: '#171717' },
+    '&.Mui-focused fieldset': { borderColor: 'text.primary' },
   },
-  '& .MuiInputLabel-root.Mui-focused': { color: '#171717' },
+  '& .MuiInputLabel-root.Mui-focused': { color: 'text.primary' },
 }
 
 export default function HealthTab({
@@ -93,15 +93,15 @@ export default function HealthTab({
             onChange={(e) => setNewMedication(prev => ({ ...prev, schedule: e.target.value }))}
             sx={{ ...inputSx, flex: 1 }}
           />
-          <IconButton onClick={addMedication} sx={{ bgcolor: '#f3f4f6' }}>
+          <IconButton onClick={addMedication} sx={{ bgcolor: 'action.selected' }}>
             <AddIcon fontSize="small" />
           </IconButton>
         </Box>
         {profile.medications.map((med, idx) => (
-          <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, p: 1.5, bgcolor: '#f9fafb', borderRadius: 1 }}>
+          <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
             <Typography variant="body2" sx={{ flex: 2, fontWeight: 500 }}>{med.name}</Typography>
-            <Typography variant="body2" sx={{ flex: 1, color: '#6b7280' }}>{med.dosage}</Typography>
-            <Typography variant="body2" sx={{ flex: 1, color: '#6b7280' }}>{med.schedule}</Typography>
+            <Typography variant="body2" sx={{ flex: 1, color: 'text.secondary' }}>{med.dosage}</Typography>
+            <Typography variant="body2" sx={{ flex: 1, color: 'text.secondary' }}>{med.schedule}</Typography>
             <IconButton size="small" onClick={() => removeMedication(idx)}>
               <DeleteOutlineIcon fontSize="small" />
             </IconButton>
@@ -120,7 +120,7 @@ export default function HealthTab({
 
       <Box>
         <SectionTitle>Key Lab Markers</SectionTitle>
-        <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
           Track a small set of labs that explain most fatigue, mood, recovery, and metabolic stability signals.
         </Typography>
 
@@ -238,8 +238,8 @@ export default function HealthTab({
             <Box sx={{ flex: 1 }} />
           </Box>
 
-          <Box sx={{ mt: 1, p: 2, bgcolor: '#f9fafb', borderRadius: 1, border: '1px solid #e5e7eb' }}>
-            <Typography variant="subtitle2" sx={{ mb: 1, color: '#374151', fontWeight: 600 }}>
+          <Box sx={{ mt: 1, p: 2, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid #e5e7eb' }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 600 }}>
               Update from Lab Report (OCR)
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -252,7 +252,7 @@ export default function HealthTab({
                 variant="outlined"
                 disabled={!ocrFile || ocrLoading}
                 onClick={importLabMarkersFromOcr}
-                sx={{ textTransform: 'none', borderColor: '#171717', color: '#171717', '&:hover': { borderColor: '#374151' } }}
+                sx={{ textTransform: 'none', borderColor: 'text.primary', color: 'text.primary', '&:hover': { borderColor: 'text.secondary' } }}
               >
                 {ocrLoading ? 'Reading...' : 'Import from Image'}
               </Button>
@@ -262,7 +262,7 @@ export default function HealthTab({
                 </Typography>
               ) : null}
             </Box>
-            <Typography variant="body2" sx={{ color: '#6b7280', mt: 1 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
               This will auto-fill the fields above; click “Save All” to persist.
             </Typography>
           </Box>

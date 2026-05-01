@@ -1524,10 +1524,10 @@ function NutritionTracker() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 600, color: '#171717' }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary' }}>
             Nutrition
           </Typography>
-          <Typography variant="body2" sx={{ color: '#6b7280' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Log meals, macros, and hydration
           </Typography>
         </Box>
@@ -1544,7 +1544,7 @@ function NutritionTracker() {
           mb: 3,
           p: 2.5,
           borderRadius: 2,
-          bgcolor: '#fff',
+          bgcolor: 'background.paper',
           border: '1px solid #e5e7eb',
         }}
       >
@@ -1554,7 +1554,7 @@ function NutritionTracker() {
             onClick={() => changeDay(-1)}
             sx={{ 
               transition: 'all 0.2s ease',
-              '&:hover': { bgcolor: '#f3f4f6' },
+              '&:hover': { bgcolor: 'action.selected' },
               '&:active': { transform: 'scale(0.95)' },
               '&:focus': { outline: '2px solid #1f2937' }
             }}
@@ -1562,7 +1562,7 @@ function NutritionTracker() {
             <ArrowBackIosNewIcon sx={{ fontSize: 16 }} />
           </IconButton>
           <Box>
-            <Typography variant="body2" sx={{ color: '#6b7280' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               {selectedDate.toDateString() === new Date().toDateString() ? 'Today' : 'Selected day'}
             </Typography>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
@@ -1574,7 +1574,7 @@ function NutritionTracker() {
             onClick={() => changeDay(1)}
             sx={{ 
               transition: 'all 0.2s ease',
-              '&:hover': { bgcolor: '#f3f4f6' },
+              '&:hover': { bgcolor: 'action.selected' },
               '&:active': { transform: 'scale(0.95)' },
               '&:focus': { outline: '2px solid #1f2937' }
             }}
@@ -1589,7 +1589,7 @@ function NutritionTracker() {
               ml: 1, 
               textTransform: 'none',
               transition: 'all 0.2s ease',
-              '&:hover': { bgcolor: '#f3f4f6', transform: 'translateY(-1px)' },
+              '&:hover': { bgcolor: 'action.selected', transform: 'translateY(-1px)' },
               '&:active': { transform: 'translateY(0px)' },
               '&:focus': { outline: '2px solid #1f2937' }
             }}
@@ -1605,8 +1605,8 @@ function NutritionTracker() {
           sx={{ 
             width: { xs: '100%', sm: 'auto' },
             transition: 'all 0.2s ease',
-            bgcolor: '#171717',
-            color: '#fff',
+            bgcolor: 'text.primary',
+            color: 'background.paper',
             '&:hover': { 
               bgcolor: '#1f2937',
               transform: 'translateY(-2px)',
@@ -1639,14 +1639,14 @@ function NutritionTracker() {
           '& .MuiTab-root': { 
             textTransform: 'none', 
             fontWeight: 500, 
-            color: '#6b7280',
+            color: 'text.secondary',
             transition: 'all 0.2s ease',
             '&:hover': { color: '#1f2937' },
             '&:active': { opacity: 0.7 },
-            '&.Mui-selected': { color: '#171717' }
+            '&.Mui-selected': { color: 'text.primary' }
           }, 
           '& .MuiTabs-indicator': { 
-            bgcolor: '#171717',
+            bgcolor: 'text.primary',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
           }
         }}
@@ -1663,7 +1663,7 @@ function NutritionTracker() {
       {activeTab === 0 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {/* Meals list */}
-          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                 Meals
@@ -1701,7 +1701,7 @@ function NutritionTracker() {
                       p: 2,
                       borderRadius: 1.5,
                       border: '1px solid #e5e7eb',
-                      bgcolor: '#f9fafb',
+                      bgcolor: 'action.hover',
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -1713,10 +1713,10 @@ function NutritionTracker() {
                           <Chip
                             label={meal.mealType}
                             size="small"
-                            sx={{ height: 20, fontSize: '0.7rem', bgcolor: '#e5e7eb' }}
+                            sx={{ height: 20, fontSize: '0.7rem', bgcolor: 'divider' }}
                           />
                           {meal.time && (
-                            <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                               {(() => {
                                 const [h, m] = meal.time.split(':');
                                 if (h === undefined || m === undefined) return meal.time;
@@ -1753,7 +1753,7 @@ function NutritionTracker() {
                             <CloseIcon fontSize="small" />
                           </IconButton>
                         </Box>
-                        <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           P {fmt(mealTotals.protein)}g · C {fmt(mealTotals.carbs)}g · F {fmt(mealTotals.fat)}g
                         </Typography>
                       </Box>
@@ -1761,7 +1761,7 @@ function NutritionTracker() {
 
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                       {meal.foods?.map((food, i) => (
-                        <Typography key={i} variant="caption" sx={{ color: '#6b7280' }}>
+                        <Typography key={i} variant="caption" sx={{ color: 'text.secondary' }}>
                           {food.name} {food.quantity ? `· ${food.quantity}${food.unit}` : ''}{' '}
                           {food.calories ? `· ${food.calories} kcal` : ''}
                         </Typography>
@@ -1789,13 +1789,13 @@ function NutritionTracker() {
               { label: 'Carbs',    val: fmt(totals.carbs),       unit: 'g',    pct: null, color: '#d97706' },
               { label: 'Fat',      val: fmt(totals.fat),         unit: 'g',    pct: null, color: '#dc2626' },
             ].map((m) => (
-              <Box key={m.label} sx={{ p: 2, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.25 }}>{m.label}</Typography>
+              <Box key={m.label} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>{m.label}</Typography>
                 <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>
                   {m.val} <span style={{ fontWeight: 400, fontSize: '0.8em', color: '#9ca3af' }}>{m.unit}</span>
                 </Typography>
                 {m.pct != null && (
-                  <LinearProgress variant="determinate" value={m.pct} sx={{ mt: 1, height: 4, borderRadius: 99, bgcolor: '#f3f4f6', '& .MuiLinearProgress-bar': { bgcolor: m.color } }} />
+                  <LinearProgress variant="determinate" value={m.pct} sx={{ mt: 1, height: 4, borderRadius: 99, bgcolor: 'action.selected', '& .MuiLinearProgress-bar': { bgcolor: m.color } }} />
                 )}
               </Box>
             ))}
@@ -1803,11 +1803,11 @@ function NutritionTracker() {
 
           {/* â”€â”€ AI insight + hydration â”€â”€ */}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-            <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+            <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>AI Insight</Typography>
               {insightMatchesSelectedDay && nutritionInsight?.text ? (
                 <>
-                  <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.7 }}>{nutritionInsight.text}</Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', whiteSpace: 'pre-line', lineHeight: 1.7 }}>{nutritionInsight.text}</Typography>
                   {nutritionInsight?.createdAt && (
                     <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block', mt: 1 }}>
                       Updated {new Date(nutritionInsight.createdAt).toLocaleString()}
@@ -1815,28 +1815,28 @@ function NutritionTracker() {
                   )}
                 </>
               ) : (
-                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>Generate an insight for today.</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Generate an insight for today.</Typography>
               )}
               {mealSuggestions && (
-                <Typography variant="body2" sx={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.7, mt: 2, pt: 2, borderTop: '1px solid #f3f4f6' }}>{mealSuggestions}</Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', whiteSpace: 'pre-line', lineHeight: 1.7, mt: 2, pt: 2, borderTop: '1px solid #f3f4f6' }}>{mealSuggestions}</Typography>
               )}
               <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
-                <Button variant="outlined" size="small" onClick={generateNutritionInsight} disabled={nutritionInsightGenerating} sx={{ textTransform: 'none', borderColor: '#e5e7eb', color: '#374151' }}>
+                <Button variant="outlined" size="small" onClick={generateNutritionInsight} disabled={nutritionInsightGenerating} sx={{ textTransform: 'none', borderColor: 'divider', color: 'text.secondary' }}>
                   {nutritionInsightGenerating ? 'Generatingâ€¦' : 'Generate Insight'}
                 </Button>
-                <Button variant="outlined" size="small" onClick={generateMealSuggestions} disabled={mealSuggestionsGenerating} sx={{ textTransform: 'none', borderColor: '#e5e7eb', color: '#374151' }}>
+                <Button variant="outlined" size="small" onClick={generateMealSuggestions} disabled={mealSuggestionsGenerating} sx={{ textTransform: 'none', borderColor: 'divider', color: 'text.secondary' }}>
                   {mealSuggestionsGenerating ? 'Thinkingâ€¦' : 'Suggest Meals'}
                 </Button>
               </Box>
             </Box>
 
-            <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+            <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>Hydration</Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
                 <WaterDropIcon sx={{ color: '#0ea5e9', fontSize: 28 }} />
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>{Math.round((log.waterIntake || 0) / 250)} glasses</Typography>
-                  <Typography variant="caption" sx={{ color: '#6b7280' }}>{log.waterIntake || 0} ml total</Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>{log.waterIntake || 0} ml total</Typography>
                 </Box>
               </Box>
               <Box sx={{ display: 'flex', gap: 1 }}>
@@ -1853,7 +1853,7 @@ function NutritionTracker() {
               <Typography variant="body2" sx={{ fontWeight: 600, color: '#166534' }}>Ready to log a meal?</Typography>
               <Typography variant="caption" sx={{ color: '#15803d' }}>Search the food database, set your portion, and add it to today.</Typography>
             </Box>
-            <Button variant="contained" size="small" onClick={() => setActiveTab(1)} sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, color: '#fff', fontWeight: 700 }}>
+            <Button variant="contained" size="small" onClick={() => setActiveTab(1)} sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, color: 'background.paper', fontWeight: 700 }}>
               + Log Meal
             </Button>
           </Box>
@@ -1866,9 +1866,9 @@ function NutritionTracker() {
 
           {/* LEFT: Search + Deep Analysis */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+            <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>Search Food Database</Typography>
-              <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>Find any dish or ingredient to auto-fill nutrition data.</Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>Find any dish or ingredient to auto-fill nutrition data.</Typography>
               {isMobile && (
                 <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 1 }}>
                   Tip: tap a search result to instantly fill the last food row.
@@ -1884,13 +1884,13 @@ function NutritionTracker() {
                   size="small"
                   fullWidth
                   InputProps={{
-                    endAdornment: foodSearchLoading ? <Typography variant="caption" sx={{ color: '#6b7280' }}>Searching...</Typography> : null
+                    endAdornment: foodSearchLoading ? <Typography variant="caption" sx={{ color: 'text.secondary' }}>Searching...</Typography> : null
                   }}
                 />
               </Box>
 
               {!foodSearchLoading && foodSearchAttempted && foodResults.length === 0 && (
-                <Typography variant="body2" sx={{ color: '#6b7280', fontStyle: 'italic', textAlign: 'center', py: 2 }}>No item found</Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', textAlign: 'center', py: 2 }}>No item found</Typography>
               )}
 
               {foodResults.length > 0 && (
@@ -1913,12 +1913,12 @@ function NutritionTracker() {
                             </Typography>
                           )}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           {formatServingDisplay(f.servingLabel || `${f.servingQty} ${f.servingUnit}`, f.servingWeightG)} · {Math.round(f.calories)} kcal
                         </Typography>
                       </Box>
                       <Box sx={{ textAlign: 'right', ml: 1, flexShrink: 0 }}>
-                        <Typography variant="caption" sx={{ color: '#374151', display: 'block' }}>P {Math.round(f.protein)}g</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>P {Math.round(f.protein)}g</Typography>
                         <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block' }}>C {Math.round(f.carbs)}g · F {Math.round(f.fat)}g</Typography>
                       </Box>
                     </Box>
@@ -1927,7 +1927,7 @@ function NutritionTracker() {
               )}
             </Box>
 
-            <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+            <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>Deep Food Analysis</Typography>
               <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
                 <TextField
@@ -1946,7 +1946,7 @@ function NutritionTracker() {
               </Box>
               {foodAnalysisError && <Typography variant="caption" sx={{ color: '#b91c1c', display: 'block', mb: 1 }}>{foodAnalysisError}</Typography>}
               {foodAnalysis && (
-                <Box sx={{ borderRadius: 1.5, border: '1px solid #e5e7eb', bgcolor: '#f9fafb', p: 1.5, mt: 1 }}>
+                <Box sx={{ borderRadius: 1.5, border: '1px solid #e5e7eb', bgcolor: 'action.hover', p: 1.5, mt: 1 }}>
                   <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>
                     {foodAnalysis.canonical_id || '-'} · {Math.round((foodAnalysis.resolver?.confidence || 0) * 100)}% confidence
                   </Typography>
@@ -1958,10 +1958,10 @@ function NutritionTracker() {
                     </Box>
                   )}
                   {foodAnalysis.explanation?.narrative && (
-                    <Typography variant="caption" sx={{ display: 'block', color: '#374151', lineHeight: 1.6 }}>{foodAnalysis.explanation.narrative}</Typography>
+                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', lineHeight: 1.6 }}>{foodAnalysis.explanation.narrative}</Typography>
                   )}
                   {foodAnalysis.llm?.narrative && (
-                    <Typography variant="caption" sx={{ display: 'block', color: '#374151', lineHeight: 1.6, mt: 0.5 }}>{foodAnalysis.llm.narrative}</Typography>
+                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', lineHeight: 1.6, mt: 0.5 }}>{foodAnalysis.llm.narrative}</Typography>
                   )}
                 </Box>
               )}
@@ -1969,7 +1969,7 @@ function NutritionTracker() {
           </Box>
 
           {/* RIGHT: Meal Builder */}
-          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             {/* Removed 'Build Your Meal' and instructional text as requested */}
 
             <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
@@ -2027,11 +2027,11 @@ function NutritionTracker() {
             </Box>
 
             <Divider sx={{ mb: 2 }} />
-            <Typography variant="caption" sx={{ fontWeight: 600, color: '#6b7280', mb: 1.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Foods</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', mb: 1.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Foods</Typography>
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
               {newMeal.foods.map((food, idx) => (
-                <Box key={idx} sx={{ borderRadius: 2, border: '1px solid #e5e7eb', overflow: 'hidden', position: 'relative' }}>
+                <Box key={idx} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden', position: 'relative' }}>
                   <IconButton
                     size="small"
                     onClick={() => removeFoodRow(idx)}
@@ -2064,7 +2064,7 @@ function NutritionTracker() {
                       </Typography>
                     </Box>
                   )}
-                  <Box sx={{ p: 1.5, bgcolor: '#f9fafb', display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                  <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.03)', display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                     <TextField
                       label="Food name"
                       value={food.name}
@@ -2099,7 +2099,7 @@ function NutritionTracker() {
                       label="Unit"
                       value={food.baseServingUnit || food.unit || ''}
                       size="small"
-                      sx={{ width: { xs: 'calc(50% - 4px)', sm: 100 }, bgcolor: '#f3f4f6', fontWeight: 600, color: '#222', borderRadius: 1 }}
+                      sx={{ width: { xs: 'calc(50% - 4px)', sm: 100 }, bgcolor: 'action.selected', fontWeight: 600, color: '#222', borderRadius: 1 }}
                       InputProps={{ readOnly: true }}
                       inputProps={{ style: { textAlign: 'center', fontWeight: 600, color: '#222' } }}
                     />
@@ -2108,9 +2108,9 @@ function NutritionTracker() {
                       value={food.baseServingQty && food.servingWeightG && food.quantity ?
                         ((Number(food.quantity) / Number(food.baseServingQty)) * Number(food.servingWeightG)).toFixed(0) : ''}
                       size="small"
-                      sx={{ width: { xs: 'calc(50% - 4px)', sm: 80 }, bgcolor: '#f3f4f6', fontWeight: 600, color: '#222', borderRadius: 1 }}
+                      sx={{ width: { xs: 'calc(50% - 4px)', sm: 80 }, bgcolor: 'action.selected', fontWeight: 600, color: '#222', borderRadius: 1 }}
                       InputProps={{ readOnly: true }}
-                      inputProps={{ style: { textAlign: 'center', fontWeight: 700, color: '#374151' } }}
+                      inputProps={{ style: { textAlign: 'center', fontWeight: 700, color: 'text.secondary' } }}
                     />
                     <TextField
                       label="kcal"
@@ -2149,7 +2149,7 @@ function NutritionTracker() {
                 textTransform: 'none', 
                 mb: 2,
                 transition: 'all 0.2s ease',
-                '&:hover': { bgcolor: '#f3f4f6', color: '#1f2937' },
+                '&:hover': { bgcolor: 'action.selected', color: '#1f2937' },
                 '&:active': { opacity: 0.7 },
                 '&:focus': { outline: '2px solid #1f2937' }
               }}
@@ -2181,13 +2181,13 @@ function NutritionTracker() {
               size="small" 
               onClick={resetNewMeal} 
               sx={{ 
-                borderColor: '#e5e7eb', 
-                color: '#6b7280',
+                borderColor: 'divider', 
+                color: 'text.secondary',
                 transition: 'all 0.2s ease',
                 '&:hover': { 
                   borderColor: '#1f2937',
                   color: '#1f2937',
-                  bgcolor: '#f3f4f6'
+                  bgcolor: 'action.selected'
                 },
                 '&:active': { opacity: 0.7 }
               }}
@@ -2273,13 +2273,13 @@ function NutritionTracker() {
 
       {activeTab === 3 && (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.4fr 1fr' }, gap: 3 }}>
-          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
               Today's Details
             </Typography>
 
               {(!log?.meals || log.meals.length === 0) && (
-                <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
                   No meals logged for this selected date yet.
                 </Typography>
               )}
@@ -2319,7 +2319,7 @@ function NutritionTracker() {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography variant="body2" sx={{ color: '#374151' }}>
+                  <Typography variant="body2" sx={{ color: 'text.primary' }}>
                     Calories
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -2335,7 +2335,7 @@ function NutritionTracker() {
 
               <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography variant="body2" sx={{ color: '#374151' }}>
+                  <Typography variant="body2" sx={{ color: 'text.primary' }}>
                     Protein
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -2351,7 +2351,7 @@ function NutritionTracker() {
 
               <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                     Carbs
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -2359,7 +2359,7 @@ function NutritionTracker() {
                   </Typography>
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                     Fat
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -2367,7 +2367,7 @@ function NutritionTracker() {
                   </Typography>
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                     Fiber
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -2385,7 +2385,7 @@ function NutritionTracker() {
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
                 {SUMMARY_MICRO_META.map(({ key, label, unit }) => (
                   <Box key={key}>
-                    <Typography variant="caption" sx={{ color: '#6b7280' }}>{label}</Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>{label}</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
                       {Number(totals?.[key] || 0).toFixed(unit === 'ug' ? 0 : 1)} {unit}
                     </Typography>
@@ -2407,7 +2407,7 @@ function NutritionTracker() {
                               mt: 0.5,
                               height: 5,
                               borderRadius: 99,
-                              bgcolor: '#f3f4f6',
+                              bgcolor: 'action.selected',
                               '& .MuiLinearProgress-bar': {
                                 bgcolor: hasTarget ? '#10b981' : '#d1d5db',
                               },
@@ -2430,7 +2430,7 @@ function NutritionTracker() {
                     {clinicalTargetRows.map((row) => (
                       <Box key={row.key}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
-                          <Typography variant="caption" sx={{ color: '#6b7280' }}>{row.label}</Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>{row.label}</Typography>
                           <Typography variant="caption" sx={{ fontWeight: 600 }}>
                             {Number(row.currentValue || 0).toFixed(row.unit === 'kcal' ? 0 : 1)} / {Number(row.targetValue || 0).toFixed(row.unit === 'kcal' ? 0 : 1)} {row.unit}
                           </Typography>
@@ -2438,7 +2438,7 @@ function NutritionTracker() {
                         <LinearProgress
                           variant="determinate"
                           value={percent(row.currentValue, row.targetValue)}
-                          sx={{ height: 6, borderRadius: 99, bgcolor: '#f3f4f6' }}
+                          sx={{ height: 6, borderRadius: 99, bgcolor: 'action.selected' }}
                         />
                       </Box>
                     ))}
@@ -2485,10 +2485,10 @@ function NutritionTracker() {
 
               {nutritionStatsLoading && <LinearProgress sx={{ height: 6, borderRadius: 99, mb: 1 }} />}
 
-              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                 7d avg: {nutritionStats?.weeklyAvg?.calories ?? '—'} kcal · P {nutritionStats?.weeklyAvg?.protein ?? '—'}g · Water {nutritionStats?.weeklyAvg?.water ?? '—'} ml
               </Typography>
-              <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                 30d avg: {nutritionStats?.monthlyAvg?.calories ?? '—'} kcal · P {nutritionStats?.monthlyAvg?.protein ?? '—'}g · Water {nutritionStats?.monthlyAvg?.water ?? '—'} ml
               </Typography>
               <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block', mt: 0.5 }}>
@@ -2497,7 +2497,7 @@ function NutritionTracker() {
             </Box>
           </Box>
 
-          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
               Notes
             </Typography>
@@ -2523,9 +2523,9 @@ function NutritionTracker() {
       )}
 
       {activeTab === 4 && (
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>Nutrition Summary</Typography>
-          <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
             Weekly and monthly nutrient consumption vs total required amount for each period.
           </Typography>
 
@@ -2597,7 +2597,7 @@ function NutritionTracker() {
                   {rows.map((row) => (
                     <Box key={row.key}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
-                        <Typography variant="caption" sx={{ color: '#6b7280' }}>{row.label}</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>{row.label}</Typography>
                         <Typography variant="caption" sx={{ fontWeight: 600 }}>
                           {fmt(row.consumed, row.unit === 'kcal' ? 0 : 1)} / {row.required == null ? '—' : fmt(row.required, row.unit === 'kcal' ? 0 : 1)} {row.unit}
                         </Typography>
@@ -2608,7 +2608,7 @@ function NutritionTracker() {
                         sx={{
                           height: 6,
                           borderRadius: 99,
-                          bgcolor: '#f3f4f6',
+                          bgcolor: 'action.selected',
                           '& .MuiLinearProgress-bar': {
                             bgcolor: row.required == null ? '#d1d5db' : '#2563eb',
                           },
@@ -2634,9 +2634,9 @@ function NutritionTracker() {
 
       {activeTab === 5 && (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.1fr 1fr' }, gap: 3 }}>
-          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>Scan Product Barcode</Typography>
-            <Typography variant="body2" sx={{ color: '#6b7280', mb: 2 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
               Scan with camera or enter barcode manually to fetch product details and nutrient values.
             </Typography>
 
@@ -2702,14 +2702,14 @@ function NutritionTracker() {
 
             {!!uploadedBarcodePreview && (
               <Box sx={{ border: '1px solid #e5e7eb', borderRadius: 2, p: 1.5, mb: 2 }}>
-                <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 1 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
                   Uploaded image preview
                 </Typography>
                 <Box
                   component="img"
                   src={uploadedBarcodePreview}
                   alt="Uploaded barcode"
-                  sx={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 1, bgcolor: '#f9fafb' }}
+                  sx={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 1, bgcolor: 'action.hover' }}
                 />
               </Box>
             )}
@@ -2725,11 +2725,11 @@ function NutritionTracker() {
             )}
           </Box>
 
-          <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>Product Details</Typography>
 
             {!barcodeProduct && (
-              <Typography variant="body2" sx={{ color: '#6b7280' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 Lookup a barcode to view product info and nutrients per 100 g.
               </Typography>
             )}
@@ -2741,19 +2741,19 @@ function NutritionTracker() {
                     component="img"
                     src={barcodeProduct.imageUrl}
                     alt={barcodeProduct.name || 'Product image'}
-                    sx={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 1, border: '1px solid #e5e7eb', bgcolor: '#fff' }}
+                    sx={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 1, border: '1px solid #e5e7eb', bgcolor: 'background.paper' }}
                   />
                 )}
                 <Typography variant="body1" sx={{ fontWeight: 700 }}>{barcodeProduct.name}</Typography>
-                <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   Brand: {barcodeProduct.brand || '—'} · Barcode: {barcodeProduct.barcode || '—'}
                 </Typography>
-                <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   Qty: {barcodeProduct.quantityLabel || '—'} · Serving: {barcodeProduct.servingSize || '—'}
                 </Typography>
 
                 <Divider sx={{ my: 1 }} />
-                <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 700, letterSpacing: '0.03em' }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, letterSpacing: '0.03em' }}>
                   Nutrients (per 100 g)
                 </Typography>
                 
@@ -2783,7 +2783,7 @@ function NutritionTracker() {
                   const isEstimated = barcodeProduct?._estimatedFields?.includes(key);
                   return (
                     <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f3f4f6', py: 0.5 }}>
-                      <Typography variant="caption" sx={{ color: '#374151' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                         {label}
                         {isEstimated && <span style={{ color: '#d97706', marginLeft: 4, fontWeight: 'bold' }} title="Estimated using AI based on product type">*</span>}
                       </Typography>
@@ -2798,13 +2798,13 @@ function NutritionTracker() {
       )}
 
       {activeTab === 2 && (
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 2 }}>
             <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#171717' }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>
                 Daily weight
               </Typography>
-              <Typography variant="body2" sx={{ color: '#6b7280' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 Log your weight for the selected day and view trends.
               </Typography>
             </Box>
@@ -2872,7 +2872,7 @@ function NutritionTracker() {
                       aria-label="Weight chart"
                       sx={{ width: '100%', maxWidth: 560, height: 'auto' }}
                     >
-                        <rect x="0" y="0" width="560" height="200" fill="#ffffff" />
+                        <rect x="0" y="0" width="560" height="200" fill='background.paper' />
 
                         {(() => {
                           const d = chart.dims
@@ -2887,22 +2887,22 @@ function NutritionTracker() {
                           return (
                             <>
                               {/* axes */}
-                              <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke="#e5e7eb" strokeWidth="1" />
-                              <line x1={d.x0} y1={d.y0} x2={d.x0} y2={d.y1} stroke="#e5e7eb" strokeWidth="1" />
+                              <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke='divider' strokeWidth="1" />
+                              <line x1={d.x0} y1={d.y0} x2={d.x0} y2={d.y1} stroke='divider' strokeWidth="1" />
 
                               {/* y ticks (max/mid/min) */}
-                              <line x1={d.x0} y1={d.y0} x2={d.x1} y2={d.y0} stroke="#f3f4f6" strokeWidth="1" />
+                              <line x1={d.x0} y1={d.y0} x2={d.x1} y2={d.y0} stroke='action.selected' strokeWidth="1" />
                               <line
                                 x1={d.x0}
                                 y1={(d.y0 + d.y1) / 2}
                                 x2={d.x1}
                                 y2={(d.y0 + d.y1) / 2}
-                                stroke="#f3f4f6"
+                                stroke='action.selected'
                                 strokeWidth="1"
                               />
-                              <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke="#f3f4f6" strokeWidth="1" />
+                              <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke='action.selected' strokeWidth="1" />
 
-                              <text x={d.x0 - 8} y={d.y0 + 3} fontSize="10" fill="#6b7280" textAnchor="end">
+                              <text x={d.x0 - 8} y={d.y0 + 3} fontSize="10" fill='text.secondary' textAnchor="end">
                                 {fmtKg(yMax)}
                               </text>
                               <text
@@ -2914,19 +2914,19 @@ function NutritionTracker() {
                               >
                                 {fmtKg(yMid)}
                               </text>
-                              <text x={d.x0 - 8} y={d.y1 + 3} fontSize="10" fill="#6b7280" textAnchor="end">
+                              <text x={d.x0 - 8} y={d.y1 + 3} fontSize="10" fill='text.secondary' textAnchor="end">
                                 {fmtKg(yMin)}
                               </text>
 
                               {/* axis titles */}
-                              <text x={(d.x0 + d.x1) / 2} y={200 - 8} fontSize="10" fill="#6b7280" textAnchor="middle">
+                              <text x={(d.x0 + d.x1) / 2} y={200 - 8} fontSize="10" fill='text.secondary' textAnchor="middle">
                                 Date
                               </text>
                               <text
                                 x="14"
                                 y={(d.y0 + d.y1) / 2}
                                 fontSize="10"
-                                fill="#6b7280"
+                                fill='text.secondary'
                                 textAnchor="middle"
                                 transform={`rotate(-90 14 ${(d.y0 + d.y1) / 2})`}
                               >
@@ -2934,15 +2934,15 @@ function NutritionTracker() {
                               </text>
 
                               {/* x tick labels */}
-                              <text x={d.x0} y={200 - 22} fontSize="10" fill="#6b7280" textAnchor="start">
+                              <text x={d.x0} y={200 - 22} fontSize="10" fill='text.secondary' textAnchor="start">
                                 {startLabel}
                               </text>
-                              <text x={d.x1} y={200 - 22} fontSize="10" fill="#6b7280" textAnchor="end">
+                              <text x={d.x1} y={200 - 22} fontSize="10" fill='text.secondary' textAnchor="end">
                                 {endLabel}
                               </text>
 
                               {chart.points ? (
-                                <polyline fill="none" stroke="#171717" strokeWidth="2" points={chart.points} />
+                                <polyline fill="none" stroke='text.primary' strokeWidth="2" points={chart.points} />
                               ) : null}
                             </>
                           )
@@ -2950,7 +2950,7 @@ function NutritionTracker() {
                     </Box>
                   </Box>
 
-                  <Typography variant="body2" sx={{ color: '#6b7280', mt: 1 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
                     {chart.points ? 'Showing logged days only (gaps are days without entries).' : 'No weight entries yet for this range.'}
                   </Typography>
                 </Box>
@@ -2961,7 +2961,7 @@ function NutritionTracker() {
       )}
 
       {activeTab === 6 && (
-        <Box sx={{ bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <NutritionInsights selectedDate={selectedDate} />
         </Box>
       )}

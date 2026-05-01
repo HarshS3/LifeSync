@@ -9,7 +9,7 @@ import ChipListInput from '../ChipListInput'
 
 const SectionTitle = ({ children }) => {
   return (
-    <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
+    <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
       {children}
     </Typography>
   )
@@ -27,9 +27,9 @@ export default function TrainingTab({ profile, updateField }) {
               label={level.charAt(0).toUpperCase() + level.slice(1)}
               onClick={() => updateField('trainingExperience', level)}
               sx={{
-                bgcolor: profile.trainingExperience === level ? '#171717' : '#f3f4f6',
-                color: profile.trainingExperience === level ? '#fff' : '#374151',
-                '&:hover': { bgcolor: profile.trainingExperience === level ? '#171717' : '#e5e7eb' },
+                bgcolor: profile.trainingExperience === level ? 'text.primary' : 'action.selected',
+                color: profile.trainingExperience === level ? 'background.paper' : 'text.secondary',
+                '&:hover': { bgcolor: profile.trainingExperience === level ? 'text.primary' : 'divider' },
               }}
             />
           ))}
@@ -46,7 +46,7 @@ export default function TrainingTab({ profile, updateField }) {
           min={1}
           max={7}
           marks
-          sx={{ color: '#171717' }}
+          sx={{ color: 'text.primary' }}
         />
       </Box>
 
@@ -60,7 +60,7 @@ export default function TrainingTab({ profile, updateField }) {
           min={15}
           max={120}
           step={15}
-          sx={{ color: '#171717' }}
+          sx={{ color: 'text.primary' }}
         />
       </Box>
 
@@ -69,7 +69,7 @@ export default function TrainingTab({ profile, updateField }) {
           <Switch
             checked={profile.gymAccess}
             onChange={(e) => updateField('gymAccess', e.target.checked)}
-            sx={{ '& .Mui-checked': { color: '#171717' }, '& .Mui-checked + .MuiSwitch-track': { bgcolor: '#171717' } }}
+            sx={{ '& .Mui-checked': { color: 'text.primary' }, '& .Mui-checked + .MuiSwitch-track': { bgcolor: 'text.primary' } }}
           />
         }
         label="I have gym access"

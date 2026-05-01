@@ -8,7 +8,7 @@ import ChipListInput from '../ChipListInput'
 
 const SectionTitle = ({ children }) => {
   return (
-    <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
+    <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
       {children}
     </Typography>
   )
@@ -16,11 +16,11 @@ const SectionTitle = ({ children }) => {
 
 const inputSx = {
   '& .MuiOutlinedInput-root': {
-    '& fieldset': { borderColor: '#e5e7eb' },
+    '& fieldset': { borderColor: 'divider' },
     '&:hover fieldset': { borderColor: '#d1d5db' },
-    '&.Mui-focused fieldset': { borderColor: '#171717' },
+    '&.Mui-focused fieldset': { borderColor: 'text.primary' },
   },
-  '& .MuiInputLabel-root.Mui-focused': { color: '#171717' },
+  '& .MuiInputLabel-root.Mui-focused': { color: 'text.primary' },
 }
 
 export default function ClinicalDietTab({ profile, updateField, updateBiologicalProfileField, setProfile }) {
@@ -34,7 +34,7 @@ export default function ClinicalDietTab({ profile, updateField, updateBiological
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <Box>
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>Metabolic & Dietary Engine Profile</Typography>
-        <Typography variant="body2" sx={{ color: '#6b7280', mb: 3 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
           We use the scientific Mifflin-St Jeor / Katch-McArdle formulas to compute highly personalized clinical 
           caloric and deep micronutrient targets (NIH DRIs) based on these precise biological metrics.
         </Typography>
@@ -133,8 +133,8 @@ export default function ClinicalDietTab({ profile, updateField, updateBiological
                 }}
                 sx={{
                   flex: 1,
-                  bgcolor: (profile.biologicalProfile?.biologicalSex || profile.gender) === val ? '#171717' : '#f3f4f6',
-                  color: (profile.biologicalProfile?.biologicalSex || profile.gender) === val ? '#fff' : '#374151',
+                  bgcolor: (profile.biologicalProfile?.biologicalSex || profile.gender) === val ? 'text.primary' : 'action.selected',
+                  color: (profile.biologicalProfile?.biologicalSex || profile.gender) === val ? 'background.paper' : 'text.secondary',
                 }}
               />
             ))}
@@ -171,8 +171,8 @@ export default function ClinicalDietTab({ profile, updateField, updateBiological
                 onClick={() => updateBiologicalProfileField('hypertension', val)}
                 sx={{
                   flex: 1,
-                  bgcolor: profile.biologicalProfile?.hypertension === val ? '#171717' : '#f3f4f6',
-                  color: profile.biologicalProfile?.hypertension === val ? '#fff' : '#374151',
+                  bgcolor: profile.biologicalProfile?.hypertension === val ? 'text.primary' : 'action.selected',
+                  color: profile.biologicalProfile?.hypertension === val ? 'background.paper' : 'text.secondary',
                 }}
               />
             ))}
@@ -195,8 +195,8 @@ export default function ClinicalDietTab({ profile, updateField, updateBiological
               label={act.label}
               onClick={() => updateBiologicalProfileField('activityLevel', act.id)}
               sx={{
-                bgcolor: profile.biologicalProfile?.activityLevel === act.id ? '#171717' : '#f3f4f6',
-                color: profile.biologicalProfile?.activityLevel === act.id ? '#fff' : '#374151',
+                bgcolor: profile.biologicalProfile?.activityLevel === act.id ? 'text.primary' : 'action.selected',
+                color: profile.biologicalProfile?.activityLevel === act.id ? 'background.paper' : 'text.secondary',
               }}
             />
           ))}
@@ -218,8 +218,8 @@ export default function ClinicalDietTab({ profile, updateField, updateBiological
               label={goal.label}
               onClick={() => updateBiologicalProfileField('metabolicGoal', goal.id)}
               sx={{
-                bgcolor: profile.biologicalProfile?.metabolicGoal === goal.id ? '#171717' : '#f3f4f6',
-                color: profile.biologicalProfile?.metabolicGoal === goal.id ? '#fff' : '#374151',
+                bgcolor: profile.biologicalProfile?.metabolicGoal === goal.id ? 'text.primary' : 'action.selected',
+                color: profile.biologicalProfile?.metabolicGoal === goal.id ? 'background.paper' : 'text.secondary',
               }}
             />
           ))}
@@ -235,9 +235,9 @@ export default function ClinicalDietTab({ profile, updateField, updateBiological
               label={diet.charAt(0).toUpperCase() + diet.slice(1)}        
               onClick={() => updateBiologicalProfileField('dietaryPreference', diet)}
               sx={{
-                bgcolor: profile.biologicalProfile?.dietaryPreference === diet ? '#171717' : '#f3f4f6',
-                color: profile.biologicalProfile?.dietaryPreference === diet ? '#fff' : '#374151',    
-                '&:hover': { bgcolor: profile.biologicalProfile?.dietaryPreference === diet ? '#171717' : '#e5e7eb' },
+                bgcolor: profile.biologicalProfile?.dietaryPreference === diet ? 'text.primary' : 'action.selected',
+                color: profile.biologicalProfile?.dietaryPreference === diet ? 'background.paper' : 'text.secondary',    
+                '&:hover': { bgcolor: profile.biologicalProfile?.dietaryPreference === diet ? 'text.primary' : 'divider' },
               }}
             />
           ))}
@@ -254,7 +254,7 @@ export default function ClinicalDietTab({ profile, updateField, updateBiological
           min={1}
           max={6}
           step={1}
-          sx={{ color: '#171717' }}
+          sx={{ color: 'text.primary' }}
         />
       </Box>
 
@@ -285,7 +285,7 @@ export default function ClinicalDietTab({ profile, updateField, updateBiological
           onChange={(e, v) => updateField('hydrationGoal', v)}
           min={4}
           max={16}
-          sx={{ color: '#171717' }}
+          sx={{ color: 'text.primary' }}
         />
       </Box>
 

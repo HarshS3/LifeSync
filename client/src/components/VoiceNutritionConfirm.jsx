@@ -108,7 +108,7 @@ export function VoiceNutritionConfirm({ transcript, preview, onConfirm, onCancel
           onClick={() => onConfirm(editedItems.length > 0 ? editedItems : null)} 
           variant="contained" 
           disableElevation
-          sx={{ bgcolor: '#171717', '&:hover': { bgcolor: '#262626' } }}
+          sx={{ bgcolor: 'text.primary', '&:hover': { bgcolor: '#262626' } }}
         >
           {editedItems.length > 0 ? 'Confirm & Log' : 'Let Agent Handle It'}
         </Button>

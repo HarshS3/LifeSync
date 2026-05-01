@@ -5,8 +5,8 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import TrendingDownIcon from '@mui/icons-material/TrendingDown'
 
 export const StatCard = ({ label, value, unit, trend }) => (
-  <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', flex: 1, minWidth: 160 }}>
-    <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 1 }}>{label}</Typography>
+  <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb', flex: 1, minWidth: 160 }}>
+    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>{label}</Typography>
     <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
       <Typography variant="h5" sx={{ fontWeight: 700, color: '#111827' }}>{value}</Typography>
       <Typography variant="caption" sx={{ color: '#9ca3af' }}>{unit}</Typography>
@@ -37,13 +37,13 @@ export const BarChart = ({ items, maxValue, valueKey, labelKey }) => (
             sx={{
               width: '100%',
               height: `${height}%`,
-              bgcolor: '#171717',
+              bgcolor: 'text.primary',
               borderRadius: '4px 4px 0 0',
               opacity: 0.8,
               transition: 'height 0.3s',
             }}
           />
-          <Typography variant="caption" sx={{ color: '#6b7280' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             {new Date(item[labelKey]).toLocaleDateString('en-US', { weekday: 'short' })}
           </Typography>
         </Box>

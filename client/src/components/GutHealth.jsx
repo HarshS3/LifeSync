@@ -35,7 +35,7 @@ const GutHealth = () => {
   if (loading) return <Skeleton variant="rectangular" height={220} sx={{ borderRadius: 3, mb: 3 }} />
   if (!data || data.status === 'insufficient_data') {
     return (
-      <Paper sx={{ p: 3, borderRadius: 3, bgcolor: '#f8fafc', border: '1px dashed #cbd5e1', textAlign: 'center', mb: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3, bgcolor: 'background.default', border: '1px dashed #cbd5e1', textAlign: 'center', mb: 3 }}>
         <GrassIcon sx={{ color: '#94a3b8', fontSize: 40, mb: 1 }} />
         <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#475569' }}>
           Gut Microbiome: Diversity Tracking
@@ -58,7 +58,7 @@ const GutHealth = () => {
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '0.8fr 1.2fr' }, gap: 3 }}>
         {/* Diversity Score (The 30-Plant Rule) */}
-        <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #e2e8f0', bgcolor: '#fff', textAlign: 'center' }}>
+        <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #e2e8f0', bgcolor: 'background.paper', textAlign: 'center' }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#64748b', mb: 2 }}>
             WEEKLY PLANT POINTS
           </Typography>
@@ -98,7 +98,7 @@ const GutHealth = () => {
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {insights.map((insight, idx) => (
-              <Box key={idx} sx={{ p: 1.5, bgcolor: '#fff', borderRadius: 2, border: '1px solid #ccfbf1' }}>
+              <Box key={idx} sx={{ p: 1.5, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #ccfbf1' }}>
                 <Typography variant="body2" sx={{ color: '#0f766e', lineHeight: 1.5 }}>
                   {insight}
                 </Typography>
@@ -113,7 +113,7 @@ const GutHealth = () => {
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {uniquePlants.map(p => (
-                  <Box key={p} sx={{ px: 1.5, py: 0.5, bgcolor: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: '0.75rem', color: '#475569', textTransform: 'capitalize' }}>
+                  <Box key={p} sx={{ px: 1.5, py: 0.5, bgcolor: 'background.paper', border: '1px solid #e2e8f0', borderRadius: 10, fontSize: '0.75rem', color: '#475569', textTransform: 'capitalize' }}>
                     {p}
                   </Box>
                 ))}

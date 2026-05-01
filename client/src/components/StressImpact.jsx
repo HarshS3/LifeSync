@@ -34,7 +34,7 @@ const StressImpact = () => {
   if (loading) return <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 3, mb: 3 }} />
   if (!data || data.status === 'insufficient_data') {
     return (
-      <Paper sx={{ p: 3, borderRadius: 3, bgcolor: '#f8fafc', border: '1px dashed #cbd5e1', textAlign: 'center', mb: 3 }}>
+      <Paper sx={{ p: 3, borderRadius: 3, bgcolor: 'background.default', border: '1px dashed #cbd5e1', textAlign: 'center', mb: 3 }}>
         <PsychologyIcon sx={{ color: '#94a3b8', fontSize: 40, mb: 1 }} />
         <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#475569' }}>
           Stress Resilience: Analyzing...
@@ -79,7 +79,7 @@ const StressImpact = () => {
           </Typography>
         </Paper>
 
-        <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #e2e8f0', bgcolor: '#fff' }}>
+        <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #e2e8f0', bgcolor: 'background.paper' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             <BoltIcon sx={{ color: '#3b82f6' }} />
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Biological Observations</Typography>

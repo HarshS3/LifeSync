@@ -113,25 +113,25 @@ function GoalsPanel() {
 
   const inputSx = {
     '& .MuiOutlinedInput-root': {
-      '& fieldset': { borderColor: '#e5e7eb' },
+      '& fieldset': { borderColor: 'divider' },
       '&:hover fieldset': { borderColor: '#d1d5db' },
-      '&.Mui-focused fieldset': { borderColor: '#171717' },
+      '&.Mui-focused fieldset': { borderColor: 'text.primary' },
     },
-    '& .MuiInputLabel-root.Mui-focused': { color: '#171717' },
+    '& .MuiInputLabel-root.Mui-focused': { color: 'text.primary' },
   }
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: '#171717' }}>
+      <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
         Goals
       </Typography>
-      <Typography variant="body2" sx={{ mb: 4, color: '#6b7280' }}>
+      <Typography variant="body2" sx={{ mb: 4, color: 'text.secondary' }}>
         Set targets and track your progress over time
       </Typography>
 
       {/* Active Goals */}
       <Box sx={{ mb: 5 }}>
-        <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280', fontWeight: 500 }}>
+        <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary', fontWeight: 500 }}>
           Active Goals
         </Typography>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -140,7 +140,7 @@ function GoalsPanel() {
               <LinearProgress />
             </Box>
           ) : goals.length === 0 ? (
-            <Box sx={{ py: 6, textAlign: 'center', color: '#6b7280' }}>
+            <Box sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
               <Typography variant="body1" sx={{ mb: 0.5 }}>
                 No goals yet
               </Typography>
@@ -157,21 +157,21 @@ function GoalsPanel() {
                   key={goal._id}
                   sx={{
                     p: 3,
-                    bgcolor: '#fff',
+                    bgcolor: 'background.paper',
                     borderRadius: 2,
                     border: '1px solid #e5e7eb',
                   }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                    <Typography variant="body1" sx={{ fontWeight: 500, color: '#171717' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 500, color: 'text.primary' }}>
                       {goal.title}
                     </Typography>
                     <Chip
                       label={domain}
                       size="small"
                       sx={{
-                        bgcolor: categoryColors[domain]?.bg || '#f3f4f6',
-                        color: categoryColors[domain]?.text || '#374151',
+                        bgcolor: categoryColors[domain]?.bg || 'action.selected',
+                        color: categoryColors[domain]?.text || 'text.secondary',
                         fontWeight: 500,
                         fontSize: 12,
                       }}
@@ -179,7 +179,7 @@ function GoalsPanel() {
                   </Box>
 
                   {(goal.target || goal.targetDate) && (
-                    <Typography variant="caption" sx={{ display: 'block', color: '#6b7280', mb: 2 }}>
+                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mb: 2 }}>
                       {goal.target ? `Target: ${goal.target}` : ''}
                       {goal.target && goal.targetDate ? ' • ' : ''}
                       {goal.targetDate ? `Due: ${new Date(goal.targetDate).toLocaleDateString()}` : ''}
@@ -194,14 +194,14 @@ function GoalsPanel() {
                         flex: 1,
                         height: 6,
                         borderRadius: 3,
-                        bgcolor: '#f3f4f6',
+                        bgcolor: 'action.selected',
                         '& .MuiLinearProgress-bar': {
-                          bgcolor: '#171717',
+                          bgcolor: 'text.primary',
                           borderRadius: 3,
                         },
                       }}
                     />
-                    <Typography variant="body2" sx={{ color: '#6b7280', fontWeight: 500, minWidth: 40 }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500, minWidth: 40 }}>
                       {progress}%
                     </Typography>
                   </Box>
@@ -216,12 +216,12 @@ function GoalsPanel() {
       <Box
         sx={{
           p: 3,
-          bgcolor: '#f9fafb',
+          bgcolor: 'action.hover',
           borderRadius: 2,
           border: '1px solid #e5e7eb',
         }}
       >
-        <Typography variant="subtitle2" sx={{ mb: 3, color: '#171717', fontWeight: 600 }}>
+        <Typography variant="subtitle2" sx={{ mb: 3, color: 'text.primary', fontWeight: 600 }}>
           Create New Goal
         </Typography>
 
@@ -236,7 +236,7 @@ function GoalsPanel() {
           />
 
           <Box>
-            <Typography variant="body2" sx={{ mb: 1.5, fontWeight: 500, color: '#374151' }}>
+            <Typography variant="body2" sx={{ mb: 1.5, fontWeight: 500, color: 'text.secondary' }}>
               Category
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -248,14 +248,14 @@ function GoalsPanel() {
                   sx={{
                     bgcolor: newGoal.domain === cat 
                       ? categoryColors[cat]?.bg 
-                      : '#fff',
+                      : 'background.paper',
                     color: newGoal.domain === cat 
                       ? categoryColors[cat]?.text 
-                      : '#6b7280',
+                      : 'text.secondary',
                     border: '1px solid',
                     borderColor: newGoal.domain === cat 
                       ? categoryColors[cat]?.text 
-                      : '#e5e7eb',
+                      : 'divider',
                     fontWeight: 500,
                     '&:hover': { 
                       bgcolor: categoryColors[cat]?.bg,
@@ -290,13 +290,13 @@ function GoalsPanel() {
             disabled={!newGoal.title}
             sx={{
               py: 1.5,
-              bgcolor: '#171717',
+              bgcolor: 'text.primary',
               textTransform: 'none',
               fontWeight: 600,
               borderRadius: 2,
               boxShadow: 'none',
-              '&:hover': { bgcolor: '#374151', boxShadow: 'none' },
-              '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#9ca3af' },
+              '&:hover': { bgcolor: 'text.secondary', boxShadow: 'none' },
+              '&.Mui-disabled': { bgcolor: 'divider', color: '#9ca3af' },
             }}
           >
             Create Goal

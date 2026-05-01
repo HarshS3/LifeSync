@@ -8,7 +8,7 @@ import Divider from '@mui/material/Divider'
 
 const SectionTitle = ({ children }) => {
   return (
-    <Typography variant="subtitle2" sx={{ mb: 2, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
+    <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
       {children}
     </Typography>
   )
@@ -16,11 +16,11 @@ const SectionTitle = ({ children }) => {
 
 const inputSx = {
   '& .MuiOutlinedInput-root': {
-    '& fieldset': { borderColor: '#e5e7eb' },
+    '& fieldset': { borderColor: 'divider' },
     '&:hover fieldset': { borderColor: '#d1d5db' },
-    '&.Mui-focused fieldset': { borderColor: '#171717' },
+    '&.Mui-focused fieldset': { borderColor: 'text.primary' },
   },
-  '& .MuiInputLabel-root.Mui-focused': { color: '#171717' },
+  '& .MuiInputLabel-root.Mui-focused': { color: 'text.primary' },
 }
 
 export default function MeasurementsTab({
@@ -40,7 +40,7 @@ export default function MeasurementsTab({
 }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Typography variant="body2" sx={{ color: '#6b7280' }}>
+      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
         Log measurements by date. Add a new entry, then click any previous date to view or edit all fields.
       </Typography>
 
@@ -50,7 +50,7 @@ export default function MeasurementsTab({
           variant="outlined"
           size="small"
           onClick={addMeasurementLog}
-          sx={{ textTransform: 'none', borderColor: '#171717', color: '#171717' }}
+          sx={{ textTransform: 'none', borderColor: 'text.primary', color: 'text.primary' }}
         >
           + Add Measurement
         </Button>
@@ -63,8 +63,8 @@ export default function MeasurementsTab({
             label={getMeasurementLogLabel(entry, idx)}
             onClick={() => selectMeasurementLog(idx)}
             sx={{
-              bgcolor: idx === selectedMeasurementLogIndex ? '#171717' : '#f3f4f6',
-              color: idx === selectedMeasurementLogIndex ? '#fff' : '#374151',
+              bgcolor: idx === selectedMeasurementLogIndex ? 'text.primary' : 'action.selected',
+              color: idx === selectedMeasurementLogIndex ? 'background.paper' : 'text.secondary',
             }}
           />
         ))}
@@ -148,11 +148,11 @@ export default function MeasurementsTab({
         </>
       )}
 
-      <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 1, border: '1px solid #e5e7eb' }}>
-        <Typography variant="subtitle2" sx={{ mb: 1, color: '#374151', fontWeight: 600 }}>
+      <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid #e5e7eb' }}>
+        <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 600 }}>
           Body Composition (OCR)
         </Typography>
-        <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
           Upload an InBody/Tanita/ACCUNIQ-style report (image or PDF). This fills Protein, SMM, Visceral Fat, Segmental Fat, etc.
         </Typography>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
@@ -165,7 +165,7 @@ export default function MeasurementsTab({
             variant="outlined"
             disabled={!bodyCompOcrFile || bodyCompOcrLoading}
             onClick={importBodyCompositionFromOcr}
-            sx={{ textTransform: 'none', borderColor: '#171717', color: '#171717', '&:hover': { borderColor: '#374151' } }}
+            sx={{ textTransform: 'none', borderColor: 'text.primary', color: 'text.primary', '&:hover': { borderColor: 'text.secondary' } }}
           >
             {bodyCompOcrLoading ? 'Reading…' : 'Import Body Scan'}
           </Button>
@@ -251,7 +251,7 @@ export default function MeasurementsTab({
 
         <Divider sx={{ my: 2 }} />
 
-        <Typography variant="subtitle2" sx={{ mb: 1, color: '#374151', fontWeight: 600 }}>
+        <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 600 }}>
           Segmental Fat
         </Typography>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
@@ -332,7 +332,7 @@ export default function MeasurementsTab({
 
         <Divider sx={{ my: 2 }} />
 
-        <Typography variant="subtitle2" sx={{ mb: 1, color: '#374151', fontWeight: 600 }}>
+        <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 600 }}>
           Segmental Muscle (kg)
         </Typography>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>

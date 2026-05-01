@@ -314,14 +314,14 @@ function ChatPanel() {
   const isVoiceActive = isRecording || isListening
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
 
       {/* Messages list */}
       <Box ref={messagesContainerRef} sx={{ flex: 1, overflow: 'auto', p: 3 }}>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           {messages.map((m, idx) => (
             <Box key={idx} sx={{ display: 'flex', gap: 2, flexDirection: m.from === 'user' ? 'row-reverse' : 'row', alignItems: 'flex-start' }}>
-              <Avatar sx={{ width: 32, height: 32, bgcolor: m.from === 'user' ? '#171717' : m.from === 'system' ? '#f3f4f6' : '#f0fdf4', color: m.from === 'user' ? '#fff' : m.from === 'system' ? '#9ca3af' : '#16a34a', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: m.from === 'user' ? 'text.primary' : m.from === 'system' ? 'action.selected' : '#f0fdf4', color: m.from === 'user' ? 'background.paper' : m.from === 'system' ? '#9ca3af' : '#16a34a', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                 {m.from === 'user' ? 'U' : m.from === 'system' ? '·' : 'L'}
               </Avatar>
 
@@ -329,8 +329,8 @@ function ChatPanel() {
                 <Typography variant="body2" sx={{
                   p: '10px 14px',
                   borderRadius: 2,
-                  bgcolor: m.from === 'user' ? '#171717' : m.from === 'system' ? 'transparent' : '#f9fafb',
-                  color: m.from === 'user' ? '#fff' : m.from === 'system' ? '#6b7280' : '#374151',
+                  bgcolor: m.from === 'user' ? 'text.primary' : m.from === 'system' ? 'transparent' : 'action.hover',
+                  color: m.from === 'user' ? 'background.paper' : m.from === 'system' ? 'text.secondary' : 'text.secondary',
                   lineHeight: 1.6,
                   fontStyle: m.from === 'system' ? 'italic' : 'normal',
                   fontSize: m.from === 'system' ? '0.8rem' : '0.875rem',
@@ -372,7 +372,7 @@ function ChatPanel() {
           {isSending && (
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <Avatar sx={{ width: 32, height: 32, bgcolor: '#f0fdf4', color: '#16a34a', fontSize: 13, fontWeight: 700 }}>L</Avatar>
-              <Box sx={{ display: 'flex', gap: 0.5, p: '12px 16px', bgcolor: '#f9fafb', borderRadius: 2 }}>
+              <Box sx={{ display: 'flex', gap: 0.5, p: '12px 16px', bgcolor: 'action.hover', borderRadius: 2 }}>
                 {[0, 1, 2].map(i => (
                   <Box key={i} sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#9ca3af', animation: 'pulse 1.2s ease-in-out infinite', animationDelay: `${i * 0.2}s`, '@keyframes pulse': { '0%,100%': { opacity: 0.3 }, '50%': { opacity: 1 } } }} />
                 ))}
@@ -396,12 +396,12 @@ function ChatPanel() {
               label={action.label}
               size="small"
               onClick={() => setInput(action.prefix)}
-              sx={{ fontSize: '0.75rem', height: 26, cursor: 'pointer', bgcolor: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb', '&:hover': { bgcolor: '#e5e7eb' }, '& .MuiChip-icon': { color: '#6b7280' } }}
+              sx={{ fontSize: '0.75rem', height: 26, cursor: 'pointer', bgcolor: 'action.selected', color: 'text.secondary', border: '1px solid #e5e7eb', '&:hover': { bgcolor: 'divider' }, '& .MuiChip-icon': { color: 'text.secondary' } }}
             />
           ))}
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1, border: '1px solid #e5e7eb', borderRadius: 2, bgcolor: '#fff', '&:focus-within': { borderColor: '#171717' } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1, border: '1px solid #e5e7eb', borderRadius: 2, bgcolor: 'background.paper', '&:focus-within': { borderColor: 'text.primary' } }}>
           <TextField
             variant="standard"
             placeholder={isListening ? 'Listening…' : 'Tell me what you ate, ask a question, or use a quick action…'}
@@ -415,7 +415,7 @@ function ChatPanel() {
             onClick={isVoiceActive ? () => stopRecording({ submit: true }) : startRecording}
             disabled={isTranscribing || isSending}
             title={isVoiceActive ? 'Stop & send voice' : 'Voice input'}
-            sx={{ bgcolor: isVoiceActive ? '#fee2e2' : '#f3f4f6', color: isVoiceActive ? '#b91c1c' : '#111827', width: 36, height: 36, '&:hover': { bgcolor: isVoiceActive ? '#fecaca' : '#e5e7eb' }, '&.Mui-disabled': { bgcolor: '#f3f4f6', color: '#9ca3af' } }}
+            sx={{ bgcolor: isVoiceActive ? '#fee2e2' : 'action.selected', color: isVoiceActive ? '#b91c1c' : '#111827', width: 36, height: 36, '&:hover': { bgcolor: isVoiceActive ? '#fecaca' : 'divider' }, '&.Mui-disabled': { bgcolor: 'action.selected', color: '#9ca3af' } }}
           >
             {isVoiceActive ? <StopIcon sx={{ fontSize: 18 }} /> : <MicIcon sx={{ fontSize: 18 }} />}
           </IconButton>
@@ -423,7 +423,7 @@ function ChatPanel() {
             onClick={() => setShowMealTemplates(!showMealTemplates)}
             disabled={isSending || isTranscribing}
             title="Quick relog"
-            sx={{ bgcolor: '#f3f4f6', color: '#111827', width: 36, height: 36, '&:hover': { bgcolor: '#e5e7eb' }, '&.Mui-disabled': { bgcolor: '#f3f4f6', color: '#9ca3af' } }}
+            sx={{ bgcolor: 'action.selected', color: '#111827', width: 36, height: 36, '&:hover': { bgcolor: 'divider' }, '&.Mui-disabled': { bgcolor: 'action.selected', color: '#9ca3af' } }}
           >
             <HistoryIcon sx={{ fontSize: 18 }} />
           </IconButton>
@@ -431,21 +431,21 @@ function ChatPanel() {
             onClick={() => setShowPhotoLog(true)}
             disabled={isSending || isTranscribing}
             title="Photo logging"
-            sx={{ bgcolor: '#f3f4f6', color: '#111827', width: 36, height: 36, '&:hover': { bgcolor: '#e5e7eb' }, '&.Mui-disabled': { bgcolor: '#f3f4f6', color: '#9ca3af' } }}
+            sx={{ bgcolor: 'action.selected', color: '#111827', width: 36, height: 36, '&:hover': { bgcolor: 'divider' }, '&.Mui-disabled': { bgcolor: 'action.selected', color: '#9ca3af' } }}
           >
             <CameraAltIcon sx={{ fontSize: 18 }} />
           </IconButton>
           <IconButton
             onClick={sendMessage}
             disabled={isSending || !input.trim()}
-            sx={{ bgcolor: '#171717', color: '#fff', width: 36, height: 36, '&:hover': { bgcolor: '#262626' }, '&.Mui-disabled': { bgcolor: '#e5e7eb', color: '#9ca3af' } }}
+            sx={{ bgcolor: 'text.primary', color: 'background.paper', width: 36, height: 36, '&:hover': { bgcolor: '#262626' }, '&.Mui-disabled': { bgcolor: 'divider', color: '#9ca3af' } }}
           >
             <SendIcon sx={{ fontSize: 18 }} />
           </IconButton>
         </Box>
 
         {isTranscribing && (
-          <Typography variant="caption" sx={{ display: 'block', mt: 1, color: '#6b7280', textAlign: 'center' }}>
+          <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary', textAlign: 'center' }}>
             Transcribing…
           </Typography>
         )}

@@ -188,10 +188,10 @@ function SymptomsPanel() {
   return (
     <Box>
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: '#171717' }}>
+        <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
           Symptoms
         </Typography>
-        <Typography variant="body2" sx={{ color: '#6b7280' }}>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
           Track symptoms over time and review patterns.
         </Typography>
       </Box>
@@ -215,8 +215,8 @@ function SymptomsPanel() {
         }}
       >
         {/* Editor */}
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#171717', mb: 2 }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary', mb: 2 }}>
             {editingId ? 'Edit symptom log' : 'New symptom log'}
           </Typography>
 
@@ -283,9 +283,9 @@ function SymptomsPanel() {
         </Box>
 
         {/* List */}
-        <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#171717' }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>
               Recent logs
             </Typography>
             <Button variant="outlined" onClick={load} disabled={loading || !token}>
@@ -297,10 +297,10 @@ function SymptomsPanel() {
 
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-              <CircularProgress sx={{ color: '#171717' }} />
+              <CircularProgress sx={{ color: 'text.primary' }} />
             </Box>
           ) : logs.length === 0 ? (
-            <Typography variant="body2" sx={{ color: '#6b7280' }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               No symptom logs yet.
             </Typography>
           ) : (
@@ -312,15 +312,15 @@ function SymptomsPanel() {
                     p: 2,
                     borderRadius: 2,
                     border: '1px solid #e5e7eb',
-                    bgcolor: editingId === log._id ? '#f9fafb' : '#fff',
+                    bgcolor: editingId === log._id ? 'action.hover' : 'background.paper',
                   }}
                 >
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
                     <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="body1" sx={{ fontWeight: 600, color: '#171717' }} noWrap>
+                      <Typography variant="body1" sx={{ fontWeight: 600, color: 'text.primary' }} noWrap>
                         {log.symptomName}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                         {log.date ? new Date(log.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'}
                       </Typography>
                     </Box>
@@ -332,7 +332,7 @@ function SymptomsPanel() {
                           label={`${log.severity}/10`}
                           sx={{
                             bgcolor: (log.severity || 0) >= 7 ? '#fee2e2' : (log.severity || 0) >= 4 ? '#fef3c7' : '#dcfce7',
-                            color: '#171717',
+                            color: 'text.primary',
                             border: '1px solid #e5e7eb',
                           }}
                         />
@@ -347,7 +347,7 @@ function SymptomsPanel() {
                   </Box>
 
                   {!!log.notes && (
-                    <Typography variant="body2" sx={{ color: '#374151', mt: 1, whiteSpace: 'pre-wrap' }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1, whiteSpace: 'pre-wrap' }}>
                       {log.notes}
                     </Typography>
                   )}
@@ -359,7 +359,7 @@ function SymptomsPanel() {
                           key={t}
                           size="small"
                           label={t}
-                          sx={{ bgcolor: '#f3f4f6', border: '1px solid #e5e7eb', color: '#374151' }}
+                          sx={{ bgcolor: 'action.selected', border: '1px solid #e5e7eb', color: 'text.secondary' }}
                         />
                       ))}
                     </Box>

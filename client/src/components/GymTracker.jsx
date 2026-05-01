@@ -966,10 +966,10 @@ function GymTracker() {
       `}</style>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3, flexDirection: { xs: 'column', sm: 'row' }, gap: 1.5 }}>
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 600, color: '#171717' }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary' }}>
             Gym Tracker
           </Typography>
-          <Typography variant="body2" sx={{ color: '#6b7280' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             Log workouts, track progress, build strength
           </Typography>
         </Box>
@@ -982,12 +982,12 @@ function GymTracker() {
               sx={{ 
                 textTransform: 'none', 
                 fontWeight: 600, 
-                color: '#171717', 
-                borderColor: '#e5e7eb',
+                color: 'text.primary', 
+                borderColor: 'divider',
                 transition: 'all 0.2s ease',
                 '&:hover': { 
                   borderColor: '#1f2937',
-                  bgcolor: '#f9fafb',
+                  bgcolor: 'action.hover',
                   transform: 'translateY(-1px)'
                 },
                 '&:active': { 
@@ -1005,7 +1005,7 @@ function GymTracker() {
                 width: 18, height: 18, bgcolor: '#ef4444', 
                 borderRadius: '50%', display: 'flex', 
                 alignItems: 'center', justifyContent: 'center', 
-                color: '#fff', fontSize: '10px', fontWeight: 700,
+                color: 'background.paper', fontSize: '10px', fontWeight: 700,
                 border: '2px solid #fff',
                 animation: 'pulse 2s infinite'
               }}>
@@ -1020,7 +1020,7 @@ function GymTracker() {
               onClick={startWorkout}
               fullWidth={isMobile}
               sx={{
-                bgcolor: '#171717',
+                bgcolor: 'text.primary',
                 textTransform: 'none',
                 fontWeight: 600,
                 transition: 'all 0.2s ease',
@@ -1050,7 +1050,7 @@ function GymTracker() {
             Choose a saved routine to start your workout instantly.
           </Typography>
           {templates.length === 0 ? (
-            <Box sx={{ py: 4, textAlign: 'center', bgcolor: '#f8fafc', borderRadius: 2, border: '1px dashed #e2e8f0' }}>
+            <Box sx={{ py: 4, textAlign: 'center', bgcolor: 'background.default', borderRadius: 2, border: '1px dashed #e2e8f0' }}>
               <Typography variant="body2" sx={{ color: '#94a3b8' }}>You haven't saved any routines yet.</Typography>
             </Box>
           ) : (
@@ -1091,7 +1091,7 @@ function GymTracker() {
             onClick={() => setTemplateDialogOpen(false)}
             sx={{
               transition: 'all 0.2s ease',
-              '&:hover': { bgcolor: '#f3f4f6' },
+              '&:hover': { bgcolor: 'action.selected' },
               '&:active': { opacity: 0.7 },
               '&:focus': { outline: '2px solid #1f2937' }
             }}
@@ -1106,9 +1106,9 @@ function GymTracker() {
         <Box sx={{ 
           p: 3, 
           mb: 3, 
-          bgcolor: '#171717', 
+          bgcolor: 'text.primary', 
           borderRadius: 2,
-          color: '#fff',
+          color: 'background.paper',
         }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Box>
@@ -1137,7 +1137,7 @@ function GymTracker() {
                   transition: 'all 0.2s ease',
                   '&:hover': { 
                     borderColor: 'rgba(255,255,255,0.6)',
-                    color: '#fff',
+                    color: 'background.paper',
                     bgcolor: 'rgba(255,255,255,0.05)'
                   },
                   '&:active': { opacity: 0.7 },
@@ -1157,7 +1157,7 @@ function GymTracker() {
                   transition: 'all 0.2s ease',
                   '&:hover': { 
                     borderColor: 'rgba(255,255,255,0.6)',
-                    color: '#fff',
+                    color: 'background.paper',
                     bgcolor: 'rgba(255,255,255,0.05)'
                   },
                   '&:active': { opacity: 0.7 },
@@ -1210,8 +1210,8 @@ function GymTracker() {
                       label={EXERCISE_LIBRARY[exercise.muscleGroup]?.label || exercise.muscleGroup}
                       size="small"
                       sx={{
-                        bgcolor: EXERCISE_LIBRARY[exercise.muscleGroup]?.color || '#6b7280',
-                        color: '#fff',
+                        bgcolor: EXERCISE_LIBRARY[exercise.muscleGroup]?.color || 'text.secondary',
+                        color: 'background.paper',
                         fontWeight: 600,
                       }}
                     />
@@ -1256,7 +1256,7 @@ function GymTracker() {
                     const prevSet = exerciseLastSets[exercise.name]?.[setIdx];
                     return (
                     <Box key={setIdx} sx={{ display: 'grid', gridTemplateColumns: { xs: '32px 1fr 1fr 64px', sm: '40px 1fr 1fr 80px' }, gap: 1, mb: 1, alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ color: '#6b7280', fontWeight: 600 }}>{setIdx + 1}</Typography>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>{setIdx + 1}</Typography>
                       <TextField
                         size="small"
                         type="number"
@@ -1266,10 +1266,10 @@ function GymTracker() {
                         sx={{
                           '& .MuiOutlinedInput-root': {
                             bgcolor: 'rgba(255,255,255,0.1)',
-                            color: '#fff',
+                            color: 'background.paper',
                             '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
                           },
-                          '& input': { color: '#fff', textAlign: 'center' },
+                          '& input': { color: 'background.paper', textAlign: 'center' },
                           '& input::placeholder': { color: '#9ca3af', opacity: 1 },
                         }}
                       />
@@ -1282,10 +1282,10 @@ function GymTracker() {
                         sx={{
                           '& .MuiOutlinedInput-root': {
                             bgcolor: 'rgba(255,255,255,0.1)',
-                            color: '#fff',
+                            color: 'background.paper',
                             '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
                           },
-                          '& input': { color: '#fff', textAlign: 'center' },
+                          '& input': { color: 'background.paper', textAlign: 'center' },
                           '& input::placeholder': { color: '#9ca3af', opacity: 1 },
                         }}
                       />
@@ -1310,7 +1310,7 @@ function GymTracker() {
                           size="small" 
                           onClick={() => removeSet(exIdx, setIdx)}
                           disabled={exercise.sets.length <= 1}
-                          sx={{ color: '#6b7280' }}
+                          sx={{ color: 'text.secondary' }}
                         >
                           <CloseIcon fontSize="small" />
                         </IconButton>
@@ -1334,10 +1334,10 @@ function GymTracker() {
               onClick={() => setExerciseDialogOpen(true)}
               sx={{
                 borderColor: 'rgba(255,255,255,0.3)',
-                color: '#fff',
+                color: 'background.paper',
                 textTransform: 'none',
                 py: 1.5,
-                '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.1)' },
+                '&:hover': { borderColor: 'background.paper', bgcolor: 'rgba(255,255,255,0.1)' },
               }}
             >
               Add Exercise
@@ -1362,10 +1362,10 @@ function GymTracker() {
                   fontWeight: 500,
                   minHeight: { xs: 42, sm: 48 },
                   py: { xs: 0.5, sm: 1 },
-                  color: '#6b7280',
-                  '&.Mui-selected': { color: '#171717' },
+                  color: 'text.secondary',
+                  '&.Mui-selected': { color: 'text.primary' },
                 },
-                '& .MuiTabs-indicator': { bgcolor: '#171717' },
+                '& .MuiTabs-indicator': { bgcolor: 'text.primary' },
               }}
             >
               <Tab icon={<TrendingUpIcon />} label={isMobile ? 'Home' : 'Overview'} iconPosition={isMobile ? 'top' : 'start'} />
@@ -1414,8 +1414,8 @@ function GymTracker() {
                   p: 3, borderRadius: 2,
                   background: readiness
                     ? `linear-gradient(135deg, ${readiness.color}12 0%, #fff 60%)`
-                    : '#fff',
-                  border: `1px solid ${readiness ? readiness.color + '40' : '#e5e7eb'}`,
+                    : 'background.paper',
+                  border: `1px solid ${readiness ? readiness.color + '40' : 'divider'}`,
                   position: 'relative', overflow: 'hidden'
                 }}>
                   {/* Background glow */}
@@ -1463,7 +1463,7 @@ function GymTracker() {
                           mt: 1.5, px: 2, py: 0.5, borderRadius: 2,
                           bgcolor: readiness.color, display: 'inline-block'
                         }}>
-                          <Typography variant="caption" sx={{ fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
+                          <Typography variant="caption" sx={{ fontWeight: 800, color: 'background.paper', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
                             {readiness.status === 'push_hard' ? '🔥 Push Hard'
                               : readiness.status === 'train_normal' ? '💪 Train Normal'
                               : readiness.status === 'train_light' ? '🔄 Train Light'
@@ -1490,7 +1490,7 @@ function GymTracker() {
                             const pct = (comp.score / 10) * 100
                             const c = comp.score >= 7 ? '#22c55e' : comp.score >= 5 ? '#f59e0b' : '#ef4444'
                             return (
-                              <Box key={comp.label} sx={{ p: 1.5, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
+                              <Box key={comp.label} sx={{ p: 1.5, bgcolor: 'background.default', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                                   <Typography variant="caption" sx={{ fontWeight: 700, color: '#334155' }}>
                                     {comp.emoji} {comp.label}
@@ -1564,8 +1564,8 @@ function GymTracker() {
               </Box>
 
               <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-                <Box sx={{ p: 2, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                  <Typography variant="body2" sx={{ color: '#475569' }}>
+                <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                     {isMobile ? 'Advanced analytics are available below when needed.' : 'Advanced analytics are shown below.'}
                   </Typography>
                   <Button
@@ -1575,12 +1575,12 @@ function GymTracker() {
                     sx={{ 
                       textTransform: 'none',
                       transition: 'all 0.2s ease',
-                      borderColor: '#e5e7eb',
-                      color: '#475569',
+                      borderColor: 'divider',
+                      color: 'text.secondary',
                       '&:hover': { 
-                        borderColor: '#1f2937',
-                        color: '#1f2937',
-                        bgcolor: '#f9fafb',
+                        borderColor: 'text.primary',
+                        color: 'text.primary',
+                        bgcolor: 'action.hover',
                         transform: 'translateY(-1px)'
                       },
                       '&:active': { 
@@ -1598,10 +1598,10 @@ function GymTracker() {
               {/* Performance Charts */}
               {(!isMobile || showAdvancedOverview) && (
               <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-                <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
                     <BarChartIcon sx={{ color: '#8b5cf6' }} />
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem', color: 'text.primary' }}>
                       Volume & Intensity Trends
                     </Typography>
                   </Box>
@@ -1615,21 +1615,28 @@ function GymTracker() {
                             <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.palette.divider} />
                         <XAxis 
                           dataKey="date" 
                           axisLine={false} 
                           tickLine={false} 
-                          tick={{ fontSize: 10, fill: '#94a3b8' }} 
+                          tick={{ fontSize: 10, fill: theme.palette.text.secondary }} 
                         />
                         <YAxis 
                           axisLine={false} 
                           tickLine={false} 
-                          tick={{ fontSize: 10, fill: '#94a3b8' }}
+                          tick={{ fontSize: 10, fill: theme.palette.text.secondary }}
                           tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(1)}k` : v}
                         />
                         <Tooltip 
-                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                          contentStyle={{ 
+                            borderRadius: '8px', 
+                            border: 'none', 
+                            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                            backgroundColor: theme.palette.background.paper,
+                            color: theme.palette.text.primary
+                          }}
+                          itemStyle={{ color: theme.palette.text.primary }}
                         />
                         <Area 
                           type="monotone" 
@@ -1650,7 +1657,7 @@ function GymTracker() {
               {/* Exercise Specific Progression */}
               {(!isMobile || showAdvancedOverview) && (
               <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-                <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 3 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <AutoGraphIcon sx={{ color: '#ec4899' }} />
@@ -1706,7 +1713,7 @@ function GymTracker() {
                             dataKey={analysisChartMode === '1rm' ? 'oneRepMax' : 'weight'} 
                             stroke="#ec4899" 
                             strokeWidth={3}
-                            dot={{ r: 4, fill: '#ec4899', strokeWidth: 2, stroke: '#fff' }}
+                            dot={{ r: 4, fill: '#ec4899', strokeWidth: 2, stroke: 'background.paper' }}
                             activeDot={{ r: 6, strokeWidth: 0 }}
                             name={analysisChartMode === '1rm' ? 'Est. 1RM' : 'Max Weight'}
                           />
@@ -1714,7 +1721,7 @@ function GymTracker() {
                       </ResponsiveContainer>
                     </Box>
                   ) : (
-                    <Box sx={{ p: 4, textAlign: 'center', bgcolor: '#f8fafc', borderRadius: 2 }}>
+                    <Box sx={{ p: 4, textAlign: 'center', bgcolor: 'background.default', borderRadius: 2 }}>
                       <Typography variant="body2" sx={{ color: '#94a3b8' }}>
                         Need at least 2 sessions with this exercise to show a trend.
                       </Typography>
@@ -1727,7 +1734,7 @@ function GymTracker() {
               {/* Training Insights - Advanced Analysis */}
               {(!isMobile || showAdvancedOverview) && (
               <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-                <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
                     <AutoGraphIcon sx={{ color: '#38bdf8' }} />
                     <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
@@ -1741,7 +1748,7 @@ function GymTracker() {
                         // Determine icon and color based on insight title
                         let Icon = InsightsIcon;
                         let color = '#64748b';
-                        let bgColor = '#f8fafc';
+                        let bgColor = 'background.default';
                         
                         if (insight.title.includes('Progression')) { Icon = TimelineIcon; color = '#10b981'; bgColor = '#ecfdf5'; }
                         else if (insight.title.includes('Plateau')) { Icon = WarningAmberIcon; color = '#f59e0b'; bgColor = '#fffbeb'; }
@@ -1753,7 +1760,7 @@ function GymTracker() {
                         return (
                           <Box key={idx} sx={{ 
                             p: 2.5, 
-                            bgcolor: '#fff', 
+                            bgcolor: 'background.paper', 
                             borderRadius: 2, 
                             border: '1px solid #e2e8f0',
                             display: 'flex',
@@ -1786,7 +1793,7 @@ function GymTracker() {
                       })}
                     </Box>
                   ) : (
-                    <Box sx={{ p: 4, textAlign: 'center', bgcolor: '#f8fafc', borderRadius: 2, border: '1px dashed #cbd5e1' }}>
+                    <Box sx={{ p: 4, textAlign: 'center', bgcolor: 'background.default', borderRadius: 2, border: '1px dashed #cbd5e1' }}>
                       <AutoGraphIcon sx={{ fontSize: 40, color: '#94a3b8', mb: 1, opacity: 0.5 }} />
                       <Typography variant="body1" sx={{ color: '#475569', fontWeight: 600 }}>
                         No insights generated yet.
@@ -1803,11 +1810,11 @@ function GymTracker() {
               {/* AI Suggestions */}
               {(!isMobile || showAdvancedOverview) && (
               <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-                <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
                   <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
                     AI Suggestions
                   </Typography>
-                  <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 2 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 2 }}>
                     Generated only when you ask—useful for demo or low-friction planning.
                   </Typography>
 
@@ -1835,22 +1842,22 @@ function GymTracker() {
                   {(aiWorkoutSuggestion || aiRecoverySuggestion) ? (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                       {aiWorkoutSuggestion ? (
-                        <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-                          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                        <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
                             Today’s Workout
                           </Typography>
-                          <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: '#374151', lineHeight: 1.7 }}>
+                          <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary', lineHeight: 1.7 }}>
                             {aiWorkoutSuggestion}
                           </Typography>
                         </Box>
                       ) : null}
 
                       {aiRecoverySuggestion ? (
-                        <Box sx={{ p: 2, bgcolor: '#f9fafb', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-                          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 0.5 }}>
+                        <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
                             Recovery + Adjustment
                           </Typography>
-                          <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: '#374151', lineHeight: 1.7 }}>
+                          <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary', lineHeight: 1.7 }}>
                             {aiRecoverySuggestion}
                           </Typography>
                         </Box>
@@ -1868,7 +1875,7 @@ function GymTracker() {
               {/* Life Sync: Cross-Domain Correlation */}
               {(!isMobile || showAdvancedOverview) && (
               <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-                <Box sx={{ p: 3, bgcolor: '#0f172a', borderRadius: 2, border: '1px solid rgba(56, 189, 248, 0.2)', color: '#fff' }}>
+                <Box sx={{ p: 3, bgcolor: '#0f172a', borderRadius: 2, border: '1px solid rgba(56, 189, 248, 0.2)', color: 'background.paper' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
                     <InsightsIcon sx={{ color: '#38bdf8' }} />
                     <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#38bdf8' }}>
@@ -1894,7 +1901,7 @@ function GymTracker() {
                         <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
                         <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
                         <Tooltip 
-                          contentStyle={{ bgcolor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                          contentStyle={{ bgcolor: '#1e293b', border: 'none', borderRadius: '8px', color: 'background.paper' }}
                         />
                         <Line 
                           yAxisId="left"
@@ -1937,7 +1944,7 @@ function GymTracker() {
                       {correlatedInsights.map((insight, idx) => (
                         <Box key={idx} sx={{ 
                           p: 3, 
-                          bgcolor: '#fff', 
+                          bgcolor: 'background.paper', 
                           borderRadius: 2, 
                           borderLeft: `6px solid ${insight.impact === 'high' ? '#ef4444' : '#f97316'}`,
                           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
@@ -1948,7 +1955,7 @@ function GymTracker() {
                           <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.6, mb: 2 }}>
                             {insight.detail}
                           </Typography>
-                          <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 1.5, border: '1px dashed #e2e8f0' }}>
+                          <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1.5, border: '1px dashed #e2e8f0' }}>
                             <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
                               Recommended Action
                             </Typography>
@@ -1966,12 +1973,12 @@ function GymTracker() {
               {/* Monthly Muscle Heatmap */}
               {(!isMobile || showAdvancedOverview) && (
               <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-                <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
                   <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 2, mb: 1.5 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                       Muscle Heatmap (30 days)
                     </Typography>
-                    <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                       Based on logged sets
                     </Typography>
                   </Box>
@@ -2002,7 +2009,7 @@ function GymTracker() {
 
               {/* Weekly Hypertrophy Volume (Hard Sets) */}
               {(!isMobile || showAdvancedOverview) && (
-              <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+              <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                     Weekly Hypertrophy Volume
@@ -2057,7 +2064,7 @@ function GymTracker() {
               {/* Recent Workouts Preview */}
               {(!isMobile || showAdvancedOverview) && (
               <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-                <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
                   <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
                     Recent Workouts
                   </Typography>
@@ -2071,7 +2078,7 @@ function GymTracker() {
                             justifyContent: 'space-between',
                             alignItems: 'center',
                             p: 2,
-                            bgcolor: '#f9fafb',
+                            bgcolor: 'action.hover',
                             borderRadius: 1.5,
                           }}
                         >
@@ -2079,7 +2086,7 @@ function GymTracker() {
                             <Typography variant="body2" sx={{ fontWeight: 600 }}>
                               {workout.name || 'Workout'}
                             </Typography>
-                            <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                               {new Date(workout.date).toLocaleDateString()} • {workout.exercises?.length || 0} exercises
                             </Typography>
                           </Box>
@@ -2091,7 +2098,7 @@ function GymTracker() {
                                   width: 12,
                                   height: 12,
                                   borderRadius: '50%',
-                                  bgcolor: EXERCISE_LIBRARY[muscle]?.color || '#6b7280',
+                                  bgcolor: EXERCISE_LIBRARY[muscle]?.color || 'text.secondary',
                                 }}
                               />
                             ))}
@@ -2112,13 +2119,13 @@ function GymTracker() {
 
           {/* Steps Tab */}
           {activeTab === 1 && (
-            <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+            <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 2, flexWrap: 'wrap' }}>
                 <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#171717' }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>
                     Daily steps
                   </Typography>
-                  <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                     Log your steps for a day and view trends.
                   </Typography>
                 </Box>
@@ -2198,49 +2205,49 @@ function GymTracker() {
 
                   return (
                     <Box>
-                      <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', mb: 1 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
                         {fmt(start)} – {fmt(end)}
                       </Typography>
                       <Box sx={{ width: '100%' }}>
                         <Box component="svg" viewBox="0 0 560 200" role="img" aria-label="Steps chart" sx={{ width: '100%', maxWidth: 560, height: 'auto' }}>
-                            <rect x="0" y="0" width="560" height="200" fill="#ffffff" />
+                            <rect x="0" y="0" width="560" height="200" fill='background.paper' />
 
                             {/* axes */}
-                            <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke="#e5e7eb" strokeWidth="1" />
-                            <line x1={d.x0} y1={d.y0} x2={d.x0} y2={d.y1} stroke="#e5e7eb" strokeWidth="1" />
+                            <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke='divider' strokeWidth="1" />
+                            <line x1={d.x0} y1={d.y0} x2={d.x0} y2={d.y1} stroke='divider' strokeWidth="1" />
 
                             {/* y grid */}
-                            <line x1={d.x0} y1={d.y0} x2={d.x1} y2={d.y0} stroke="#f3f4f6" strokeWidth="1" />
+                            <line x1={d.x0} y1={d.y0} x2={d.x1} y2={d.y0} stroke='action.selected' strokeWidth="1" />
                             <line
                               x1={d.x0}
                               y1={(d.y0 + d.y1) / 2}
                               x2={d.x1}
                               y2={(d.y0 + d.y1) / 2}
-                              stroke="#f3f4f6"
+                              stroke='action.selected'
                               strokeWidth="1"
                             />
-                            <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke="#f3f4f6" strokeWidth="1" />
+                            <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke='action.selected' strokeWidth="1" />
 
                             {/* y labels */}
-                            <text x={d.x0 - 8} y={d.y0 + 3} fontSize="10" fill="#6b7280" textAnchor="end">
+                            <text x={d.x0 - 8} y={d.y0 + 3} fontSize="10" fill='text.secondary' textAnchor="end">
                               {fmtSteps(yMax)}
                             </text>
                             <text x={d.x0 - 8} y={(d.y0 + d.y1) / 2 + 3} fontSize="10" fill="#9ca3af" textAnchor="end">
                               {fmtSteps(yMid)}
                             </text>
-                            <text x={d.x0 - 8} y={d.y1 + 3} fontSize="10" fill="#6b7280" textAnchor="end">
+                            <text x={d.x0 - 8} y={d.y1 + 3} fontSize="10" fill='text.secondary' textAnchor="end">
                               {fmtSteps(yMin)}
                             </text>
 
                             {/* axis titles */}
-                            <text x={(d.x0 + d.x1) / 2} y={200 - 8} fontSize="10" fill="#6b7280" textAnchor="middle">
+                            <text x={(d.x0 + d.x1) / 2} y={200 - 8} fontSize="10" fill='text.secondary' textAnchor="middle">
                               Date
                             </text>
                             <text
                               x="16"
                               y={(d.y0 + d.y1) / 2}
                               fontSize="10"
-                              fill="#6b7280"
+                              fill='text.secondary'
                               textAnchor="middle"
                               transform={`rotate(-90 16 ${(d.y0 + d.y1) / 2})`}
                             >
@@ -2248,7 +2255,7 @@ function GymTracker() {
                             </text>
 
                             {/* line */}
-                            <polyline fill="none" stroke="#171717" strokeWidth="2" points={chart.points} />
+                            <polyline fill="none" stroke='text.primary' strokeWidth="2" points={chart.points} />
 
                             {/* points */}
                             {chart.points
@@ -2256,7 +2263,7 @@ function GymTracker() {
                               .filter(Boolean)
                               .map((p, i) => {
                                 const [x, y] = p.split(',').map(Number)
-                                return <circle key={i} cx={x} cy={y} r={3} fill="#171717" />
+                                return <circle key={i} cx={x} cy={y} r={3} fill='text.primary' />
                               })}
                         </Box>
                       </Box>
@@ -2269,7 +2276,7 @@ function GymTracker() {
 
           {/* Calendar Tab */}
           {activeTab === 2 && (
-            <Box sx={{ p: 3, bgcolor: '#fff', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+            <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
               {calendarLoading && <LinearProgress sx={{ mb: 2 }} />}
               <Calendar events={calendarEvents} compact={isMobile} onMonthChange={loadCalendarRange} />
             </Box>
@@ -2285,12 +2292,12 @@ function GymTracker() {
                     onClick={() => handleWorkoutClick(workout)}
                     sx={{
                       p: { xs: 2, sm: 3 },
-                      bgcolor: '#fff',
+                      bgcolor: 'background.paper',
                       borderRadius: 2,
                       border: '1px solid #e5e7eb',
                       cursor: 'pointer',
                       transition: 'all 0.2s',
-                      '&:hover': { borderColor: '#171717', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }
+                      '&:hover': { borderColor: 'text.primary', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
@@ -2298,7 +2305,7 @@ function GymTracker() {
                         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                           {workout.name || 'Workout'}
                         </Typography>
-                        <Typography variant="caption" sx={{ color: '#6b7280' }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                           {new Date(workout.date).toLocaleDateString('en-US', { 
                             weekday: 'long', 
                             month: 'long', 
@@ -2313,8 +2320,8 @@ function GymTracker() {
                             label={EXERCISE_LIBRARY[muscle]?.label || muscle}
                             size="small"
                             sx={{
-                              bgcolor: EXERCISE_LIBRARY[muscle]?.color || '#6b7280',
-                              color: '#fff',
+                              bgcolor: EXERCISE_LIBRARY[muscle]?.color || 'text.secondary',
+                              color: 'background.paper',
                               fontWeight: 500,
                               fontSize: '0.7rem',
                             }}
@@ -2326,7 +2333,7 @@ function GymTracker() {
                       {workout.exercises?.map((ex, i) => (
                         <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #f3f4f6' }}>
                           <Typography variant="body2">{ex.name}</Typography>
-                          <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                             {ex.sets?.map(s => `${s.weight}kg × ${s.reps}`).join(', ')}
                           </Typography>
                         </Box>
@@ -2337,7 +2344,7 @@ function GymTracker() {
               ) : (
                 <Box sx={{ textAlign: 'center', py: 8 }}>
                   <FitnessCenterIcon sx={{ fontSize: 48, color: '#d1d5db', mb: 2 }} />
-                  <Typography variant="body1" sx={{ color: '#6b7280' }}>
+                  <Typography variant="body1" sx={{ color: 'text.secondary' }}>
                     No workouts logged yet
                   </Typography>
                   <Typography variant="body2" sx={{ color: '#9ca3af' }}>
@@ -2369,7 +2376,7 @@ function GymTracker() {
             variant="outlined"
             onClick={() => setExerciseDialogOpen(true)}
             fullWidth
-            sx={{ borderColor: 'rgba(255,255,255,0.35)', color: '#fff', textTransform: 'none' }}
+            sx={{ borderColor: 'rgba(255,255,255,0.35)', color: 'background.paper', textTransform: 'none' }}
           >
             Add Exercise
           </Button>
@@ -2425,7 +2432,7 @@ function GymTracker() {
                   </Select>
                 </FormControl>
 
-                <Typography variant="body2" sx={{ color: '#6b7280', textAlign: 'center' }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center' }}>
                   — or —
                 </Typography>
 
@@ -2445,7 +2452,7 @@ function GymTracker() {
             onClick={addExercise}
             variant="contained"
             disabled={!selectedMuscle || (!selectedExercise && !customExercise)}
-            sx={{ bgcolor: '#171717', '&:hover': { bgcolor: '#374151' } }}
+            sx={{ bgcolor: 'text.primary', '&:hover': { bgcolor: 'text.secondary' } }}
           >
             Add Exercise
           </Button>
@@ -2473,7 +2480,7 @@ function GymTracker() {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2, pt: 0 }}>
-          <Button onClick={() => setSaveRoutineDialogOpen(false)} sx={{ color: '#6b7280' }}>Cancel</Button>
+          <Button onClick={() => setSaveRoutineDialogOpen(false)} sx={{ color: 'text.secondary' }}>Cancel</Button>
           <Button 
             variant="contained" 
             onClick={() => {
@@ -2482,7 +2489,7 @@ function GymTracker() {
                 setSaveRoutineDialogOpen(false)
               }
             }}
-            sx={{ bgcolor: '#171717', '&:hover': { bgcolor: '#374151' } }}
+            sx={{ bgcolor: 'text.primary', '&:hover': { bgcolor: 'text.secondary' } }}
             disabled={!templateName.trim()}
           >
             Save
@@ -2497,7 +2504,7 @@ function GymTracker() {
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               {selectedWorkout?.name}
             </Typography>
-            <Typography variant="caption" sx={{ color: '#6b7280' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
               {selectedWorkout?.date && new Date(selectedWorkout.date).toLocaleDateString(undefined, {
                 weekday: 'long',
                 year: 'numeric',
@@ -2519,7 +2526,7 @@ function GymTracker() {
                   icon={<TimerIcon sx={{ fontSize: '14px !important' }} />}
                   label={`${Math.round((selectedWorkout.duration || 0) / 60)} min`}
                   size="small"
-                  sx={{ height: 24, fontSize: '0.75rem', bgcolor: '#f3f4f6' }}
+                  sx={{ height: 24, fontSize: '0.75rem', bgcolor: 'action.selected' }}
                 />
                 <Chip
                   icon={<FitnessCenterIcon sx={{ fontSize: '14px !important' }} />}
@@ -2541,7 +2548,7 @@ function GymTracker() {
                     key={idx}
                     sx={{
                       p: 2,
-                      bgcolor: '#f9fafb',
+                      bgcolor: 'action.hover',
                       borderRadius: 1.5,
                       border: '1px solid #e5e7eb'
                     }}
@@ -2556,8 +2563,8 @@ function GymTracker() {
                         sx={{
                           height: 20,
                           fontSize: '0.65rem',
-                          bgcolor: EXERCISE_LIBRARY[ex.muscleGroup]?.color || '#e5e7eb',
-                          color: '#fff'
+                          bgcolor: EXERCISE_LIBRARY[ex.muscleGroup]?.color || 'divider',
+                          color: 'background.paper'
                         }}
                       />
                     </Box>
@@ -2568,13 +2575,13 @@ function GymTracker() {
                           key={setIdx}
                           sx={{
                             p: 1,
-                            bgcolor: '#fff',
+                            bgcolor: 'background.paper',
                             borderRadius: 1,
                             border: '1px solid #e5e7eb',
                             textAlign: 'center'
                           }}
                         >
-                          <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                             Set {setIdx + 1}
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -2620,22 +2627,22 @@ function StatCard({ icon, label, value, sublabel, color }) {
     <Box
       sx={{
         p: 2,
-        bgcolor: '#fff',
+        bgcolor: 'background.paper',
         borderRadius: 2,
         border: '1px solid #e5e7eb',
         textAlign: 'center',
       }}
     >
       <Box sx={{ color, mb: 1 }}>{icon}</Box>
-      <Typography variant="h4" sx={{ fontWeight: 700, color: '#171717' }}>
+      <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
         {value}
         {sublabel && (
-          <Typography component="span" variant="body2" sx={{ color: '#6b7280', ml: 0.5 }}>
+          <Typography component="span" variant="body2" sx={{ color: 'text.secondary', ml: 0.5 }}>
             {sublabel}
           </Typography>
         )}
       </Typography>
-      <Typography variant="caption" sx={{ color: '#6b7280' }}>{label}</Typography>
+      <Typography variant="caption" sx={{ color: 'text.secondary' }}>{label}</Typography>
     </Box>
   )
 }

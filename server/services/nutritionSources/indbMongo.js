@@ -197,27 +197,42 @@ function toSearchResult(doc) {
       baseProtein,
       unitProtein,
     });
-  const inferredServingWeightG = hasUnitServing
-    ? inferServingWeightG({
-        baseCalories,
-        unitCalories,
-        baseProtein,
-        unitProtein,
-        baseCarbs,
-        unitCarbs,
-        baseFat,
-        unitFat,
-        baseFiber,
-        unitFiber,
-      })
-    : null;
-
   const servingQty = hasUnitServing
     ? 1
     : firstNumeric(map, ['serving_qty', 'serving quantity', 'serving_size', 'serving size', 'quantity', 'qty']) || 100;
   const servingUnit = hasUnitServing
     ? unitServingUnit
     : toSafeString(firstNonEmpty(map, ['serving_unit', 'serving unit', 'unit', 'uom', 'measure'])) || 'g';
+
+  // 1. First, try to extract weight from unit/label if it's explicitly mentioned (e.g. "130 gram" or "41 grams")
+  // This is the most accurate source of truth.
+  let finalServingWeightG = null;
+  const weightMatch = servingUnit.match(/(\d+(?:\.\d+)?)\s*(?:g|gram|gm|ml)s?/i);
+  if (weightMatch) {
+    finalServingWeightG = parseFloat(weightMatch[1]);
+  } else if (servingQty > 1) {
+    const unitLower = servingUnit.toLowerCase().trim();
+    if (['g', 'gram', 'grams', 'gm', 'gms', 'ml', 'mls'].includes(unitLower)) {
+      // e.g. Qty: 41, Unit: grams
+      finalServingWeightG = servingQty;
+    }
+  }
+
+  // 2. If no explicit weight, try to infer it from nutrition ratios (standardized to 100g)
+  if (finalServingWeightG == null && hasUnitServing) {
+    finalServingWeightG = inferServingWeightG({
+      baseCalories,
+      unitCalories,
+      baseProtein,
+      unitProtein,
+      baseCarbs,
+      unitCarbs,
+      baseFat,
+      unitFat,
+      baseFiber,
+      unitFiber,
+    });
+  }
 
   const pickValue = (unitServingKeys, baseKeys) =>
     hasUnitServing ? firstNumeric(map, [...unitServingKeys, ...baseKeys]) : firstNumeric(map, [...baseKeys, ...unitServingKeys]);
@@ -273,7 +288,7 @@ function toSearchResult(doc) {
     servingQty,
     servingUnit,
     servingLabel: formatServingLabel(servingQty, servingUnit),
-    servingWeightG: inferredServingWeightG,
+    servingWeightG: finalServingWeightG,
     calories,
     protein,
     carbs,

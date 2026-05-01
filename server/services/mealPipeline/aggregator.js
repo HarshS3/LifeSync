@@ -250,6 +250,10 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
       
       if (!isNaN(unitKcal) && !isNaN(per100Kcal) && per100Kcal > 0) {
           servingWeightG = Math.round((unitKcal / per100Kcal) * 100);
+
+    const m = servingUnit.match(/(\d+(?:\.\d+)?)\s*(?:g|gram|gm|ml)s?/i);
+    if (m) servingWeightG = parseFloat(m[1]);
+    else if (servingQty > 1 && ['g', 'gram', 'grams', 'gm', 'gms', 'ml', 'mls'].includes(servingUnit.toLowerCase().trim())) servingWeightG = servingQty;
       }
     }
     
@@ -318,7 +322,14 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
       servingQty: Number(f.servingQty) || 1,
       servingUnit: f.servingSize || 'serving',
       servingLabel: `${f.servingQty || 1} ${f.servingSize || 'serving'}`.trim(),
-      servingWeightG: 100, // Exact weight unknown
+      servingWeightG: (() => {
+        const ws = f.servingSize || '';
+        const m = ws.match(/(\d+(?:\.\d+)?)\s*(?:g|gram|gm|ml)s?/i);
+        if (m) return parseFloat(m[1]);
+        const q = Number(f.servingQty) || 1;
+        if (q > 1 && ['g', 'gram', 'grams', 'gm', 'gms', 'ml', 'mls'].includes(ws.toLowerCase().trim())) return q;
+        return 100;
+      })(),
       calories: getCol(c, 'energy_kcal', 'kcal', false),
       protein: getCol(c, 'protein_g', 'protein', false),
       carbs: getCol(c, 'carb_g', 'carbohydrate', false),
@@ -382,9 +393,34 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
     }
   })
 
-  // Group to prioritize matches cleanly
-  const merged = [...recipeResults.filter(Boolean), ...ingredientResults, ...indbResults, ...mfpResults, ...tarlaResults]
-  return merged.slice(0, limit)
+  // Balanced Merging: Interleave results from INDB, MFP, and TarlaDalal
+  const limitCount = Math.max(1, limit);
+  const finalResults = [];
+  
+  // 1. Prioritize Recipes and Core Ingredients at the top
+  const highPriority = [...recipeResults.filter(Boolean), ...ingredientResults];
+  finalResults.push(...highPriority.slice(0, 3));
+
+  // 2. Interleave the three main DB sources
+  const sources = [indbResults, mfpResults, tarlaResults];
+  let maxLen = Math.max(...sources.map(s => s.length));
+  
+  for (let i = 0; i < maxLen; i++) {
+    for (const source of sources) {
+      if (source[i] && finalResults.length < limitCount) {
+        finalResults.push(source[i]);
+      }
+    }
+    if (finalResults.length >= limitCount) break;
+  }
+
+  // 3. Fallback for any remaining slots (though unlikely with interleaving)
+  if (finalResults.length < limitCount) {
+    const leftover = highPriority.slice(3);
+    finalResults.push(...leftover.slice(0, limitCount - finalResults.length));
+  }
+
+  return finalResults.slice(0, limitCount);
 }
 
 module.exports = {

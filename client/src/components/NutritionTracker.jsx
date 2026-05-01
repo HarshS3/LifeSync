@@ -238,10 +238,24 @@ const formatServingLabel = (qty, unit) => {
 const formatServingDisplay = (label, servingWeightG) => {
   const safeLabel = String(label || '').trim()
   const safeWeight = Number(servingWeightG)
-  if (safeLabel && Number.isFinite(safeWeight) && safeWeight > 0) {
-    return `${safeLabel} (~${safeWeight} g)`
+  
+  if (!safeLabel && Number.isFinite(safeWeight) && safeWeight > 0) return `${safeWeight}g`
+  if (!Number.isFinite(safeWeight) || safeWeight <= 0) return safeLabel
+
+  // If the label already contains the weight (e.g. "41 grams" or "130 gram"), don't add redundant (41g)
+  // We use a global match to find ANY weight in the label
+  const weightMatches = safeLabel.match(/(\d+(?:\.\d+)?)\s*(?:g|gram|gm|ml)s?/gi)
+  if (weightMatches) {
+    for (const match of weightMatches) {
+      const extracted = parseFloat(match.replace(/[^\d.]/g, ''))
+      if (Math.abs(extracted - safeWeight) < 1) {
+        return safeLabel // Already in label, no need for extra weight info
+      }
+    }
   }
-  return safeLabel
+
+  // Otherwise show as "1 serving (75g)"
+  return `${safeLabel} (${Math.round(safeWeight)}g)`
 }
 
 const renderNutrientInputs = ({ food, index, fields, updateFoodField }) => (
@@ -913,6 +927,17 @@ function NutritionTracker() {
     const servingLabel =
       String(foodResult?.servingLabel || '').trim() || formatServingLabel(baseServingQty, baseServingUnit)
 
+    // Attempt to extract weight from unit/label if it's explicitly mentioned (e.g. "130 gram")
+    // This handles cases where the API returns a generic 100g weight but the label is more specific.
+    let weightG = foodResult?.servingWeightG ?? null
+    const weightInUnit = baseServingUnit.match(/(\d+(?:\.\d+)?)\s*(?:g|gram|gm|ml)/i)
+    const weightInLabel = servingLabel.match(/(\d+(?:\.\d+)?)\s*(?:g|gram|gm|ml)/i)
+    const extractedWeight = weightInUnit ? parseFloat(weightInUnit[1]) : (weightInLabel ? parseFloat(weightInLabel[1]) : null)
+    
+    if (extractedWeight && extractedWeight > 0) {
+      weightG = extractedWeight
+    }
+
     setNewMeal((prev) => {
       const foods = prev.foods.map((food, i) => {
         if (i !== index) return food
@@ -925,7 +950,7 @@ function NutritionTracker() {
           baseServingQty,
           baseServingUnit,
           servingLabel,
-          servingWeightG: foodResult?.servingWeightG ?? food.servingWeightG ?? null,
+          servingWeightG: weightG,
           sourceFoodId: foodResult?.id || food.sourceFoodId || '',
           sourceKind: foodResult?._local?.kind || food.sourceKind || '',
         }
@@ -940,6 +965,46 @@ function NutritionTracker() {
       })
 
       return { ...prev, foods }
+    })
+  }
+
+  const addFoodFromSearch = (foodResult) => {
+    const baseServingQty = Number(foodResult?.servingQty) > 0 ? Number(foodResult.servingQty) : 1
+    const baseServingUnit = String(foodResult?.servingUnit || 'serving').trim() || 'serving'
+    const servingLabel = String(foodResult?.servingLabel || '').trim() || formatServingLabel(baseServingQty, baseServingUnit)
+
+    let weightG = foodResult?.servingWeightG ?? null
+    const weightInUnit = baseServingUnit.match(/(\d+(?:\.\d+)?)\s*(?:g|gram|gm|ml)/i)
+    const weightInLabel = servingLabel.match(/(\d+(?:\.\d+)?)\s*(?:g|gram|gm|ml)/i)
+    const extractedWeight = weightInUnit ? parseFloat(weightInUnit[1]) : (weightInLabel ? parseFloat(weightInLabel[1]) : null)
+    if (extractedWeight && extractedWeight > 0) weightG = extractedWeight
+
+    const newFood = {
+      ...createEmptyFoodRow(),
+      name: foodResult?.name || '',
+      quantity: String(baseServingQty),
+      unit: baseServingUnit,
+      baseServingQty,
+      baseServingUnit,
+      servingLabel,
+      servingWeightG: weightG,
+      sourceFoodId: foodResult?.id || '',
+      sourceKind: foodResult?._local?.kind || '',
+    }
+
+    FOOD_NUTRIENT_FIELDS.forEach((field) => {
+      const value = roundNutrient(foodResult?.[field] ?? 0)
+      newFood[field] = value
+      newFood[`${field}_base`] = value
+    })
+
+    setNewMeal(prev => {
+      // Remove any trailing empty rows and prepend the new food
+      const existing = prev.foods.filter(f => f.name.trim() !== '')
+      return {
+        ...prev,
+        foods: [newFood, ...existing]
+      }
     })
   }
 
@@ -1900,7 +1965,7 @@ function NutritionTracker() {
                       key={f.id || idx}
                       sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: { xs: 1.25, sm: 1 }, px: 1.25, borderRadius: 1.5, cursor: 'pointer', transition: 'background 0.1s', '&:hover': { bgcolor: '#f0fdf4' } }}
                       onClick={() => {
-                        applyFoodResultToRow(f, newMeal.foods.length > 0 ? newMeal.foods.length - 1 : 0)
+                        addFoodFromSearch(f)
                         setSelectedFoodForAnalysis(String(f.name || ''))
                       }}
                     >
@@ -2055,80 +2120,71 @@ function NutritionTracker() {
                     <CloseIcon fontSize="small" />
                   </IconButton>
                   {!!food.servingLabel && (
-                    <Box sx={{ px: 1.5, py: 0.75, bgcolor: '#eff6ff', borderBottom: '1px solid #e0eaff' }}>
-                      <Typography variant="caption" sx={{ color: '#1d4ed8' }}>
-                        Base serving: {formatServingDisplay(food.servingLabel, food.servingWeightG)}
-                        {food.baseServingQty && food.quantity && Number(food.quantity) !== Number(food.baseServingQty) && (
-                          <> · You entered {food.quantity} {food.baseServingUnit} ({((Number(food.quantity) / Number(food.baseServingQty)) || 1).toFixed(2)}x serving)</>
-                        )}
+                    <Box sx={{ px: 1.5, py: 0.5, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                        Reference: {food.servingLabel} {food.servingWeightG ? `(${food.servingWeightG}g)` : ''}
                       </Typography>
                     </Box>
                   )}
-                  <Box sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.03)', display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                  <Box sx={{ p: 1.5, display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                     <TextField
-                      label="Food name"
+                      label="Food Item"
+                      placeholder="e.g. Chicken Breast"
                       value={food.name}
                       onChange={(e) => updateFoodField(idx, 'name', e.target.value)}
                       size="small"
-                      sx={{ 
-                        flex: 1, 
-                        minWidth: 120,
-                        '& .MuiOutlinedInput-root': {
-                          transition: 'all 0.2s ease',
-                          '&:hover': { borderColor: '#1f2937' },
-                          '&:focus-within': { borderColor: '#1f2937', boxShadow: '0 0 0 2px rgba(31, 41, 55, 0.1)' }
-                        }
-                      }}
+                      sx={{ flex: 2, minWidth: 200 }}
                     />
-                    <TextField
-                      label={food.baseServingQty ? `Amount (${food.baseServingUnit || ''})` : 'Amount'}
-                      value={food.quantity}
-                      onChange={(e) => updateFoodField(idx, 'quantity', e.target.value)}
-                      size="small"
-                      sx={{ 
-                        width: { xs: 'calc(50% - 4px)', sm: 90 },
-                        '& .MuiOutlinedInput-root': {
-                          transition: 'all 0.2s ease',
-                          '&:hover': { borderColor: '#1f2937' },
-                          '&:focus-within': { borderColor: '#1f2937', boxShadow: '0 0 0 2px rgba(31, 41, 55, 0.1)' }
-                        }
-                      }}
-                      inputProps={{ inputMode: 'decimal' }}
-                    />
-                    <TextField
-                      label="Unit"
-                      value={food.baseServingUnit || food.unit || ''}
-                      size="small"
-                      sx={{ width: { xs: 'calc(50% - 4px)', sm: 100 }, bgcolor: 'action.selected', fontWeight: 600, color: '#222', borderRadius: 1 }}
-                      InputProps={{ readOnly: true }}
-                      inputProps={{ style: { textAlign: 'center', fontWeight: 600, color: '#222' } }}
-                    />
-                    <TextField
-                      label="Total g"
-                      value={food.baseServingQty && food.servingWeightG && food.quantity ?
-                        ((Number(food.quantity) / Number(food.baseServingQty)) * Number(food.servingWeightG)).toFixed(0) : ''}
-                      size="small"
-                      sx={{ width: { xs: 'calc(50% - 4px)', sm: 80 }, bgcolor: 'action.selected', fontWeight: 600, color: '#222', borderRadius: 1 }}
-                      InputProps={{ readOnly: true }}
-                      inputProps={{ style: { textAlign: 'center', fontWeight: 700, color: 'text.secondary' } }}
-                    />
-                    <TextField
-                      label="kcal"
-                      value={food.calories}
-                      onChange={(e) => updateFoodField(idx, 'calories', e.target.value)}
-                      size="small"
-                      sx={{ 
-                        width: { xs: 'calc(50% - 4px)', sm: 80 },
-                        '& .MuiOutlinedInput-root': {
-                          transition: 'all 0.2s ease',
-                          '&:hover': { borderColor: '#1f2937' },
-                          '&:focus-within': { borderColor: '#1f2937', boxShadow: '0 0 0 2px rgba(31, 41, 55, 0.1)' }
-                        }
-                      }}
-                    />
+                    
+                    <Box sx={{ display: 'flex', gap: 1, flex: 1, minWidth: 180 }}>
+                      <TextField
+                        label="Qty"
+                        value={food.quantity}
+                        onChange={(e) => updateFoodField(idx, 'quantity', e.target.value)}
+                        size="small"
+                        sx={{ width: 70 }}
+                        inputProps={{ inputMode: 'decimal', style: { textAlign: 'center' } }}
+                      />
+                      <TextField
+                        label="Unit"
+                        value={food.baseServingUnit || food.unit || 'serving'}
+                        size="small"
+                        sx={{ flex: 1, bgcolor: 'action.selected', '& .MuiOutlinedInput-input': { color: 'text.secondary' } }}
+                        InputProps={{ readOnly: true }}
+                      />
+                    </Box>
+
+                    <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
+                      <TextField
+                        label="Weight (g)"
+                        type="number"
+                        value={food.baseServingQty && food.servingWeightG && food.quantity ?
+                          Math.round((Number(food.quantity) / Number(food.baseServingQty)) * Number(food.servingWeightG)) : ''}
+                        onChange={(e) => {
+                          const newWeight = Number(e.target.value)
+                          if (!newWeight || !food.servingWeightG || !food.baseServingQty) return
+                          // Calculate the implied quantity: newQty = (newWeight * baseQty) / baseWeight
+                          const impliedQty = (newWeight * Number(food.baseServingQty)) / Number(food.servingWeightG)
+                          updateFoodField(idx, 'quantity', impliedQty.toFixed(2))
+                        }}
+                        size="small"
+                        sx={{ width: 95 }}
+                        inputProps={{ style: { fontWeight: 600 } }}
+                      />
+                      <TextField
+                        label="Calories"
+                        value={food.calories}
+                        onChange={(e) => updateFoodField(idx, 'calories', e.target.value)}
+                        size="small"
+                        sx={{ width: 90 }}
+                        InputProps={{ 
+                          endAdornment: <Typography variant="caption" sx={{ ml: 0.5, opacity: 0.5 }}>kcal</Typography>
+                        }}
+                      />
+                    </Box>
                   </Box>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, p: 1.5 }}>
-                    <ExpandableSection title="Macros & fats" defaultOpen={false}>
+                    <ExpandableSection title="Macros and Fats" defaultOpen={false}>
                       {renderNutrientInputs({ food, index: idx, fields: MACRO_FIELD_META, updateFoodField })}
                     </ExpandableSection>
                     <ExpandableSection title="Minerals" defaultOpen={false}>

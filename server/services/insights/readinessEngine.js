@@ -65,7 +65,7 @@ async function calculateReadiness(userId) {
 
   // ── 2. RECOVERY METRICS (RHR) (20% weight) ────────────────────
   const recentRhrLogs = recentMental.filter(l => l.restingHeartRate != null);
-  let rhrScore = 10; // Default if no data
+  let rhrScore = 7; // Default to a neutral/healthy 7 if no data, rather than a perfect 10
   let avgRhr = null;
   if (recentRhrLogs.length > 0) {
     avgRhr = recentRhrLogs.reduce((s, l) => s + l.restingHeartRate, 0) / recentRhrLogs.length;
@@ -78,15 +78,18 @@ async function calculateReadiness(userId) {
   const recentEnergyLogs = recentMental.filter(l => l.energyLevel != null);
   const avgEnergy = recentEnergyLogs.length > 0
     ? recentEnergyLogs.reduce((s, l) => s + l.energyLevel, 0) / recentEnergyLogs.length
-    : 5;
+    : 7; // Fallback to 7 (decent)
   const energyScore = avgEnergy; // already 1-10
 
   // ── 4. STRESS SCORE (15% weight, inverted) ──────────────────
   const recentStressLogs = recentMental.filter(l => l.stressLevel != null);
   const avgStress = recentStressLogs.length > 0
     ? recentStressLogs.reduce((s, l) => s + l.stressLevel, 0) / recentStressLogs.length
-    : 5;
-  const stressScore = 11 - avgStress; // 1 stress → 10 score, 10 stress → 1 score
+    : 4; // Fallback to 4 (low-mid stress)
+  // We want a high score for LOW stress.
+  // If stress is 1 (low) -> score 10
+  // If stress is 10 (high) -> score 1
+  const stressScore = Math.max(1, Math.min(10, 11 - avgStress));
 
   // ── 5. TRAINING LOAD SCORE (20% weight) ───────
   const calcVolume = (ws) => ws.reduce((total, w) => {

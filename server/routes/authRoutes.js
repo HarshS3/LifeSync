@@ -83,7 +83,10 @@ router.post('/login', async (req, res) => {
     // Find user
     const normalizedEmail = String(email).toLowerCase().trim();
     const user = await User.findOne({ email: normalizedEmail });
-    if (!user || !user.password) {
+    if (!user) {
+      return res.status(401).json({ error: 'Account with this email does not exist' });
+    }
+    if (!user.password) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 

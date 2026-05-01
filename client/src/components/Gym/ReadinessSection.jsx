@@ -79,10 +79,10 @@ export default function ReadinessSection({ readiness, loading }) {
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
                 {[
                   { label: 'Sleep', score: readiness.components.sleep.score, detail: `${readiness.components.sleep.avgHours}h (${readiness.components.sleep.quality}/10 qual)`, emoji: '😴' },
-                  { label: 'RHR', score: readiness.components.rhr.score, detail: `${readiness.components.rhr.avgRhr} bpm`, emoji: '🫀' },
-                  { label: 'Energy', score: readiness.components.energy.score, detail: `${readiness.components.energy.avgRating}/10`, emoji: '⚡' },
-                  { label: 'Stress', score: readiness.components.stress.score, detail: `${readiness.components.stress.avgRating}/10 stress`, emoji: '🧘' },
-                  { label: 'Load', score: readiness.components.trainingLoad.score, detail: `${Math.round(readiness.components.trainingLoad.volumeRatio * 100)}% base${readiness.components.trainingLoad.daysSinceRestDay > 3 ? ` (${readiness.components.trainingLoad.daysSinceRestDay}d no rest)` : ''}`, emoji: '🏋️' },
+                  { label: 'RHR', score: readiness.components.rhr.score, detail: readiness.components.rhr.avgRhr === 'No Data' ? 'Sync data to track' : `${readiness.components.rhr.avgRhr} bpm`, emoji: '🫀' },
+                  { label: 'Energy', score: readiness.components.energy.score, detail: `Rating: ${readiness.components.energy.avgRating}/10`, emoji: '⚡' },
+                  { label: 'Stress', score: readiness.components.stress.score, detail: `Stress: ${readiness.components.stress.avgRating}/10 (Inv.)`, emoji: '🧘' },
+                  { label: 'Load', score: readiness.components.trainingLoad.score, detail: `${Math.round(readiness.components.trainingLoad.volumeRatio * 100)}% of base`, emoji: '🏋️' },
                 ].map(comp => {
                   const pct = (comp.score / 10) * 100
                   const c = comp.score >= 7 ? '#22c55e' : comp.score >= 5 ? '#f59e0b' : '#ef4444'

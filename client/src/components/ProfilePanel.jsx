@@ -1710,7 +1710,7 @@ function ProfilePanel() {
             <Box>
               <SectionTitle>Dietary Preference</SectionTitle>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {['omnivore', 'pescatarian', 'vegetarian', 'vegan', 'keto', 'paleo'].map((diet) => (
+                {['omnivore', 'pescatarian', 'vegetarian', 'vegan', 'keto', 'paleo', 'jain', 'halal', 'kosher'].map((diet) => (
                   <Chip
                     key={diet}
                     label={diet.charAt(0).toUpperCase() + diet.slice(1)}        

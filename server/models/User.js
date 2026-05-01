@@ -254,7 +254,7 @@ const UserSchema = new mongoose.Schema(
       },
       dietaryPreference: { 
         type: String, 
-        enum: ['omnivore', 'pescatarian', 'vegetarian', 'vegan', 'keto', 'paleo'], 
+        enum: ['omnivore', 'pescatarian', 'vegetarian', 'vegan', 'keto', 'paleo', 'jain', 'halal', 'kosher'], 
         default: 'omnivore' 
       },
       hypertension: { type: Boolean, default: false },

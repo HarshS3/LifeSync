@@ -1,16 +1,29 @@
-import React from 'react'
+import React, { useState } from 'react'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import IconButton from '@mui/material/IconButton'
 import HistoryIcon from '@mui/icons-material/History'
 import TimerIcon from '@mui/icons-material/Timer'
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter'
+import CloseIcon from '@mui/icons-material/Close'
 import { EXERCISE_LIBRARY } from '../../lib/gymConstants'
 
 function GymHistoryTab({
   workouts,
   loading
 }) {
+  const [selectedWorkout, setSelectedWorkout] = useState(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  const handleWorkoutClick = (workout) => {
+    setSelectedWorkout(workout)
+    setDialogOpen(true)
+  }
+
   if (loading) {
     return <Typography sx={{ p: 4, textAlign: 'center' }}>Loading history...</Typography>
   }
@@ -28,13 +41,15 @@ function GymHistoryTab({
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {workouts.map((workout) => (
-        <Box 
-          key={workout._id} 
-          sx={{ 
-            p: 3, 
-            bgcolor: '#fff', 
-            borderRadius: 2, 
+        <Box
+          key={workout._id}
+          onClick={() => handleWorkoutClick(workout)}
+          sx={{
+            p: 3,
+            bgcolor: '#fff',
+            borderRadius: 2,
             border: '1px solid #e5e7eb',
+            cursor: 'pointer',
             transition: 'all 0.2s',
             '&:hover': { borderColor: '#171717', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }
           }}
@@ -89,6 +104,119 @@ function GymHistoryTab({
         </Box>
       ))}
     </Box>
+
+    {/* Workout Details Dialog */}
+    <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
+      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            {selectedWorkout?.name}
+          </Typography>
+          <Typography variant="caption" sx={{ color: '#6b7280' }}>
+            {selectedWorkout?.date && new Date(selectedWorkout.date).toLocaleDateString(undefined, {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })}
+          </Typography>
+        </Box>
+        <IconButton size="small" onClick={() => setDialogOpen(false)}>
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent>
+        {selectedWorkout && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {/* Workout Stats */}
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Chip
+                icon={<TimerIcon sx={{ fontSize: '14px !important' }} />}
+                label={`${Math.round((selectedWorkout.duration || 0) / 60)} min`}
+                size="small"
+                sx={{ height: 24, fontSize: '0.75rem', bgcolor: '#f3f4f6' }}
+              />
+              <Chip
+                icon={<FitnessCenterIcon sx={{ fontSize: '14px !important' }} />}
+                label={`${(selectedWorkout.exercises?.reduce((sum, ex) => sum + (ex.sets?.reduce((s, set) => s + (set.reps * set.weight), 0) || 0), 0) / 1000).toFixed(1)}k kg`}
+                size="small"
+                sx={{ height: 24, fontSize: '0.75rem', bgcolor: '#f0fdf4', color: '#166534' }}
+              />
+              <Chip
+                label={`${selectedWorkout.exercises?.length || 0} exercises`}
+                size="small"
+                sx={{ height: 24, fontSize: '0.75rem', bgcolor: '#eff6ff', color: '#1e40af' }}
+              />
+            </Box>
+
+            {/* Exercises Details */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {selectedWorkout.exercises?.map((ex, idx) => (
+                <Box
+                  key={idx}
+                  sx={{
+                    p: 2,
+                    bgcolor: '#f9fafb',
+                    borderRadius: 1.5,
+                    border: '1px solid #e5e7eb'
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      {ex.name}
+                    </Typography>
+                    <Chip
+                      label={ex.muscleGroup}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: '0.65rem',
+                        bgcolor: EXERCISE_LIBRARY[ex.muscleGroup]?.color || '#e5e7eb',
+                        color: '#fff'
+                      }}
+                    />
+                  </Box>
+
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 1 }}>
+                    {ex.sets?.map((set, setIdx) => (
+                      <Box
+                        key={setIdx}
+                        sx={{
+                          p: 1,
+                          bgcolor: '#fff',
+                          borderRadius: 1,
+                          border: '1px solid #e5e7eb',
+                          textAlign: 'center'
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ color: '#6b7280', display: 'block' }}>
+                          Set {setIdx + 1}
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {set.weight}kg × {set.reps}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+
+            {/* Notes */}
+            {selectedWorkout.notes && (
+              <Box sx={{ p: 2, bgcolor: '#fffbeb', borderRadius: 1.5, border: '1px solid #fcd34d' }}>
+                <Typography variant="caption" sx={{ color: '#92400e', fontWeight: 600, display: 'block', mb: 0.5 }}>
+                  Notes
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#78350f' }}>
+                  {selectedWorkout.notes}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }
 

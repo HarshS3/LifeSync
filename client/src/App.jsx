@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material'
 import Box from '@mui/material/Box'
@@ -29,25 +29,25 @@ import MenuIcon from '@mui/icons-material/Menu'
 import { Toaster } from 'react-hot-toast'
 
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
+import AuthPage from './components/AuthPage.jsx'
+import ForgotPassword from './components/ForgotPassword.jsx'
+import ResetPassword from './components/ResetPassword.jsx'
+import Onboarding from './components/Onboarding.jsx'
+import Dashboard from './components/Dashboard.jsx'
+import ChatExperience from './components/ChatExperience.jsx'
+import DailyLogPanel from './components/DailyLogPanel.jsx'
+import ProfilePanel from './components/ProfilePanel.jsx'
+import HabitTracker from './components/HabitTracker.jsx'
+import TrendsPanel from './components/TrendsPanel.jsx'
+import GymTracker from './components/GymTracker.jsx'
+import GlobalCalendar from './components/GlobalCalendar.jsx'
 import LifeSyncMark from './components/LifeSyncMark.jsx'
-
-// Lazy loaded components
-const AuthPage = lazy(() => import('./components/AuthPage.jsx'))
-const ForgotPassword = lazy(() => import('./components/ForgotPassword.jsx'))
-const ResetPassword = lazy(() => import('./components/ResetPassword.jsx'))
-const Onboarding = lazy(() => import('./components/Onboarding.jsx'))
-const Dashboard = lazy(() => import('./components/Dashboard.jsx'))
-const ChatExperience = lazy(() => import('./components/ChatExperience.jsx'))
-const DailyLogPanel = lazy(() => import('./components/DailyLogPanel.jsx'))
-const ProfilePanel = lazy(() => import('./components/ProfilePanel.jsx'))
-const HabitTracker = lazy(() => import('./components/HabitTracker.jsx'))
-const TrendsPanel = lazy(() => import('./components/TrendsPanel.jsx'))
-const GymTracker = lazy(() => import('./components/GymTracker.jsx'))
-const GlobalCalendar = lazy(() => import('./components/GlobalCalendar.jsx'))
-const NutritionTracker = lazy(() => import('./components/NutritionTracker.jsx'))
-const RemindersSettings = lazy(() => import('./components/RemindersSettings.jsx'))
-const SymptomsPanel = lazy(() => import('./components/SymptomsPanel.jsx'))
-const LabsPanel = lazy(() => import('./components/LabsPanel.jsx'))
+import NutritionTracker from './components/NutritionTracker.jsx'
+import RemindersSettings from './components/RemindersSettings.jsx'
+import SymptomsPanel from './components/SymptomsPanel.jsx'
+import LabsPanel from './components/LabsPanel.jsx'
+import ExerciseHistoryPage from './components/ExerciseHistoryPage.jsx'
+// import PremiumPage from './components/PremiumPage.jsx'
 
 const navItems = [
   { id: 'home', label: 'Home', icon: <HomeOutlinedIcon fontSize="small" /> },
@@ -62,6 +62,7 @@ const navItems = [
   { id: 'goals', label: 'Habits', icon: <FlagOutlinedIcon fontSize="small" /> },
   { id: 'trends', label: 'Insights', icon: <InsightsIcon fontSize="small" /> },
   { id: 'reminders', label: 'Reminders', icon: <NotificationsIcon fontSize="small" /> },
+  // { id: 'premium', label: 'Premium', icon: <StarIcon fontSize="small" /> },
 ]
 
 function App() {
@@ -74,17 +75,12 @@ function App() {
   )
 }
 
-const LoadingOverlay = ({ ui }) => (
-  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 400 }}>
-    <CircularProgress sx={{ color: ui.accent }} />
-  </Box>
-)
-
 function AppContent() {
   const { user, loading, logout, refreshUser } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   
+  // derivation from location.pathname, e.g., '/nutrition' -> 'nutrition'
   const activeSection = location.pathname.substring(1) || 'home'
 
   const [themeVariant, setThemeVariant] = useState(() => {
@@ -108,6 +104,10 @@ function AppContent() {
   useEffect(() => {
     try {
       localStorage.setItem('lifesync_theme', themeVariant)
+    } catch {
+      // ignore
+    }
+    try {
       document.documentElement.dataset.lifesyncTheme = themeVariant
     } catch {
       // ignore
@@ -156,10 +156,12 @@ function AppContent() {
         navigate('/' + next)
       }
     }
+
     window.addEventListener('lifesync:navigate', handler)
     return () => window.removeEventListener('lifesync:navigate', handler)
   }, [navigate])
 
+  // Safety: close any modal backdrops when auth/section changes
   useEffect(() => {
     setMobileNavOpen(false)
     setAnchorEl(null)
@@ -171,13 +173,20 @@ function AppContent() {
 
   const theme = useMemo(() => {
     const isNoir = themeVariant === 'noir'
+
     return createTheme({
       palette: {
         mode: isNoir ? 'dark' : 'light',
-        background: { default: ui.bg, paper: ui.surface },
+        background: {
+          default: ui.bg,
+          paper: ui.surface,
+        },
         primary: { main: ui.text },
         secondary: { main: ui.accent },
-        text: { primary: ui.text, secondary: ui.muted },
+        text: {
+          primary: ui.text,
+          secondary: ui.muted,
+        },
         divider: ui.border,
         error: { main: ui.danger },
       },
@@ -203,7 +212,10 @@ function AppContent() {
       components: {
         MuiButton: {
           styleOverrides: {
-            root: { borderRadius: 10, padding: '9px 14px' },
+            root: {
+              borderRadius: 10,
+              padding: '9px 14px',
+            },
             contained: {
               backgroundColor: ui.text,
               color: isNoir ? ui.bg : '#ffffff',
@@ -240,13 +252,24 @@ function AppContent() {
         },
         MuiPaper: {
           styleOverrides: {
-            root: { backgroundImage: 'none', border: `1px solid ${ui.border}` },
+            root: {
+              backgroundImage: 'none',
+              border: `1px solid ${ui.border}`,
+            },
           },
         },
       },
     })
   }, [themeVariant, ui])
 
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+
+  // Removed renderContent since we use Routes below
+
+  // Check if user needs onboarding
+  const needsOnboarding = user && !user.onboardingCompleted && !showOnboarding
+
+  // Show loading spinner while checking auth
   if (loading) {
     return (
       <ThemeProvider theme={theme}>
@@ -258,30 +281,28 @@ function AppContent() {
     )
   }
 
+  // Show auth page if not logged in
   if (!user) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <Suspense fallback={<Box sx={{ minHeight: '100vh', bgcolor: ui.bg }} />}>
-          <Routes>
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="*" element={<AuthPage themeVariant={themeVariant} onToggleTheme={toggleTheme} />} />
-          </Routes>
-        </Suspense>
+        <Routes>
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="*" element={<AuthPage themeVariant={themeVariant} onToggleTheme={toggleTheme} />} />
+        </Routes>
       </ThemeProvider>
-    )
+    );
   }
 
-  if (user && !user.onboardingCompleted && !showOnboarding) {
+  // Show onboarding for new users
+  if (needsOnboarding) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <Suspense fallback={<Box sx={{ minHeight: '100vh', bgcolor: ui.bg }} />}>
-          <Onboarding onComplete={() => {
-            setShowOnboarding(false)
-            refreshUser()
-          }} />
-        </Suspense>
+        <Onboarding onComplete={() => {
+          setShowOnboarding(false)
+          refreshUser()
+        }} />
       </ThemeProvider>
     )
   }
@@ -300,16 +321,22 @@ function AppContent() {
             bgcolor: ui.surface,
             display: { xs: 'none', md: 'flex' },
             flexDirection: 'column',
-            position: 'sticky',
-            top: 0,
-            height: '100vh',
-            overflowY: 'auto',
           }}
         >
           {/* Logo */}
           <Box sx={{ px: 3, py: 2.5, borderBottom: `1px solid ${ui.border}` }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box sx={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Box
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 2,
+                  bgcolor: 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
                 <LifeSyncMark size={32} />
               </Box>
               <Typography variant="h6" sx={{ fontSize: 18 }}>LifeSync</Typography>
@@ -381,13 +408,26 @@ function AppContent() {
               onClose={() => setAnchorEl(null)}
               anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
               transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              PaperProps={{ sx: { mt: -1, minWidth: 180 } }}
+              PaperProps={{
+                sx: { mt: -1, minWidth: 180 }
+              }}
             >
-              <MenuItem onClick={() => { setAnchorEl(null); toggleTheme(); }}>
+              <MenuItem
+                onClick={() => {
+                  setAnchorEl(null)
+                  toggleTheme()
+                }}
+              >
                 <SpaOutlinedIcon fontSize="small" sx={{ mr: 1.5 }} />
                 Theme: {ui.name}
               </MenuItem>
-              <MenuItem onClick={() => { setAnchorEl(null); logout(); }} sx={{ color: ui.danger }}>
+              <MenuItem
+                onClick={() => {
+                  setAnchorEl(null)
+                  logout()
+                }}
+                sx={{ color: ui.danger }}
+              >
                 <LogoutIcon fontSize="small" sx={{ mr: 1.5 }} />
                 Sign Out
               </MenuItem>
@@ -406,7 +446,17 @@ function AppContent() {
           <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <Box sx={{ px: 3, py: 2.5, borderBottom: `1px solid ${ui.border}` }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Box sx={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Box
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 2,
+                    bgcolor: 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
                   <LifeSyncMark size={32} />
                 </Box>
                 <Typography variant="h6" sx={{ fontSize: 18 }}>LifeSync</Typography>
@@ -515,7 +565,11 @@ function AppContent() {
               >
                 <MenuIcon />
               </IconButton>
-              <Typography variant="h5" sx={{ fontSize: { xs: 18, md: 20 }, lineHeight: 1.2 }} noWrap>
+              <Typography
+                variant="h5"
+                sx={{ fontSize: { xs: 18, md: 20 }, lineHeight: 1.2 }}
+                noWrap
+              >
                 {navItems.find((n) => n.id === activeSection)?.label || 'Dashboard'}
               </Typography>
             </Box>
@@ -529,24 +583,23 @@ function AppContent() {
           {/* Content */}
           <Box sx={{ flex: 1, overflow: 'auto', p: { xs: 2, md: 4 } }}>
             <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%' }}>
-              <Suspense fallback={<LoadingOverlay ui={ui} />}>
-                <Routes>
-                  <Route path="/" element={<Navigate to="/home" replace />} />
-                  <Route path="/home" element={<Dashboard />} />
-                  <Route path="/profile" element={<ProfilePanel />} />
-                  <Route path="/logs" element={<GymTracker />} />
-                  <Route path="/nutrition" element={<NutritionTracker />} />
-                  <Route path="/mental" element={<DailyLogPanel />} />
-                  <Route path="/symptoms" element={<SymptomsPanel />} />
-                  <Route path="/labs" element={<LabsPanel />} />
-                  <Route path="/calendar" element={<GlobalCalendar />} />
-                  <Route path="/goals" element={<HabitTracker />} />
-                  <Route path="/trends" element={<TrendsPanel />} />
-                  <Route path="/chat" element={<ChatExperience />} />
-                  <Route path="/reminders" element={<RemindersSettings />} />
-                  <Route path="*" element={<Navigate to="/home" replace />} />
-                </Routes>
-              </Suspense>
+              <Routes>
+                <Route path="/" element={<Navigate to="/home" replace />} />
+                <Route path="/home" element={<Dashboard />} />
+                <Route path="/profile" element={<ProfilePanel />} />
+                <Route path="/logs" element={<GymTracker />} />
+                <Route path="/exercise-history/:exerciseName" element={<ExerciseHistoryPage />} />
+                <Route path="/nutrition" element={<NutritionTracker />} />
+                <Route path="/mental" element={<DailyLogPanel />} />
+                <Route path="/symptoms" element={<SymptomsPanel />} />
+                <Route path="/labs" element={<LabsPanel />} />
+                <Route path="/calendar" element={<GlobalCalendar />} />
+                <Route path="/goals" element={<HabitTracker />} />
+                <Route path="/trends" element={<TrendsPanel />} />
+                <Route path="/chat" element={<ChatExperience />} />
+                <Route path="/reminders" element={<RemindersSettings />} />
+                <Route path="*" element={<Navigate to="/home" replace />} />
+              </Routes>
             </Box>
           </Box>
         </Box>

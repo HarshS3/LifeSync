@@ -17,6 +17,8 @@ import MenuItem from '@mui/material/MenuItem'
 import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
 import Tooltip from '@mui/material/Tooltip'
+import useMediaQuery from '@mui/material/useMediaQuery'
+import { useTheme } from '@mui/material/styles'
 import AddIcon from '@mui/icons-material/Add'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked'
@@ -52,6 +54,8 @@ const CATEGORIES = [
 ]
 
 function HabitTracker() {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const { token } = useAuth()
   const [activeTab, setActiveTab] = useState(0)
   const [habits, setHabits] = useState([])
@@ -560,147 +564,256 @@ function HabitTracker() {
             </IconButton>
           </Box>
 
-          {/* Week Grid */}
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(120px, 1fr) repeat(7, 1fr)',
-              gap: 1,
-              overflowX: 'auto',
-            }}
-          >
-            {/* Header Row */}
-            <Box sx={{ p: 1 }}></Box>
-            {weekData.days.map((day) => (
-              <Box
-                key={day.date}
-                sx={{
-                  p: 1,
-                  textAlign: 'center',
-                  bgcolor: day.isToday ? '#171717' : 'transparent',
-                  borderRadius: 2,
-                  color: day.isToday ? '#fff' : '#6b7280',
-                }}
-              >
-                <Typography variant="caption" sx={{ fontWeight: 500 }}>
-                  {day.dayName}
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {day.dayNumber}
-                </Typography>
-              </Box>
-            ))}
+          {isMobile ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {weekData.days.map((day) => {
+                const isPastDay = new Date(day.date) < new Date(new Date().setHours(0, 0, 0, 0))
 
-            {/* Habit Rows */}
-            {habits.map((habit) => (
-              <>
-                <Box
-                  key={`label-${habit._id}`}
-                  sx={{
-                    p: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                  }}
-                >
+                return (
                   <Box
+                    key={day.date}
                     sx={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 1,
-                      bgcolor: habit.color,
-                    }}
-                  />
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: 500,
-                      color: '#171717',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
+                      p: 1.5,
+                      borderRadius: 2,
+                      border: '1px solid #e5e7eb',
+                      bgcolor: day.isToday ? '#f8fafc' : '#fff',
                     }}
                   >
-                    {habit.name}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: '#171717' }}>
+                        {`${day.dayName} ${day.dayNumber}`}
+                      </Typography>
+                      <Chip
+                        label={`${day.completedCount}/${day.totalHabits}`}
+                        size="small"
+                        sx={{
+                          bgcolor:
+                            day.completedCount === day.totalHabits && day.totalHabits > 0
+                              ? '#dcfce7'
+                              : day.completedCount > 0
+                              ? '#fef3c7'
+                              : '#f3f4f6',
+                          color:
+                            day.completedCount === day.totalHabits && day.totalHabits > 0
+                              ? '#15803d'
+                              : day.completedCount > 0
+                              ? '#92400e'
+                              : '#6b7280',
+                          fontWeight: 600,
+                        }}
+                      />
+                    </Box>
+
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      {habits.map((habit) => {
+                        const habitDay = day.habits.find(h => h.habitId.toString() === habit._id.toString())
+                        const isCompleted = habitDay?.completed || false
+                        const canToggle = day.isToday || isPastDay || weekOffset !== 0
+
+                        return (
+                          <Box
+                            key={`${day.date}-${habit._id}`}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              py: 0.25,
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                              <Box
+                                sx={{
+                                  width: 10,
+                                  height: 10,
+                                  borderRadius: '50%',
+                                  bgcolor: habit.color,
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  color: '#171717',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {habit.name}
+                              </Typography>
+                            </Box>
+
+                            <Tooltip title={isCompleted ? 'Completed' : isPastDay ? 'Missed' : 'Click to complete'}>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleToggleHabit(habit._id, day.date, isCompleted)}
+                                disabled={!canToggle}
+                                sx={{
+                                  p: 0.5,
+                                  color: isCompleted
+                                    ? habit.color
+                                    : isPastDay
+                                    ? '#fecaca'
+                                    : '#e5e7eb',
+                                }}
+                              >
+                                {isCompleted ? (
+                                  <CheckCircleIcon sx={{ fontSize: 22 }} />
+                                ) : (
+                                  <RadioButtonUncheckedIcon sx={{ fontSize: 22 }} />
+                                )}
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        )
+                      })}
+                    </Box>
+                  </Box>
+                )
+              })}
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(120px, 1fr) repeat(7, 1fr)',
+                gap: 1,
+                overflowX: 'auto',
+              }}
+            >
+              {/* Header Row */}
+              <Box sx={{ p: 1 }}></Box>
+              {weekData.days.map((day) => (
+                <Box
+                  key={day.date}
+                  sx={{
+                    p: 1,
+                    textAlign: 'center',
+                    bgcolor: day.isToday ? '#171717' : 'transparent',
+                    borderRadius: 2,
+                    color: day.isToday ? '#fff' : '#6b7280',
+                  }}
+                >
+                  <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                    {day.dayName}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {day.dayNumber}
                   </Typography>
                 </Box>
-                {weekData.days.map((day) => {
-                  const habitDay = day.habits.find(h => h.habitId.toString() === habit._id.toString())
-                  const isCompleted = habitDay?.completed || false
-                  const isPast = new Date(day.date) < new Date(new Date().setHours(0, 0, 0, 0))
-                  const isToday = day.isToday
+              ))}
 
-                  return (
+              {/* Habit Rows */}
+              {habits.map((habit) => (
+                <>
+                  <Box
+                    key={`label-${habit._id}`}
+                    sx={{
+                      p: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
                     <Box
-                      key={`${habit._id}-${day.date}`}
                       sx={{
-                        p: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
+                        width: 24,
+                        height: 24,
+                        borderRadius: 1,
+                        bgcolor: habit.color,
+                      }}
+                    />
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 500,
+                        color: '#171717',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      <Tooltip title={isCompleted ? 'Completed' : isPast ? 'Missed' : 'Click to complete'}>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleToggleHabit(habit._id, day.date, isCompleted)}
-                          disabled={!isToday && !isPast && weekOffset === 0}
-                          sx={{
-                            p: 0.5,
-                            color: isCompleted
-                              ? habit.color
-                              : isPast
-                              ? '#fecaca'
-                              : '#e5e7eb',
-                          }}
-                        >
-                          {isCompleted ? (
-                            <CheckCircleIcon sx={{ fontSize: 24 }} />
-                          ) : (
-                            <RadioButtonUncheckedIcon sx={{ fontSize: 24 }} />
-                          )}
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  )
-                })}
-              </>
-            ))}
+                      {habit.name}
+                    </Typography>
+                  </Box>
+                  {weekData.days.map((day) => {
+                    const habitDay = day.habits.find(h => h.habitId.toString() === habit._id.toString())
+                    const isCompleted = habitDay?.completed || false
+                    const isPast = new Date(day.date) < new Date(new Date().setHours(0, 0, 0, 0))
+                    const isToday = day.isToday
 
-            {/* Completion Row */}
-            <Box sx={{ p: 1, display: 'flex', alignItems: 'center' }}>
-              <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 500 }}>
-                Daily Total
-              </Typography>
-            </Box>
-            {weekData.days.map((day) => (
-              <Box
-                key={`total-${day.date}`}
-                sx={{ p: 1, textAlign: 'center' }}
-              >
-                <Chip
-                  label={`${day.completedCount}/${day.totalHabits}`}
-                  size="small"
-                  sx={{
-                    bgcolor:
-                      day.completedCount === day.totalHabits && day.totalHabits > 0
-                        ? '#dcfce7'
-                        : day.completedCount > 0
-                        ? '#fef3c7'
-                        : '#f3f4f6',
-                    color:
-                      day.completedCount === day.totalHabits && day.totalHabits > 0
-                        ? '#15803d'
-                        : day.completedCount > 0
-                        ? '#92400e'
-                        : '#6b7280',
-                    fontWeight: 600,
-                    fontSize: '0.7rem',
-                  }}
-                />
+                    return (
+                      <Box
+                        key={`${habit._id}-${day.date}`}
+                        sx={{
+                          p: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Tooltip title={isCompleted ? 'Completed' : isPast ? 'Missed' : 'Click to complete'}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleToggleHabit(habit._id, day.date, isCompleted)}
+                            disabled={!isToday && !isPast && weekOffset === 0}
+                            sx={{
+                              p: 0.5,
+                              color: isCompleted
+                                ? habit.color
+                                : isPast
+                                ? '#fecaca'
+                                : '#e5e7eb',
+                            }}
+                          >
+                            {isCompleted ? (
+                              <CheckCircleIcon sx={{ fontSize: 24 }} />
+                            ) : (
+                              <RadioButtonUncheckedIcon sx={{ fontSize: 24 }} />
+                            )}
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    )
+                  })}
+                </>
+              ))}
+
+              {/* Completion Row */}
+              <Box sx={{ p: 1, display: 'flex', alignItems: 'center' }}>
+                <Typography variant="caption" sx={{ color: '#6b7280', fontWeight: 500 }}>
+                  Daily Total
+                </Typography>
               </Box>
-            ))}
-          </Box>
+              {weekData.days.map((day) => (
+                <Box
+                  key={`total-${day.date}`}
+                  sx={{ p: 1, textAlign: 'center' }}
+                >
+                  <Chip
+                    label={`${day.completedCount}/${day.totalHabits}`}
+                    size="small"
+                    sx={{
+                      bgcolor:
+                        day.completedCount === day.totalHabits && day.totalHabits > 0
+                          ? '#dcfce7'
+                          : day.completedCount > 0
+                          ? '#fef3c7'
+                          : '#f3f4f6',
+                      color:
+                        day.completedCount === day.totalHabits && day.totalHabits > 0
+                          ? '#15803d'
+                          : day.completedCount > 0
+                          ? '#92400e'
+                          : '#6b7280',
+                      fontWeight: 600,
+                      fontSize: '0.7rem',
+                    }}
+                  />
+                </Box>
+              ))}
+            </Box>
+          )}
         </Box>
       )}
 

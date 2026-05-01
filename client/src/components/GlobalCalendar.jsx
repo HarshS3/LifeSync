@@ -156,13 +156,11 @@ function GlobalCalendar() {
   }
 
   // Filter events by type
-  const filteredEvents = filterTab === 0 
-    ? events 
+  const filteredEvents = filterTab === 0
+    ? events
     : events.filter(e => {
         if (filterTab === 1) return e.type === 'workout'
-        if (filterTab === 2) return e.type === 'mental'
-        if (filterTab === 3) return e.type === 'nutrition'
-        if (filterTab === 4) return e.type === 'habit'
+        if (filterTab === 2) return e.type === 'habit'
         return true
       })
 
@@ -241,8 +239,6 @@ function GlobalCalendar() {
         >
           <Tab label="All" />
           <Tab icon={<FitnessCenterIcon sx={{ fontSize: 16 }} />} label="Workouts" iconPosition="start" />
-          <Tab icon={<SpaIcon sx={{ fontSize: 16 }} />} label="Wellness" iconPosition="start" />
-          <Tab icon={<RestaurantIcon sx={{ fontSize: 16 }} />} label="Nutrition" iconPosition="start" />
           <Tab icon={<CheckCircleIcon sx={{ fontSize: 16 }} />} label="Habits" iconPosition="start" />
         </Tabs>
       </Box>

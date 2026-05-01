@@ -345,10 +345,11 @@ function GymOverviewTab({
           </Box>
 
           {muscleHeatmap && muscleHeatmap.scoredSets > 0 ? (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr' }, gap: 2 }}>
               <Box>
                 <MuscleHeatmapFigure intensityByRegion={muscleHeatmap.normalized} />
               </Box>
+              {/* === TEMPORARILY DISABLED 3D MODEL === 
               <Suspense fallback={
                 <Box sx={{ height: 420, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
                   <Typography variant="body2" sx={{ color: '#94a3b8' }}>Loading 3D Body Model...</Typography>
@@ -362,6 +363,7 @@ function GymOverviewTab({
                   subtitle="Use this as a base for muscle visualization"
                 />
               </Suspense>
+              */}
             </Box>
           ) : (
             <Typography variant="body2" sx={{ color: '#9ca3af' }}>

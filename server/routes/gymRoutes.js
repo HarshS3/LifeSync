@@ -245,6 +245,72 @@ router.get('/stats', auth, async (req, res) => {
   }
 });
 
+// Get exercise history endpoint
+router.get('/exercise-history/:exerciseName', auth, async (req, res) => {
+  try {
+    const { exerciseName } = req.params;
+    const decodedName = decodeURIComponent(exerciseName).toLowerCase().trim();
+    const workouts = await Workout.find({ user: req.userId }).sort({ date: -1 }).limit(200);
+    
+    const history = [];
+    const allWeights = [];
+    const allReps = [];
+    const allRPEs = [];
+    let totalSets = 0;
+    
+    workouts.forEach((workout) => {
+      workout.exercises?.forEach((ex) => {
+        const exName = ex.name?.toLowerCase().trim() || '';
+        if (exName === decodedName || exName === decodedName + 's' || exName + 's' === decodedName) {
+          if (ex.sets && ex.sets.length > 0) {
+            const maxWeight = Math.max(...ex.sets.map(s => s.weight || 0));
+            const maxReps = Math.max(...ex.sets.map(s => s.reps || 0));
+            const avgRPE = ex.sets.filter(s => s.rpe).length > 0 
+              ? ex.sets.reduce((sum, s) => sum + (s.rpe || 0), 0) / ex.sets.length 
+              : 0;
+            
+            history.push({
+              date: workout.date,
+              sets: ex.sets,
+              maxWeight,
+              maxReps,
+              avgRPE: avgRPE.toFixed(1),
+              volume: ex.sets.reduce((sum, s) => sum + ((s.weight || 0) * (s.reps || 0)), 0)
+            });
+            
+            ex.sets.forEach(set => {
+              if (set.weight) allWeights.push(set.weight);
+              if (set.reps) allReps.push(set.reps);
+              if (set.rpe) allRPEs.push(set.rpe);
+              totalSets++;
+            });
+          }
+        }
+      });
+    });
+    
+    const calculateEstimated1RM = (weight, reps) => {
+      if (reps === 1) return weight;
+      return (weight * (1 + reps / 30)).toFixed(1);
+    };
+    
+    const stats = {
+      totalLogs: history.length,
+      maxWeight: allWeights.length > 0 ? Math.max(...allWeights) : 0,
+      avgWeight: allWeights.length > 0 ? Number((allWeights.reduce((a, b) => a + b) / allWeights.length).toFixed(1)) : 0,
+      estimated1RM: allWeights.length > 0 ? Number(calculateEstimated1RM(Math.max(...allWeights), 5)) : 0,
+      avgReps: allReps.length > 0 ? Number((allReps.reduce((a, b) => a + b) / allReps.length).toFixed(1)) : 0,
+      avgSetsPerLog: history.length > 0 ? Number((totalSets / history.length).toFixed(1)) : 0,
+      avgRPE: allRPEs.length > 0 ? Number((allRPEs.reduce((a, b) => a + b) / allRPEs.length).toFixed(1)) : 0,
+    };
+    
+    res.json({ history, stats });
+  } catch (err) {
+    console.error('Failed to fetch exercise history:', err);
+    res.status(500).json({ error: 'Failed to fetch exercise history' });
+  }
+});
+
 // Get workouts by date range (for calendar, user-specific)
 router.get('/workouts/range/:start/:end', auth, async (req, res) => {
   try {

@@ -6,10 +6,15 @@ import LifeTimelinePanel from './LifeTimelinePanel.jsx'
 
 function ChatExperience() {
   return (
-    <Grid container spacing={3}>
+    <Grid container spacing={{ xs: 2, md: 3 }}>
       {/* Chat */}
       <Grid item xs={12} md={7}>
-        <Box sx={{ height: 'calc(100vh - 200px)', minHeight: 500 }}>
+        <Box
+          sx={{
+            height: { xs: 'auto', md: 'calc(100vh - 200px)' },
+            minHeight: { xs: 360, md: 500 },
+          }}
+        >
           <ChatPanel />
         </Box>
       </Grid>

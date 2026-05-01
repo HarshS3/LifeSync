@@ -73,7 +73,11 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
     for (let i = firstDayOfMonth - 1; i >= 0; i--) {
       days.push(
         <Box key={`prev-${i}`} sx={{ 
-          p: compact ? 0.5 : 1, 
+          p: compact ? 0.75 : 1,
+          minHeight: compact ? 36 : 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           textAlign: 'center',
           color: '#d1d5db',
         }}>
@@ -96,32 +100,58 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
           key={day}
           onClick={() => handleDateClick(day)}
           sx={{
-            p: compact ? 0.5 : 1,
+            p: compact ? 0.75 : 1,
+            minHeight: compact ? 36 : 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             textAlign: 'center',
             cursor: 'pointer',
             borderRadius: 1,
             position: 'relative',
-            bgcolor: isToday ? '#171717' : 'transparent',
+            bgcolor: isToday ? '#3b82f6' : 'transparent',
             color: isToday ? '#fff' : '#171717',
-            '&:hover': { bgcolor: isToday ? '#374151' : '#f3f4f6' },
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&:hover': {
+              bgcolor: isToday ? '#2563eb' : '#f3f4f6',
+              transform: 'scale(1.05)'
+            },
+            '&:active': { 
+              transform: 'scale(0.98)'
+            },
+            '&:focus': { 
+              outline: '2px solid #3b82f6',
+              outlineOffset: 1
+            }
           }}
         >
           <Typography variant={compact ? 'caption' : 'body2'} sx={{ fontWeight: isToday ? 600 : 400 }}>
             {day}
           </Typography>
           {hasEvents && !compact && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.3, mt: 0.3 }}>
+            <Box sx={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              display: 'flex',
+              justifyContent: 'center',
+              gap: 0.3,
+              pointerEvents: 'none',
+            }}>
               {eventTypes.slice(0, 3).map((type, i) => (
                 <Box
                   key={i}
                   sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
+                    width: type === 'workout' ? 28 : 6,
+                    height: type === 'workout' ? 28 : 6,
+                    borderRadius: type === 'workout' ? '50%' : '50%',
                     bgcolor: type === 'workout' ? '#2563eb'
                            : type === 'mental' ? '#9333ea'
                            : type === 'nutrition' ? '#15803d'
                            : '#6b7280',
+                    border: type === 'workout' ? '2px solid #2563eb' : 'none',
+                    opacity: type === 'workout' ? 0.8 : 1,
                   }}
                 />
               ))}
@@ -130,13 +160,24 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
           {hasEvents && compact && (
             <Box sx={{
               position: 'absolute',
-              top: 2,
-              right: 2,
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              bgcolor: '#2563eb',
-            }} />
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              pointerEvents: 'none',
+            }}>
+              {eventTypes.includes('workout') && (
+                <Box
+                  sx={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    bgcolor: '#2563eb',
+                    border: '2px solid #2563eb',
+                    opacity: 0.8,
+                  }}
+                />
+              )}
+            </Box>
           )}
         </Box>
       )
@@ -147,7 +188,11 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
     for (let i = 1; i <= remainingDays; i++) {
       days.push(
         <Box key={`next-${i}`} sx={{ 
-          p: compact ? 0.5 : 1, 
+          p: compact ? 0.75 : 1,
+          minHeight: compact ? 36 : 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           textAlign: 'center',
           color: '#d1d5db',
         }}>
@@ -173,13 +218,31 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <IconButton size="small" onClick={prevMonth}>
+          <IconButton 
+            size="small" 
+            onClick={prevMonth}
+            sx={{
+              transition: 'all 0.2s ease',
+              '&:hover': { bgcolor: '#f3f4f6', transform: 'translateX(-2px)' },
+              '&:active': { transform: 'translateX(0px)' },
+              '&:focus': { outline: '2px solid #1f2937' }
+            }}
+          >
             <ChevronLeftIcon />
           </IconButton>
           <Typography variant={compact ? 'body2' : 'subtitle1'} sx={{ fontWeight: 600, minWidth: compact ? 100 : 140, textAlign: 'center' }}>
             {MONTHS[month]} {year}
           </Typography>
-          <IconButton size="small" onClick={nextMonth}>
+          <IconButton 
+            size="small" 
+            onClick={nextMonth}
+            sx={{
+              transition: 'all 0.2s ease',
+              '&:hover': { bgcolor: '#f3f4f6', transform: 'translateX(2px)' },
+              '&:active': { transform: 'translateX(0px)' },
+              '&:focus': { outline: '2px solid #1f2937' }
+            }}
+          >
             <ChevronRightIcon />
           </IconButton>
         </Box>
@@ -217,14 +280,6 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#2563eb' }} />
             <Typography variant="caption" sx={{ color: '#6b7280' }}>Workout</Typography>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#9333ea' }} />
-            <Typography variant="caption" sx={{ color: '#6b7280' }}>Wellness</Typography>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#15803d' }} />
-            <Typography variant="caption" sx={{ color: '#6b7280' }}>Nutrition</Typography>
           </Box>
         </Box>
       )}

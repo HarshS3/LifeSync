@@ -296,8 +296,15 @@ function NutritionTracker() {
   const [foodResults, setFoodResults] = useState([])
   const [foodSearchLoading, setFoodSearchLoading] = useState(false)
   const [foodSearchAttempted, setFoodSearchAttempted] = useState(false)
-
   const [selectedFoodForAnalysis, setSelectedFoodForAnalysis] = useState('')
+
+
+
+  const [mfpSearchQuery, setMfpSearchQuery] = useState('')
+  const [mfpResults, setMfpResults] = useState([])
+  const [mfpLoading, setMfpLoading] = useState(false)
+  const [addingMfpFoodId, setAddingMfpFoodId] = useState(null)
+
   const [foodAnalysis, setFoodAnalysis] = useState(null)
   const [foodAnalysisLoading, setFoodAnalysisLoading] = useState(false)
   const [foodAnalysisError, setFoodAnalysisError] = useState('')
@@ -1585,14 +1592,53 @@ function NutritionTracker() {
     }
   }
 
+  const handleMfpSearch = async () => {
+    if (!mfpSearchQuery.trim()) return
+    setMfpLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/nutrition/mfp/search?q=${encodeURIComponent(mfpSearchQuery)}`, {
+        headers: getAuthHeaders()
+      })
+      if (!res.ok) throw new Error('MFP search failed')
+      const data = await res.json()
+      setMfpResults(data)
+    } catch (err) {
+      console.error(err)
+      alert('Failed to search MyFitnessPal. Try again.')
+    } finally {
+      setMfpLoading(false)
+    }
+  }
+
+  const handleAddMfpFoodToDb = async (food) => {
+    setAddingMfpFoodId(food.id)
+    try {
+      const res = await fetch(`${API_BASE}/api/nutrition/mfp/add`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ food })
+      })
+      if (!res.ok) throw new Error('Failed to add food')
+      alert(`Successfully added "${food.displayName}" to local database! It will now appear in your regular searches.`)
+    } catch (err) {
+      console.error(err)
+      alert('Failed to add food to database.')
+    } finally {
+      setAddingMfpFoodId(null)
+    }
+  }
+
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+    <Box sx={{ minWidth: 0, overflowX: 'hidden' }}>
+      <Box sx={{ display: { xs: 'none', sm: 'flex' }, flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'flex-start' }, gap: 2, mb: { xs: 2, sm: 3 } }}>
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary' }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary', fontSize: { xs: '1.2rem', sm: '1.5rem' } }}>
             Nutrition
           </Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
             Log meals, macros, and hydration
           </Typography>
         </Box>
@@ -1606,8 +1652,8 @@ function NutritionTracker() {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 1.5,
-          mb: 3,
-          p: 2.5,
+          mb: { xs: 2, sm: 3 },
+          p: { xs: 1.5, sm: 2.5 },
           borderRadius: 2,
           bgcolor: 'background.paper',
           border: '1px solid #e5e7eb',
@@ -1668,18 +1714,28 @@ function NutritionTracker() {
           disabled={loading}
           fullWidth={isMobile}
           sx={{ 
-            width: { xs: '100%', sm: 'auto' },
+            width: { xs: 'calc(100vw - 32px)', sm: 'auto' },
+            maxWidth: '100%',
+            position: { xs: 'fixed', sm: 'static' },
+            bottom: { xs: 16, sm: 'auto' },
+            left: { xs: 16, sm: 'auto' },
+            zIndex: { xs: 1100, sm: 'auto' },
+            borderRadius: { xs: 8, sm: 1 },
+            py: { xs: 1.5, sm: 1 },
+            fontSize: { xs: '1.1rem', sm: '0.875rem' },
+            fontWeight: { xs: 700, sm: 600 },
             transition: 'all 0.2s ease',
             bgcolor: 'text.primary',
             color: 'background.paper',
+            boxShadow: { xs: '0 8px 16px rgba(0,0,0,0.2)', sm: 'none' },
             '&:hover': { 
               bgcolor: '#1f2937',
-              transform: 'translateY(-2px)',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+              transform: { xs: 'none', sm: 'translateY(-2px)' },
+              boxShadow: { xs: '0 8px 16px rgba(0,0,0,0.2)', sm: '0 4px 12px rgba(0,0,0,0.15)' }
             },
             '&:active': { 
               transform: 'translateY(0px)',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              boxShadow: { xs: '0 4px 8px rgba(0,0,0,0.15)', sm: '0 2px 4px rgba(0,0,0,0.1)' }
             },
             '&:disabled': { 
               opacity: 0.5,
@@ -1696,23 +1752,28 @@ function NutritionTracker() {
       <Tabs
         value={activeTab}
         onChange={(e, v) => setActiveTab(v)}
-        variant={isMobile ? 'scrollable' : 'standard'}
-        scrollButtons={isMobile ? 'auto' : false}
-        allowScrollButtonsMobile={isMobile}
+        variant="scrollable"
+        scrollButtons="auto"
+        allowScrollButtonsMobile
         sx={{ 
-          mb: 3, 
+          mb: { xs: 2, sm: 3 },
+          minHeight: 40,
+          maxWidth: { xs: 'calc(100vw - 32px)', md: '100%' },
+          '& .MuiTabs-flexContainer': { gap: 1, px: { xs: 1, sm: 0 }, pb: { xs: 1, sm: 0 } },
+          '& .MuiTabs-indicator': { display: 'none' },
           '& .MuiTab-root': { 
             textTransform: 'none', 
-            fontWeight: 500, 
+            fontWeight: 600, 
+            minHeight: 40,
+            padding: '8px 16px',
+            borderRadius: '20px',
             color: 'text.secondary',
+            bgcolor: 'background.paper',
+            border: '1px solid #e5e7eb',
             transition: 'all 0.2s ease',
-            '&:hover': { color: '#1f2937' },
+            '&:hover': { color: '#1f2937', bgcolor: '#f3f4f6' },
             '&:active': { opacity: 0.7 },
-            '&.Mui-selected': { color: 'text.primary' }
-          }, 
-          '& .MuiTabs-indicator': { 
-            bgcolor: 'text.primary',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+            '&.Mui-selected': { color: 'background.paper', bgcolor: 'text.primary', borderColor: 'text.primary' }
           }
         }}
       >
@@ -1723,6 +1784,7 @@ function NutritionTracker() {
         <Tab label="Summary" />
         <Tab label="Scan Product" />
         <Tab label="Insights" />
+        <Tab label="Add Food to DB" />
       </Tabs>
 
       {activeTab === 0 && (
@@ -1769,12 +1831,12 @@ function NutritionTracker() {
                       bgcolor: 'action.hover',
                     }}
                   >
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', mb: 1, gap: 1 }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {meal.name}
                         </Typography>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                           <Chip
                             label={meal.mealType}
                             size="small"
@@ -1796,7 +1858,7 @@ function NutritionTracker() {
                           )}
                         </Box>
                       </Box>
-                      <Box sx={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                      <Box sx={{ textAlign: { xs: 'left', sm: 'right' }, display: 'flex', flexDirection: 'column', alignItems: { xs: 'flex-start', sm: 'flex-end' } }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
                             {fmt(mealTotals.calories, 0)} kcal
@@ -1887,10 +1949,10 @@ function NutritionTracker() {
               )}
               <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
                 <Button variant="outlined" size="small" onClick={generateNutritionInsight} disabled={nutritionInsightGenerating} sx={{ textTransform: 'none', borderColor: 'divider', color: 'text.secondary' }}>
-                  {nutritionInsightGenerating ? 'Generatingâ€¦' : 'Generate Insight'}
+                  {nutritionInsightGenerating ? 'Generating...' : 'Generate Insight'}
                 </Button>
                 <Button variant="outlined" size="small" onClick={generateMealSuggestions} disabled={mealSuggestionsGenerating} sx={{ textTransform: 'none', borderColor: 'divider', color: 'text.secondary' }}>
-                  {mealSuggestionsGenerating ? 'Thinkingâ€¦' : 'Suggest Meals'}
+                  {mealSuggestionsGenerating ? 'Thinking...' : 'Suggest Meals'}
                 </Button>
               </Box>
             </Box>
@@ -1905,10 +1967,10 @@ function NutritionTracker() {
                 </Box>
               </Box>
               <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button size="small" variant="outlined" onClick={() => handleWaterChange(250)} startIcon={<WaterDropIcon sx={{ fontSize: 15 }} />} fullWidth>+250 ml</Button>
-                <Button size="small" variant="outlined" onClick={() => handleWaterChange(500)} startIcon={<WaterDropIcon sx={{ fontSize: 15 }} />} fullWidth>+500 ml</Button>
+                <Button size="small" variant="outlined" onClick={() => handleWaterChange(250)} sx={{ flex: 1, py: 1.5, borderRadius: 2 }} startIcon={<WaterDropIcon sx={{ fontSize: 15 }} />}>+250 ml</Button>
+                <Button size="small" variant="outlined" onClick={() => handleWaterChange(500)} sx={{ flex: 1, py: 1.5, borderRadius: 2 }} startIcon={<WaterDropIcon sx={{ fontSize: 15 }} />}>+500 ml</Button>
               </Box>
-              <Button size="small" onClick={() => handleWaterChange(-250)} sx={{ mt: 1, color: '#9ca3af', textTransform: 'none', fontSize: '0.75rem' }}>âˆ’ Remove 250 ml</Button>
+              <Button size="small" onClick={() => handleWaterChange(-250)} sx={{ mt: 1, color: '#9ca3af', textTransform: 'none', fontSize: '0.75rem' }}>- Remove 250 ml</Button>
             </Box>
           </Box>
 
@@ -1927,7 +1989,7 @@ function NutritionTracker() {
 
       {/* â”€â”€â”€ TAB 1: LOG MEAL â”€â”€â”€ */}
       {activeTab === 1 && (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1.25fr' }, gap: 3, alignItems: 'start' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1.25fr' }, gap: 3, alignItems: 'start' }}>
 
           {/* LEFT: Search + Deep Analysis */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -1994,7 +2056,7 @@ function NutritionTracker() {
 
             <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>Deep Food Analysis</Typography>
-              <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1, mb: 1 }}>
                 <TextField
                   placeholder="Enter food name to analyze"
                   value={selectedFoodForAnalysis}
@@ -2002,12 +2064,14 @@ function NutritionTracker() {
                   size="small"
                   fullWidth
                 />
-                <Button size="small" variant="contained" onClick={() => analyzeSelectedFood({ includeLLM: false })} disabled={foodAnalysisLoading} sx={{ whiteSpace: 'nowrap' }}>
-                  {foodAnalysisLoading ? 'â€¦' : 'Analyze'}
-                </Button>
-                <Button size="small" variant="outlined" onClick={() => analyzeSelectedFood({ includeLLM: true })} disabled={foodAnalysisLoading} sx={{ whiteSpace: 'nowrap' }}>
-                  + LLM
-                </Button>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button size="small" variant="contained" onClick={() => analyzeSelectedFood({ includeLLM: false })} disabled={foodAnalysisLoading} sx={{ whiteSpace: 'nowrap', flex: 1 }}>
+                    {foodAnalysisLoading ? 'â€¦' : 'Analyze'}
+                  </Button>
+                  <Button size="small" variant="outlined" onClick={() => analyzeSelectedFood({ includeLLM: true })} disabled={foodAnalysisLoading} sx={{ whiteSpace: 'nowrap', flex: 1 }}>
+                    + LLM
+                  </Button>
+                </Box>
               </Box>
               {foodAnalysisError && <Typography variant="caption" sx={{ color: '#b91c1c', display: 'block', mb: 1 }}>{foodAnalysisError}</Typography>}
               {foodAnalysis && (
@@ -2126,35 +2190,30 @@ function NutritionTracker() {
                       </Typography>
                     </Box>
                   )}
-                  <Box sx={{ p: 1.5, display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                  <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                     <TextField
                       label="Food Item"
                       placeholder="e.g. Chicken Breast"
                       value={food.name}
                       onChange={(e) => updateFoodField(idx, 'name', e.target.value)}
                       size="small"
-                      sx={{ flex: 2, minWidth: 200 }}
+                      sx={{ width: '100%' }}
                     />
-                    
-                    <Box sx={{ display: 'flex', gap: 1, flex: 1, minWidth: 180 }}>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 1 }}>
                       <TextField
                         label="Qty"
                         value={food.quantity}
                         onChange={(e) => updateFoodField(idx, 'quantity', e.target.value)}
                         size="small"
-                        sx={{ width: 70 }}
                         inputProps={{ inputMode: 'decimal', style: { textAlign: 'center' } }}
                       />
                       <TextField
                         label="Unit"
                         value={food.baseServingUnit || food.unit || 'serving'}
                         size="small"
-                        sx={{ flex: 1, bgcolor: 'action.selected', '& .MuiOutlinedInput-input': { color: 'text.secondary' } }}
+                        sx={{ bgcolor: 'action.selected', '& .MuiOutlinedInput-input': { color: 'text.secondary' } }}
                         InputProps={{ readOnly: true }}
                       />
-                    </Box>
-
-                    <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
                       <TextField
                         label="Weight (g)"
                         type="number"
@@ -2163,12 +2222,10 @@ function NutritionTracker() {
                         onChange={(e) => {
                           const newWeight = Number(e.target.value)
                           if (!newWeight || !food.servingWeightG || !food.baseServingQty) return
-                          // Calculate the implied quantity: newQty = (newWeight * baseQty) / baseWeight
                           const impliedQty = (newWeight * Number(food.baseServingQty)) / Number(food.servingWeightG)
                           updateFoodField(idx, 'quantity', impliedQty.toFixed(2))
                         }}
                         size="small"
-                        sx={{ width: 95 }}
                         inputProps={{ style: { fontWeight: 600 } }}
                       />
                       <TextField
@@ -2176,7 +2233,6 @@ function NutritionTracker() {
                         value={food.calories}
                         onChange={(e) => updateFoodField(idx, 'calories', e.target.value)}
                         size="small"
-                        sx={{ width: 90 }}
                         InputProps={{ 
                           endAdornment: <Typography variant="caption" sx={{ ml: 0.5, opacity: 0.5 }}>kcal</Typography>
                         }}
@@ -2928,7 +2984,7 @@ function NutritionTracker() {
                       aria-label="Weight chart"
                       sx={{ width: '100%', maxWidth: 560, height: 'auto' }}
                     >
-                        <rect x="0" y="0" width="560" height="200" fill='background.paper' />
+                        <rect x="0" y="0" width="560" height="200" fill="#ffffff" />
 
                         {(() => {
                           const d = chart.dims
@@ -2943,22 +2999,22 @@ function NutritionTracker() {
                           return (
                             <>
                               {/* axes */}
-                              <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke='divider' strokeWidth="1" />
-                              <line x1={d.x0} y1={d.y0} x2={d.x0} y2={d.y1} stroke='divider' strokeWidth="1" />
+                              <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke="#e5e7eb" strokeWidth="1" />
+                              <line x1={d.x0} y1={d.y0} x2={d.x0} y2={d.y1} stroke="#e5e7eb" strokeWidth="1" />
 
                               {/* y ticks (max/mid/min) */}
-                              <line x1={d.x0} y1={d.y0} x2={d.x1} y2={d.y0} stroke='action.selected' strokeWidth="1" />
+                              <line x1={d.x0} y1={d.y0} x2={d.x1} y2={d.y0} stroke="#f3f4f6" strokeWidth="1" />
                               <line
                                 x1={d.x0}
                                 y1={(d.y0 + d.y1) / 2}
                                 x2={d.x1}
                                 y2={(d.y0 + d.y1) / 2}
-                                stroke='action.selected'
+                                stroke="#f3f4f6"
                                 strokeWidth="1"
                               />
-                              <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke='action.selected' strokeWidth="1" />
+                              <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke="#f3f4f6" strokeWidth="1" />
 
-                              <text x={d.x0 - 8} y={d.y0 + 3} fontSize="10" fill='text.secondary' textAnchor="end">
+                              <text x={d.x0 - 8} y={d.y0 + 3} fontSize="10" fill="#6b7280" textAnchor="end">
                                 {fmtKg(yMax)}
                               </text>
                               <text
@@ -2970,19 +3026,19 @@ function NutritionTracker() {
                               >
                                 {fmtKg(yMid)}
                               </text>
-                              <text x={d.x0 - 8} y={d.y1 + 3} fontSize="10" fill='text.secondary' textAnchor="end">
+                              <text x={d.x0 - 8} y={d.y1 + 3} fontSize="10" fill="#6b7280" textAnchor="end">
                                 {fmtKg(yMin)}
                               </text>
 
                               {/* axis titles */}
-                              <text x={(d.x0 + d.x1) / 2} y={200 - 8} fontSize="10" fill='text.secondary' textAnchor="middle">
+                              <text x={(d.x0 + d.x1) / 2} y={200 - 8} fontSize="10" fill="#6b7280" textAnchor="middle">
                                 Date
                               </text>
                               <text
                                 x="14"
                                 y={(d.y0 + d.y1) / 2}
                                 fontSize="10"
-                                fill='text.secondary'
+                                fill="#6b7280"
                                 textAnchor="middle"
                                 transform={`rotate(-90 14 ${(d.y0 + d.y1) / 2})`}
                               >
@@ -2990,15 +3046,15 @@ function NutritionTracker() {
                               </text>
 
                               {/* x tick labels */}
-                              <text x={d.x0} y={200 - 22} fontSize="10" fill='text.secondary' textAnchor="start">
+                              <text x={d.x0} y={200 - 22} fontSize="10" fill="#6b7280" textAnchor="start">
                                 {startLabel}
                               </text>
-                              <text x={d.x1} y={200 - 22} fontSize="10" fill='text.secondary' textAnchor="end">
+                              <text x={d.x1} y={200 - 22} fontSize="10" fill="#6b7280" textAnchor="end">
                                 {endLabel}
                               </text>
 
                               {chart.points ? (
-                                <polyline fill="none" stroke='text.primary' strokeWidth="2" points={chart.points} />
+                                <polyline fill="none" stroke="#16a34a" strokeWidth="2" points={chart.points} />
                               ) : null}
                             </>
                           )
@@ -3019,6 +3075,93 @@ function NutritionTracker() {
       {activeTab === 6 && (
         <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <NutritionInsights selectedDate={selectedDate} />
+        </Box>
+      )}
+
+      {activeTab === 7 && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+              Search & Import from MyFitnessPal
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
+              Find any dish or ingredient globally. Items you add will be saved to your local database for future searches.
+            </Typography>
+            
+            <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+              <TextField
+                fullWidth
+                label="Search Food Name"
+                placeholder="e.g. Homemade Paneer Butter Masala"
+                value={mfpSearchQuery}
+                onChange={(e) => setMfpSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleMfpSearch()}
+                size="small"
+              />
+              <Button
+                variant="contained"
+                onClick={handleMfpSearch}
+                disabled={mfpLoading}
+                sx={{ px: 4 }}
+              >
+                {mfpLoading ? 'Searching...' : 'Search'}
+              </Button>
+            </Box>
+
+            {mfpResults.length > 0 && (
+              <Stack spacing={2} sx={{ mt: 3 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>
+                  Top Search Results
+                </Typography>
+                {mfpResults.map((res) => (
+                  <Box
+                    key={res.id}
+                    sx={{
+                      p: 2,
+                      borderRadius: 1.5,
+                      border: '1px solid #e5e7eb',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      bgcolor: 'action.hover',
+                      transition: 'all 0.2s ease',
+                      '&:hover': { borderColor: 'primary.main', transform: 'translateY(-1px)', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>{res.displayName}</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                        {res.brand && `${res.brand} · `} {res.calories} kcal · {res.servingQty} {res.servingUnit}
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+                        <Chip label={`P: ${res.protein}g`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                        <Chip label={`C: ${res.carbs}g`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                        <Chip label={`F: ${res.fat}g`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                      </Box>
+                    </Box>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      color="primary"
+                      onClick={() => handleAddMfpFoodToDb(res)}
+                      disabled={addingMfpFoodId === res.id}
+                      startIcon={addingMfpFoodId === res.id ? null : <RestaurantIcon sx={{ fontSize: 14 }} />}
+                    >
+                      {addingMfpFoodId === res.id ? 'Adding...' : 'Add to DB'}
+                    </Button>
+                  </Box>
+                ))}
+              </Stack>
+            )}
+
+            {mfpResults.length === 0 && !mfpLoading && mfpSearchQuery && (
+              <Box sx={{ py: 4, textAlign: 'center' }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  Search for a food item above to start importing.
+                </Typography>
+              </Box>
+            )}
+          </Box>
         </Box>
       )}
     </Box>

@@ -92,12 +92,21 @@ const NutritionInsights = ({ selectedDate }) => {
             {getWeekRangeDisplay(selectedDate)} ({getWeekKey(selectedDate)})
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 3 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          gap: { xs: 2, md: 3 }, 
+          overflowX: 'auto', 
+          width: '100%', 
+          pb: 1,
+          '&::-webkit-scrollbar': { display: 'none' },
+          scrollbarWidth: 'none'
+        }}>
           {['macro', 'micro', 'metabolic'].map(tab => (
             <Typography key={tab} component="button" onClick={() => setActiveTab(tab)} sx={{
               background: 'none', border: 'none', borderBottom: activeTab === tab ? '2px solid var(--ls-text)' : '2px solid transparent',
               pb: 0.5, cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.85rem',
-              color: activeTab === tab ? 'var(--ls-text)' : 'var(--ls-text-muted)', transition: 'all 0.2s', '&:hover': { color: 'var(--ls-text)' }
+              color: activeTab === tab ? 'var(--ls-text)' : 'var(--ls-text-muted)', transition: 'all 0.2s', '&:hover': { color: 'var(--ls-text)' },
+              whiteSpace: 'nowrap'
             }}>
               {tab === 'macro' ? 'Macros' : tab === 'micro' ? 'Micronutrients' : 'Metabolic Map'}
             </Typography>
@@ -352,17 +361,17 @@ const MetabolicMapView = ({ data }) => {
       {/* Header hero block */}
       <Box sx={{ bgcolor: 'var(--ls-text)', color: 'var(--ls-bg)', p: { xs: 4, md: 6 }, borderRadius: '4px' }}>
         <Typography sx={{ fontFamily: 'monospace', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.15em', opacity: 0.5, mb: 2 }}>Personal Metabolic Map — 60 Day Analysis</Typography>
-        <Box sx={{ display: 'flex', gap: { xs: 4, md: 8 }, flexWrap: 'wrap', alignItems: 'flex-end', mb: 4 }}>
-          <Box>
+        <Box sx={{ display: 'flex', gap: { xs: 3, md: 8 }, flexWrap: 'wrap', alignItems: 'flex-start', mb: 4 }}>
+          <Box sx={{ minWidth: { xs: 'calc(50% - 12px)', md: 'auto' } }}>
             <Typography sx={{ fontFamily: 'monospace', fontSize: '0.65rem', opacity: 0.5, textTransform: 'uppercase', mb: 0.5 }}>Formula TDEE</Typography>
-            <Typography sx={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: '2.5rem', fontWeight: 700, lineHeight: 1, textDecoration: 'line-through', opacity: 0.4 }}>{data.baseTDEE}</Typography>
+            <Typography sx={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: { xs: '1.75rem', md: '2.5rem' }, fontWeight: 700, lineHeight: 1, textDecoration: 'line-through', opacity: 0.4 }}>{data.baseTDEE}</Typography>
           </Box>
-          <Box sx={{ fontSize: '1.5rem', opacity: 0.4, alignSelf: 'center' }}>→</Box>
-          <Box>
+          <Box sx={{ fontSize: '1.5rem', opacity: 0.4, alignSelf: 'center', display: { xs: 'none', md: 'block' } }}>→</Box>
+          <Box sx={{ minWidth: { xs: '100%', md: 'auto' }, order: { xs: 3, md: 0 } }}>
             <Typography sx={{ fontFamily: 'monospace', fontSize: '0.65rem', opacity: 0.5, textTransform: 'uppercase', mb: 0.5 }}>Your Dynamic TDEE</Typography>
-            <Typography sx={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: '3.5rem', fontWeight: 700, lineHeight: 1 }}>{data.dynamicTDEE}</Typography>
+            <Typography sx={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: { xs: '2.5rem', md: '3.5rem' }, fontWeight: 700, lineHeight: 1 }}>{data.dynamicTDEE}</Typography>
           </Box>
-          <Box sx={{ ml: 'auto' }}>
+          <Box sx={{ minWidth: { xs: 'calc(50% - 12px)', md: 'auto' } }}>
             <Typography sx={{ fontFamily: 'monospace', fontSize: '0.65rem', opacity: 0.5, textTransform: 'uppercase', mb: 0.5 }}>Diet Phase</Typography>
             <Box sx={{ px: 2, py: 0.5, bgcolor: phase.color, borderRadius: '3px', display: 'inline-block' }}>
               <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', color: 'white' }}>{phase.label}</Typography>

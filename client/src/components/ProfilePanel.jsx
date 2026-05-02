@@ -1118,8 +1118,8 @@ function ProfilePanel() {
   const tabs = ['Basic', 'Body', 'Health', 'Clinical & Diet', 'Training', 'Mind', 'Measurements', 'Personality']
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+    <Box sx={{ minWidth: 0, overflowX: 'hidden' }}>
+      <Box sx={{ display: { xs: 'none', sm: 'flex' }, justifyContent: 'space-between', alignItems: 'flex-start', mb: { xs: 2, sm: 3 } }}>
         <Box>
           <Typography variant="h5" sx={{ mb: 0.5, fontWeight: 600, color: 'text.primary' }}>
             Your Profile
@@ -1133,34 +1133,53 @@ function ProfilePanel() {
           onClick={handleSave}
           disabled={saving}
           sx={{
+            width: { xs: 'calc(100vw - 32px)', sm: 'auto' },
+            maxWidth: '100%',
+            position: { xs: 'fixed', sm: 'static' },
+            bottom: { xs: 16, sm: 'auto' },
+            left: { xs: 16, sm: 'auto' },
+            zIndex: { xs: 1100, sm: 'auto' },
+            borderRadius: { xs: 8, sm: 1 },
+            py: { xs: 1.5, sm: 1 },
+            fontSize: { xs: '1.1rem', sm: '0.875rem' },
             bgcolor: 'text.primary',
             textTransform: 'none',
             fontWeight: 600,
             px: 3,
-            boxShadow: 'none',
-            '&:hover': { bgcolor: 'text.secondary', boxShadow: 'none' },
+            boxShadow: { xs: '0 8px 16px rgba(0,0,0,0.2)', sm: 'none' },
+            '&:hover': { bgcolor: 'text.secondary', boxShadow: { xs: '0 8px 16px rgba(0,0,0,0.2)', sm: 'none' } },
           }}
         >
           {saving ? 'Saving...' : 'Save All'}
         </Button>
       </Box>
 
-      <Box sx={{ borderBottom: '1px solid #e5e7eb', mb: 3 }}>
+      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
         <Tabs
           value={activeTab}
           onChange={(e, v) => setActiveTab(v)}
           variant="scrollable"
           scrollButtons="auto"
+          allowScrollButtonsMobile
           sx={{
+            minHeight: 40,
+            maxWidth: { xs: 'calc(100vw - 32px)', md: '100%' },
+            '& .MuiTabs-flexContainer': { gap: 1, px: { xs: 1, sm: 0 }, pb: { xs: 1, sm: 0 } },
+            '& .MuiTabs-indicator': { display: 'none' },
             '& .MuiTab-root': {
               textTransform: 'none',
-              fontWeight: 500,
+              fontWeight: 600,
+              minHeight: 40,
+              padding: '8px 16px',
+              borderRadius: '20px',
               color: 'text.secondary',
-              minWidth: 'auto',
-              px: 2,
-              '&.Mui-selected': { color: 'text.primary' },
+              bgcolor: 'background.paper',
+              border: '1px solid #e5e7eb',
+              transition: 'all 0.2s ease',
+              '&:hover': { color: '#1f2937', bgcolor: '#f3f4f6' },
+              '&:active': { opacity: 0.7 },
+              '&.Mui-selected': { color: 'background.paper', bgcolor: 'text.primary', borderColor: 'text.primary' }
             },
-            '& .MuiTabs-indicator': { bgcolor: 'text.primary', height: 2 },
           }}
         >
           {tabs.map((tab) => (

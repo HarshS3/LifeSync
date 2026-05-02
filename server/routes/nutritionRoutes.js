@@ -1024,6 +1024,127 @@ router.get('/search', authMiddleware, async (req, res) => {
   }
 });
 
+// --- MyFitnessPal Search & Ingest ---
+
+router.get('/mfp/search', authMiddleware, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.status(400).json({ error: 'Query is required' });
+
+    console.log('[NutritionRoutes] Combined Live Search:', q);
+    
+    // 1. Fetch from OpenFoodFacts (Fast)
+    const offResults = await require('../services/nutritionSources/offScraper').searchOff(q).catch(e => {
+      console.error('[NutritionRoutes] OFF search failed:', e.message);
+      return [];
+    });
+
+    // 2. Fetch from MFP via Python Bridge (Slower)
+    // We run this only if OFF has few results or just to augment
+    const { spawn } = require('child_process');
+    const path = require('path');
+    
+    const mfpPromise = new Promise((resolve) => {
+      const pythonProcess = spawn('python', [
+        path.join(__dirname, '../../scraping/1.py'),
+        q
+      ]);
+
+      let output = '';
+      pythonProcess.stdout.on('data', (data) => { output += data.toString(); });
+      pythonProcess.stderr.on('data', (data) => { console.error(`[MFP-Bridge] ${data}`); });
+      
+      pythonProcess.on('close', (code) => {
+        try {
+          const results = JSON.parse(output.trim());
+          resolve(Array.isArray(results) ? results : []);
+        } catch (e) {
+          console.error('[MFP-Bridge] Failed to parse JSON output');
+          resolve([]);
+        }
+      });
+      
+      // Timeout after 20s to not block forever
+      setTimeout(() => {
+        pythonProcess.kill();
+        resolve([]);
+      }, 20000);
+    });
+
+    // We send back OFF results immediately if they are enough, 
+    // or wait for MFP for 10s if needed.
+    // For now, let's wait for both to give a rich result.
+    const mfpResults = await mfpPromise;
+
+    res.json([
+      ...offResults.map(r => ({ ...r, source: 'OpenFoodFacts' })),
+      ...mfpResults.map(r => ({ ...r, source: 'MyFitnessPal' }))
+    ]);
+  } catch (err) {
+    console.error('[NutritionRoutes] Combined search error:', err);
+    res.status(500).json({ error: 'Failed to search food databases' });
+  }
+});
+
+router.post('/mfp/add', authMiddleware, async (req, res) => {
+  try {
+    let { food } = req.body;
+    if (!food) return res.status(400).json({ error: 'Food data is required' });
+
+    const scraper = require('../services/nutritionSources/mfpScraper');
+
+    // If the search only provided a link, fetch the full details now
+    if (food.isLinkOnly && food.href) {
+      console.log('[NutritionRoutes] Fetching full details for link-only food:', food.displayName);
+      const details = await scraper.getMfpFoodDetails(food.href);
+      food = { ...food, ...details };
+    }
+
+    const MfpFood = require('../models/MfpFood');
+    const { getEmbedding } = require('../services/nutritionAI/embeddingService');
+
+    // Map fields to MfpFood schema
+    const columns = [
+      { key: 'energy_kcal', value: food.calories || '-' },
+      { key: 'protein_g', value: food.protein || '-' },
+      { key: 'carb_g', value: food.carbs || '-' },
+      { key: 'fat_g', value: food.fat || '-' },
+      { key: 'fibre_g', value: food.fiber || '-' },
+      { key: 'primarysource', value: 'MFP User Ingest' }
+    ];
+
+    // Add any other nutrients if they exist in food.nutrients
+    const n = food.nutrients || {};
+    if (n.nf_sugars) columns.push({ key: 'freesugar_g', value: n.nf_sugars });
+    if (n.nf_sodium) columns.push({ key: 'sodium_mg', value: n.nf_sodium });
+    if (n.nf_potassium) columns.push({ key: 'potassium_mg', value: n.nf_potassium });
+
+    // Generate embedding for vector search
+    const embedding = await getEmbedding(food.displayName).catch(e => {
+      console.warn('Embedding generation failed for ingested food:', e.message);
+      return null;
+    });
+
+    const newFood = new MfpFood({
+      sourceFile: 'user_ingested_mfp.json',
+      displayName: food.displayName,
+      searchText: food.displayName, // Use display name for search
+      servingQty: food.servingQty || '1',
+      servingSize: food.servingUnit || 'serving',
+      columns,
+      embedding
+    });
+
+    await newFood.save();
+    console.log('[NutritionRoutes] Saved new MFP food to DB:', food.displayName);
+
+    res.status(201).json({ message: 'Food added to database successfully', food: newFood });
+  } catch (err) {
+    console.error('[NutritionRoutes] MFP add error:', err);
+    res.status(500).json({ error: 'Failed to add food to database' });
+  }
+});
+
 router.get('/barcode/:code', authMiddleware, async (req, res) => {
   try {
     const code = String(req.params.code || '').trim();

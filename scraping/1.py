@@ -362,4 +362,35 @@ def main():
     print("\n✅ Scraping session complete!")
 
 if __name__ == "__main__":
-    main()
+    import sys
+    import json
+    if len(sys.argv) > 1:
+        query = sys.argv[1]
+        options = uc.ChromeOptions()
+        options.add_argument("--headless")
+        driver = uc.Chrome(options=options)
+        try:
+            login_to_myfitnesspal(driver)
+            search_url = f"https://www.myfitnesspal.com/food/calorie-chart-nutrition-facts/{query.replace(' ', '%20')}"
+            driver.get(search_url)
+            time.sleep(5)
+            links = driver.find_elements(By.XPATH, "//a[contains(@href, '/food/calories/')]")
+            results = []
+            seen = set()
+            for link in links:
+                href = link.get_attribute("href")
+                text = link.text.strip()
+                if href and href not in seen and len(results) < 5:
+                    seen.add(href)
+                    results.append({
+                        "id": href.split('/')[-1],
+                        "displayName": text,
+                        "href": href,
+                        "isLinkOnly": True
+                    })
+            print(json.dumps(results))
+            sys.stdout.flush()
+        finally:
+            driver.quit()
+    else:
+        main()

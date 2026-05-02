@@ -584,8 +584,8 @@ function AppContent() {
           </Box>
 
           {/* Content */}
-          <Box sx={{ flex: 1, overflow: 'auto', p: { xs: 2, md: 4 } }}>
-            <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%' }}>
+          <Box sx={{ flex: 1, overflow: 'auto', overflowX: 'hidden', p: { xs: 2, md: 4 }, minWidth: 0 }}>
+            <Box sx={{ maxWidth: 1200, mx: 'auto', width: '100%', minWidth: 0 }}>
               <Routes>
                 <Route path="/" element={<Navigate to="/home" replace />} />
                 <Route path="/home" element={<Dashboard />} />

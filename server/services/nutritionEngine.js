@@ -61,7 +61,8 @@ const calculateDailyTargets = (biologicalProfile, adaptiveTdeeOverride = null) =
     metabolicGoal, 
     pregnancyStatus, 
     dietaryPreference, 
-    hypertension 
+    hypertension,
+    insulinSensitivity = 'normal'
   } = biologicalProfile;
 
   // Basic Validation
@@ -130,9 +131,26 @@ const calculateDailyTargets = (biologicalProfile, adaptiveTdeeOverride = null) =
 
   const targetProteinGrams = weightKg * proteinPerKg;
   
-  // Keep fat to a hormonal baseline (approx 25-30% of target calories)
+  // 7. Construct Fat & Carb Distribution (Adjusted by Metabolic Sensitivity)
+  // Standard baseline: 30% fat. 
+  // Insulin Resistant / Diabetic profiles require higher fat/lower carb to manage spikes.
   let fatPercentage = 0.30;
-  if (metabolicGoal === 'aggressive_loss') fatPercentage = 0.25; // drop fat slightly in aggressive cut
+  
+  if (insulinSensitivity === 'high') {
+    fatPercentage = 0.20; // High carb preference for athletes
+  } else if (insulinSensitivity === 'low') {
+    fatPercentage = 0.35;
+  } else if (insulinSensitivity === 'insulin_resistant') {
+    fatPercentage = 0.40;
+  } else if (insulinSensitivity === 'diabetic') {
+    fatPercentage = 0.45;
+  }
+
+  // Goal-based secondary adjustment
+  if (metabolicGoal === 'aggressive_loss' && insulinSensitivity === 'normal') {
+    fatPercentage = 0.25; // drop fat slightly in aggressive cut only if insulin sensitivity is normal
+  }
+  
   const targetFatGrams = (targetCalories * fatPercentage) / 9; 
   
   // Remaining calories to carbs

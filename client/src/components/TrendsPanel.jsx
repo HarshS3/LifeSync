@@ -393,10 +393,14 @@ function TrendsPanel() {
         <Tabs
           value={activeTab}
           onChange={(e, v) => setActiveTab(v)}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
           sx={{
             '& .MuiTab-root': {
               textTransform: 'none',
               fontWeight: 500,
+              minHeight: { xs: 48, sm: 48 },
               color: 'text.secondary',
               '&.Mui-selected': { color: 'text.primary' },
             },

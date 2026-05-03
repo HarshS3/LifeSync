@@ -60,7 +60,8 @@ function HabitTracker() {
   const [activeTab, setActiveTab] = useState(0)
   const [habits, setHabits] = useState([])
   const [weekData, setWeekData] = useState(null)
-  const [todayLogs, setTodayLogs] = useState([])
+  const [dailyLogs, setDailyLogs] = useState([])
+  const [selectedDate, setSelectedDate] = useState(new Date())
   const [loading, setLoading] = useState(true)
   const [habitStats, setHabitStats] = useState(null)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -81,24 +82,24 @@ function HabitTracker() {
 
   useEffect(() => {
     loadData()
-  }, [token, weekOffset])
+  }, [token, weekOffset, selectedDate])
 
   const loadData = async () => {
     setLoading(true)
     try {
-      const [habitsRes, weekRes, todayRes, analyticsRes, statsRes] = await Promise.all([
+      const [habitsRes, weekRes, dailyRes, analyticsRes, statsRes] = await Promise.all([
         fetch(`${API_BASE}/api/habits`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/habits/week?date=${getWeekDate()}`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_BASE}/api/habits/logs?start=${new Date().toISOString()}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/api/habits/logs?start=${selectedDate.toISOString()}`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/habits/analytics`, { headers: { Authorization: `Bearer ${token}` } }),
         fetch(`${API_BASE}/api/habits/stats`, { headers: { Authorization: `Bearer ${token}` } }),
       ])
 
       if (habitsRes.ok) setHabits(await habitsRes.json())
       if (weekRes.ok) setWeekData(await weekRes.json())
-      if (todayRes.ok) {
-        const logs = await todayRes.json()
-        setTodayLogs(logs)
+      if (dailyRes.ok) {
+        const logs = await dailyRes.json()
+        setDailyLogs(logs)
         // Initialize notes from existing logs
         const notesMap = {}
         logs.forEach(log => {
@@ -154,15 +155,15 @@ function HabitTracker() {
         },
         body: JSON.stringify({
           habitId,
-          date: new Date().toISOString(),
+          date: selectedDate.toISOString(),
           notes: habitNotes[habitId] || '',
         }),
       })
 
       if (res.ok) {
         const updatedLog = await res.json()
-        // Update todayLogs with the new/updated log
-        setTodayLogs(prev => {
+        // Update dailyLogs with the new/updated log
+        setDailyLogs(prev => {
           const existing = prev.findIndex(l => (l.habit?._id || l.habit) === habitId)
           if (existing >= 0) {
             const updated = [...prev]
@@ -237,8 +238,8 @@ function HabitTracker() {
     setDialogOpen(true)
   }
 
-  const today = new Date().toDateString()
-  const completedToday = todayLogs.filter(l => l.completed).length
+  const isToday = selectedDate.toDateString() === new Date().toDateString()
+  const completedToday = dailyLogs.filter(l => l.completed).length
   const totalHabits = habits.length
 
   return (
@@ -290,7 +291,7 @@ function HabitTracker() {
         </Button>
       </Box>
 
-      {/* Today's Progress Card */}
+      {/* Daily Progress Card */}
       <Box
         sx={{
           p: 3,
@@ -301,7 +302,9 @@ function HabitTracker() {
         }}
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>Today's Progress</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            {isToday ? "Today's Progress" : `Progress for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+          </Typography>
           <Chip
             icon={<LocalFireDepartmentIcon sx={{ fontSize: 16 }} />}
             label={`${completedToday}/${totalHabits} completed`}
@@ -336,14 +339,14 @@ function HabitTracker() {
           scrollButtons="auto"
           allowScrollButtonsMobile
           sx={{
-            minHeight: 40,
+            minHeight: { xs: 48, sm: 40 },
             maxWidth: { xs: 'calc(100vw - 32px)', md: '100%' },
             '& .MuiTabs-flexContainer': { gap: 1, px: { xs: 1, sm: 0 }, pb: { xs: 1, sm: 0 } },
             '& .MuiTabs-indicator': { display: 'none' },
             '& .MuiTab-root': {
               textTransform: 'none',
               fontWeight: 600,
-              minHeight: 40,
+              minHeight: { xs: 48, sm: 40 },
               padding: '8px 16px',
               borderRadius: '20px',
               color: 'text.secondary',
@@ -356,7 +359,7 @@ function HabitTracker() {
             },
           }}
         >
-          <Tab label="Today" icon={<TodayIcon sx={{ fontSize: 18 }} />} iconPosition="start" />
+          <Tab label={isToday ? "Today" : "Daily Log"} icon={<TodayIcon sx={{ fontSize: 18 }} />} iconPosition="start" />
           <Tab label="Week View" />
           <Tab label="Stats" icon={<BarChartIcon sx={{ fontSize: 18 }} />} iconPosition="start" />
           <Tab label="All Habits" />
@@ -364,9 +367,41 @@ function HabitTracker() {
         </Tabs>
       </Box>
 
-      {/* Today Tab */}
+      {/* Today / Daily Log Tab */}
       {activeTab === 0 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {/* Date Navigator */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, bgcolor: 'action.hover', p: 1, borderRadius: 2 }}>
+            <IconButton size="small" onClick={() => {
+              const d = new Date(selectedDate);
+              d.setDate(d.getDate() - 1);
+              setSelectedDate(d);
+            }}>
+              <ChevronLeftIcon />
+            </IconButton>
+            <Box sx={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => setSelectedDate(new Date())}>
+              <Typography variant="body1" sx={{ fontWeight: 700 }}>
+                {isToday ? 'Today' : selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+              </Typography>
+              {!isToday && (
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                  Click to return to today
+                </Typography>
+              )}
+            </Box>
+            <IconButton 
+              size="small" 
+              onClick={() => {
+                const d = new Date(selectedDate);
+                d.setDate(d.getDate() + 1);
+                setSelectedDate(d);
+              }}
+              disabled={isToday}
+            >
+              <ChevronRightIcon />
+            </IconButton>
+          </Box>
+
           {habits.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 6, color: 'text.secondary' }}>
               <Typography variant="body1" sx={{ mb: 1 }}>No habits yet</Typography>
@@ -374,7 +409,7 @@ function HabitTracker() {
             </Box>
           ) : (
             habits.map((habit) => {
-              const log = todayLogs.find(l => l.habit?._id === habit._id || l.habit === habit._id)
+              const log = dailyLogs.find(l => l.habit?._id === habit._id || l.habit === habit._id)
               const isCompleted = log?.completed || false
               const isExpanded = expandedHabit === habit._id
               const savedNote = log?.notes || ''
@@ -405,7 +440,7 @@ function HabitTracker() {
                     <Box
                       onClick={(e) => {
                         e.stopPropagation()
-                        handleToggleHabit(habit._id, new Date().toISOString(), isCompleted)
+                        handleToggleHabit(habit._id, selectedDate.toISOString(), isCompleted)
                       }}
                       sx={{
                         width: 40,
@@ -470,7 +505,7 @@ function HabitTracker() {
                       </IconButton>
                       <Box onClick={(e) => {
                         e.stopPropagation()
-                        handleToggleHabit(habit._id, new Date().toISOString(), isCompleted)
+                        handleToggleHabit(habit._id, selectedDate.toISOString(), isCompleted)
                       }}>
                         {isCompleted ? (
                           <CheckCircleIcon sx={{ fontSize: 28, color: habit.color, cursor: 'pointer' }} />

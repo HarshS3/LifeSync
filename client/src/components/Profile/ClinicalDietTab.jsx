@@ -227,6 +227,32 @@ export default function ClinicalDietTab({ profile, updateField, updateBiological
       </Box>
 
       <Box>
+        <SectionTitle>Insulin Sensitivity / Metabolic Status</SectionTitle>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          {[
+            { id: 'high', label: 'High (Athlete/Lean)' },
+            { id: 'normal', label: 'Normal' },
+            { id: 'low', label: 'Low (PCOS/Weight Plateau)' },
+            { id: 'insulin_resistant', label: 'Insulin Resistant' },
+            { id: 'diabetic', label: 'Diabetic (Type 2)' }
+          ].map((status) => (
+            <Chip
+              key={status.id}
+              label={status.label}
+              onClick={() => updateBiologicalProfileField('insulinSensitivity', status.id)}
+              sx={{
+                bgcolor: (profile.biologicalProfile?.insulinSensitivity || 'normal') === status.id ? 'text.primary' : 'action.selected',
+                color: (profile.biologicalProfile?.insulinSensitivity || 'normal') === status.id ? 'background.paper' : 'text.secondary',
+              }}
+            />
+          ))}
+        </Box>
+        <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'text.secondary', fontStyle: 'italic' }}>
+          This adjusts your carbohydrate threshold. Insulin resistant profiles receive lower carb/higher fat targets to manage blood glucose and insulin load.
+        </Typography>
+      </Box>
+
+      <Box>
         <SectionTitle>Dietary Preference</SectionTitle>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           {['omnivore', 'pescatarian', 'vegetarian', 'vegan', 'keto', 'paleo', 'jain', 'halal', 'kosher'].map((diet) => (

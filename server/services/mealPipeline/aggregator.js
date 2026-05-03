@@ -117,7 +117,7 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
 
   const executeSearch = async (model, textQuery, regexQuery) => {
     try {
-      // Try $text search first (very fast)
+      // Try $text search first (very fast, uses index)
       let results = await model.find(textQuery).lean().limit(limit)
       // Fallback to regex (slower) only if $text finds nothing
       if (!results || results.length === 0) {
@@ -128,6 +128,15 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
       console.error(`Search failed for model ${model.modelName}:`, err)
       return []
     }
+  }
+
+  // Relevance scorer: lower score = better match
+  // Tier 0: exact match, Tier 1: starts with, Tier 2: contains (sort by name length within tier)
+  const scoreResult = (item) => {
+    const name = normalizeKey(item.name || '')
+    if (name === query) return name.length            // Tier 0
+    if (name.startsWith(query)) return 1000 + name.length  // Tier 1
+    return 2000 + name.length                              // Tier 2 (contains)
   }
 
   const [recipes, ingredients, indbFoods, mfpFoods, tarlaFoods] = await Promise.all([
@@ -393,34 +402,28 @@ async function searchLocalFoods({ q, locale = 'en', limit = 10 }) {
     }
   })
 
-  // Balanced Merging: Interleave results from INDB, MFP, and TarlaDalal
-  const limitCount = Math.max(1, limit);
-  const finalResults = [];
-  
-  // 1. Prioritize Recipes and Core Ingredients at the top
-  const highPriority = [...recipeResults.filter(Boolean), ...ingredientResults];
-  finalResults.push(...highPriority.slice(0, 3));
+  // Merge all results, score by relevance, deduplicate by name, then sort
+  const allResults = [
+    ...recipeResults.filter(Boolean),
+    ...ingredientResults,
+    ...indbResults,
+    ...mfpResults,
+    ...tarlaResults,
+  ]
 
-  // 2. Interleave the three main DB sources
-  const sources = [indbResults, mfpResults, tarlaResults];
-  let maxLen = Math.max(...sources.map(s => s.length));
-  
-  for (let i = 0; i < maxLen; i++) {
-    for (const source of sources) {
-      if (source[i] && finalResults.length < limitCount) {
-        finalResults.push(source[i]);
-      }
-    }
-    if (finalResults.length >= limitCount) break;
-  }
+  // Deduplicate: keep first occurrence of each normalized name
+  const seenNames = new Set()
+  const deduped = allResults.filter(item => {
+    const key = normalizeKey(item.name || '')
+    if (seenNames.has(key)) return false
+    seenNames.add(key)
+    return true
+  })
 
-  // 3. Fallback for any remaining slots (though unlikely with interleaving)
-  if (finalResults.length < limitCount) {
-    const leftover = highPriority.slice(3);
-    finalResults.push(...leftover.slice(0, limitCount - finalResults.length));
-  }
+  // Sort by relevance score (lower = better)
+  deduped.sort((a, b) => scoreResult(a) - scoreResult(b))
 
-  return finalResults.slice(0, limitCount);
+  return deduped.slice(0, Math.max(1, limit))
 }
 
 module.exports = {

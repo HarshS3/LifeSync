@@ -530,6 +530,7 @@ function ProfilePanel() {
           pregnancyStatus: 'none',
           dietaryPreference: 'omnivore',
           hypertension: false,
+          insulinSensitivity: 'normal',
         }),
       }
 
@@ -557,6 +558,7 @@ function ProfilePanel() {
           pregnancyStatus: 'none',
           dietaryPreference: 'omnivore',
           hypertension: false,
+          insulinSensitivity: 'normal',
         }),
         [field]: value
       }

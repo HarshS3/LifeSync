@@ -253,7 +253,7 @@ function ExerciseHistoryPage() {
           </CardContent>
         </Card>
       ) : (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, overflowX: 'auto', pb: 1 }}>
           {history.map((log, idx) => (
             <Card key={idx} sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper', overflow: 'hidden' }}>
               <CardContent>

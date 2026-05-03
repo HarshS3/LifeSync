@@ -479,7 +479,7 @@ function AppContent() {
                     alignItems: 'center',
                     gap: 1.5,
                     px: 1.5,
-                    py: 1,
+                    py: { xs: 1.5, md: 1 },
                     mb: 0.5,
                     borderRadius: 1.5,
                     cursor: 'pointer',

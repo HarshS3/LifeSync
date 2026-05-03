@@ -19,6 +19,7 @@ import LinearProgress from '@mui/material/LinearProgress'
 import useMediaQuery from '@mui/material/useMediaQuery'
 import { useTheme } from '@mui/material/styles'
 import AddIcon from '@mui/icons-material/Add'
+import EditIcon from '@mui/icons-material/Edit'
 import CheckIcon from '@mui/icons-material/Check'
 import DeleteIcon from '@mui/icons-material/Delete'
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter'
@@ -52,49 +53,7 @@ import LastSetsReference from './LastSetsReference'
 
 const DEFAULT_BODY_MODEL_GLB_URL = new URL('../assets/Untitled.glb', import.meta.url).href
 
-// Exercise Library with muscle groups
-const EXERCISE_LIBRARY = {
-  chest: {
-    label: 'Chest',
-    color: '#ef4444',
-    exercises: ['Bench Press', 'Incline Bench Press', 'Decline Bench Press', 'Dumbbell Flyes', 'Cable Crossover', 'Push-ups', 'Chest Dips', 'Pec Deck Machine']
-  },
-  back: {
-    label: 'Back',
-    color: '#3b82f6',
-    exercises: ['Deadlift', 'Pull-ups', 'Lat Pulldown', 'Barbell Rows', 'Dumbbell Rows', 'Cable Rows', 'T-Bar Rows', 'Face Pulls']
-  },
-  shoulders: {
-    label: 'Shoulders',
-    color: '#f59e0b',
-    exercises: ['Overhead Press', 'Lateral Raises', 'Front Raises', 'Rear Delt Flyes', 'Arnold Press', 'Upright Rows', 'Shrugs', 'Face Pulls']
-  },
-  biceps: {
-    label: 'Biceps',
-    color: '#10b981',
-    exercises: ['Barbell Curls', 'Dumbbell Curls', 'Hammer Curls', 'Preacher Curls', 'Concentration Curls', 'Cable Curls', 'Incline Curls']
-  },
-  triceps: {
-    label: 'Triceps',
-    color: '#8b5cf6',
-    exercises: ['Tricep Pushdowns', 'Skull Crushers', 'Overhead Extensions', 'Dips', 'Close Grip Bench', 'Kickbacks', 'Diamond Push-ups']
-  },
-  legs: {
-    label: 'Legs',
-    color: '#ec4899',
-    exercises: ['Squats', 'Leg Press', 'Lunges', 'Romanian Deadlift', 'Leg Curls', 'Leg Extensions', 'Calf Raises', 'Hip Thrusts', 'Bulgarian Split Squats']
-  },
-  core: {
-    label: 'Core',
-    color: '#06b6d4',
-    exercises: ['Planks', 'Crunches', 'Russian Twists', 'Leg Raises', 'Ab Wheel', 'Cable Crunches', 'Dead Bug', 'Mountain Climbers']
-  },
-  cardio: {
-    label: 'Cardio',
-    color: '#f97316',
-    exercises: ['Running', 'Cycling', 'Rowing', 'Jump Rope', 'Stair Climber', 'Elliptical', 'Swimming', 'HIIT']
-  }
-}
+import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
 
 function GymTracker() {
   const theme = useTheme()
@@ -897,6 +856,56 @@ function GymTracker() {
     }))
   }
 
+  const deleteWorkout = async (id, e) => {
+    if (e) e.stopPropagation()
+    if (!window.confirm('Are you sure you want to delete this workout?')) return
+    try {
+      const res = await fetch(`${API_BASE}/api/gym/workouts/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        toast.success('Workout deleted')
+        loadWorkouts()
+      }
+    } catch (err) {
+      console.error('Failed to delete workout:', err)
+      toast.error('Failed to delete workout')
+    }
+  }
+
+  const editWorkout = (workout, e) => {
+    if (e) e.stopPropagation()
+    setCurrentWorkout({
+      ...workout,
+      exercises: workout.exercises.map(ex => ({
+        ...ex,
+        sets: ex.sets.map(s => ({ ...s }))
+      }))
+    })
+    setWorkoutStartTime(Date.now() - (workout.duration || 0) * 1000)
+    setElapsedTime(workout.duration || 0)
+    setActiveTab(0) // Switch to active workout tab
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const deleteTemplate = async (id, e) => {
+    if (e) e.stopPropagation()
+    if (!window.confirm('Delete this routine?')) return
+    try {
+      const res = await fetch(`${API_BASE}/api/gym/templates/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        toast.success('Routine deleted')
+        loadTemplates()
+      }
+    } catch (err) {
+      console.error('Failed to delete template:', err)
+    }
+  }
+
   const finishWorkout = async () => {
     if (!currentWorkout || currentWorkout.exercises.length === 0) {
       alert('Add at least one exercise!')
@@ -906,12 +915,14 @@ function GymTracker() {
     const workoutData = {
       ...currentWorkout,
       duration: elapsedTime,
-      date: new Date(),
+      date: currentWorkout._id ? currentWorkout.date : new Date(),
     }
 
+    const isEdit = !!currentWorkout._id
+
     try {
-      const res = await fetch(`${API_BASE}/api/gym/workouts`, {
-        method: 'POST',
+      const res = await fetch(`${API_BASE}/api/gym/workouts${isEdit ? `/${currentWorkout._id}` : ''}`, {
+        method: isEdit ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -920,6 +931,7 @@ function GymTracker() {
       })
 
       if (res.ok) {
+        toast.success(isEdit ? 'Workout updated!' : 'Workout saved!')
         setCurrentWorkout(null)
         setWorkoutStartTime(null)
         setElapsedTime(0)
@@ -927,6 +939,7 @@ function GymTracker() {
       }
     } catch (err) {
       console.error('Failed to save workout:', err)
+      toast.error('Failed to save workout')
     }
   }
 
@@ -1076,13 +1089,23 @@ function GymTracker() {
                     }
                   }}
                   onClick={() => { useTemplate(tpl); setTemplateDialogOpen(false); }}
-                >
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{tpl.name}</Typography>
-                  <Typography variant="caption" sx={{ color: '#64748b' }}>
-                    {tpl.exercises?.length || 0} exercises • {tpl.description}
-                  </Typography>
-                </Box>
-              ))}
+                  >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{tpl.name}</Typography>
+                      <Typography variant="caption" sx={{ color: '#64748b' }}>
+                        {tpl.exercises?.length || 0} exercises • {tpl.description}
+                      </Typography>
+                    </Box>
+                    <IconButton 
+                      size="small" 
+                      onClick={(e) => deleteTemplate(tpl._id, e)}
+                      sx={{ color: '#94a3b8', '&:hover': { color: '#ef4444', bgcolor: 'rgba(239, 68, 68, 0.08)' } }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                  </Box>              ))}
             </Box>
           )}
         </DialogContent>
@@ -1255,8 +1278,8 @@ function GymTracker() {
                   {exercise.sets.map((set, setIdx) => {
                     const prevSet = exerciseLastSets[exercise.name]?.[setIdx];
                     return (
-                    <Box key={setIdx} sx={{ display: 'grid', gridTemplateColumns: { xs: '32px 1fr 1fr 64px', sm: '40px 1fr 1fr 80px' }, gap: 1, mb: 1, alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>{setIdx + 1}</Typography>
+                    <Box key={setIdx} sx={{ display: 'grid', gridTemplateColumns: { xs: '24px 1fr 1fr 76px', sm: '40px 1fr 1fr 80px' }, gap: 1, mb: 1, alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{setIdx + 1}</Typography>
                       <TextField
                         size="small"
                         type="number"
@@ -1300,7 +1323,7 @@ function GymTracker() {
                           }}
                           disabled={!prevSet}
                           sx={{ 
-                            color: prevSet ? '#10b981' : 'rgba(255,255,255,0.1)',
+                            color: prevSet ? '#10b981' : 'rgba(255,255,255,0.3)',
                             '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.1)' }
                           }}
                         >
@@ -1310,7 +1333,7 @@ function GymTracker() {
                           size="small" 
                           onClick={() => removeSet(exIdx, setIdx)}
                           disabled={exercise.sets.length <= 1}
-                          sx={{ color: 'text.secondary' }}
+                          sx={{ color: 'rgba(255,255,255,0.6)' }}
                         >
                           <CloseIcon fontSize="small" />
                         </IconButton>
@@ -1360,7 +1383,7 @@ function GymTracker() {
                 '& .MuiTab-root': {
                   textTransform: 'none',
                   fontWeight: 500,
-                  minHeight: { xs: 42, sm: 48 },
+                  minHeight: { xs: 48, sm: 48 },
                   py: { xs: 0.5, sm: 1 },
                   color: 'text.secondary',
                   '&.Mui-selected': { color: 'text.primary' },
@@ -2301,20 +2324,37 @@ function GymTracker() {
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
-                      <Box>
+                      <Box sx={{ flex: 1 }}>
                         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                           {workout.name || 'Workout'}
                         </Typography>
                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          {new Date(workout.date).toLocaleDateString('en-US', { 
-                            weekday: 'long', 
-                            month: 'long', 
-                            day: 'numeric' 
+                          {new Date(workout.date).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            month: 'long',
+                            day: 'numeric'
                           })} • {Math.round((workout.duration || 0) / 60)} min
                         </Typography>
                       </Box>
-                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                        {[...new Set(workout.exercises?.map(e => e.muscleGroup) || [])].map((muscle, i) => (
+                      <Box sx={{ display: 'flex', gap: 1, ml: 'auto' }}>
+                        <IconButton 
+                          size="small" 
+                          onClick={(e) => editWorkout(workout, e)}
+                          sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary', bgcolor: 'rgba(0,0,0,0.04)' } }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton 
+                          size="small" 
+                          onClick={(e) => deleteWorkout(workout._id, e)}
+                          sx={{ color: '#ef4444', '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.08)' } }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 2 }}>
+                      {[...new Set(workout.exercises?.map(e => e.muscleGroup) || [])].map((muscle, i) => (
                           <Chip
                             key={i}
                             label={EXERCISE_LIBRARY[muscle]?.label || muscle}
@@ -2427,7 +2467,7 @@ function GymTracker() {
                     label="Exercise"
                   >
                     {EXERCISE_LIBRARY[selectedMuscle]?.exercises.map((ex) => (
-                      <MenuItem key={ex} value={ex}>{ex}</MenuItem>
+                      <MenuItem key={ex.name} value={ex.name}>{ex.name}</MenuItem>
                     ))}
                   </Select>
                 </FormControl>

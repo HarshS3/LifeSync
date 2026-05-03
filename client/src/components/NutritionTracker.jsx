@@ -332,6 +332,7 @@ function NutritionTracker() {
   const [foodGraphLoading, setFoodGraphLoading] = useState(false)
   const [foodCausal, setFoodCausal] = useState(null)
   const [foodCausalLoading, setFoodCausalLoading] = useState(false)
+  const [hypotheses, setHypotheses] = useState([])
   const [hypothesesCount, setHypothesesCount] = useState(null)
   const [hypothesesLoading, setHypothesesLoading] = useState(false)
 
@@ -1132,8 +1133,10 @@ function NutritionTracker() {
 
       if (hypoRes.status === 'fulfilled' && hypoRes.value?.ok) {
         const hypos = await safeReadJson(hypoRes.value)
+        setHypotheses(Array.isArray(hypos) ? hypos : [])
         setHypothesesCount(Array.isArray(hypos) ? hypos.length : null)
       } else {
+        setHypotheses([])
         setHypothesesCount(null)
       }
     } catch (err) {
@@ -1757,14 +1760,14 @@ function NutritionTracker() {
         allowScrollButtonsMobile
         sx={{ 
           mb: { xs: 2, sm: 3 },
-          minHeight: 40,
+          minHeight: { xs: 48, sm: 40 },
           maxWidth: { xs: 'calc(100vw - 32px)', md: '100%' },
           '& .MuiTabs-flexContainer': { gap: 1, px: { xs: 1, sm: 0 }, pb: { xs: 1, sm: 0 } },
           '& .MuiTabs-indicator': { display: 'none' },
           '& .MuiTab-root': { 
             textTransform: 'none', 
             fontWeight: 600, 
-            minHeight: 40,
+            minHeight: { xs: 48, sm: 40 },
             padding: '8px 16px',
             borderRadius: '20px',
             color: 'text.secondary',

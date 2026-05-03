@@ -364,7 +364,7 @@ function LabsPanel() {
               No lab reports yet.
             </Typography>
           ) : (
-            <Stack spacing={1.5}>
+            <Stack spacing={1.5} sx={{ overflowX: 'auto', pb: 1 }}>
               {reports.map((r) => {
                 const abn = abnormalCount(r)
                 return (

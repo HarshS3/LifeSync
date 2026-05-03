@@ -258,6 +258,11 @@ const UserSchema = new mongoose.Schema(
         default: 'omnivore' 
       },
       hypertension: { type: Boolean, default: false },
+      insulinSensitivity: { 
+        type: String, 
+        enum: ['high', 'normal', 'low', 'insulin_resistant', 'diabetic'], 
+        default: 'normal' 
+      },
       defaultSleepTime: { type: String, default: '22:30' },
       useAdaptiveTdee: { type: Boolean, default: true }
     },

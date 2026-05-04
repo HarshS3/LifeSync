@@ -227,14 +227,38 @@ function WeightTracker({ selectedDate }) {
         {data && data.length > 0 ? (
           <Box sx={{ height: 300, width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={data.map(d => ({ ...d, time: new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }))} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <ComposedChart data={data.map(d => ({ ...d, time: new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }))} margin={{ top: 10, right: 10, left: 40, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke='divider' />
-                <XAxis dataKey="time" tick={{ fontSize: 11, fill: 'text.secondary' }} axisLine={false} tickLine={false} />
-                <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11, fill: 'text.secondary' }} axisLine={false} tickLine={false} width={40} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                <YAxis 
+                  domain={['auto', 'auto']} 
+                  tick={{ fontSize: 11, fill: '#6b7280' }} 
+                  axisLine={false} 
+                  tickLine={false} 
+                  width={60}
+                  label={{ value: 'Weight (kg)', angle: -90, position: 'insideLeft', offset: -45, style: { fontSize: 11, fill: '#6b7280', fontWeight: 600 } }}
                 />
-                <Area type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={3} fillOpacity={0.1} fill="#3b82f6" />
+                <Tooltip 
+                  contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '8px 12px' }}
+                  itemStyle={{ fontSize: 12, fontWeight: 600 }}
+                  labelStyle={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}
+                  formatter={(value) => [`${value} kg`, 'Weight']}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke="#3b82f6" 
+                  strokeWidth={3} 
+                  fillOpacity={0.15} 
+                  fill="url(#colorWeight)" 
+                  activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff', fill: '#3b82f6' }}
+                />
+                <defs>
+                  <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
               </ComposedChart>
             </ResponsiveContainer>
           </Box>

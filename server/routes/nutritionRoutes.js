@@ -467,8 +467,6 @@ async function upsertNutritionLog(req, res) {
 
     triggerDailyLifeStateRecompute({ userId: req.userId, date: logDate, reason: 'nutritionRoutes upsert log' });
 
-    console.log('[NutritionRoutes] Saved nutrition log for user', req.userId, 'on', logDate.toISOString(), 'totals', dailyTotals);
-    
     const logObj = typeof log?.toObject === 'function' ? log.toObject() : log;
     if (logObj.meals && logObj.meals.length > 0) {
       logObj.meals.forEach(meal => {
@@ -495,16 +493,12 @@ async function getWeightForDate(req, res, dateStr) {
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + 1);
 
-    const log = await WeightLog.findOne({
+    const logs = await WeightLog.find({
       user: req.userId,
       date: { $gte: startDate, $lt: endDate },
-    }).select('date weightKg');
+    }).select('date weightKg').sort({ date: 1 });
 
-    if (!log) {
-      return res.json({ date: startDate, weightKg: null });
-    }
-
-    res.json({ date: log.date, weightKg: log.weightKg });
+    res.json({ date: startDate, weights: logs });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch weight log' });
@@ -529,21 +523,7 @@ router.post('/weight', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Invalid weightKg' });
     }
 
-    d.setHours(0, 0, 0, 0);
-    const endDate = new Date(d);
-    endDate.setDate(endDate.getDate() + 1);
-
-    let log = await WeightLog.findOne({
-      user: req.userId,
-      date: { $gte: d, $lt: endDate },
-    });
-
-    if (log) {
-      log.weightKg = w;
-      await log.save();
-    } else {
-      log = await WeightLog.create({ user: req.userId, date: d, weightKg: w });
-    }
+    const log = await WeightLog.create({ user: req.userId, date: new Date(date), weightKg: w });
 
     triggerDailyLifeStateRecompute({ userId: req.userId, date: d, reason: 'nutritionRoutes upsert weight' });
 
@@ -847,7 +827,6 @@ router.get('/clinical-targets', authMiddleware, async (req, res) => {
 
     // For non-adaptive users, stored targets are authoritative.
     if (storedClinicalTargets && !useAdaptiveTdee) {
-      console.log('[ClinicalTargets] Returning stored targets for user:', req.userId);
       return res.status(200).json({
         requiresSetup: false,
         ...storedClinicalTargets
@@ -999,7 +978,7 @@ router.get('/search', authMiddleware, async (req, res) => {
     console.log('[NutritionRoutes] /api/nutrition/search called by user', req.userId, 'with query:', query);
 
     // Run ONLY local search with a high limit to return all internal results
-    const local = await searchLocalFoods({ q: query, limit: 100 }).catch(e => { 
+    const local = await searchLocalFoods({ q: query, limit: 500 }).catch(e => { 
       console.error('Local search error', e); 
       return [] 
     });

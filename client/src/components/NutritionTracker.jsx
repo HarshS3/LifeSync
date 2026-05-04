@@ -1,6 +1,11 @@
 import ExpandableSection from './ExpandableSection'
 import NutritionInsights from './NutritionInsights'
+import SupplementSection from './Nutrition/SupplementSection'
+import RecipeExplorer from './RecipeExplorer'
+import KitchenInventory from './KitchenInventory'
+import WeeklyReview from './WeeklyReview'
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -28,6 +33,7 @@ import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
+import { generateCGMData } from '../lib/nutritionHelpers'
 
 const MEAL_TYPES = [
   'breakfast',
@@ -153,9 +159,9 @@ const MACRO_FIELD_META = [
   { key: 'fiber', label: 'Fiber', unit: 'g' },
   { key: 'sugar', label: 'Sugar', unit: 'g' },
   { key: 'omega3', label: 'Omega-3', unit: 'g' },
-  { key: 'saturatedFat', label: 'Sat. fat', unit: 'mg' },
-  { key: 'monounsaturatedFat', label: 'MUFA', unit: 'mg' },
-  { key: 'polyunsaturatedFat', label: 'PUFA', unit: 'mg' },
+  { key: 'saturatedFat', label: 'Sat. fat', unit: 'g' },
+  { key: 'monounsaturatedFat', label: 'MUFA', unit: 'g' },
+  { key: 'polyunsaturatedFat', label: 'PUFA', unit: 'g' },
   { key: 'cholesterol', label: 'Cholesterol', unit: 'mg' },
 ]
 
@@ -294,6 +300,7 @@ function NutritionTracker() {
 
   const [mealSuggestions, setMealSuggestions] = useState('')
   const [mealSuggestionsGenerating, setMealSuggestionsGenerating] = useState(false)
+  const [timingAlerts, setTimingAlerts] = useState([])
 
   const [foodSearchQuery, setFoodSearchQuery] = useState('')
   const [foodResults, setFoodResults] = useState([])
@@ -321,6 +328,7 @@ function NutritionTracker() {
   const [clinicalTargetsRequiresSetup, setClinicalTargetsRequiresSetup] = useState(false)
   const [clinicalTargetsMissingFields, setClinicalTargetsMissingFields] = useState([])
   const [clinicalTargetsDebug, setClinicalTargetsDebug] = useState(null)
+  const [weightDayLogs, setWeightDayLogs] = useState([])
 
   const [weightValue, setWeightValue] = useState('')
   const [weightLoading, setWeightLoading] = useState(false)
@@ -585,16 +593,13 @@ function NutritionTracker() {
         ),
       ])
 
-      if (dayRes.ok) {
-        const dayData = await safeReadJson(dayRes)
-        const w = dayData?.weightKg
-        setWeightValue(w == null ? '' : String(w))
-      }
+      const dayData = await safeReadJson(dayRes)
+      const rangeData = await safeReadJson(rangeRes)
 
-      if (rangeRes.ok) {
-        const arr = await safeReadJson(rangeRes)
-        setWeightSeries(Array.isArray(arr) ? arr : [])
-      }
+      setWeightValue(dayData?.latestWeight || dayData?.weightKg || '')
+      setWeightDayLogs(dayData?.weights || [])
+      setWeightSeries(Array.isArray(rangeData) ? rangeData : [])
+
     } catch (e) {
       setWeightError(e?.message || 'Failed to load weight')
     } finally {
@@ -612,10 +617,12 @@ function NutritionTracker() {
     setWeightSaving(true)
     setWeightError('')
     try {
+      const now = new Date()
+      const sendDate = (selectedDate.toDateString() === now.toDateString()) ? now : selectedDate
       const res = await fetch(`${API_BASE}/api/nutrition/weight`, {
         method: 'POST',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: selectedDate.toISOString(), weightKg: w }),
+        body: JSON.stringify({ date: sendDate.toISOString(), weightKg: w }),
       })
       if (!res.ok) {
         const errJson = await safeReadJson(res)
@@ -704,26 +711,21 @@ function NutritionTracker() {
     try {
       const headers = getAuthHeaders()
       const res = await fetch(`${API_BASE}/api/nutrition/clinical-targets`, { headers })
-      if (!res.ok) {
-        setClinicalTargets(null)
+      
+      if (res.status === 200) {
+        const data = await res.json()
+        setClinicalTargets(data)
         setClinicalTargetsRequiresSetup(false)
         setClinicalTargetsMissingFields([])
-        setClinicalTargetsDebug({ httpStatus: res.status, error: 'clinical-targets request failed' })
-        console.warn('[ClinicalTargets Debug] non-200 response:', res.status)
-        return
-      }
-      const data = await safeReadJson(res)
-      console.info('[ClinicalTargets Debug] response payload:', data)
-      if (data?.requiresSetup || !data?.targets) {
+        setClinicalTargetsDebug(null)
+      } else if (res.status === 400 || res.status === 404) {
+        const data = await res.json()
+        
         let profileData = null
         try {
           const profileRes = await fetch(`${API_BASE}/api/users/profile`, { headers })
-          if (profileRes.ok) {
-            profileData = await safeReadJson(profileRes)
-          }
-        } catch {
-          // ignore profile fetch failure; we still show server missing fields
-        }
+          if (profileRes.ok) profileData = await profileRes.json()
+        } catch (e) { /* ignore */ }
 
         const toNum = (v) => {
           const n = Number(v)
@@ -731,10 +733,7 @@ function NutritionTracker() {
         }
 
         const rawSex = profileData?.biologicalProfile?.biologicalSex || profileData?.gender
-        const biologicalSex =
-          rawSex === 'male' || rawSex === 'female'
-            ? rawSex
-            : undefined
+        const biologicalSex = (rawSex === 'male' || rawSex === 'female') ? rawSex : undefined
         const heightCm = toNum(profileData?.biologicalProfile?.heightCm) ?? toNum(profileData?.height)
         const weightKg = toNum(profileData?.biologicalProfile?.weightKg) ?? toNum(profileData?.weight)
 
@@ -750,28 +749,19 @@ function NutritionTracker() {
             biologicalSex: biologicalSex || null,
             heightCm: Number(heightCm) > 0 ? heightCm : null,
             weightKg: Number(weightKg) > 0 ? weightKg : null,
-          },
-          rawProfileValues: {
-            gender: profileData?.gender ?? null,
-            biologicalSex: profileData?.biologicalProfile?.biologicalSex ?? null,
-            height: profileData?.height ?? null,
-            weight: profileData?.weight ?? null,
-            bioHeightCm: profileData?.biologicalProfile?.heightCm ?? null,
-            bioWeightKg: profileData?.biologicalProfile?.weightKg ?? null,
-          },
+          }
         }
 
         setClinicalTargets(null)
         setClinicalTargetsRequiresSetup(true)
-        setClinicalTargetsMissingFields(Array.isArray(data?.missingRequiredFields) ? data.missingRequiredFields : [])
+        setClinicalTargetsMissingFields(debugSnapshot.serverMissingFields)
         setClinicalTargetsDebug(debugSnapshot)
-        console.warn('[ClinicalTargets Debug] setup required:', debugSnapshot)
-        return
+      } else {
+        setClinicalTargets(null)
+        setClinicalTargetsRequiresSetup(false)
+        setClinicalTargetsMissingFields([])
+        setClinicalTargetsDebug({ httpStatus: res.status, error: 'clinical-targets request failed' })
       }
-      setClinicalTargets(data)
-      setClinicalTargetsRequiresSetup(false)
-      setClinicalTargetsMissingFields([])
-      setClinicalTargetsDebug(null)
     } catch (err) {
       console.error('Failed to load clinical targets:', err)
       setClinicalTargets(null)
@@ -852,11 +842,14 @@ function NutritionTracker() {
         fetch(`${API_BASE}/api/nutrition/logs/range/${encodeURIComponent(monthStart.toISOString())}/${encodeURIComponent(end.toISOString())}`, { headers }),
       ])
 
-      const weekLogs = weekRes.ok ? await safeReadJson(weekRes) : []
-      const monthLogs = monthRes.ok ? await safeReadJson(monthRes) : []
+      const weekData = weekRes.ok ? await safeReadJson(weekRes) : { logs: [] }
+      const monthData = monthRes.ok ? await safeReadJson(monthRes) : { logs: [] }
 
-      setWeeklyTotals(aggregateTotalsFromLogs(Array.isArray(weekLogs) ? weekLogs : []))
-      setMonthlyTotals(aggregateTotalsFromLogs(Array.isArray(monthLogs) ? monthLogs : []))
+      const weekLogs = Array.isArray(weekData.logs) ? weekData.logs : (Array.isArray(weekData) ? weekData : [])
+      const monthLogs = Array.isArray(monthData.logs) ? monthData.logs : (Array.isArray(monthData) ? monthData : [])
+
+      setWeeklyTotals(aggregateTotalsFromLogs(weekLogs))
+      setMonthlyTotals(aggregateTotalsFromLogs(monthLogs))
     } catch (err) {
       console.error('Failed to load period summary:', err)
       setWeeklyTotals({ ...EMPTY_TOTALS })
@@ -867,10 +860,27 @@ function NutritionTracker() {
   }
 
 
+  const fetchTimingAnalysis = async (date) => {
+    if (!token) return
+    try {
+      const dateStr = date.toISOString().split('T')[0]
+      const res = await fetch(`${API_BASE}/api/nutrition/timing-analysis/${dateStr}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setTimingAlerts(data.alerts || [])
+      }
+    } catch (err) {
+      console.error('Failed to fetch timing analysis:', err)
+    }
+  }
+
   const loadDay = async () => {
     setLoading(true)
     try {
       const dateStr = selectedDate.toISOString()
+      fetchTimingAnalysis(selectedDate)
       if (!user || !user._id) {
         setLog({ meals: [], waterIntake: 0, dailyTotals: { ...EMPTY_TOTALS }, notes: '' })
         return
@@ -1069,7 +1079,7 @@ function NutritionTracker() {
       })
       if (res.ok) {
         const data = await res.json()
-        setFoodResults(Array.isArray(data) ? data.slice(0, 10) : [])
+        setFoodResults(Array.isArray(data) ? data : [])
         if (Array.isArray(data) && data[0]?.name) setSelectedFoodForAnalysis(String(data[0].name))
       }
     } catch (err) {
@@ -1255,7 +1265,8 @@ function NutritionTracker() {
   }
 
   const addMealToDay = () => {
-    if (!newMeal.name.trim()) return
+    // Meal name is now optional for logging, defaults to mealType
+    const finalName = newMeal.name.trim() || (newMeal.mealType.charAt(0).toUpperCase() + newMeal.mealType.slice(1))
 
     const foods = newMeal.foods.map(f => ({
       ...f,
@@ -1266,10 +1277,11 @@ function NutritionTracker() {
       ...Object.fromEntries(FOOD_NUTRIENT_FIELDS.map((field) => [field, Number(f[field]) || 0])),
     }))
 
+    const defaultTime = user?.mealSchedule?.[newMeal.mealType] || ''
     const meal = {
-      name: newMeal.name.trim(),
+      name: finalName,
       mealType: newMeal.mealType,
-      time: newMeal.time,
+      time: newMeal.time.trim() || defaultTime,
       foods,
       notes: newMeal.notes,
     }
@@ -1326,6 +1338,43 @@ function NutritionTracker() {
       return updatedLog
     })
     if (updatedLog) autoSaveLog(updatedLog)
+  }
+
+  const handleSaveTemplate = async () => {
+    if (!newMeal.name.trim()) {
+      alert('Please provide a name for the template.')
+      return
+    }
+    if (!newMeal.foods.length) {
+      alert('Please add at least one food to the template.')
+      return
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/nutrition/saved-templates`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newMeal.name.trim(),
+          mealType: newMeal.mealType,
+          foods: newMeal.foods,
+          notes: newMeal.notes
+        }),
+      })
+
+      if (res.ok) {
+        alert('Template saved successfully!')
+      } else {
+        const err = await res.json()
+        alert(`Failed to save template: ${err.error || 'Unknown error'}`)
+      }
+    } catch (err) {
+      console.error('Save template error:', err)
+      alert('Error saving template.')
+    }
   }
 
   const autoSaveLog = async (dataToSave) => {
@@ -1749,6 +1798,9 @@ function NutritionTracker() {
         <Tab label="Summary" />
         <Tab label="Scan Product" />
         <Tab label="Insights" />
+        <Tab label="Recipes" />
+        <Tab label="Kitchen" />
+        <Tab label="Review" />
         <Tab label="Add Food to DB" />
       </Tabs>
 
@@ -1865,6 +1917,90 @@ function NutritionTracker() {
                         {meal.notes}
                       </Typography>
                     )}
+
+                    {/* Nutrient Interactions & Bioavailability Collapsibles */}
+                    {meal.insights && (meal.insights.synergies?.length > 0 || meal.insights.antagonisms?.length > 0) && (
+                      <Box sx={{ mt: 1.5 }}>
+                        <ExpandableSection 
+                          title="Nutrient Interactions & Bioavailability" 
+                          defaultOpen={false}
+                        >
+                          <Box sx={{ p: 1.5, bgcolor: 'background.paper', borderRadius: 1.5, border: '1px dashed #d1d5db' }}>
+                            {meal.insights.synergies?.map((syn, i) => (
+                              <Box key={`syn-${i}`} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'start' }}>
+                                <Box sx={{ mt: 0.25, width: 6, height: 6, borderRadius: '50%', bgcolor: '#10b981', flexShrink: 0 }} />
+                                <Box>
+                                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#065f46', display: 'block' }}>{syn.title} ({syn.effect})</Typography>
+                                  <Typography variant="caption" sx={{ color: '#047857', display: 'block', lineHeight: 1.3 }}>{syn.description}</Typography>
+                                </Box>
+                              </Box>
+                            ))}
+                            {meal.insights.antagonisms?.map((ant, i) => (
+                              <Box key={`ant-${i}`} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'start' }}>
+                                <Box sx={{ mt: 0.25, width: 6, height: 6, borderRadius: '50%', bgcolor: '#f59e0b', flexShrink: 0 }} />
+                                <Box>
+                                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#b45309', display: 'block' }}>{ant.title} ({ant.effect})</Typography>
+                                  <Typography variant="caption" sx={{ color: '#92400e', display: 'block', lineHeight: 1.3 }}>{ant.description}</Typography>
+                                  {ant.fix && <Typography variant="caption" sx={{ color: '#78350f', fontWeight: 600, display: 'block', mt: 0.25 }}>Fix: {ant.fix}</Typography>}
+                                </Box>
+                              </Box>
+                            ))}
+                          </Box>
+                        </ExpandableSection>
+                      </Box>
+                    )}
+
+                    {meal.bioavailability?.results && Object.keys(meal.bioavailability.results).length > 0 && (
+                      <Box sx={{ mt: 1.5 }}>
+                        <ExpandableSection
+                          title={`Absorption Analysis (${meal.bioavailability.overallConfidence || 'medium'} confidence)`}
+                          defaultOpen={false}
+                        >
+                          <Box sx={{ p: 1.5, bgcolor: 'background.paper', borderRadius: 1.5, border: '1px dashed #c7d2fe' }}>
+                            {meal.bioavailability.narratives?.length > 0 && (
+                              <Box sx={{ mb: 1.5, p: 1, bgcolor: '#f0f9ff', borderRadius: 1, border: '1px solid #bae6fd' }}>
+                                {meal.bioavailability.narratives.map((n, i) => (
+                                  <Typography key={i} variant="caption" sx={{ display: 'block', color: '#0369a1', lineHeight: 1.5 }}>{n}</Typography>
+                                ))}
+                              </Box>
+                            )}
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                              {Object.entries(meal.bioavailability.results).map(([nutrient, data]) => {
+                                const pctAbsorbed = Math.round(data.multiplier * 100)
+                                const isLow = data.multiplier < 0.5
+                                const isMedium = data.multiplier >= 0.5 && data.multiplier < 0.8
+                                const barColor = isLow ? '#ef4444' : isMedium ? '#f59e0b' : '#10b981'
+                                const label = nutrient.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
+                                return (
+                                  <Box key={nutrient}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 0.5 }}>
+                                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>{label}</Typography>
+                                      <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'baseline' }}>
+                                        <Typography variant="caption" sx={{ color: '#9ca3af', textDecoration: 'line-through' }}>
+                                          {data.consumed_amount}{data.unit}
+                                        </Typography>
+                                        <Typography variant="caption" sx={{ fontWeight: 700, color: barColor }}>
+                                          ~{data.effective_amount}{data.unit} absorbed ({pctAbsorbed}%)
+                                        </Typography>
+                                      </Box>
+                                    </Box>
+                                    <Box sx={{ position: 'relative', height: 6, bgcolor: 'action.selected', borderRadius: 99, overflow: 'hidden' }}>
+                                      <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '100%', bgcolor: 'divider', borderRadius: 99 }} />
+                                      <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(pctAbsorbed, 100)}%`, bgcolor: barColor, borderRadius: 99, transition: 'width 0.5s' }} />
+                                    </Box>
+                                    {data.interactions?.length > 0 && (
+                                      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25, lineHeight: 1.3 }}>
+                                        {data.interactions.filter(i => i.type !== 'neutral').map(i => `${i.agent.replace(/_/g,' ')}: ${i.effect}`).join(' · ')}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                )
+                              })}
+                            </Box>
+                          </Box>
+                        </ExpandableSection>
+                      </Box>
+                    )}
                   </Box>
                 )
               })}
@@ -1920,10 +2056,16 @@ function NutritionTracker() {
               if (spikeMeal) {
                 alerts.push({ type: 'info', text: `Lopsided Protein Loading: More than 50% of your daily protein is in "${spikeMeal.name}". Your body maximizes muscle synthesis at ~30-40g per meal. Spread it out for better gains.` });
               }
-            }
+              }
 
-            if (alerts.length === 0) return null;
+              timingAlerts.forEach(t => {
+              alerts.push({ 
+                type: t.type === 'timing_warning' ? 'warning' : 'info', 
+                text: `${t.title}: ${t.text}` 
+              });
+              });
 
+              if (alerts.length === 0) return null;
             return (
               <Box sx={{ p: 2.5, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#111827' }}>
@@ -1942,6 +2084,39 @@ function NutritionTracker() {
               </Box>
             );
           })()}
+
+          {/* Simulated CGM Graph */}
+          <Box sx={{ p: 2.5, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Simulated Glucose Response</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Based on meal Glycemic Pressure & macro buffering.</Typography>
+              </Box>
+              <Chip label="Simulation" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600 }} />
+            </Box>
+            <Box sx={{ height: 250, width: '100%', mt: 2 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={generateCGMData(log.meals)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="glucoseGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
+                      <stop offset="35%" stopColor="#f59e0b" stopOpacity={0.6}/>
+                      <stop offset="65%" stopColor="#10b981" stopOpacity={0.4}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke='divider' />
+                  <XAxis dataKey="time" minTickGap={30} tick={{ fontSize: 11, fill: 'text.secondary' }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[70, 180]} tick={{ fontSize: 11, fill: 'text.secondary' }} axisLine={false} tickLine={false} width={50} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    itemStyle={{ fontSize: 13, fontWeight: 700 }}
+                    labelStyle={{ fontSize: 12, color: 'text.secondary', marginBottom: 4 }}
+                  />
+                  <Area type="monotone" dataKey="glucose" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#glucoseGradient)" animationDuration={1500} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </Box>
+          </Box>
 
           {/* ── AI insight + hydration ── */}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
@@ -1978,7 +2153,9 @@ function NutritionTracker() {
                 <WaterDropIcon sx={{ color: '#0ea5e9', fontSize: 28 }} />
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>{Math.round((log.waterIntake || 0) / 250)} glasses</Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>{log.waterIntake || 0} ml total</Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {log.waterIntake || 0} / {timingAlerts?.hydrationGoalMl || 2500} ml total
+                  </Typography>
                 </Box>
               </Box>
               <Box sx={{ display: 'flex', gap: 1 }}>
@@ -1987,6 +2164,21 @@ function NutritionTracker() {
               </Box>
               <Button size="small" onClick={() => handleWaterChange(-250)} sx={{ mt: 1, color: '#9ca3af', textTransform: 'none', fontSize: '0.75rem' }}>- Remove 250 ml</Button>
             </Box>
+
+            <SupplementSection 
+              log={log} 
+              onUpdate={async (updatedSupps) => {
+                let updatedLog = null
+                setLog(prev => {
+                  updatedLog = {
+                    ...prev,
+                    supplements: updatedSupps
+                  }
+                  return updatedLog
+                })
+                if (updatedLog) await autoSaveLog(updatedLog)
+              }} 
+            />
           </Box>
 
           {/* â”€â”€ CTA to Log Meal tab â”€â”€ */}
@@ -2162,11 +2354,10 @@ function NutritionTracker() {
 
           {/* RIGHT: Meal Builder */}
           <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-            {/* Removed 'Build Your Meal' and instructional text as requested */}
-
             <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
               <TextField
-                label="Meal name"
+                label="Meal name (optional)"
+                placeholder="e.g. Breakfast, Lunchâ€¦"
                 value={newMeal.name}
                 onChange={(e) => setNewMeal({ ...newMeal, name: e.target.value })}
                 size="small"
@@ -2372,7 +2563,7 @@ function NutritionTracker() {
               <Button
                 variant="contained"
                 onClick={() => { addMealToDay(); setActiveTab(0); }}
-                disabled={!newMeal.name.trim()}
+                disabled={newMeal.foods.length === 0}
                 fullWidth={isMobile}
                 sx={{ 
                   bgcolor: '#16a34a',
@@ -2395,7 +2586,19 @@ function NutritionTracker() {
                   fontWeight: 700
                 }}
               >
-                Add to {formatDate(selectedDate)}
+                {`Add to ${formatDate(selectedDate)}`}
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleSaveTemplate}
+                sx={{ 
+                  borderColor: '#16a34a', 
+                  color: '#16a34a',
+                  '&:hover': { bgcolor: 'rgba(22, 163, 74, 0.05)', borderColor: '#15803d' }
+                }}
+              >
+                Save Template
               </Button>
             </Box>
 
@@ -2416,7 +2619,7 @@ function NutritionTracker() {
                   variant="contained"
                   fullWidth
                   onClick={() => { addMealToDay(); setActiveTab(0); }}
-                  disabled={!newMeal.name.trim()}
+                  disabled={newMeal.foods.length === 0}
                   sx={{ 
                     bgcolor: '#16a34a',
                     transition: 'all 0.2s ease',
@@ -2672,6 +2875,36 @@ function NutritionTracker() {
             </Box>
           </Box>
 
+          {/* Daily Effective Absorption Summary */}
+          {log.effectiveNutrientTotals && Object.keys(log.effectiveNutrientTotals).length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <ExpandableSection title="Daily Effective Absorption Summary" defaultOpen={false}>
+                <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                    {Object.entries(log.effectiveNutrientTotals).map(([nutrient, data]) => {
+                      const pct = Math.round((data.multiplier || 0) * 100)
+                      const label = nutrient.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
+                      return (
+                        <Box key={nutrient} sx={{ p: 1.5, borderRadius: 1.5, border: '1px solid #f3f4f6' }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography variant="caption" sx={{ fontWeight: 700 }}>{label}</Typography>
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{pct}% efficiency</Typography>
+                          </Box>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            ~{data.effective}{data.unit}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block' }}>
+                            vs {data.consumed}{data.unit} consumed
+                          </Typography>
+                        </Box>
+                      )
+                    })}
+                  </Box>
+                </Box>
+              </ExpandableSection>
+            </Box>
+          )}
+
           <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
               Notes
@@ -2720,7 +2953,7 @@ function NutritionTracker() {
 
             // Add water consumption first
             const waterConsumed = Number(totalsForPeriod?.waterIntake || 0)
-            const waterRequired = Number(user?.hydrationGoal || 0) * days
+            const waterRequired = Number(user?.hydrationGoal || 0) * 250 * days
             rowMap.set('waterIntake', {
               key: `${period}-water`,
               label: 'Water',
@@ -3001,23 +3234,40 @@ function NutritionTracker() {
             </Stack>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
-            <TextField
-              label="Weight (kg)"
-              type="number"
-              value={weightValue}
-              onChange={(e) => setWeightValue(e.target.value)}
-              size="small"
-              sx={{ width: { xs: '100%', sm: 180 } }}
-            />
-            <Button variant="contained" onClick={saveWeight} disabled={weightSaving || weightLoading}>
-              {weightSaving ? 'Saving…' : 'Save Weight'}
-            </Button>
-            {weightError ? (
-              <Typography variant="body2" sx={{ color: '#b91c1c' }}>
-                {weightError}
-              </Typography>
-            ) : null}
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', mb: 1, flexWrap: 'wrap' }}>
+              <TextField
+                label="Weight (kg)"
+                type="number"
+                value={weightValue}
+                onChange={(e) => setWeightValue(e.target.value)}
+                size="small"
+                sx={{ width: { xs: '100%', sm: 180 } }}
+              />
+              <Button variant="contained" onClick={saveWeight} disabled={weightSaving || weightLoading}>
+                {weightSaving ? 'Saving…' : 'Log Weight'}
+              </Button>
+              {weightError ? (
+                <Typography variant="body2" sx={{ color: '#b91c1c' }}>
+                  {weightError}
+                </Typography>
+              ) : null}
+            </Box>
+            
+            {weightDayLogs.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', alignSelf: 'center', mr: 1 }}>Recent for today:</Typography>
+                {weightDayLogs.map((log, idx) => (
+                  <Chip
+                    key={log._id || idx}
+                    label={`${log.weightKg} kg (${new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`}
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontSize: '0.7rem' }}
+                  />
+                ))}
+              </Box>
+            )}
           </Box>
 
           {weightLoading ? (

@@ -839,7 +839,7 @@ router.get('/logs/range/:start/:end', authMiddleware, async (req, res) => {
 // Gets the highly precise, scientific personalized clinical baseline targets for the user
 router.get('/clinical-targets', authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('biologicalProfile height weight gender bodyFat age dob clinicalTargets');
+    const user = await User.findById(req.userId).select('biologicalProfile height weight gender bodyFat age dob clinicalTargets labMarkers');
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const useAdaptiveTdee = user.biologicalProfile?.useAdaptiveTdee !== false;
@@ -887,7 +887,8 @@ router.get('/clinical-targets', authMiddleware, async (req, res) => {
       });
     }
 
-    const calculatedBase = calculateDailyTargets(effectiveProfile);
+    const labMarkers = user.labMarkers ? user.labMarkers.toObject() : null;
+    const calculatedBase = calculateDailyTargets(effectiveProfile, null, labMarkers);
     
     let adaptiveOverride = null;
     if (useAdaptiveTdee) {
@@ -899,7 +900,7 @@ router.get('/clinical-targets', authMiddleware, async (req, res) => {
     }
 
     const calculated = adaptiveOverride 
-      ? calculateDailyTargets(effectiveProfile, adaptiveOverride)
+      ? calculateDailyTargets(effectiveProfile, adaptiveOverride, labMarkers)
       : calculatedBase;
 
     if (!calculated) {

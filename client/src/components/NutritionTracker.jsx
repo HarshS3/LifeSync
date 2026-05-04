@@ -23,6 +23,9 @@ import TodayIcon from '@mui/icons-material/Today'
 import CloseIcon from '@mui/icons-material/Close'
 import EditIcon from '@mui/icons-material/Edit'
 import InfoIcon from '@mui/icons-material/Info'
+import ThumbUpIcon from '@mui/icons-material/ThumbUp'
+import ThumbDownIcon from '@mui/icons-material/ThumbDown'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
 
@@ -1197,6 +1200,50 @@ function NutritionTracker() {
     }
   }
 
+  const generateHypothesis = async (foodName) => {
+    if (!token || !foodName) return
+    try {
+      setHypothesesLoading(true)
+      const res = await fetch(`${API_BASE}/api/nutrition/hypotheses/generate`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ foodName, includeLLM: true }),
+      })
+      if (res.ok) {
+        toast.success('New hypothesis generated!')
+        // Refresh hypotheses
+        const hRes = await fetch(`${API_BASE}/api/nutrition/hypotheses`, { headers: getAuthHeaders() })
+        if (hRes.ok) {
+          const data = await hRes.json()
+          setHypotheses(data)
+          setHypothesesCount(data.length)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to generate hypothesis:', err)
+      toast.error('Generation failed')
+    } finally {
+      setHypothesesLoading(false)
+    }
+  }
+
+  const feedbackHypothesis = async (id, isPositive) => {
+    if (!token) return
+    try {
+      const res = await fetch(`${API_BASE}/api/nutrition/hypotheses/${id}/feedback`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ isPositive }),
+      })
+      if (res.ok) {
+        toast.success('Feedback saved')
+        setHypotheses(prev => prev.map(h => h._id === id ? { ...h, feedback: isPositive ? 1 : -1 } : h))
+      }
+    } catch (err) {
+      console.error('Failed to save feedback:', err)
+    }
+  }
+
   const resetNewMeal = () => {
     setNewMeal({
       name: '',
@@ -1311,53 +1358,6 @@ function NutritionTracker() {
     }
   }
 
-  const saveDay = async () => {
-    try {
-      const payload = {
-        date: selectedDate.toISOString(),
-        meals: log.meals,
-        waterIntake: log.waterIntake || 0,
-        notes: log.notes,
-      }
-
-      if (!token) {
-        alert('Please log in to save your nutrition log.')
-        return
-      }
-
-      const res = await fetch(`${API_BASE}/api/nutrition/logs`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '')
-        console.error('Save nutrition log failed:', res.status, text)
-        if (res.status === 401) {
-          alert('Your session expired. Please log in again and retry saving the day.')
-        } else {
-          alert('Could not save this day. Please try again in a moment.')
-        }
-        return
-      }
-
-      const saved = await res.json()
-      setLog({
-        meals: saved.meals || [],
-        waterIntake: saved.waterIntake || 0,
-        dailyTotals: saved.dailyTotals || { ...EMPTY_TOTALS },
-        notes: saved.notes || '',
-        _id: saved._id,
-      })
-    } catch (err) {
-      console.error('Failed to save nutrition log:', err)
-      alert('An unexpected error occurred while saving this day.')
-    }
-  }
 
   // Derived totals from current log
   const totals = (() => {
@@ -1711,45 +1711,7 @@ function NutritionTracker() {
             Today
           </Button>
         </Box>
-        <Button
-          variant="contained"
-          onClick={saveDay}
-          disabled={loading}
-          fullWidth={isMobile}
-          sx={{ 
-            width: { xs: 'calc(100vw - 32px)', sm: 'auto' },
-            maxWidth: '100%',
-            position: { xs: 'fixed', sm: 'static' },
-            bottom: { xs: 16, sm: 'auto' },
-            left: { xs: 16, sm: 'auto' },
-            zIndex: { xs: 1100, sm: 'auto' },
-            borderRadius: { xs: 8, sm: 1 },
-            py: { xs: 1.5, sm: 1 },
-            fontSize: { xs: '1.1rem', sm: '0.875rem' },
-            fontWeight: { xs: 700, sm: 600 },
-            transition: 'all 0.2s ease',
-            bgcolor: 'text.primary',
-            color: 'background.paper',
-            boxShadow: { xs: '0 8px 16px rgba(0,0,0,0.2)', sm: 'none' },
-            '&:hover': { 
-              bgcolor: '#1f2937',
-              transform: { xs: 'none', sm: 'translateY(-2px)' },
-              boxShadow: { xs: '0 8px 16px rgba(0,0,0,0.2)', sm: '0 4px 12px rgba(0,0,0,0.15)' }
-            },
-            '&:active': { 
-              transform: 'translateY(0px)',
-              boxShadow: { xs: '0 4px 8px rgba(0,0,0,0.15)', sm: '0 2px 4px rgba(0,0,0,0.1)' }
-            },
-            '&:disabled': { 
-              opacity: 0.5,
-              cursor: 'not-allowed',
-              transform: 'none'
-            },
-            '&:focus': { outline: '2px solid #3b82f6', outlineOffset: 2 }
-          }}
-        >
-          Save Day
-        </Button>
+
       </Box>
 
       <Tabs
@@ -1931,7 +1893,57 @@ function NutritionTracker() {
             ))}
           </Box>
 
-          {/* â”€â”€ AI insight + hydration â”€â”€ */}
+          {/* Daily Warnings & Insights */}
+          {(() => {
+            const alerts = [];
+            if (totals.saturatedFat > 30) {
+              alerts.push({ type: 'warning', text: `High Saturated Fat (${fmt(totals.saturatedFat)}g): Keeping saturated fat <20-30g protects your heart health over the long term.` });
+            }
+
+            const cholesterolCap = clinicalTargets?.targets?.cholesterol ?? 300;
+            const cholesterolRationale = clinicalTargets?.targets?.cholesterolRationale;
+            if (totals.cholesterol > cholesterolCap) {
+              const rationaleText = cholesterolRationale && cholesterolCap < 300
+                ? cholesterolRationale
+                : `High Cholesterol (${fmt(totals.cholesterol)}mg / cap: ${cholesterolCap}mg): Consider balancing this with high-fiber foods (oats, beans, leafy greens) which help clear excess cholesterol from your system.`;
+              alerts.push({ type: 'warning', text: rationaleText });
+            }
+
+            if (totals.sodium > 3000) {
+              alerts.push({ type: 'warning', text: `High Sodium Detected (${fmt(totals.sodium)}mg): Hydrate extra today or expect 1-2lbs of water retention on the scale tomorrow. This is not fat gain.` });
+            }
+            if (totals.protein > 50 && log.meals) {
+              const spikeMeal = log.meals.find(meal => {
+                const p = meal.foods?.reduce((acc, f) => acc + (f.protein || 0), 0) || 0;
+                return p > 50 && p > (totals.protein * 0.5);
+              });
+              if (spikeMeal) {
+                alerts.push({ type: 'info', text: `Lopsided Protein Loading: More than 50% of your daily protein is in "${spikeMeal.name}". Your body maximizes muscle synthesis at ~30-40g per meal. Spread it out for better gains.` });
+              }
+            }
+
+            if (alerts.length === 0) return null;
+
+            return (
+              <Box sx={{ p: 2.5, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#111827' }}>
+                  Daily Medical Alerts & Insights
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {alerts.map((alert, i) => (
+                    <Box key={i} sx={{ display: 'flex', gap: 1.5, p: 1.5, bgcolor: alert.type === 'warning' ? '#fef2f2' : '#eff6ff', borderRadius: 1.5, border: `1px solid ${alert.type === 'warning' ? '#fecaca' : '#bfdbfe'}` }}>
+                      <Typography sx={{ fontSize: '1.2rem' }}>{alert.type === 'warning' ? '🚨' : '💡'}</Typography>
+                      <Typography variant="caption" sx={{ color: alert.type === 'warning' ? '#991b1b' : '#1e3a8a', lineHeight: 1.4, fontWeight: 500 }}>
+                        {alert.text}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            );
+          })()}
+
+          {/* ── AI insight + hydration ── */}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
             <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>AI Insight</Typography>
@@ -2095,6 +2107,54 @@ function NutritionTracker() {
                   {foodAnalysis.llm?.narrative && (
                     <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', lineHeight: 1.6, mt: 0.5 }}>{foodAnalysis.llm.narrative}</Typography>
                   )}
+
+                  {/* Hypotheses Section */}
+                  <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed #e2e8f0' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <AutoAwesomeIcon sx={{ fontSize: 14 }} /> AI HYPOTHESES ({hypothesesCount || 0})
+                      </Typography>
+                      <Button 
+                        size="small" 
+                        variant="text" 
+                        onClick={() => generateHypothesis(foodAnalysis.canonical_id || foodSearchQuery)}
+                        disabled={hypothesesLoading}
+                        sx={{ fontSize: '0.65rem', textTransform: 'none', minWidth: 0, p: 0.5 }}
+                      >
+                        {hypothesesLoading ? '...' : 'Regenerate'}
+                      </Button>
+                    </Box>
+
+                    {hypothesesLoading && !hypotheses.length ? (
+                      <LinearProgress sx={{ height: 2, borderRadius: 1 }} />
+                    ) : (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {hypotheses.slice(0, 3).map((h) => (
+                          <Box key={h._id} sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid #f1f5f9' }}>
+                            <Typography variant="caption" sx={{ display: 'block', fontWeight: 600, color: 'text.primary', mb: 0.5 }}>
+                              {h.title}
+                            </Typography>
+                            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontStyle: 'italic', mb: 1 }}>
+                              "{h.description}"
+                            </Typography>
+                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                              <IconButton size="small" onClick={() => feedbackHypothesis(h._id, true)} sx={{ p: 0.2, color: h.feedback === 1 ? 'primary.main' : 'action.disabled' }}>
+                                <ThumbUpIcon sx={{ fontSize: 12 }} />
+                              </IconButton>
+                              <IconButton size="small" onClick={() => feedbackHypothesis(h._id, false)} sx={{ p: 0.2, color: h.feedback === -1 ? 'error.main' : 'action.disabled' }}>
+                                <ThumbDownIcon sx={{ fontSize: 12 }} />
+                              </IconButton>
+                            </Box>
+                          </Box>
+                        ))}
+                        {!hypotheses.length && !hypothesesLoading && (
+                          <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                            No hypotheses for this pattern yet.
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+                  </Box>
                 </Box>
               )}
             </Box>

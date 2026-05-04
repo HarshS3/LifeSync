@@ -30,7 +30,8 @@ function DailyLogTab({
   timingAlerts,
   insightMatchesSelectedDay,
   setActiveTab,
-  SupplementSection
+  SupplementSection,
+  clinicalTargets
 }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -260,8 +261,13 @@ function DailyLogTab({
         if (totals.saturatedFat > 30) {
           alerts.push({ type: 'warning', text: `High Saturated Fat (${fmt(totals.saturatedFat)}g): Keeping saturated fat <20-30g protects your heart health over the long term.` });
         }
-        if (totals.cholesterol > 300) {
-          alerts.push({ type: 'warning', text: `High Cholesterol (${fmt(totals.cholesterol)}mg): Consider balancing this with high-fiber foods (oats, beans, leafy greens) which help clear excess cholesterol from your system.` });
+        const cholesterolCap = clinicalTargets?.targets?.cholesterol ?? 300;
+        const cholesterolRationale = clinicalTargets?.targets?.cholesterolRationale;
+        if (totals.cholesterol > cholesterolCap) {
+          const rationaleText = cholesterolRationale && cholesterolCap < 300
+            ? cholesterolRationale
+            : `High Cholesterol (${fmt(totals.cholesterol)}mg / cap: ${cholesterolCap}mg): Consider balancing this with high-fiber foods (oats, beans, leafy greens) which help clear excess cholesterol from your system.`;
+          alerts.push({ type: 'warning', text: rationaleText });
         }
         if (totals.sodium > 3000) {
           alerts.push({ type: 'warning', text: `High Sodium Detected (${fmt(totals.sodium)}mg): Hydrate extra today or expect 1-2lbs of water retention on the scale tomorrow. This is not fat gain.` });

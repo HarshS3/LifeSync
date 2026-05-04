@@ -13,9 +13,28 @@ const NutritionInsights = ({ selectedDate }) => {
   const [macroData, setMacroData] = useState(null);
   const [microData, setMicroData] = useState(null);
   const [metabolicMap, setMetabolicMap] = useState(null);
+  const [hypotheses, setHypotheses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('macro');
+
+  const feedbackHypothesis = async (id, isPositive) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/nutrition/hypotheses/${id}/feedback`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isPositive }),
+      });
+      if (res.ok) {
+        setHypotheses(prev => prev.map(h => h._id === id ? { ...h, feedback: isPositive ? 1 : -1 } : h));
+      }
+    } catch (err) {
+      console.error('Failed to save feedback:', err);
+    }
+  };
 
   const getWeekKey = (dateObj) => {
     const istDateStr = new Date(dateObj).toLocaleString('en-CA', {
@@ -58,16 +77,18 @@ const NutritionInsights = ({ selectedDate }) => {
         setLoading(true);
         const weekKey = getWeekKey(selectedDate);
 
-        const [macroRes, microRes, metabolicRes] = await Promise.all([
+        const [macroRes, microRes, metabolicRes, hypoRes] = await Promise.all([
           fetch(`${API_BASE}/api/nutrition/aggregation/weekly-macros/${weekKey}`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch(`${API_BASE}/api/nutrition/aggregation/weekly-micros/${weekKey}`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch(`${API_BASE}/api/nutrition/metabolic-map?daysBack=60`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_BASE}/api/nutrition/hypotheses`, { headers: { Authorization: `Bearer ${token}` } }),
         ]);
 
         if (!macroRes.ok || !microRes.ok) throw new Error('Failed to fetch aggregation data');
         setMacroData(await macroRes.json());
         setMicroData(await microRes.json());
         if (metabolicRes.ok) setMetabolicMap(await metabolicRes.json());
+        if (hypoRes.ok) setHypotheses(await hypoRes.json());
         setError(null);
       } catch (err) {
         setError(err.message);
@@ -101,14 +122,14 @@ const NutritionInsights = ({ selectedDate }) => {
           '&::-webkit-scrollbar': { display: 'none' },
           scrollbarWidth: 'none'
         }}>
-          {['macro', 'micro', 'metabolic'].map(tab => (
+          {['macro', 'micro', 'metabolic', 'hypo'].map(tab => (
             <Typography key={tab} component="button" onClick={() => setActiveTab(tab)} sx={{
               background: 'none', border: 'none', borderBottom: activeTab === tab ? '2px solid var(--ls-text)' : '2px solid transparent',
               pb: 0.5, cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.85rem',
               color: activeTab === tab ? 'var(--ls-text)' : 'var(--ls-text-muted)', transition: 'all 0.2s', '&:hover': { color: 'var(--ls-text)' },
               whiteSpace: 'nowrap'
             }}>
-              {tab === 'macro' ? 'Macros' : tab === 'micro' ? 'Micronutrients' : 'Metabolic Map'}
+              {tab === 'macro' ? 'Macros' : tab === 'micro' ? 'Micronutrients' : tab === 'metabolic' ? 'Metabolic Map' : 'AI Hypotheses'}
             </Typography>
           ))}
         </Box>
@@ -118,6 +139,48 @@ const NutritionInsights = ({ selectedDate }) => {
         {activeTab === 'macro' && macroData && <MacroEditorialView data={macroData} />}
         {activeTab === 'micro' && microData && <MicroEditorialView data={microData} />}
         {activeTab === 'metabolic' && <MetabolicMapView data={metabolicMap} />}
+
+        {activeTab === 'hypo' && (
+          <Box sx={{ mt: 4 }}>
+            <Typography variant="h5" sx={{ fontWeight: 700, mb: 4, fontFamily: 'var(--font-serif)' }}>Health Pattern Hypotheses</Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+              {hypotheses.map((h) => (
+                <Box key={h._id} sx={{ p: 4, border: '2px solid var(--ls-border)', position: 'relative' }}>
+                  <Box sx={{ position: 'absolute', top: -12, left: 20, bgcolor: 'var(--ls-bg)', px: 1 }}>
+                    <Typography sx={{ fontFamily: 'monospace', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Type: {h.type || 'General'}
+                    </Typography>
+                  </Box>
+                  <Typography variant="h6" sx={{ fontWeight: 800, mb: 2, letterSpacing: '-0.01em' }}>{h.title}</Typography>
+                  <Typography sx={{ color: 'var(--ls-text-muted)', mb: 3, fontStyle: 'italic', fontSize: '0.95rem' }}>"{h.description}"</Typography>
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography sx={{ fontFamily: 'monospace', fontSize: '0.75rem', fontWeight: 600 }}>Confidence: {Math.round((h.confidence || 0) * 100)}%</Typography>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <Box 
+                        onClick={() => feedbackHypothesis(h._id, true)}
+                        sx={{ cursor: 'pointer', opacity: h.feedback === 1 ? 1 : 0.3, '&:hover': { opacity: 1 }, fontFamily: 'monospace', fontWeight: 700 }}
+                      >
+                        [YES]
+                      </Box>
+                      <Box 
+                        onClick={() => feedbackHypothesis(h._id, false)}
+                        sx={{ cursor: 'pointer', opacity: h.feedback === -1 ? 1 : 0.3, '&:hover': { opacity: 1 }, fontFamily: 'monospace', fontWeight: 700 }}
+                      >
+                        [NO]
+                      </Box>
+                    </Box>
+                  </Box>
+                </Box>
+              ))}
+              {hypotheses.length === 0 && (
+                <Typography sx={{ gridColumn: '1 / -1', p: 8, textAlign: 'center', border: '1px dashed var(--ls-border)', color: 'var(--ls-text-muted)', fontFamily: 'monospace' }}>
+                  No active hypotheses detected yet. Continue logging food to unlock AI pattern recognition.
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        )}
       </Box>
     </Box>
   );

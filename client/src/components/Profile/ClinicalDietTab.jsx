@@ -316,9 +316,11 @@ export default function ClinicalDietTab({ profile, updateField, updateBiological
       </Box>
 
       <Box sx={{ p: 2, bgcolor: '#f0fdf4', borderRadius: 2, border: '1px solid #bbf7d0', mt: 2 }}>
-        <Typography variant="subtitle2" sx={{ color: '#166534', fontWeight: 700 }}>Note on DRIs</Typography>
+        <Typography variant="subtitle2" sx={{ color: '#166534', fontWeight: 700 }}>Note on DRIs & Intelligence</Typography>
         <Typography variant="body2" sx={{ color: '#166534', mt: 0.5 }}>
-          Targets act autonomously based on these selections. Vegans will automatically see a 1.8x bump in Iron targets.
+          • Targets act autonomously based on these selections. Vegans automatically see a 1.8x bump in Iron targets.<br />
+          • <b>Dynamic Cholesterol:</b> Your dietary cholesterol cap is automatically adjusted (100mg - 300mg) based on your serum lipid levels from the Labs panel.<br />
+          • <b>Iodine Advisory:</b> Iodine is not currently tracked as food databases lack reliable data. However, it is critical for thyroid function. If you use non-iodized salt (like sea salt) and don't consume seaweed or seafood, consider a high-quality kelp supplement or switching to iodized salt.
         </Typography>
       </Box>
 

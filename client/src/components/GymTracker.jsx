@@ -124,6 +124,28 @@ function GymTracker() {
   const [selectedWorkout, setSelectedWorkout] = useState(null)
   const [workoutDialogOpen, setWorkoutDialogOpen] = useState(false)
 
+  const [editTimerOpen, setEditTimerOpen] = useState(false)
+  const [editTimerHours, setEditTimerHours] = useState(0)
+  const [editTimerMinutes, setEditTimerMinutes] = useState(0)
+  const [editTimerSeconds, setEditTimerSeconds] = useState(0)
+
+  const handleTimerClick = () => {
+    const h = Math.floor(elapsedTime / 3600)
+    const m = Math.floor((elapsedTime % 3600) / 60)
+    const s = elapsedTime % 60
+    setEditTimerHours(h)
+    setEditTimerMinutes(m)
+    setEditTimerSeconds(s)
+    setEditTimerOpen(true)
+  }
+
+  const handleTimerSave = () => {
+    const newTotalSeconds = (parseInt(editTimerHours) || 0) * 3600 + (parseInt(editTimerMinutes) || 0) * 60 + (parseInt(editTimerSeconds) || 0)
+    setWorkoutStartTime(Date.now() - newTotalSeconds * 1000)
+    setElapsedTime(newTotalSeconds)
+    setEditTimerOpen(false)
+  }
+
   const allExerciseNames = useMemo(() => {
     const names = new Set()
     workouts.forEach(w => w.exercises?.forEach(ex => {
@@ -1138,7 +1160,20 @@ function GymTracker() {
               <Typography variant="subtitle2" sx={{ color: '#9ca3af' }}>
                 Active Workout
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box 
+                sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 1.5,
+                  cursor: 'pointer',
+                  p: 1,
+                  borderRadius: 1,
+                  transition: 'background-color 0.2s ease',
+                  '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.05)' }
+                }}
+                onClick={handleTimerClick}
+                title="Edit workout timer"
+              >
                 <TimerIcon sx={{ color: '#f59e0b' }} />
                 <Typography variant="h4" sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
                   {formatTime(elapsedTime)}
@@ -2495,6 +2530,45 @@ function GymTracker() {
             sx={{ bgcolor: 'text.primary', '&:hover': { bgcolor: 'text.secondary' } }}
           >
             Add Exercise
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Timer Dialog */}
+      <Dialog open={editTimerOpen} onClose={() => setEditTimerOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Edit Workout Time</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', gap: 2, mt: 1, justifyContent: 'center' }}>
+            <TextField
+              label="Hours"
+              type="number"
+              value={editTimerHours}
+              onChange={(e) => setEditTimerHours(Math.max(0, parseInt(e.target.value) || 0))}
+              inputProps={{ min: 0 }}
+              sx={{ width: '80px' }}
+            />
+            <TextField
+              label="Minutes"
+              type="number"
+              value={editTimerMinutes}
+              onChange={(e) => setEditTimerMinutes(Math.max(0, parseInt(e.target.value) || 0))}
+              inputProps={{ min: 0, max: 59 }}
+              sx={{ width: '80px' }}
+            />
+            <TextField
+              label="Seconds"
+              type="number"
+              value={editTimerSeconds}
+              onChange={(e) => setEditTimerSeconds(Math.max(0, parseInt(e.target.value) || 0))}
+              inputProps={{ min: 0, max: 59 }}
+              sx={{ width: '80px' }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditTimerOpen(false)}>Cancel</Button>
+          <Button onClick={handleTimerSave} variant="contained" sx={{ bgcolor: 'text.primary', '&:hover': { bgcolor: 'text.secondary' } }}>
+            Save Time
           </Button>
         </DialogActions>
       </Dialog>

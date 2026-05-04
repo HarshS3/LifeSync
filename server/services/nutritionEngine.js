@@ -47,8 +47,10 @@ const calculateBMR = (sex, age, weightKg, heightCm, bodyFat) => {
 /**
  * Calculates customized DRI (Macronutrients & Micronutrients)
  * @param {Object} biologicalProfile - Extracted from User.js
+ * @param {number|null} adaptiveTdeeOverride
+ * @param {Object|null} labMarkers - User's clinical lab markers (e.g. lipids)
  */
-const calculateDailyTargets = (biologicalProfile, adaptiveTdeeOverride = null) => {
+const calculateDailyTargets = (biologicalProfile, adaptiveTdeeOverride = null, labMarkers = null) => {
   if (!biologicalProfile) return null;
 
   const { 
@@ -225,7 +227,32 @@ const calculateDailyTargets = (biologicalProfile, adaptiveTdeeOverride = null) =
       saturatedFat: Math.round((targetCalories * 0.1) / 9), // AHA < 10% of cals from sat fat
       monounsaturatedFat: Math.round((targetCalories * 0.15) / 9), // Clinical baseline ~15-20%
       polyunsaturatedFat: Math.round((targetCalories * 0.08) / 9), // Clinical baseline ~5-10%
-      cholesterol: 300, // mg (standard clinical cap)
+
+      // AHA/ACC Dynamic Cholesterol Target based on user's serum total cholesterol
+      // Desirable: < 200 mg/dL  -> 300 mg/day dietary cap (standard)
+      // Borderline: 200-239     -> 200 mg/day (AHA borderline-high guidance)
+      // High: >= 240 mg/dL      -> 150 mg/day (AHA high-risk/ACC therapeutic lifestyle)
+      // Very High (>= 300):     -> 100 mg/day (cardiologist-level restriction)
+      ...(() => {
+        const serumTotalCholesterol = parseFloat(
+          labMarkers?.lipids?.totalCholesterol?.value ||
+          labMarkers?.totalCholesterol?.value ||
+          0
+        );
+        let cholesterolTarget = 300;
+        let cholesterolRationale = 'Standard AHA dietary cap (<300 mg/day).';
+        if (serumTotalCholesterol >= 300) {
+          cholesterolTarget = 100;
+          cholesterolRationale = `Your serum total cholesterol (${serumTotalCholesterol} mg/dL) is very high. Therapeutic dietary restriction (<100 mg/day) recommended.`;
+        } else if (serumTotalCholesterol >= 240) {
+          cholesterolTarget = 150;
+          cholesterolRationale = `Your serum total cholesterol (${serumTotalCholesterol} mg/dL) is high. AHA recommends reducing dietary cholesterol to <150 mg/day.`;
+        } else if (serumTotalCholesterol >= 200) {
+          cholesterolTarget = 200;
+          cholesterolRationale = `Your serum total cholesterol (${serumTotalCholesterol} mg/dL) is borderline-high. AHA recommends limiting dietary cholesterol to <200 mg/day.`;
+        }
+        return { cholesterol: cholesterolTarget, cholesterolRationale };
+      })(),
 
       micronutrients: {
         sodium: sodiumTarget, // Keep beneath this

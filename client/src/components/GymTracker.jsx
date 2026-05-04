@@ -2403,7 +2403,6 @@ function GymTracker() {
                           />
                         ))}
                       </Box>
-                    </Box>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                       {workout.exercises?.map((ex, i) => (
                         <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #f3f4f6' }}>

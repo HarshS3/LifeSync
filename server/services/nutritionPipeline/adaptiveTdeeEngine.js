@@ -191,7 +191,8 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
   startDate.setDate(startDate.getDate() - daysBack);
 
   // ── Fetch all data in parallel ──────────────────────────────────
-  const [nutritionLogs, weightLogs, mentalLogs, workouts] = await Promise.all([
+  const [user, nutritionLogs, weightLogs, mentalLogs, workouts] = await Promise.all([
+    require('../../models/User').findById(userId).select('biologicalProfile').lean(),
     NutritionLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date dailyTotals.calories').sort({ date: 1 }).lean(),
     WeightLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date weightKg').sort({ date: 1 }).lean(),
     MentalLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date stressLevel').sort({ date: 1 }).lean(),
@@ -201,7 +202,7 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
   const validNutriLogs = nutritionLogs.filter(l => (l.dailyTotals?.calories || 0) > 800);
 
   if (validNutriLogs.length < 5 || weightLogs.length < 3) {
-    return { status: 'insufficient_data', message: 'Need at least 5 nutrition logs and 3 weight logs for a metabolic map.' };
+    return { status: 'insufficient_data', message: 'Need at least 5 nutrition logs and 3 weight logs for a metabolic map.', insulinSensitivity: user?.biologicalProfile?.insulinSensitivity || 'normal' };
   }
 
   // ── 1. BASE TDEE (calorie-vs-weight method) ─────────────────────
@@ -341,6 +342,7 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
     insight: `Your real TDEE right now is ~${Math.round(dynamicTDEE)} cal/day — not the formula's estimate of ${baseTDEE}. This accounts for your current stress load, training volume, and diet history.`,
     weightChangeKg: parseFloat(weightChangeKg.toFixed(2)),
     daysAnalyzed: Math.round(daysElapsed),
+    insulinSensitivity: user?.biologicalProfile?.insulinSensitivity || 'normal'
   };
 }
 

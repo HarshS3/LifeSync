@@ -11,6 +11,10 @@ import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
 import IconButton from '@mui/material/IconButton'
 import TextField from '@mui/material/TextField'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
 import Tabs from '@mui/material/Tabs'
 import Tab from '@mui/material/Tab'
 import Chip from '@mui/material/Chip'
@@ -34,6 +38,18 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
 import { generateCGMData } from '../lib/nutritionHelpers'
+
+const formatTime = (timeStr) => {
+  if (!timeStr) return '';
+  const [h, m] = timeStr.split(':');
+  if (h === undefined || m === undefined) return timeStr;
+  let hour = parseInt(h, 10);
+  const min = m;
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour}:${min} ${ampm}`;
+};
 
 const MEAL_TYPES = [
   'breakfast',
@@ -336,6 +352,8 @@ function NutritionTracker() {
   const [weightError, setWeightError] = useState('')
   const [weightRangeMode, setWeightRangeMode] = useState('week')
   const [weightSeries, setWeightSeries] = useState([])
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
+  const [templateName, setTemplateName] = useState('')
 
   const [resolvedFood, setResolvedFood] = useState(null)
   const [resolvedFoodLoading, setResolvedFoodLoading] = useState(false)
@@ -1278,10 +1296,14 @@ function NutritionTracker() {
     }))
 
     const defaultTime = user?.mealSchedule?.[newMeal.mealType] || ''
+    const now = new Date()
+    const loggedAtTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
     const meal = {
       name: finalName,
       mealType: newMeal.mealType,
       time: newMeal.time.trim() || defaultTime,
+      loggedAt: loggedAtTime,
       foods,
       notes: newMeal.notes,
     }
@@ -1341,7 +1363,7 @@ function NutritionTracker() {
   }
 
   const handleSaveTemplate = async () => {
-    if (!newMeal.name.trim()) {
+    if (!templateName.trim()) {
       alert('Please provide a name for the template.')
       return
     }
@@ -1358,7 +1380,7 @@ function NutritionTracker() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: newMeal.name.trim(),
+          name: templateName.trim(),
           mealType: newMeal.mealType,
           foods: newMeal.foods,
           notes: newMeal.notes
@@ -1367,6 +1389,8 @@ function NutritionTracker() {
 
       if (res.ok) {
         alert('Template saved successfully!')
+        setTemplateDialogOpen(false)
+        setTemplateName('')
       } else {
         const err = await res.json()
         alert(`Failed to save template: ${err.error || 'Unknown error'}`)
@@ -1861,16 +1885,12 @@ function NutritionTracker() {
                           />
                           {meal.time && (
                             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                              {(() => {
-                                const [h, m] = meal.time.split(':');
-                                if (h === undefined || m === undefined) return meal.time;
-                                let hour = parseInt(h, 10);
-                                const min = m;
-                                const ampm = hour >= 12 ? 'PM' : 'AM';
-                                hour = hour % 12;
-                                if (hour === 0) hour = 12;
-                                return `${hour}:${min} ${ampm}`;
-                              })()}
+                              {formatTime(meal.time)}
+                            </Typography>
+                          )}
+                          {meal.loggedAt && (
+                            <Typography variant="caption" sx={{ color: 'text.secondary', opacity: 0.6 }}>
+                              (Logged: {formatTime(meal.loggedAt)})
                             </Typography>
                           )}
                         </Box>
@@ -2356,31 +2376,15 @@ function NutritionTracker() {
           <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
               <TextField
-                label="Meal name (optional)"
-                placeholder="e.g. Breakfast, Lunchâ€¦"
-                value={newMeal.name}
-                onChange={(e) => setNewMeal({ ...newMeal, name: e.target.value })}
-                size="small"
-                sx={{ 
-                  flex: 1, 
-                  minWidth: { xs: '100%', sm: 160 },
-                  '& .MuiOutlinedInput-root': {
-                    transition: 'all 0.2s ease',
-                    '&:hover': { borderColor: '#1f2937' },
-                    '&:focus-within': { borderColor: '#1f2937', boxShadow: '0 0 0 2px rgba(31, 41, 55, 0.1)' }
-                  }
-                }}
-                placeholder="e.g. Breakfast, Lunchâ€¦"
-              />
-              <TextField
                 select
-                label="Type"
+                label="Meal Type"
                 value={newMeal.mealType}
                 onChange={(e) => setNewMeal({ ...newMeal, mealType: e.target.value })}
                 size="small"
                 SelectProps={{ native: true }}
                 sx={{ 
-                  minWidth: { xs: '100%', sm: 130 },
+                  flex: 1,
+                  minWidth: { xs: '100%', sm: 160 },
                   '& .MuiOutlinedInput-root': {
                     transition: 'all 0.2s ease',
                     '&:hover': { borderColor: '#1f2937' },
@@ -2391,13 +2395,14 @@ function NutritionTracker() {
                 {MEAL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </TextField>
               <TextField
-                label="Time"
+                label="Log Time"
                 type="time"
                 value={newMeal.time}
                 onChange={(e) => setNewMeal({ ...newMeal, time: e.target.value })}
                 size="small"
                 sx={{ 
-                  width: { xs: '100%', sm: 140 },
+                  flex: 1,
+                  minWidth: { xs: '100%', sm: 160 },
                   '& .MuiOutlinedInput-root': {
                     transition: 'all 0.2s ease',
                     '&:hover': { borderColor: '#1f2937' },
@@ -2591,7 +2596,7 @@ function NutritionTracker() {
               <Button
                 variant="outlined"
                 size="small"
-                onClick={handleSaveTemplate}
+                onClick={() => setTemplateDialogOpen(true)}
                 sx={{ 
                   borderColor: '#16a34a', 
                   color: '#16a34a',
@@ -3392,6 +3397,24 @@ function NutritionTracker() {
       )}
 
       {activeTab === 7 && (
+        <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb', p: 3 }}>
+          <RecipeExplorer token={token} />
+        </Box>
+      )}
+
+      {activeTab === 8 && (
+        <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <KitchenInventory />
+        </Box>
+      )}
+
+      {activeTab === 9 && (
+        <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <WeeklyReview weekKey={`${selectedDate.getFullYear()}-W${String(Math.ceil((((selectedDate - new Date(selectedDate.getFullYear(), 0, 1)) / 86400000) + new Date(selectedDate.getFullYear(), 0, 1).getDay() + 1) / 7)).padStart(2, '0')}`} />
+        </Box>
+      )}
+
+      {activeTab === 10 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>

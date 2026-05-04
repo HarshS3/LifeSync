@@ -440,6 +440,12 @@ const MetabolicMapView = ({ data }) => {
               <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', color: 'white' }}>{phase.label}</Typography>
             </Box>
           </Box>
+          <Box sx={{ minWidth: { xs: 'calc(50% - 12px)', md: 'auto' } }}>
+            <Typography sx={{ fontFamily: 'monospace', fontSize: '0.65rem', opacity: 0.5, textTransform: 'uppercase', mb: 0.5 }}>Insulin Sensitivity</Typography>
+            <Box sx={{ px: 2, py: 0.5, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: '3px', display: 'inline-block', border: '1px solid rgba(255,255,255,0.2)' }}>
+              <Typography sx={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', color: 'white' }}>{(data.insulinSensitivity || 'NORMAL').replace(/_/g, ' ')}</Typography>
+            </Box>
+          </Box>
         </Box>
         <Typography sx={{ fontSize: '1.1rem', lineHeight: 1.7, opacity: 0.85, fontStyle: 'italic', fontFamily: 'var(--font-serif, Georgia, serif)' }}>
           "{data.insight}"

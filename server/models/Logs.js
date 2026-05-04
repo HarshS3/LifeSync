@@ -22,6 +22,7 @@ const NutritionLogSchema = new mongoose.Schema(
         name: String,
         mealType: { type: String, enum: ['breakfast', 'lunch', 'dinner', 'snack', 'pre-workout', 'post-workout'], default: 'snack' },
         time: String,
+        loggedAt: String,
         foods: [
           {
             name: String,

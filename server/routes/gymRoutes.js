@@ -311,6 +311,30 @@ router.get('/exercise-history/:exerciseName', auth, async (req, res) => {
   }
 });
 
+// Get AI exercise analysis
+router.post('/exercise-analysis/:exerciseName', auth, async (req, res) => {
+  try {
+    const { exerciseName } = req.params;
+    const { history, stats } = req.body;
+    
+    const { generateExerciseAnalysis } = require('../aiClient');
+    const analysis = await generateExerciseAnalysis({
+      exerciseName: decodeURIComponent(exerciseName),
+      history,
+      stats
+    });
+    
+    if (!analysis) {
+      return res.status(500).json({ error: 'Failed to generate analysis' });
+    }
+    
+    res.json(analysis);
+  } catch (err) {
+    console.error('Failed to generate exercise analysis:', err);
+    res.status(500).json({ error: 'Failed to generate analysis' });
+  }
+});
+
 // Get workouts by date range (for calendar, user-specific)
 router.get('/workouts/range/:start/:end', auth, async (req, res) => {
   try {

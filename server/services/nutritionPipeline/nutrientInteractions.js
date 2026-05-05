@@ -147,9 +147,49 @@ function evaluateMealInteractions(foods) {
   
   foods.forEach(food => {
     foodNames.push(food.name ? food.name.toLowerCase() : '');
-    const n = food.nutrients || {};
-    Object.keys(n).forEach(key => {
-      totals[key] = (totals[key] || 0) + (Number(n[key]) || 0);
+    
+    // Support both sub-object 'nutrients' and flat fields (schema-style)
+    const n = food.nutrients || food;
+    
+    const fieldsToCheck = [
+      'energy_kcal', 'calories', 'protein_g', 'protein', 'carb_g', 'carbs', 'fat_g', 'fat', 
+      'fibre_g', 'fiber', 'freesugar_g', 'sugar', 'sodium_mg', 'sodium', 'potassium_mg', 'potassium',
+      'iron_mg', 'iron', 'calcium_mg', 'calcium', 'magnesium_mg', 'magnesium', 'zinc_mg', 'zinc',
+      'vita_ug', 'vitaminA', 'vitc_mg', 'vitaminC', 'vite_mg', 'vitaminE', 'vitd_ug', 'vitaminD',
+      'vitk_ug', 'vitaminK', 'vitb1_mg', 'vitaminB1', 'vitb2_mg', 'vitaminB2', 'vitb3_mg', 'vitaminB3',
+      'vitb6_mg', 'vitaminB6', 'vitb9_ug', 'folate', 'vitb12_ug', 'vitaminB12'
+    ];
+
+    fieldsToCheck.forEach(key => {
+      if (n[key] !== undefined) {
+        // Map common aliases to internal INDB-style keys used by interaction rules
+        let targetKey = key;
+        if (key === 'calories') targetKey = 'energy_kcal';
+        if (key === 'protein') targetKey = 'protein_g';
+        if (key === 'carbs') targetKey = 'carb_g';
+        if (key === 'fat') targetKey = 'fat_g';
+        if (key === 'fiber') targetKey = 'fibre_g';
+        if (key === 'sugar') targetKey = 'freesugar_g';
+        if (key === 'sodium') targetKey = 'sodium_mg';
+        if (key === 'potassium') targetKey = 'potassium_mg';
+        if (key === 'iron') targetKey = 'iron_mg';
+        if (key === 'calcium') targetKey = 'calcium_mg';
+        if (key === 'magnesium') targetKey = 'magnesium_mg';
+        if (key === 'zinc') targetKey = 'zinc_mg';
+        if (key === 'vitaminA') targetKey = 'vita_ug';
+        if (key === 'vitaminC') targetKey = 'vitc_mg';
+        if (key === 'vitaminE') targetKey = 'vite_mg';
+        if (key === 'vitaminD') targetKey = 'vitd_ug';
+        if (key === 'vitaminK') targetKey = 'vitk_ug';
+        if (key === 'vitaminB1') targetKey = 'vitb1_mg';
+        if (key === 'vitaminB2') targetKey = 'vitb2_mg';
+        if (key === 'vitaminB3') targetKey = 'vitb3_mg';
+        if (key === 'vitaminB6') targetKey = 'vitb6_mg';
+        if (key === 'folate') targetKey = 'vitb9_ug';
+        if (key === 'vitaminB12') targetKey = 'vitb12_ug';
+
+        totals[targetKey] = (totals[targetKey] || 0) + (Number(n[key]) || 0);
+      }
     });
   });
 

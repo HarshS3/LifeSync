@@ -40,6 +40,7 @@ import {
 } from 'recharts'
 import Calendar from './Calendar'
 import { useAuth } from '../context/AuthContext'
+import { useWorkout } from '../context/WorkoutContext'
 import { API_BASE } from '../config'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
@@ -50,10 +51,9 @@ import GlbModelViewer from './GlbModelViewer.jsx'
 import RestTimer from './RestTimer'
 import PlateCalculator from './PlateCalculator'
 import LastSetsReference from './LastSetsReference'
+import { EXERCISE_LIBRARY } from '../data/exerciseLibrary'
 
 const DEFAULT_BODY_MODEL_GLB_URL = new URL('../assets/Untitled.glb', import.meta.url).href
-
-import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
 
 function GymTracker() {
   const theme = useTheme()
@@ -82,10 +82,15 @@ function GymTracker() {
   const [stepsSaving, setStepsSaving] = useState(false)
   const [stepsError, setStepsError] = useState('')
   
-  // Current workout state
-  const [currentWorkout, setCurrentWorkout] = useState(null)
-  const [workoutStartTime, setWorkoutStartTime] = useState(null)
-  const [elapsedTime, setElapsedTime] = useState(0)
+  const { 
+    currentWorkout, 
+    setCurrentWorkout, 
+    elapsedTime, 
+    setWorkoutStartTime, 
+    startWorkout, 
+    cancelWorkout, 
+    finishWorkout 
+  } = useWorkout()
   
   // Dialog states
   const [exerciseDialogOpen, setExerciseDialogOpen] = useState(false)
@@ -556,16 +561,6 @@ function GymTracker() {
     }
   }
 
-  useEffect(() => {
-    let interval
-    if (currentWorkout && workoutStartTime) {
-      interval = setInterval(() => {
-        setElapsedTime(Math.floor((Date.now() - workoutStartTime) / 1000))
-      }, 1000)
-    }
-    return () => clearInterval(interval)
-  }, [currentWorkout, workoutStartTime])
-
   const loadWorkouts = async () => {
     setLoading(true)
     try {
@@ -639,16 +634,16 @@ function GymTracker() {
   }
 
   const useTemplate = (tpl) => {
-    setCurrentWorkout({
+    startWorkout({
       name: tpl.name,
       exercises: tpl.exercises.map(ex => ({
         ...ex,
         sets: ex.sets?.map(s => ({ ...s })) || [{ reps: 0, weight: 0, rpe: 8 }]
       })),
-      date: new Date(),
+      date: new Date().toISOString().split('T')[0],
     })
-    setWorkoutStartTime(Date.now())
-    setElapsedTime(0)
+    setActiveTab(0)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const touchWorkoutById = async (id) => {
@@ -764,32 +759,26 @@ function GymTracker() {
     })
   }
 
-  const startWorkout = () => {
-    setCurrentWorkout({
-      name: `Workout - ${new Date().toLocaleDateString()}`,
-      exercises: [],
-      date: new Date(),
-    })
-    setWorkoutStartTime(Date.now())
-    setElapsedTime(0)
-  }
-
-  const cancelWorkout = () => {
-    if (window.confirm('Discard this workout?')) {
-      setCurrentWorkout(null)
-      setWorkoutStartTime(null)
-      setElapsedTime(0)
-    }
-  }
-
   const addExercise = () => {
     const exerciseName = customExercise || selectedExercise
     if (!exerciseName || !selectedMuscle) return
 
+    // Look up exercise definition
+    const allExercises = Object.values(EXERCISE_LIBRARY).flatMap(g => g.exercises)
+    const exDef = allExercises.find(e => e.name.toLowerCase() === exerciseName.toLowerCase())
+    
+    let initialSet = { reps: 0, weight: 0, rpe: 8 }
+    if (exDef && exDef.logType === 'cardio' && exDef.logFields) {
+      initialSet = {}
+      exDef.logFields.forEach(f => {
+        initialSet[f.key] = ''
+      })
+    }
+
     const newExercise = {
       name: exerciseName,
       muscleGroup: selectedMuscle,
-      sets: [{ reps: 0, weight: 0, rpe: 8 }],
+      sets: [initialSet],
     }
 
     setCurrentWorkout(prev => ({
@@ -834,7 +823,7 @@ function GymTracker() {
       updated.exercises[exerciseIdx].sets = [...updated.exercises[exerciseIdx].sets]
       updated.exercises[exerciseIdx].sets[setIdx] = {
         ...updated.exercises[exerciseIdx].sets[setIdx],
-        [field]: Number(value) || 0,
+        [field]: value === '' ? '' : (isNaN(value) ? value : (value.startsWith('0') && value.length > 1 && !value.startsWith('0.') ? Number(value) : value)),
       }
       
       // Auto-trigger rest timer if a set was completed (weight/reps > 0)
@@ -853,10 +842,21 @@ function GymTracker() {
   const addSet = (exerciseIdx) => {
     setCurrentWorkout(prev => {
       const updated = { ...prev }
+      const exercise = updated.exercises[exerciseIdx]
       updated.exercises = [...prev.exercises]
-      updated.exercises[exerciseIdx] = { ...updated.exercises[exerciseIdx] }
-      const lastSet = updated.exercises[exerciseIdx].sets.slice(-1)[0] || { reps: 0, weight: 0, rpe: 8 }
-      updated.exercises[exerciseIdx].sets = [...updated.exercises[exerciseIdx].sets, { ...lastSet }]
+      updated.exercises[exerciseIdx] = { ...exercise }
+      
+      const allExercises = Object.values(EXERCISE_LIBRARY).flatMap(g => g.exercises)
+      const exDef = allExercises.find(e => e.name.toLowerCase() === exercise.name.toLowerCase())
+      
+      let newSet = { reps: 0, weight: 0, rpe: 8 }
+      if (exDef && exDef.logType === 'cardio' && exDef.logFields) {
+        newSet = {}
+        exDef.logFields.forEach(f => { newSet[f.key] = '' })
+      }
+      
+      const lastSet = exercise.sets.slice(-1)[0]
+      updated.exercises[exerciseIdx].sets = [...exercise.sets, lastSet ? { ...lastSet } : newSet]
       return updated
     })
   }
@@ -906,7 +906,6 @@ function GymTracker() {
       }))
     })
     setWorkoutStartTime(Date.now() - (workout.duration || 0) * 1000)
-    setElapsedTime(workout.duration || 0)
     setActiveTab(0) // Switch to active workout tab
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -928,40 +927,10 @@ function GymTracker() {
     }
   }
 
-  const finishWorkout = async () => {
-    if (!currentWorkout || currentWorkout.exercises.length === 0) {
-      alert('Add at least one exercise!')
-      return
-    }
-
-    const workoutData = {
-      ...currentWorkout,
-      duration: elapsedTime,
-      date: currentWorkout._id ? currentWorkout.date : new Date(),
-    }
-
-    const isEdit = !!currentWorkout._id
-
-    try {
-      const res = await fetch(`${API_BASE}/api/gym/workouts${isEdit ? `/${currentWorkout._id}` : ''}`, {
-        method: isEdit ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(workoutData),
-      })
-
-      if (res.ok) {
-        toast.success(isEdit ? 'Workout updated!' : 'Workout saved!')
-        setCurrentWorkout(null)
-        setWorkoutStartTime(null)
-        setElapsedTime(0)
-        loadWorkouts()
-      }
-    } catch (err) {
-      console.error('Failed to save workout:', err)
-      toast.error('Failed to save workout')
+  const handleFinishWorkout = async () => {
+    const success = await finishWorkout()
+    if (success) {
+      loadWorkouts()
     }
   }
 
@@ -985,6 +954,7 @@ function GymTracker() {
       title: w.name || 'Workout',
       details: `${w.exercises?.length || 0} exercises • ${Math.round((w.duration || 0) / 60)}min`,
       exercises: w.exercises,
+      original: w,
     }))
 
   // Muscle distribution for chart
@@ -1150,10 +1120,11 @@ function GymTracker() {
       {currentWorkout && (
         <Box sx={{ 
           p: 3, 
+          pb: { xs: 12, sm: 3 }, // extra padding for fixed mobile action bar
           mb: 3, 
-          bgcolor: 'text.primary', 
+          bgcolor: '#111827', 
           borderRadius: 2,
-          color: 'background.paper',
+          color: '#f9fafb',
         }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Box>
@@ -1179,6 +1150,23 @@ function GymTracker() {
                   {formatTime(elapsedTime)}
                 </Typography>
               </Box>
+              <TextField
+                type="date"
+                size="small"
+                value={currentWorkout.date ? new Date(currentWorkout.date).toISOString().split('T')[0] : ''}
+                onChange={(e) => {
+                  const newDate = new Date(e.target.value);
+                  setCurrentWorkout(prev => ({ ...prev, date: newDate }));
+                }}
+                sx={{ 
+                  mt: 1,
+                  '& .MuiOutlinedInput-root': { 
+                    color: '#9ca3af', 
+                    fontSize: '0.75rem',
+                    '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } 
+                  } 
+                }}
+              />
             </Box>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
               <Button
@@ -1195,7 +1183,7 @@ function GymTracker() {
                   transition: 'all 0.2s ease',
                   '&:hover': { 
                     borderColor: 'rgba(255,255,255,0.6)',
-                    color: 'background.paper',
+                    color: '#ffffff',
                     bgcolor: 'rgba(255,255,255,0.05)'
                   },
                   '&:active': { opacity: 0.7 },
@@ -1215,7 +1203,7 @@ function GymTracker() {
                   transition: 'all 0.2s ease',
                   '&:hover': { 
                     borderColor: 'rgba(255,255,255,0.6)',
-                    color: 'background.paper',
+                    color: '#ffffff',
                     bgcolor: 'rgba(255,255,255,0.05)'
                   },
                   '&:active': { opacity: 0.7 },
@@ -1226,7 +1214,7 @@ function GymTracker() {
               </Button>
               <Button
                 variant="contained"
-                onClick={finishWorkout}
+                onClick={handleFinishWorkout}
                 fullWidth={isMobile}
                 sx={{ 
                   bgcolor: '#15803d',
@@ -1269,7 +1257,7 @@ function GymTracker() {
                       size="small"
                       sx={{
                         bgcolor: EXERCISE_LIBRARY[exercise.muscleGroup]?.color || 'text.secondary',
-                        color: 'background.paper',
+                        color: '#ffffff',
                         fontWeight: 600,
                       }}
                     />
@@ -1302,87 +1290,92 @@ function GymTracker() {
                 </Box>
 
 
-                {/* Sets */}
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '32px 1fr 1fr 64px', sm: '40px 1fr 1fr 80px' }, gap: 1, mb: 1 }}>
-                    <Typography variant="caption" sx={{ color: '#9ca3af' }}>Set</Typography>
-                    <Typography variant="caption" sx={{ color: '#9ca3af' }}>Weight (kg)</Typography>
-                    <Typography variant="caption" sx={{ color: '#9ca3af' }}>Reps</Typography>
-                    <Typography variant="caption" sx={{ color: '#9ca3af' }}></Typography>
-                  </Box>
-                  {exercise.sets.map((set, setIdx) => {
-                    const prevSet = exerciseLastSets[exercise.name]?.[setIdx];
+                {/* Sets — smart rendering based on exercise logType */}
+                {(() => {
+                  // Look up exercise definition for logType
+                  const allExercises = Object.values(EXERCISE_LIBRARY).flatMap(g => g.exercises)
+                  const exDef = allExercises.find(e => e.name.toLowerCase() === exercise.name.toLowerCase())
+                  const isCardio = exDef?.logType === 'cardio'
+                  const logFields = exDef?.logFields || []
+
+                  if (isCardio && logFields.length > 0) {
+                    // ── Cardio logging UI ──
                     return (
-                    <Box key={setIdx} sx={{ display: 'grid', gridTemplateColumns: { xs: '24px 1fr 1fr 76px', sm: '40px 1fr 1fr 80px' }, gap: 1, mb: 1, alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{setIdx + 1}</Typography>
-                      <TextField
-                        size="small"
-                        type="number"
-                        value={set.weight || ''}
-                        placeholder={prevSet?.weight ? String(prevSet.weight) : ''}
-                        onChange={(e) => updateSet(exIdx, setIdx, 'weight', e.target.value)}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            bgcolor: 'rgba(255,255,255,0.1)',
-                            color: 'background.paper',
-                            '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                          },
-                          '& input': { color: 'background.paper', textAlign: 'center' },
-                          '& input::placeholder': { color: '#9ca3af', opacity: 1 },
-                        }}
-                      />
-                      <TextField
-                        type="number"
-                        value={set.reps || ''}
-                        placeholder={prevSet?.reps ? String(prevSet.reps) : ''}
-                        onChange={(e) => updateSet(exIdx, setIdx, 'reps', e.target.value)}
-                        size="small"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            bgcolor: 'rgba(255,255,255,0.1)',
-                            color: 'background.paper',
-                            '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                          },
-                          '& input': { color: 'background.paper', textAlign: 'center' },
-                          '& input::placeholder': { color: '#9ca3af', opacity: 1 },
-                        }}
-                      />
-                      <Box sx={{ display: 'flex', gap: 0.5 }}>
-                        <IconButton 
-                          size="small" 
-                          onClick={() => {
-                            if (prevSet) {
-                              updateSet(exIdx, setIdx, 'weight', prevSet.weight);
-                              updateSet(exIdx, setIdx, 'reps', prevSet.reps);
-                            }
-                          }}
-                          disabled={!prevSet}
-                          sx={{ 
-                            color: prevSet ? '#10b981' : 'rgba(255,255,255,0.3)',
-                            '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.1)' }
-                          }}
-                        >
-                          <CheckIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton 
-                          size="small" 
-                          onClick={() => removeSet(exIdx, setIdx)}
-                          disabled={exercise.sets.length <= 1}
-                          sx={{ color: 'rgba(255,255,255,0.6)' }}
-                        >
-                          <CloseIcon fontSize="small" />
-                        </IconButton>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        {exercise.sets.map((set, setIdx) => (
+                          <Box key={setIdx} sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1.5, border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                              <Typography variant="caption" sx={{ color: '#60a5fa', fontWeight: 700 }}>Session {setIdx + 1}</Typography>
+                              <IconButton size="small" onClick={() => removeSet(exIdx, setIdx)} disabled={exercise.sets.length <= 1} sx={{ color: 'rgba(255,255,255,0.4)', p: 0.25 }}>
+                                <CloseIcon sx={{ fontSize: 14 }} />
+                              </IconButton>
+                            </Box>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3, 1fr)' }, gap: 1 }}>
+                              {logFields.map(field => (
+                                <Box key={field.key}>
+                                  <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block', mb: 0.25, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    {field.label}{field.unit ? ` (${field.unit})` : ''}
+                                  </Typography>
+                                  <TextField
+                                    size="small"
+                                    type={field.inputType || 'number'}
+                                    value={set[field.key] || ''}
+                                    onChange={e => updateSet(exIdx, setIdx, field.key, e.target.value)}
+                                    onFocus={(e) => e.target.select()}
+                                    sx={{
+                                      width: '100%',
+                                      '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.1)', color: '#f9fafb', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } },
+                                      '& input': { color: '#f9fafb', textAlign: 'center', py: 0.75 },
+                                    }}
+                                  />
+                                </Box>
+                              ))}
+                            </Box>
+                          </Box>
+                        ))}
+                        <Button size="small" onClick={() => addSet(exIdx)} sx={{ color: '#60a5fa', textTransform: 'none', alignSelf: 'flex-start' }}>
+                          + Add Session
+                        </Button>
                       </Box>
+                    )
+                  }
+
+                  // ── Standard weight + reps UI ──
+                  return (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '32px 1fr 1fr 64px', sm: '40px 1fr 1fr 80px' }, gap: 1, mb: 1 }}>
+                        <Typography variant="caption" sx={{ color: '#9ca3af' }}>Set</Typography>
+                        <Typography variant="caption" sx={{ color: '#9ca3af' }}>Weight (kg)</Typography>
+                        <Typography variant="caption" sx={{ color: '#9ca3af' }}>Reps</Typography>
+                        <Typography variant="caption" sx={{ color: '#9ca3af' }}></Typography>
+                      </Box>
+                      {exercise.sets.map((set, setIdx) => {
+                        const prevSet = exerciseLastSets[exercise.name]?.[setIdx];
+                        return (
+                          <Box key={setIdx} sx={{ display: 'grid', gridTemplateColumns: { xs: '24px 1fr 1fr 76px', sm: '40px 1fr 1fr 80px' }, gap: 1, mb: 1, alignItems: 'center' }}>
+                            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{setIdx + 1}</Typography>
+                            <TextField size="small" type="number" value={set.weight || ''} placeholder={prevSet?.weight ? String(prevSet.weight) : ''} onChange={e => updateSet(exIdx, setIdx, 'weight', e.target.value)} onFocus={(e) => e.target.select()}
+                              sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.1)', color: '#f9fafb', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } }, '& input': { color: '#f9fafb', textAlign: 'center' }, '& input::placeholder': { color: '#9ca3af', opacity: 1 } }}
+                            />
+                            <TextField size="small" type="number" value={set.reps || ''} placeholder={prevSet?.reps ? String(prevSet.reps) : ''} onChange={e => updateSet(exIdx, setIdx, 'reps', e.target.value)} onFocus={(e) => e.target.select()}
+                              sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.1)', color: '#f9fafb', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } }, '& input': { color: '#f9fafb', textAlign: 'center' }, '& input::placeholder': { color: '#9ca3af', opacity: 1 } }}
+                            />
+                            <Box sx={{ display: 'flex', gap: 0.5 }}>
+                              <IconButton size="small" onClick={() => { if (prevSet) { updateSet(exIdx, setIdx, 'weight', prevSet.weight); updateSet(exIdx, setIdx, 'reps', prevSet.reps); } }} disabled={!prevSet}
+                                sx={{ color: prevSet ? '#10b981' : 'rgba(255,255,255,0.3)', '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.1)' } }}>
+                                <CheckIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton size="small" onClick={() => removeSet(exIdx, setIdx)} disabled={exercise.sets.length <= 1} sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                                <CloseIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          </Box>
+                        )
+                      })}
+                      <Button size="small" onClick={() => addSet(exIdx)} sx={{ color: '#60a5fa', textTransform: 'none', alignSelf: 'flex-start' }}>+ Add Set</Button>
                     </Box>
-                  )})}
-                  <Button
-                    size="small"
-                    onClick={() => addSet(exIdx)}
-                    sx={{ color: '#60a5fa', textTransform: 'none', alignSelf: 'flex-start' }}
-                  >
-                    + Add Set
-                  </Button>
-                </Box>
+                  )
+                })()}
               </Box>
             ))}
 
@@ -1392,10 +1385,10 @@ function GymTracker() {
               onClick={() => setExerciseDialogOpen(true)}
               sx={{
                 borderColor: 'rgba(255,255,255,0.3)',
-                color: 'background.paper',
+                color: '#ffffff',
                 textTransform: 'none',
                 py: 1.5,
-                '&:hover': { borderColor: 'background.paper', bgcolor: 'rgba(255,255,255,0.1)' },
+                '&:hover': { borderColor: '#ffffff', bgcolor: 'rgba(255,255,255,0.1)' },
               }}
             >
               Add Exercise
@@ -1405,69 +1398,359 @@ function GymTracker() {
       )}
 
       {/* Tabs */}
-      {!currentWorkout && (
-        <>
-          <Box sx={{ borderBottom: '1px solid #e5e7eb', mb: 3 }}>
-            <Tabs
-              value={activeTab}
-              onChange={(e, v) => setActiveTab(v)}
-              variant={isMobile ? 'scrollable' : 'standard'}
-              scrollButtons={isMobile ? 'auto' : false}
-              allowScrollButtonsMobile={isMobile}
-              sx={{
-                '& .MuiTab-root': {
-                  textTransform: 'none',
-                  fontWeight: 500,
-                  minHeight: { xs: 48, sm: 48 },
-                  py: { xs: 0.5, sm: 1 },
-                  color: 'text.secondary',
-                  '&.Mui-selected': { color: 'text.primary' },
-                },
-                '& .MuiTabs-indicator': { bgcolor: 'text.primary' },
-              }}
-            >
-              <Tab icon={<TrendingUpIcon />} label={isMobile ? 'Home' : 'Overview'} iconPosition={isMobile ? 'top' : 'start'} />
-              <Tab icon={<TimerIcon />} label="Steps" iconPosition={isMobile ? 'top' : 'start'} />
-              <Tab icon={<CalendarMonthIcon />} label={isMobile ? 'Cal' : 'Calendar'} iconPosition={isMobile ? 'top' : 'start'} />
-              <Tab icon={<FitnessCenterIcon />} label={isMobile ? 'Logs' : 'History'} iconPosition={isMobile ? 'top' : 'start'} />
-            </Tabs>
-          </Box>
+      <Box sx={{ borderBottom: '1px solid #e5e7eb', mb: 3 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(e, v) => setActiveTab(v)}
+          variant={isMobile ? 'scrollable' : 'standard'}
+          scrollButtons={isMobile ? 'auto' : false}
+          allowScrollButtonsMobile={isMobile}
+          sx={{
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 500,
+              minHeight: { xs: 48, sm: 48 },
+              py: { xs: 0.5, sm: 1 },
+              color: 'text.secondary',
+              '&.Mui-selected': { color: 'text.primary' },
+            },
+            '& .MuiTabs-indicator': { bgcolor: 'text.primary' },
+          }}
+        >
+          {currentWorkout && (
+            <Tab 
+              icon={<FitnessCenterIcon sx={{ color: '#f59e0b' }} />} 
+              label="Active Session" 
+              iconPosition={isMobile ? 'top' : 'start'} 
+              sx={{ fontWeight: 700, color: '#f59e0b !important' }}
+            />
+          )}
+          <Tab icon={<TrendingUpIcon />} label={isMobile ? 'Home' : 'Overview'} iconPosition={isMobile ? 'top' : 'start'} />
+          <Tab icon={<TimerIcon />} label="Steps" iconPosition={isMobile ? 'top' : 'start'} />
+          <Tab icon={<CalendarMonthIcon />} label={isMobile ? 'Cal' : 'Calendar'} iconPosition={isMobile ? 'top' : 'start'} />
+          <Tab icon={<FitnessCenterIcon />} label={isMobile ? 'Logs' : 'History'} iconPosition={isMobile ? 'top' : 'start'} />
+        </Tabs>
+      </Box>
 
-          {/* Overview Tab */}
-          {activeTab === 0 && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
-              {/* Stats Cards */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                <StatCard
-                  icon={<FitnessCenterIcon />}
-                  label="Total Workouts"
-                  value={stats.totalWorkouts}
-                  color="#2563eb"
-                />
-                <StatCard
-                  icon={<WhatshotIcon />}
-                  label="This Week"
-                  value={stats.weeklyWorkouts}
-                  color="#f59e0b"
-                />
-                <StatCard
-                  icon={<TrendingUpIcon />}
-                  label="Total Volume"
-                  value={`${(stats.totalVolume / 1000).toFixed(1)}k`}
-                  sublabel="kg"
-                  color="#15803d"
-                />
-                <StatCard
-                  icon={<CheckCircleIcon />}
-                  label="Streak"
-                  value={stats.currentStreak}
-                  sublabel="days"
-                  color="#9333ea"
+      {/* Tabs Content */}
+      <Box>
+        {/* Active Workout Content */}
+        {currentWorkout && activeTab === 0 && (
+          <Box sx={{ 
+            p: 3, 
+            pb: { xs: 12, sm: 3 }, // extra padding for fixed mobile action bar
+            mb: 3, 
+            bgcolor: '#111827', 
+            borderRadius: 2,
+            color: '#f9fafb',
+          }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ color: '#9ca3af' }}>
+                  Active Workout
+                </Typography>
+                <Box 
+                  sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 1.5,
+                    cursor: 'pointer',
+                    p: 1,
+                    borderRadius: 1,
+                    transition: 'background-color 0.2s ease',
+                    '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.05)' }
+                  }}
+                  onClick={handleTimerClick}
+                  title="Edit workout timer"
+                >
+                  <TimerIcon sx={{ color: '#f59e0b' }} />
+                  <Typography variant="h4" sx={{ fontFamily: 'monospace', fontWeight: 700 }}>
+                    {formatTime(elapsedTime)}
+                  </Typography>
+                </Box>
+                <TextField
+                  type="date"
+                  size="small"
+                  value={currentWorkout.date ? new Date(currentWorkout.date).toISOString().split('T')[0] : ''}
+                  onChange={(e) => {
+                    const newDate = new Date(e.target.value);
+                    setCurrentWorkout(prev => ({ ...prev, date: newDate }));
+                  }}
+                  sx={{ 
+                    mt: 1,
+                    '& .MuiOutlinedInput-root': { 
+                      color: '#9ca3af', 
+                      fontSize: '0.75rem',
+                      '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } 
+                    } 
+                  }}
                 />
               </Box>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    setTemplateName(currentWorkout.name || '');
+                    setSaveRoutineDialogOpen(true);
+                  }}
+                  fullWidth={isMobile}
+                  sx={{ 
+                    borderColor: 'rgba(255,255,255,0.3)', 
+                    color: '#9ca3af', 
+                    textTransform: 'none',
+                    transition: 'all 0.2s ease',
+                    '&:hover': { 
+                      borderColor: 'rgba(255,255,255,0.6)',
+                      color: '#ffffff',
+                      bgcolor: 'rgba(255,255,255,0.05)'
+                    },
+                    '&:active': { opacity: 0.7 },
+                    '&:focus': { outline: '2px solid #60a5fa', outlineOffset: 2 }
+                  }}
+                >
+                  Save as Routine
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={cancelWorkout}
+                  fullWidth={isMobile}
+                  sx={{ 
+                    borderColor: 'rgba(255,255,255,0.3)', 
+                    color: '#9ca3af',
+                    textTransform: 'none',
+                    transition: 'all 0.2s ease',
+                    '&:hover': { 
+                      borderColor: 'rgba(255,255,255,0.6)',
+                      color: '#ffffff',
+                      bgcolor: 'rgba(255,255,255,0.05)'
+                    },
+                    '&:active': { opacity: 0.7 },
+                    '&:focus': { outline: '2px solid #60a5fa', outlineOffset: 2 }
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={handleFinishWorkout}
+                  fullWidth={isMobile}
+                  sx={{ 
+                    bgcolor: '#15803d',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    transition: 'all 0.2s ease',
+                    '&:hover': { 
+                      bgcolor: '#166534',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 12px rgba(21, 128, 61, 0.3)'
+                    },
+                    '&:active': { 
+                      transform: 'translateY(0px)',
+                      boxShadow: '0 2px 4px rgba(21, 128, 61, 0.2)'
+                    },
+                    '&:focus': { outline: '2px solid #3b82f6', outlineOffset: 2 }
+                  }}
+                >
+                  Finish Workout
+                </Button>
+              </Box>
+            </Box>
 
-              {/* ── Training Readiness Score ────────────────────────────── */}
-              <Box sx={{ gridColumn: { md: '1 / -1' } }}>
+            {/* Exercises */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {currentWorkout.exercises.map((exercise, exIdx) => (
+                <Box 
+                  key={exIdx}
+                  sx={{ 
+                    p: 2, 
+                    bgcolor: 'rgba(255,255,255,0.05)', 
+                    borderRadius: 2,
+                    border: '1px solid rgba(255,255,255,0.1)',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Chip
+                        label={EXERCISE_LIBRARY[exercise.muscleGroup]?.label || exercise.muscleGroup}
+                        size="small"
+                        sx={{
+                          bgcolor: EXERCISE_LIBRARY[exercise.muscleGroup]?.color || 'text.secondary',
+                          color: '#ffffff',
+                          fontWeight: 600,
+                        }}
+                      />
+                      <Typography 
+                        variant="subtitle1" 
+                        sx={{ fontWeight: 600, cursor: 'pointer', color: '#3b82f6', '&:hover': { textDecoration: 'underline' } }}
+                        onClick={() => navigate(`/exercise-history/${encodeURIComponent(exercise.name)}`)}
+                        title="View exercise history"
+                      >
+                        {exercise.name}
+                      </Typography>
+                      <Chip 
+                        label="PR WATCH" 
+                        size="small" 
+                        sx={{ height: 18, fontSize: '0.6rem', bgcolor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid #f59e0b', fontWeight: 700 }}
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button 
+                        size="small" 
+                        onClick={() => navigate(`/exercise-history/${encodeURIComponent(exercise.name)}`)}
+                        sx={{ textTransform: 'none', color: '#3b82f6', fontSize: '0.75rem' }}
+                      >
+                        History →
+                      </Button>
+                      <IconButton size="small" onClick={() => removeExercise(exIdx)} sx={{ color: '#ef4444' }}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </Box>
+
+
+                  {/* Sets — smart rendering based on exercise logType */}
+                  {(() => {
+                    // Look up exercise definition for logType
+                    const allExercises = Object.values(EXERCISE_LIBRARY).flatMap(g => g.exercises)
+                    const exDef = allExercises.find(e => e.name.toLowerCase() === exercise.name.toLowerCase())
+                    const isCardio = exDef?.logType === 'cardio'
+                    const logFields = exDef?.logFields || []
+
+                    if (isCardio && logFields.length > 0) {
+                      // ── Cardio logging UI ──
+                      return (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                          {exercise.sets.map((set, setIdx) => (
+                            <Box key={setIdx} sx={{ p: 1.5, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1.5, border: '1px solid rgba(255,255,255,0.1)' }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="caption" sx={{ color: '#60a5fa', fontWeight: 700 }}>Session {setIdx + 1}</Typography>
+                                <IconButton size="small" onClick={() => removeSet(exIdx, setIdx)} disabled={exercise.sets.length <= 1} sx={{ color: 'rgba(255,255,255,0.4)', p: 0.25 }}>
+                                  <CloseIcon sx={{ fontSize: 14 }} />
+                                </IconButton>
+                              </Box>
+                              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3, 1fr)' }, gap: 1 }}>
+                                {logFields.map(field => (
+                                  <Box key={field.key}>
+                                    <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block', mb: 0.25, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                      {field.label}{field.unit ? ` (${field.unit})` : ''}
+                                    </Typography>
+                                    <TextField
+                                      size="small"
+                                      type={field.inputType || 'number'}
+                                      value={set[field.key] || ''}
+                                      onChange={e => updateSet(exIdx, setIdx, field.key, e.target.value)}
+                                      onFocus={(e) => e.target.select()}
+                                      sx={{
+                                        width: '100%',
+                                        '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.1)', color: '#f9fafb', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } },
+                                        '& input': { color: '#f9fafb', textAlign: 'center', py: 0.75 },
+                                      }}
+                                    />
+                                  </Box>
+                                ))}
+                              </Box>
+                            </Box>
+                          ))}
+                          <Button size="small" onClick={() => addSet(exIdx)} sx={{ color: '#60a5fa', textTransform: 'none', alignSelf: 'flex-start' }}>
+                            + Add Session
+                          </Button>
+                        </Box>
+                      )
+                    }
+
+                    // ── Standard weight + reps UI ──
+                    return (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '32px 1fr 1fr 64px', sm: '40px 1fr 1fr 80px' }, gap: 1, mb: 1 }}>
+                          <Typography variant="caption" sx={{ color: '#9ca3af' }}>Set</Typography>
+                          <Typography variant="caption" sx={{ color: '#9ca3af' }}>Weight (kg)</Typography>
+                          <Typography variant="caption" sx={{ color: '#9ca3af' }}>Reps</Typography>
+                          <Typography variant="caption" sx={{ color: '#9ca3af' }}></Typography>
+                        </Box>
+                        {exercise.sets.map((set, setIdx) => {
+                          const prevSet = exerciseLastSets[exercise.name]?.[setIdx];
+                          return (
+                            <Box key={setIdx} sx={{ display: 'grid', gridTemplateColumns: { xs: '24px 1fr 1fr 76px', sm: '40px 1fr 1fr 80px' }, gap: 1, mb: 1, alignItems: 'center' }}>
+                              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{setIdx + 1}</Typography>
+                              <TextField size="small" type="number" value={set.weight || ''} placeholder={prevSet?.weight ? String(prevSet.weight) : ''} onChange={e => updateSet(exIdx, setIdx, 'weight', e.target.value)} onFocus={(e) => e.target.select()}
+                                sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.1)', color: '#f9fafb', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } }, '& input': { color: '#f9fafb', textAlign: 'center' }, '& input::placeholder': { color: '#9ca3af', opacity: 1 } }}
+                              />
+                              <TextField size="small" type="number" value={set.reps || ''} placeholder={prevSet?.reps ? String(prevSet.reps) : ''} onChange={e => updateSet(exIdx, setIdx, 'reps', e.target.value)} onFocus={(e) => e.target.select()}
+                                sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.1)', color: '#f9fafb', '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' } }, '& input': { color: '#f9fafb', textAlign: 'center' }, '& input::placeholder': { color: '#9ca3af', opacity: 1 } }}
+                              />
+                              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                <IconButton size="small" onClick={() => { if (prevSet) { updateSet(exIdx, setIdx, 'weight', prevSet.weight); updateSet(exIdx, setIdx, 'reps', prevSet.reps); } }} disabled={!prevSet}
+                                  sx={{ color: prevSet ? '#10b981' : 'rgba(255,255,255,0.3)', '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.1)' } }}>
+                                  <CheckIcon fontSize="small" />
+                                </IconButton>
+                                <IconButton size="small" onClick={() => removeSet(exIdx, setIdx)} disabled={exercise.sets.length <= 1} sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                                  <CloseIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
+                            </Box>
+                          )
+                        })}
+                        <Button size="small" onClick={() => addSet(exIdx)} sx={{ color: '#60a5fa', textTransform: 'none', alignSelf: 'flex-start' }}>+ Add Set</Button>
+                      </Box>
+                    )
+                  })()}
+                </Box>
+              ))}
+
+              <Button
+                variant="outlined"
+                startIcon={<AddIcon />}
+                onClick={() => setExerciseDialogOpen(true)}
+                sx={{
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: '#ffffff',
+                  textTransform: 'none',
+                  py: 1.5,
+                  '&:hover': { borderColor: '#ffffff', bgcolor: 'rgba(255,255,255,0.1)' },
+                }}
+              >
+                Add Exercise
+              </Button>
+            </Box>
+          </Box>
+        )}
+
+        {/* Overview Tab */}
+        {activeTab === (currentWorkout ? 1 : 0) && (
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+            {/* Stats Cards */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+              <StatCard
+                icon={<FitnessCenterIcon />}
+                label="Total Workouts"
+                value={stats.totalWorkouts}
+                color="#2563eb"
+              />
+              <StatCard
+                icon={<WhatshotIcon />}
+                label="This Week"
+                value={stats.weeklyWorkouts}
+                color="#f59e0b"
+              />
+              <StatCard
+                icon={<TrendingUpIcon />}
+                label="Total Volume"
+                value={`${(stats.totalVolume / 1000).toFixed(1)}k`}
+                sublabel="kg"
+                color="#15803d"
+              />
+              <StatCard
+                icon={<CheckCircleIcon />}
+                label="Streak"
+                value={stats.currentStreak}
+                sublabel="days"
+                color="#9333ea"
+              />
+            </Box>
+
+            {/* Readiness */}
+            <Box sx={{ gridColumn: { md: '1 / -1' } }}>
+               {/* Readiness Content (already there in the file, I'll just keep it) */}
                 <Box sx={{
                   p: 3, borderRadius: 2,
                   background: readiness
@@ -2176,7 +2459,7 @@ function GymTracker() {
           )}
 
           {/* Steps Tab */}
-          {activeTab === 1 && (
+          {activeTab === (currentWorkout ? 2 : 1) && (
             <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 2, flexWrap: 'wrap' }}>
                 <Box>
@@ -2220,6 +2503,7 @@ function GymTracker() {
                   type="number"
                   value={stepsValue}
                   onChange={(e) => setStepsValue(e.target.value)}
+                  onFocus={(e) => e.target.select()}
                   size="small"
                   sx={{ width: { xs: '100%', sm: 180 } }}
                 />
@@ -2333,15 +2617,24 @@ function GymTracker() {
           )}
 
           {/* Calendar Tab */}
-          {activeTab === 2 && (
+          {activeTab === (currentWorkout ? 3 : 2) && (
             <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
               {calendarLoading && <LinearProgress sx={{ mb: 2 }} />}
-              <Calendar events={calendarEvents} compact={isMobile} onMonthChange={loadCalendarRange} />
+              <Calendar 
+                events={calendarEvents} 
+                compact={isMobile} 
+                onMonthChange={loadCalendarRange} 
+                onEventClick={(event) => {
+                  if (event.original) {
+                    editWorkout(event.original);
+                  }
+                }}
+              />
             </Box>
           )}
 
           {/* History Tab */}
-          {activeTab === 3 && (
+          {activeTab === (currentWorkout ? 4 : 3) && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {workouts.length > 0 ? (
                 workouts.map((workout, idx) => (
@@ -2404,14 +2697,25 @@ function GymTracker() {
                         ))}
                       </Box>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      {workout.exercises?.map((ex, i) => (
-                        <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #f3f4f6' }}>
-                          <Typography variant="body2">{ex.name}</Typography>
-                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                            {ex.sets?.map(s => `${s.weight}kg × ${s.reps}`).join(', ')}
-                          </Typography>
-                        </Box>
-                      ))}
+                      {workout.exercises?.map((ex, i) => {
+                        const allExercises = Object.values(EXERCISE_LIBRARY).flatMap(g => g.exercises);
+                        const exDef = allExercises.find(e => e.name === ex.name);
+                        const isCardio = exDef?.logType === 'cardio';
+
+                        return (
+                          <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #f3f4f6' }}>
+                            <Typography variant="body2">{ex.name}</Typography>
+                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                              {ex.sets?.map(s => {
+                                if (isCardio) {
+                                  return `${s.duration || 0}m` + (s.distance ? ` (${s.distance}km)` : '');
+                                }
+                                return `${s.weight}kg × ${s.reps}`;
+                              }).join(', ')}
+                            </Typography>
+                          </Box>
+                        );
+                      })}
                     </Box>
                   </Box>
                 ))
@@ -2428,35 +2732,37 @@ function GymTracker() {
               )}
             </Box>
           )}
-        </>
-      )}
+      </Box>
 
       {currentWorkout && isMobile && (
         <Box
           sx={{
-            position: 'sticky',
-            bottom: 8,
-            zIndex: 20,
-            mt: 2,
-            p: 1,
-            borderRadius: 2,
-            border: '1px solid #d1d5db',
-            bgcolor: 'rgba(17, 17, 17, 0.96)',
+            position: 'fixed',
+            bottom: 16,
+            left: 16,
+            right: 16,
+            zIndex: 50,
+            p: 1.5,
+            borderRadius: 3,
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            bgcolor: 'rgba(17, 17, 17, 0.95)',
+            backdropFilter: 'blur(12px)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
             display: 'flex',
-            gap: 1,
+            gap: 1.5,
           }}
         >
           <Button
             variant="outlined"
             onClick={() => setExerciseDialogOpen(true)}
             fullWidth
-            sx={{ borderColor: 'rgba(255,255,255,0.35)', color: 'background.paper', textTransform: 'none' }}
+            sx={{ borderColor: 'rgba(255,255,255,0.35)', color: '#ffffff', textTransform: 'none' }}
           >
             Add Exercise
           </Button>
           <Button
             variant="contained"
-            onClick={finishWorkout}
+            onClick={handleFinishWorkout}
             fullWidth
             sx={{ bgcolor: '#15803d', textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: '#166534' } }}
           >
@@ -2542,7 +2848,11 @@ function GymTracker() {
               label="Hours"
               type="number"
               value={editTimerHours}
-              onChange={(e) => setEditTimerHours(Math.max(0, parseInt(e.target.value) || 0))}
+              onChange={(e) => {
+                const val = e.target.value.replace(/^0+/, '')
+                setEditTimerHours(val === '' ? 0 : parseInt(val))
+              }}
+              onFocus={(e) => e.target.select()}
               inputProps={{ min: 0 }}
               sx={{ width: '80px' }}
             />
@@ -2550,7 +2860,11 @@ function GymTracker() {
               label="Minutes"
               type="number"
               value={editTimerMinutes}
-              onChange={(e) => setEditTimerMinutes(Math.max(0, parseInt(e.target.value) || 0))}
+              onChange={(e) => {
+                const val = e.target.value.replace(/^0+/, '')
+                setEditTimerMinutes(val === '' ? 0 : Math.min(59, parseInt(val)))
+              }}
+              onFocus={(e) => e.target.select()}
               inputProps={{ min: 0, max: 59 }}
               sx={{ width: '80px' }}
             />
@@ -2558,7 +2872,11 @@ function GymTracker() {
               label="Seconds"
               type="number"
               value={editTimerSeconds}
-              onChange={(e) => setEditTimerSeconds(Math.max(0, parseInt(e.target.value) || 0))}
+              onChange={(e) => {
+                const val = e.target.value.replace(/^0+/, '')
+                setEditTimerSeconds(val === '' ? 0 : Math.min(59, parseInt(val)))
+              }}
+              onFocus={(e) => e.target.select()}
               inputProps={{ min: 0, max: 59 }}
               sx={{ width: '80px' }}
             />
@@ -2698,7 +3016,14 @@ function GymTracker() {
                             Set {setIdx + 1}
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {set.weight}kg × {set.reps}
+                            {(() => {
+                              const allExercises = Object.values(EXERCISE_LIBRARY).flatMap(g => g.exercises);
+                              const exDef = allExercises.find(e => e.name === ex.name);
+                              if (exDef?.logType === 'cardio') {
+                                return `${set.duration || 0}m` + (set.distance ? ` @ ${set.distance}km` : '');
+                              }
+                              return `${set.weight}kg × ${set.reps}`;
+                            })()}
                           </Typography>
                         </Box>
                       ))}

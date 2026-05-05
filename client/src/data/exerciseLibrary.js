@@ -152,14 +152,154 @@ export const EXERCISE_LIBRARY = {
     label: 'Cardio',
     color: '#f97316',
     exercises: [
-      { name: 'Running', type: 'Cardio', equipment: 'BW', primary: 'Cardiovascular System', difficulty: 'Beginner' },
-      { name: 'Cycling', type: 'Cardio', equipment: 'MC', primary: 'Cardiovascular System', difficulty: 'Beginner' },
-      { name: 'Rowing', type: 'Cardio', equipment: 'MC', primary: 'Cardiovascular System', difficulty: 'Beginner' },
-      { name: 'Jump Rope', type: 'Cardio', equipment: 'BW', primary: 'Cardiovascular System', difficulty: 'Beginner' },
-      { name: 'Stair Climber', type: 'Cardio', equipment: 'MC', primary: 'Cardiovascular System', difficulty: 'Beginner' },
-      { name: 'Elliptical', type: 'Cardio', equipment: 'MC', primary: 'Cardiovascular System', difficulty: 'Beginner' },
-      { name: 'Swimming', type: 'Cardio', equipment: 'BW', primary: 'Cardiovascular System', difficulty: 'Beginner' },
-      { name: 'HIIT', type: 'Cardio', equipment: 'Mixed', primary: 'Cardiovascular System', difficulty: 'Intermediate' }
+      {
+        name: 'Treadmill',
+        type: 'Cardio', equipment: 'MC', primary: 'Cardiovascular System', difficulty: 'Beginner',
+        logType: 'cardio',
+        notes: 'Best for steady-state and interval cardio. Use incline to increase calorie burn without speed.',
+        logFields: [
+          { key: 'duration', label: 'Duration', unit: 'min', inputType: 'number' },
+          { key: 'speed', label: 'Speed', unit: 'km/h', inputType: 'number' },
+          { key: 'incline', label: 'Incline', unit: '%', inputType: 'number' },
+          { key: 'distance', label: 'Distance', unit: 'km', inputType: 'number' },
+          { key: 'calories', label: 'Calories', unit: 'kcal', inputType: 'number' },
+        ]
+      },
+      {
+        name: 'Outdoor Running',
+        type: 'Cardio', equipment: 'BW', primary: 'Cardiovascular System', difficulty: 'Beginner',
+        logType: 'cardio',
+        notes: 'Track pace and distance. Zone 2 running (conversational pace) is best for fat loss and aerobic base.',
+        logFields: [
+          { key: 'duration', label: 'Duration', unit: 'min', inputType: 'number' },
+          { key: 'distance', label: 'Distance', unit: 'km', inputType: 'number' },
+          { key: 'pace', label: 'Pace', unit: 'min/km', inputType: 'text' },
+          { key: 'heartRate', label: 'Avg HR', unit: 'bpm', inputType: 'number' },
+        ]
+      },
+      {
+        name: 'Stationary Bike',
+        type: 'Cardio', equipment: 'MC', primary: 'Cardiovascular System', difficulty: 'Beginner',
+        logType: 'cardio',
+        notes: 'Low impact. Resistance levels vary by machine. Aim for 80–100 RPM for endurance.',
+        logFields: [
+          { key: 'duration', label: 'Duration', unit: 'min', inputType: 'number' },
+          { key: 'resistance', label: 'Resistance', unit: 'level', inputType: 'number' },
+          { key: 'rpm', label: 'RPM', unit: 'rpm', inputType: 'number' },
+          { key: 'distance', label: 'Distance', unit: 'km', inputType: 'number' },
+          { key: 'calories', label: 'Calories', unit: 'kcal', inputType: 'number' },
+        ]
+      },
+      {
+        name: 'Rowing Machine',
+        type: 'Cardio', equipment: 'MC', primary: 'Cardiovascular System', difficulty: 'Beginner',
+        logType: 'cardio',
+        notes: 'Full body cardio. Drive with legs (60%), lean back (20%), arms (20%). Target 24–28 strokes/min.',
+        logFields: [
+          { key: 'duration', label: 'Duration', unit: 'min', inputType: 'number' },
+          { key: 'distance', label: 'Distance', unit: 'm', inputType: 'number' },
+          { key: 'strokeRate', label: 'Stroke Rate', unit: 's/m', inputType: 'number' },
+          { key: 'resistance', label: 'Resistance', unit: 'level', inputType: 'number' },
+          { key: 'calories', label: 'Calories', unit: 'kcal', inputType: 'number' },
+        ]
+      },
+      {
+        name: 'Elliptical',
+        type: 'Cardio', equipment: 'MC', primary: 'Cardiovascular System', difficulty: 'Beginner',
+        logType: 'cardio',
+        notes: 'Zero impact. Use incline and resistance for intensity. Great for active recovery.',
+        logFields: [
+          { key: 'duration', label: 'Duration', unit: 'min', inputType: 'number' },
+          { key: 'resistance', label: 'Resistance', unit: 'level', inputType: 'number' },
+          { key: 'incline', label: 'Incline', unit: 'level', inputType: 'number' },
+          { key: 'strides', label: 'Strides/Min', unit: 'spm', inputType: 'number' },
+          { key: 'calories', label: 'Calories', unit: 'kcal', inputType: 'number' },
+        ]
+      },
+      {
+        name: 'Stair Climber',
+        type: 'Cardio', equipment: 'MC', primary: 'Cardiovascular System', difficulty: 'Intermediate',
+        logType: 'cardio',
+        notes: 'High glute and quad activation. Don\'t lean on handles — it reduces calorie burn by 30%.',
+        logFields: [
+          { key: 'duration', label: 'Duration', unit: 'min', inputType: 'number' },
+          { key: 'speed', label: 'Speed', unit: 'steps/min', inputType: 'number' },
+          { key: 'floors', label: 'Floors', unit: 'floors', inputType: 'number' },
+          { key: 'calories', label: 'Calories', unit: 'kcal', inputType: 'number' },
+        ]
+      },
+      {
+        name: 'Jump Rope',
+        type: 'Cardio', equipment: 'BW', primary: 'Cardiovascular System', difficulty: 'Beginner',
+        logType: 'cardio',
+        notes: 'Excellent calorie burn (600–1000 kcal/hr). Start with 30s on / 30s off intervals.',
+        logFields: [
+          { key: 'duration', label: 'Duration', unit: 'min', inputType: 'number' },
+          { key: 'rounds', label: 'Rounds', unit: 'rounds', inputType: 'number' },
+          { key: 'jumps', label: 'Total Jumps', unit: 'reps', inputType: 'number' },
+        ]
+      },
+      {
+        name: 'Swimming',
+        type: 'Cardio', equipment: 'BW', primary: 'Cardiovascular System', difficulty: 'Intermediate',
+        logType: 'cardio',
+        notes: 'Zero joint stress. Freestyle is most efficient. Track laps and stroke type.',
+        logFields: [
+          { key: 'duration', label: 'Duration', unit: 'min', inputType: 'number' },
+          { key: 'laps', label: 'Laps', unit: 'laps', inputType: 'number' },
+          { key: 'distance', label: 'Distance', unit: 'm', inputType: 'number' },
+          { key: 'stroke', label: 'Stroke', unit: '', inputType: 'text' },
+        ]
+      },
+      {
+        name: 'Assault Bike',
+        type: 'Cardio', equipment: 'MC', primary: 'Cardiovascular System', difficulty: 'Intermediate',
+        logType: 'cardio',
+        notes: 'Full body. Arm push/pull + legs. The hardest cardio machine. 10-20s all-out intervals are brutal.',
+        logFields: [
+          { key: 'duration', label: 'Duration', unit: 'min', inputType: 'number' },
+          { key: 'calories', label: 'Calories', unit: 'kcal', inputType: 'number' },
+          { key: 'rpm', label: 'Avg RPM', unit: 'rpm', inputType: 'number' },
+          { key: 'distance', label: 'Distance', unit: 'km', inputType: 'number' },
+        ]
+      },
+      {
+        name: 'Battle Ropes',
+        type: 'Cardio', equipment: 'BW', primary: 'Cardiovascular System', difficulty: 'Intermediate',
+        logType: 'cardio',
+        notes: 'Upper body dominant cardio. Alternating waves = endurance. Slams = power.',
+        logFields: [
+          { key: 'duration', label: 'Duration', unit: 'min', inputType: 'number' },
+          { key: 'rounds', label: 'Rounds', unit: 'rounds', inputType: 'number' },
+          { key: 'workTime', label: 'Work Time', unit: 's', inputType: 'number' },
+          { key: 'restTime', label: 'Rest Time', unit: 's', inputType: 'number' },
+        ]
+      },
+      {
+        name: 'HIIT',
+        type: 'Cardio', equipment: 'Mixed', primary: 'Cardiovascular System', difficulty: 'Intermediate',
+        logType: 'cardio',
+        notes: '20–40s all-out, 10–20s rest. EPOC effect burns calories for 24–48hrs post workout.',
+        logFields: [
+          { key: 'duration', label: 'Total Duration', unit: 'min', inputType: 'number' },
+          { key: 'rounds', label: 'Rounds', unit: 'rounds', inputType: 'number' },
+          { key: 'workTime', label: 'Work Time', unit: 's', inputType: 'number' },
+          { key: 'restTime', label: 'Rest Time', unit: 's', inputType: 'number' },
+          { key: 'calories', label: 'Calories', unit: 'kcal', inputType: 'number' },
+        ]
+      },
+      {
+        name: 'Walking',
+        type: 'Cardio', equipment: 'BW', primary: 'Cardiovascular System', difficulty: 'Beginner',
+        logType: 'cardio',
+        notes: 'Most underrated fat-loss tool. 10,000 steps = ~400–500 kcal. Incline multiplies burn.',
+        logFields: [
+          { key: 'duration', label: 'Duration', unit: 'min', inputType: 'number' },
+          { key: 'distance', label: 'Distance', unit: 'km', inputType: 'number' },
+          { key: 'steps', label: 'Steps', unit: 'steps', inputType: 'number' },
+          { key: 'incline', label: 'Incline', unit: '%', inputType: 'number' },
+        ]
+      },
     ]
   }
 };

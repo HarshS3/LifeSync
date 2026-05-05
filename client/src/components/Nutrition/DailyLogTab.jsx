@@ -11,6 +11,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import CloseIcon from '@mui/icons-material/Close'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import ExpandableSection from '../ExpandableSection'
+import InsulinIntelligencePanel from './InsulinIntelligencePanel'
 import { fmt, percent, generateCGMData } from '../../lib/nutritionHelpers'
 
 function DailyLogTab({
@@ -372,6 +373,9 @@ function DailyLogTab({
           </ResponsiveContainer>
         </Box>
       </Box>
+
+      {/* Insulin Intelligence Panel */}
+      <InsulinIntelligencePanel meals={log.meals} />
 
       {/* AI insight + hydration */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>

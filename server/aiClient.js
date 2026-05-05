@@ -488,10 +488,105 @@ async function analyzeImageWithGemini(imageBase64, mimeType, prompt) {
   }
 }
 
+async function generateFoodNutrients(foodName) {
+  if (!foodName) return null;
+  if (!GEMINI_API_KEY) return null;
+
+  const system = [
+    'You are LifeSync Nutrition Expert.',
+    'Provide a comprehensive nutritional profile per 100g for the given food item.',
+    'Return STRICT JSON ONLY with the following keys where applicable:',
+    'energy_kcal, protein_g, carb_g, fat_g, freesugar_g, fibre_g, sfa_mg, mufa_mg, pufa_mg, cholesterol_mg, calcium_mg, phosphorus_mg, magnesium_mg, sodium_mg, potassium_mg, iron_mg, copper_mg, selenium_ug, chromium_mg, manganese_mg, molybdenum_mg, zinc_mg, vita_ug, vite_mg, vitd2_ug, vitd3_ug, vitk1_ug, vitk2_ug, folate_ug, vitb1_mg, vitb2_mg, vitb3_mg, vitb5_mg, vitb6_mg, vitb7_ug, vitb9_ug, vitc_mg, carotenoids_ug.',
+    'Use numeric values only. If a nutrient is not present or unknown, use 0.',
+    'Do not include any text outside the JSON block.',
+  ].join('\n');
+
+  const user = `Food: ${foodName}`;
+
+  const clean = (s) => {
+    if (!s) return null;
+    try {
+      const start = s.indexOf('{');
+      const end = s.lastIndexOf('}')
+      if (start >= 0 && end > start) {
+        return JSON.parse(s.slice(start, end + 1));
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: system + '\n\n' + user }] }],
+        generationConfig: { temperature: 0, response_mime_type: 'application/json' }
+      })
+    });
+    const dt = await res.json();
+    return clean(dt.candidates?.[0]?.content?.parts?.[0]?.text);
+  } catch (err) {
+    console.error('[AI] generateFoodNutrients error:', err);
+  }
+  return null;
+}
+
+async function generateExerciseAnalysis({ exerciseName, history, stats }) {
+  if (!GEMINI_API_KEY) return null;
+
+  const system = [
+    'You are LifeSync Strength & Conditioning Coach.',
+    'Analyze the provided exercise history and stats.',
+    'Identify if the user is gaining strength, losing performance, or plateauing.',
+    'Provide a concise explanation of WHY this might be happening (e.g., volume drop, frequency, RPE patterns).',
+    'Suggest 2-3 specific, actionable steps to solve plateaus or continue progress.',
+    'Be professional, motivating, and science-based.',
+    'Return STRICT JSON ONLY with the following schema:',
+    '{"status": "gaining" | "losing" | "plateauing", "explanation": string, "recommendations": string[]}',
+  ].join('\n');
+
+  const user = `Exercise: ${exerciseName}\nStats: ${JSON.stringify(stats)}\nRecent History: ${JSON.stringify(history.slice(0, 10))}`;
+
+  const clean = (s) => {
+    if (!s) return null;
+    try {
+      const start = s.indexOf('{');
+      const end = s.lastIndexOf('}')
+      if (start >= 0 && end > start) {
+        return JSON.parse(s.slice(start, end + 1));
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: system + '\n\n' + user }] }],
+        generationConfig: { temperature: 0.2, response_mime_type: 'application/json' }
+      })
+    });
+    const dt = await res.json();
+    return clean(dt.candidates?.[0]?.content?.parts?.[0]?.text);
+  } catch (err) {
+    console.error('[AI] generateExerciseAnalysis error:', err);
+  }
+  return null;
+}
+
 module.exports = { 
   generateLLMReply, 
   generateNutritionSemanticJson, 
   generateNutritionHypothesisJson, 
   estimateMissingMicronutrients,
-  analyzeImageWithGemini
+  analyzeImageWithGemini,
+  generateFoodNutrients,
+  generateExerciseAnalysis
 }

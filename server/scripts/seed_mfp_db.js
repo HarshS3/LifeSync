@@ -74,7 +74,14 @@ async function seedMfpFoods() {
         if (mfpColName && r[mfpColName]) {
           let csvVal = r[mfpColName].trim();
           if (csvVal && csvVal !== '--' && csvVal !== 'NaN') {
-            value = csvVal; // Preserve the exact string/number from CSV (like "5 g", "10 %")
+            value = csvVal; 
+            // Normalize fat breakdown to mg if they are in 'g' in CSV
+            if (['sfa_mg', 'mufa_mg', 'pufa_mg'].includes(key)) {
+               const numeric = parseFloat(csvVal);
+               if (!isNaN(numeric)) {
+                 value = String(Math.round(numeric * 1000));
+               }
+            }
           }
         }
         

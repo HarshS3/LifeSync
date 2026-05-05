@@ -29,6 +29,7 @@ import MenuIcon from '@mui/icons-material/Menu'
 import { Toaster } from 'react-hot-toast'
 
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
+import { WorkoutProvider, useWorkout } from './context/WorkoutContext.jsx'
 import AuthPage from './components/AuthPage.jsx'
 import ForgotPassword from './components/ForgotPassword.jsx'
 import ResetPassword from './components/ResetPassword.jsx'
@@ -69,9 +70,81 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppContent />
+        <WorkoutProvider>
+          <AppContent />
+        </WorkoutProvider>
       </AuthProvider>
     </BrowserRouter>
+  )
+}
+
+function ActiveWorkoutBanner() {
+  const { currentWorkout, elapsedTime } = useWorkout()
+  const navigate = useNavigate()
+  const location = useLocation()
+  
+  if (!currentWorkout || location.pathname.startsWith('/logs')) return null
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  return (
+    <Box
+      onClick={() => navigate('/logs')}
+      sx={{
+        position: 'fixed',
+        bottom: 24,
+        right: 24,
+        bgcolor: '#111827',
+        color: '#ffffff',
+        p: 2,
+        borderRadius: 3,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        boxShadow: '0 10px 25px -3px rgba(0,0,0,0.3)',
+        cursor: 'pointer',
+        zIndex: 2000,
+        border: '1px solid rgba(255,255,255,0.1)',
+        transition: 'all 0.2s ease',
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.4)',
+          borderColor: '#3b82f6'
+        }
+      }}
+    >
+      <Box
+        sx={{
+          width: 40,
+          height: 40,
+          borderRadius: '50%',
+          bgcolor: 'rgba(59, 130, 246, 0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#3b82f6'
+        }}
+      >
+        <FitnessCenterIcon />
+      </Box>
+      <Box>
+        <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600, display: 'block', lineHeight: 1 }}>
+          ACTIVE SESSION
+        </Typography>
+        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+          {currentWorkout.name || 'Workout'}
+        </Typography>
+      </Box>
+      <Box sx={{ ml: 1, pl: 2, borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
+        <Typography variant="h6" sx={{ fontFamily: 'monospace', fontWeight: 700, color: '#f59e0b' }}>
+          {formatTime(elapsedTime)}
+        </Typography>
+      </Box>
+    </Box>
   )
 }
 
@@ -311,6 +384,7 @@ function AppContent() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Toaster position="bottom-center" />
+      <ActiveWorkoutBanner />
       
       <Box sx={{ display: 'flex', minHeight: '100vh' }}>
         {/* Sidebar (desktop) */}

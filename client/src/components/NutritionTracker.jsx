@@ -4,6 +4,7 @@ import SupplementSection from './Nutrition/SupplementSection'
 import RecipeExplorer from './RecipeExplorer'
 import KitchenInventory from './KitchenInventory'
 import WeeklyReview from './WeeklyReview'
+import InsulinIntelligencePanel from './Nutrition/InsulinIntelligencePanel'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import Box from '@mui/material/Box'
@@ -174,7 +175,7 @@ const MACRO_FIELD_META = [
   { key: 'fat', label: 'Fat', unit: 'g' },
   { key: 'fiber', label: 'Fiber', unit: 'g' },
   { key: 'sugar', label: 'Sugar', unit: 'g' },
-  { key: 'omega3', label: 'Omega-3', unit: 'g' },
+  { key: 'omega3', label: 'Omega-3', unit: 'mg' },
   { key: 'saturatedFat', label: 'Sat. fat', unit: 'g' },
   { key: 'monounsaturatedFat', label: 'MUFA', unit: 'g' },
   { key: 'polyunsaturatedFat', label: 'PUFA', unit: 'g' },
@@ -326,10 +327,11 @@ function NutritionTracker() {
 
 
 
-  const [mfpSearchQuery, setMfpSearchQuery] = useState('')
-  const [mfpResults, setMfpResults] = useState([])
-  const [mfpLoading, setMfpLoading] = useState(false)
-  const [addingMfpFoodId, setAddingMfpFoodId] = useState(null)
+  const [externalSearchQuery, setExternalSearchQuery] = useState('')
+  const [externalResults, setExternalResults] = useState([])
+  const [externalLoading, setExternalLoading] = useState(false)
+  const [addingExternalFoodId, setAddingExternalFoodId] = useState(null)
+  const [selectedExternalFoodForDetails, setSelectedExternalFoodForDetails] = useState(null)
 
   const [foodAnalysis, setFoodAnalysis] = useState(null)
   const [foodAnalysisLoading, setFoodAnalysisLoading] = useState(false)
@@ -878,10 +880,19 @@ function NutritionTracker() {
   }
 
 
+  const toDateKey = (date) => {
+    if (!date) return ''
+    const d = new Date(date)
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
   const fetchTimingAnalysis = async (date) => {
     if (!token) return
     try {
-      const dateStr = date.toISOString().split('T')[0]
+      const dateStr = toDateKey(date)
       const res = await fetch(`${API_BASE}/api/nutrition/timing-analysis/${dateStr}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -897,7 +908,7 @@ function NutritionTracker() {
   const loadDay = async () => {
     setLoading(true)
     try {
-      const dateStr = selectedDate.toISOString()
+      const dateStr = toDateKey(selectedDate)
       fetchTimingAnalysis(selectedDate)
       if (!user || !user._id) {
         setLog({ meals: [], waterIntake: 0, dailyTotals: { ...EMPTY_TOTALS }, notes: '' })
@@ -1283,7 +1294,6 @@ function NutritionTracker() {
   }
 
   const addMealToDay = () => {
-    // Meal name is now optional for logging, defaults to mealType
     const finalName = newMeal.name.trim() || (newMeal.mealType.charAt(0).toUpperCase() + newMeal.mealType.slice(1))
 
     const foods = newMeal.foods.map(f => ({
@@ -1308,30 +1318,23 @@ function NutritionTracker() {
       notes: newMeal.notes,
     }
 
-    let updatedLog = null
-    setLog(prev => {
-      updatedLog = {
-        ...prev,
-        meals: [...(prev.meals || []), meal],
-      }
-      return updatedLog
-    })
-
+    const updatedLog = {
+      ...log,
+      meals: [...(log.meals || []), meal],
+    }
+    setLog(updatedLog)
     resetNewMeal()
-    if (updatedLog) autoSaveLog(updatedLog)
+    autoSaveLog(updatedLog)
   }
 
   const removeMealFromDay = (indexToRemove) => {
-    let updatedLog = null
-    setLog(prev => {
-      if (!prev.meals) return prev
-      updatedLog = {
-        ...prev,
-        meals: prev.meals.filter((_, i) => i !== indexToRemove),
-      }
-      return updatedLog
-    })
-    if (updatedLog) autoSaveLog(updatedLog)
+    if (!log.meals) return
+    const updatedLog = {
+      ...log,
+      meals: log.meals.filter((_, i) => i !== indexToRemove),
+    }
+    setLog(updatedLog)
+    autoSaveLog(updatedLog)
   }
 
   const editMealFromDay = (indexToEdit) => {
@@ -1351,15 +1354,12 @@ function NutritionTracker() {
   }
 
   const handleWaterChange = (delta) => {
-    let updatedLog = null
-    setLog(prev => {
-      updatedLog = {
-        ...prev,
-        waterIntake: Math.max(0, (prev.waterIntake || 0) + delta),
-      }
-      return updatedLog
-    })
-    if (updatedLog) autoSaveLog(updatedLog)
+    const updatedLog = {
+      ...log,
+      waterIntake: Math.max(0, (log.waterIntake || 0) + delta),
+    }
+    setLog(updatedLog)
+    autoSaveLog(updatedLog)
   }
 
   const handleSaveTemplate = async () => {
@@ -1405,7 +1405,7 @@ function NutritionTracker() {
     if (!token) return
     try {
       const payload = {
-        date: selectedDate.toISOString(),
+        date: toDateKey(selectedDate),
         meals: dataToSave.meals,
         waterIntake: dataToSave.waterIntake || 0,
         notes: dataToSave.notes,
@@ -1422,8 +1422,7 @@ function NutritionTracker() {
         const saved = await res.json()
         setLog(prev => ({
           ...prev,
-          _id: saved._id,
-          dailyTotals: saved.dailyTotals || { ...EMPTY_TOTALS },
+          ...saved,
         }))
       }
     } catch (e) {
@@ -1486,9 +1485,9 @@ function NutritionTracker() {
 
         const unit =
           targetKey === 'calories' ? 'kcal' :
-          targetKey === 'omega3' ? 'mg' :
+          targetKey === 'omega3' || targetKey === 'cholesterol' ? 'mg' :
           ['vitaminD', 'vitaminA', 'folate', 'selenium', 'vitaminB12'].includes(targetKey) ? 'ug' :
-          ['protein', 'fat', 'carbs', 'fiber', 'sugar'].includes(targetKey) ? 'g' : 'mg'
+          ['protein', 'fat', 'carbs', 'fiber', 'sugar', 'saturatedFat'].includes(targetKey) ? 'g' : 'mg'
 
         const currentValue = Number(totals?.[totalKey] || 0)
         return {
@@ -1668,28 +1667,28 @@ function NutritionTracker() {
     }
   }
 
-  const handleMfpSearch = async () => {
-    if (!mfpSearchQuery.trim()) return
-    setMfpLoading(true)
+  const handleExternalSearch = async () => {
+    if (!externalSearchQuery.trim()) return
+    setExternalLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/api/nutrition/mfp/search?q=${encodeURIComponent(mfpSearchQuery)}`, {
+      const res = await fetch(`${API_BASE}/api/nutrition/external/search?q=${encodeURIComponent(externalSearchQuery)}`, {
         headers: getAuthHeaders()
       })
-      if (!res.ok) throw new Error('MFP search failed')
+      if (!res.ok) throw new Error('External search failed')
       const data = await res.json()
-      setMfpResults(data)
+      setExternalResults(data)
     } catch (err) {
       console.error(err)
-      alert('Failed to search MyFitnessPal. Try again.')
+      alert('Failed to search external databases. Try again.')
     } finally {
-      setMfpLoading(false)
+      setExternalLoading(false)
     }
   }
 
-  const handleAddMfpFoodToDb = async (food) => {
-    setAddingMfpFoodId(food.id)
+  const handleAddExternalFoodToDb = async (food) => {
+    setAddingExternalFoodId(food.id)
     try {
-      const res = await fetch(`${API_BASE}/api/nutrition/mfp/add`, {
+      const res = await fetch(`${API_BASE}/api/nutrition/external/add`, {
         method: 'POST',
         headers: {
           ...getAuthHeaders(),
@@ -1703,7 +1702,7 @@ function NutritionTracker() {
       console.error(err)
       alert('Failed to add food to database.')
     } finally {
-      setAddingMfpFoodId(null)
+      setAddingExternalFoodId(null)
     }
   }
 
@@ -2137,6 +2136,9 @@ function NutritionTracker() {
               </ResponsiveContainer>
             </Box>
           </Box>
+
+          {/* Insulin Intelligence Panel */}
+          <InsulinIntelligencePanel meals={log.meals} />
 
           {/* ── AI insight + hydration ── */}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
@@ -2919,15 +2921,12 @@ function NutritionTracker() {
               minRows={6}
               value={log.notes || ''}
               onChange={(e) => {
-                let updatedLog = null
-                setLog(prev => {
-                  updatedLog = {
-                    ...prev,
-                    notes: e.target.value
-                  }
-                  return updatedLog
-                })
-                if (updatedLog) autoSaveLog(updatedLog)
+                const updatedLog = {
+                  ...log,
+                  notes: e.target.value
+                }
+                setLog(updatedLog)
+                autoSaveLog(updatedLog)
               }}
               fullWidth
             />
@@ -3418,10 +3417,10 @@ function NutritionTracker() {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-              Search & Import from MyFitnessPal
+              Global Food Search & Import
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-              Find any dish or ingredient globally. Items you add will be saved to your local database for future searches.
+              Generate precise nutritional profiles using Gemini AI or search Open Food Facts. Items you add will be saved to your local database.
             </Typography>
             
             <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
@@ -3429,27 +3428,27 @@ function NutritionTracker() {
                 fullWidth
                 label="Search Food Name"
                 placeholder="e.g. Homemade Paneer Butter Masala"
-                value={mfpSearchQuery}
-                onChange={(e) => setMfpSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleMfpSearch()}
+                value={externalSearchQuery}
+                onChange={(e) => setExternalSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleExternalSearch()}
                 size="small"
               />
               <Button
                 variant="contained"
-                onClick={handleMfpSearch}
-                disabled={mfpLoading}
+                onClick={handleExternalSearch}
+                disabled={externalLoading}
                 sx={{ px: 4 }}
               >
-                {mfpLoading ? 'Searching...' : 'Search'}
+                {externalLoading ? 'Searching...' : 'Search'}
               </Button>
             </Box>
 
-            {mfpResults.length > 0 && (
+            {externalResults.length > 0 && (
               <Stack spacing={2} sx={{ mt: 3 }}>
                 <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>
-                  Top Search Results
+                  Top Search Results (AI + OpenFoodFacts)
                 </Typography>
-                {mfpResults.map((res) => (
+                {externalResults.map((res) => (
                   <Box
                     key={res.id}
                     sx={{
@@ -3457,17 +3456,19 @@ function NutritionTracker() {
                       borderRadius: 1.5,
                       border: '1px solid #e5e7eb',
                       display: 'flex',
+                      flexDirection: { xs: 'column', sm: 'row' },
                       justifyContent: 'space-between',
-                      alignItems: 'center',
+                      alignItems: { xs: 'flex-start', sm: 'center' },
                       bgcolor: 'action.hover',
                       transition: 'all 0.2s ease',
+                      gap: 2,
                       '&:hover': { borderColor: 'primary.main', transform: 'translateY(-1px)', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }
                     }}
                   >
-                    <Box>
+                    <Box sx={{ flex: 1 }}>
                       <Typography variant="body1" sx={{ fontWeight: 600 }}>{res.displayName}</Typography>
                       <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                        {res.brand && `${res.brand} · `} {res.calories} kcal · {res.servingQty} {res.servingUnit}
+                        {res.brand && `${res.brand} · `} {res.source && `${res.source} · `} {res.calories} kcal · {res.servingQty} {res.servingUnit}
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
                         <Chip label={`P: ${res.protein}g`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
@@ -3475,31 +3476,111 @@ function NutritionTracker() {
                         <Chip label={`F: ${res.fat}g`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
                       </Box>
                     </Box>
-                    <Button
-                      variant="contained"
-                      size="small"
-                      color="primary"
-                      onClick={() => handleAddMfpFoodToDb(res)}
-                      disabled={addingMfpFoodId === res.id}
-                      startIcon={addingMfpFoodId === res.id ? null : <RestaurantIcon sx={{ fontSize: 14 }} />}
-                    >
-                      {addingMfpFoodId === res.id ? 'Adding...' : 'Add to DB'}
-                    </Button>
+                    <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', sm: 'auto' } }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => setSelectedExternalFoodForDetails(res)}
+                        sx={{ flex: { xs: 1, sm: 'none' } }}
+                      >
+                        View Details
+                      </Button>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        color="primary"
+                        onClick={() => handleAddExternalFoodToDb(res)}
+                        disabled={addingExternalFoodId === res.id}
+                        startIcon={addingExternalFoodId === res.id ? null : <RestaurantIcon sx={{ fontSize: 14 }} />}
+                        sx={{ flex: { xs: 1, sm: 'none' } }}
+                      >
+                        {addingExternalFoodId === res.id ? 'Adding...' : 'Add to DB'}
+                      </Button>
+                    </Box>
                   </Box>
                 ))}
               </Stack>
             )}
 
-            {mfpResults.length === 0 && !mfpLoading && mfpSearchQuery && (
+            {externalResults.length === 0 && !externalLoading && externalSearchQuery && (
               <Box sx={{ py: 4, textAlign: 'center' }}>
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  Search for a food item above to start importing.
+                  No results found. Try a different search term.
                 </Typography>
               </Box>
             )}
           </Box>
         </Box>
       )}
+
+      {/* External Food Details Dialog */}
+      <Dialog 
+        open={!!selectedExternalFoodForDetails} 
+        onClose={() => setSelectedExternalFoodForDetails(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {selectedExternalFoodForDetails?.displayName}
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedExternalFoodForDetails && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Base Macros (per {selectedExternalFoodForDetails.servingQty}{selectedExternalFoodForDetails.servingUnit})</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1 }}>
+                  {[
+                    { label: 'Calories', val: selectedExternalFoodForDetails.calories, unit: 'kcal' },
+                    { label: 'Protein', val: selectedExternalFoodForDetails.protein, unit: 'g' },
+                    { label: 'Carbs', val: selectedExternalFoodForDetails.carbs, unit: 'g' },
+                    { label: 'Fat', val: selectedExternalFoodForDetails.fat, unit: 'g' },
+                  ].map(m => (
+                    <Box key={m.label} sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1, textAlign: 'center' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>{m.label}</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{m.val}{m.unit}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+
+              <Divider />
+
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Full Nutrient Profile</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: x => 1 }}>
+                  {Object.entries(selectedExternalFoodForDetails.nutrients || {}).map(([key, val]) => {
+                    if (val === 0 || val === null || val === undefined) return null;
+                    const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    return (
+                      <Box key={key} sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed', borderColor: 'divider', py: 0.5, px: 0.5 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>{label}</Typography>
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>{val}</Typography>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              </Box>
+              
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic', mt: 1 }}>
+                Source: {selectedExternalFoodForDetails.source}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectedExternalFoodForDetails(null)}>Close</Button>
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={() => {
+              handleAddExternalFoodToDb(selectedExternalFoodForDetails);
+              setSelectedExternalFoodForDetails(null);
+            }}
+          >
+            Add to Database
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

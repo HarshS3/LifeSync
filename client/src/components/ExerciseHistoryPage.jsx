@@ -8,15 +8,21 @@ import CardContent from '@mui/material/CardContent'
 import LinearProgress from '@mui/material/LinearProgress'
 import Chip from '@mui/material/Chip'
 import IconButton from '@mui/material/IconButton'
+import Stack from '@mui/material/Stack'
 import useMediaQuery from '@mui/material/useMediaQuery'
 import { useTheme } from '@mui/material/styles'
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import TrendingDownIcon from '@mui/icons-material/TrendingDown'
+import TrendingFlatIcon from '@mui/icons-material/TrendingFlat'
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
+import TipsAndUpdatesIcon from '@mui/icons-material/TipsAndUpdates'
+import WhatshotIcon from '@mui/icons-material/Whatshot'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  BarChart, Bar, Legend, ComposedChart
+  BarChart, Bar, Legend, ComposedChart, Area, AreaChart
 } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
@@ -33,7 +39,10 @@ function ExerciseHistoryPage() {
   const [loading, setLoading] = useState(true)
   const [history, setHistory] = useState([])
   const [stats, setStats] = useState(null)
-  const [chartView, setChartView] = useState('weight') // 'weight', 'volume', 'rpe'
+  const [chartView, setChartView] = useState('weight') // 'weight', '1rm', 'volume', 'rpe'
+  
+  const [aiAnalysis, setAiAnalysis] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
 
   useEffect(() => {
     loadExerciseHistory()
@@ -49,6 +58,9 @@ function ExerciseHistoryPage() {
         const data = await res.json()
         setHistory(data.history || [])
         setStats(data.stats || null)
+        
+        // After loading history, fetch AI analysis
+        fetchAiAnalysis(data.history, data.stats)
       }
     } catch (err) {
       console.error('Failed to load exercise history:', err)
@@ -58,22 +70,72 @@ function ExerciseHistoryPage() {
     }
   }
 
+  const fetchAiAnalysis = async (historyData, statsData) => {
+    if (!token || !historyData.length) return
+    try {
+      setAiLoading(true)
+      const res = await fetch(`${API_BASE}/api/gym/exercise-analysis/${encodeURIComponent(exerciseName)}`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ history: historyData, stats: statsData })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setAiAnalysis(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch AI analysis:', err)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const calculate1RM = (weight, reps) => {
+    if (reps <= 1) return weight
+    // Brzycki Formula
+    return weight * (36 / (37 - Math.min(reps, 30)))
+  }
+
   // Transform history for chart
   const chartData = useMemo(() => {
-    return history
-      .map(log => ({
-        date: new Date(log.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-        fullDate: new Date(log.date),
-        weight: log.maxWeight || 0,
-        reps: log.maxReps || 0,
-        sets: log.sets?.length || 0,
-        volume: (log.maxWeight || 0) * (log.maxReps || 0) * (log.sets?.length || 0),
-        rpe: log.avgRPE || 0,
-        allSets: log.sets || []
-      }))
+    return [...history]
       .reverse()
+      .map(log => {
+        const oneRM = calculate1RM(log.maxWeight || 0, log.maxReps || 0)
+        return {
+          date: new Date(log.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          fullDate: new Date(log.date),
+          weight: log.maxWeight || 0,
+          reps: log.maxReps || 0,
+          sets: log.sets?.length || 0,
+          volume: log.volume || 0,
+          oneRM: Number(oneRM.toFixed(1)),
+          rpe: Number(log.avgRPE) || 0,
+          isPR: false // Will be set below
+        }
+      })
       .slice(-30) // Last 30 instances
   }, [history])
+
+  // Calculate Heuristic Trend
+  const trendInfo = useMemo(() => {
+    if (chartData.length < 4) return { status: 'stable', change: 0 }
+    
+    const recent = chartData.slice(-3)
+    const previous = chartData.slice(-6, -3)
+    
+    const recentAvg = recent.reduce((sum, d) => sum + d.oneRM, 0) / recent.length
+    const prevAvg = previous.reduce((sum, d) => sum + d.oneRM, 0) / previous.length
+    
+    const pctChange = ((recentAvg - prevAvg) / prevAvg) * 100
+    
+    if (pctChange > 2) return { status: 'gaining', change: pctChange, color: '#059669', icon: <TrendingUpIcon /> }
+    if (pctChange < -2) return { status: 'losing', change: pctChange, color: '#ef4444', icon: <TrendingDownIcon /> }
+    return { status: 'plateauing', change: pctChange, color: '#f59e0b', icon: <TrendingFlatIcon /> }
+  }, [chartData])
 
   if (loading) {
     return (
@@ -100,149 +162,214 @@ function ExerciseHistoryPage() {
         >
           <ArrowBackIosNewIcon />
         </IconButton>
-        <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box sx={{ flex: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
             <FitnessCenterIcon sx={{ fontSize: 32, color: '#3b82f6' }} />
             <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
               {exerciseName}
             </Typography>
+            {trendInfo && (
+              <Chip 
+                label={trendInfo.status.toUpperCase()} 
+                size="small" 
+                sx={{ 
+                  bgcolor: `${trendInfo.color}15`, 
+                  color: trendInfo.color, 
+                  fontWeight: 700, 
+                  border: `1px solid ${trendInfo.color}40`,
+                  ml: 1
+                }} 
+                icon={trendInfo.icon}
+              />
+            )}
           </Box>
           <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-            Exercise progression and history
+            Exercise progression and clinical performance analysis
           </Typography>
         </Box>
       </Box>
 
-      {/* Stats Cards */}
-      {stats && (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2, mb: 4 }}>
-          <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper' }}>
-            <CardContent>
-              <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.75rem' }}>
-                Total Logs
-              </Typography>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary', mt: 0.5 }}>
-                {stats.totalLogs}
-              </Typography>
-            </CardContent>
-          </Card>
-          <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper' }}>
-            <CardContent>
-              <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.75rem' }}>
-                Max Weight
-              </Typography>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#1d4ed8', mt: 0.5 }}>
-                {stats.maxWeight}
-                <Typography component="span" variant="body2" sx={{ color: '#9ca3af', ml: 0.5 }}>
-                  kg
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 350px' }, gap: 3, mb: 4 }}>
+        <Box>
+          {/* Stats Cards */}
+          {stats && (
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
+              <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper', p: 1.5 }}>
+                <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                  Max Weight
                 </Typography>
-              </Typography>
-            </CardContent>
-          </Card>
-          <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper' }}>
-            <CardContent>
-              <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.75rem' }}>
-                Est. 1RM
-              </Typography>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#059669', mt: 0.5 }}>
-                {stats.estimated1RM}
-                <Typography component="span" variant="body2" sx={{ color: '#9ca3af', ml: 0.5 }}>
-                  kg
+                <Typography variant="h5" sx={{ fontWeight: 700, color: '#1d4ed8', mt: 0.5 }}>
+                  {stats.maxWeight}<Typography component="span" variant="caption" sx={{ color: '#9ca3af', ml: 0.5 }}>kg</Typography>
                 </Typography>
-              </Typography>
-            </CardContent>
-          </Card>
-          <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper' }}>
-            <CardContent>
-              <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.75rem' }}>
-                Avg Sets/Log
-              </Typography>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: '#f59e0b', mt: 0.5 }}>
-                {stats.avgSetsPerLog.toFixed(1)}
-              </Typography>
+              </Card>
+              <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper', p: 1.5 }}>
+                <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                  Best 1RM
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 700, color: '#059669', mt: 0.5 }}>
+                  {stats.estimated1RM}<Typography component="span" variant="caption" sx={{ color: '#9ca3af', ml: 0.5 }}>kg</Typography>
+                </Typography>
+              </Card>
+              <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper', p: 1.5 }}>
+                <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                  Avg. Volume
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 700, color: '#f59e0b', mt: 0.5 }}>
+                  {(history.reduce((sum, h) => sum + (h.volume || 0), 0) / history.length / 1000).toFixed(1)}k
+                </Typography>
+              </Card>
+              <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper', p: 1.5 }}>
+                <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                  Frequency
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 700, color: '#7c3aed', mt: 0.5 }}>
+                  {stats.totalLogs} <Typography component="span" variant="caption" sx={{ color: '#9ca3af' }}>logs</Typography>
+                </Typography>
+              </Card>
+            </Box>
+          )}
+
+          {/* Chart View Selector */}
+          <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+            {['weight', '1rm', 'volume', 'rpe'].map((view) => (
+              <Button
+                key={view}
+                size="small"
+                variant={chartView === view ? 'contained' : 'outlined'}
+                onClick={() => setChartView(view)}
+                sx={{ 
+                  textTransform: 'capitalize', 
+                  borderRadius: 2,
+                  px: 2,
+                  bgcolor: chartView === view ? 'text.primary' : 'transparent',
+                  color: chartView === view ? 'background.paper' : 'text.primary',
+                  borderColor: 'divider',
+                  '&:hover': { bgcolor: chartView === view ? '#000' : 'action.hover', borderColor: 'text.primary' }
+                }}
+              >
+                {view === '1rm' ? 'Est. 1RM' : view}
+              </Button>
+            ))}
+          </Box>
+
+          {/* Chart */}
+          {chartData.length > 0 && (
+            <Card sx={{ borderRadius: 3, border: '1px solid #e5e7eb', bgcolor: 'background.paper', mb: 3, p: 2.5, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+              <ResponsiveContainer width="100%" height={isTablet ? 300 : 400}>
+                {chartView === 'weight' ? (
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#1d4ed8" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="#1d4ed8" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke='divider' vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} domain={['dataMin - 5', 'auto']} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                      formatter={(value) => [value, 'kg']}
+                    />
+                    <Area type="monotone" dataKey="weight" stroke="#1d4ed8" strokeWidth={3} fillOpacity={1} fill="url(#colorWeight)" dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} />
+                  </AreaChart>
+                ) : chartView === '1rm' ? (
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke='divider' vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} domain={['dataMin - 5', 'auto']} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                    />
+                    <Line type="stepAfter" dataKey="oneRM" stroke="#059669" strokeWidth={3} name="Est. 1RM (kg)" dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} />
+                  </LineChart>
+                ) : chartView === 'volume' ? (
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke='divider' vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                    />
+                    <Bar dataKey="volume" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Total Volume" />
+                  </BarChart>
+                ) : (
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke='divider' vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} domain={[5, 10]} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
+                    <Line type="monotone" dataKey="rpe" stroke="#ef4444" strokeWidth={3} name="Intensity (RPE)" dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} />
+                  </LineChart>
+                )}
+              </ResponsiveContainer>
+            </Card>
+          )}
+        </Box>
+
+        {/* AI Insight Sidebar */}
+        <Box>
+          <Card sx={{ borderRadius: 3, bgcolor: '#111827', color: '#fff', height: '100%', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                <AutoAwesomeIcon sx={{ color: '#fbbf24' }} />
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>LifeSync AI Coach</Typography>
+              </Box>
+
+              {aiLoading ? (
+                <Stack spacing={2}>
+                  <LinearProgress sx={{ bgcolor: 'rgba(255,255,255,0.1)', '& .MuiLinearProgress-bar': { bgcolor: '#3b82f6' } }} />
+                  <Typography variant="body2" sx={{ color: '#9ca3af', textAlign: 'center' }}>Analyzing performance patterns...</Typography>
+                </Stack>
+              ) : aiAnalysis ? (
+                <Box>
+                  <Box sx={{ mb: 3, p: 2, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, borderLeft: `4px solid ${trendInfo.color}` }}>
+                    <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>Current Status</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: trendInfo.color, textTransform: 'capitalize' }}>{aiAnalysis.status}</Typography>
+                  </Box>
+
+                  <Typography variant="subtitle2" sx={{ color: '#9ca3af', fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <WhatshotIcon sx={{ fontSize: 18, color: '#f87171' }} /> THE ANALYSIS
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#e5e7eb', lineHeight: 1.6, mb: 4 }}>
+                    {aiAnalysis.explanation}
+                  </Typography>
+
+                  <Typography variant="subtitle2" sx={{ color: '#9ca3af', fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <TipsAndUpdatesIcon sx={{ fontSize: 18, color: '#34d399' }} /> ACTION PLAN
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {aiAnalysis.recommendations?.map((rec, i) => (
+                      <Box key={i} sx={{ display: 'flex', gap: 1.5, alignItems: 'start' }}>
+                        <Box sx={{ mt: 0.5, width: 6, height: 6, borderRadius: '50%', bgcolor: '#3b82f6', flexShrink: 0 }} />
+                        <Typography variant="body2" sx={{ color: '#f3f4f6' }}>{rec}</Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Box>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                   <Button 
+                    variant="outlined" 
+                    sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.3)' }}
+                    onClick={() => fetchAiAnalysis(history, stats)}
+                   >
+                     Analyze Trends
+                   </Button>
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Box>
-      )}
-
-      {/* Chart View Selector */}
-      <Box sx={{ display: 'flex', gap: 1.5, mb: 3, flexWrap: 'wrap' }}>
-        <Button
-          size="small"
-          variant={chartView === 'weight' ? 'contained' : 'outlined'}
-          onClick={() => setChartView('weight')}
-          sx={{ textTransform: 'none' }}
-        >
-          Weight Progression
-        </Button>
-        <Button
-          size="small"
-          variant={chartView === 'volume' ? 'contained' : 'outlined'}
-          onClick={() => setChartView('volume')}
-          sx={{ textTransform: 'none' }}
-        >
-          Volume Trend
-        </Button>
-        <Button
-          size="small"
-          variant={chartView === 'rpe' ? 'contained' : 'outlined'}
-          onClick={() => setChartView('rpe')}
-          sx={{ textTransform: 'none' }}
-        >
-          RPE/Intensity
-        </Button>
       </Box>
 
-      {/* Chart */}
-      {chartData.length > 0 && (
-        <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper', mb: 4, p: 2 }}>
-          <ResponsiveContainer width="100%" height={isTablet ? 300 : 400}>
-            {chartView === 'weight' ? (
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke='divider' />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'background.paper', border: '1px solid #e5e7eb', borderRadius: 8 }}
-                  formatter={(value) => [value.toFixed(1), '']}
-                />
-                <Legend />
-                <Line type="monotone" dataKey="weight" stroke="#1d4ed8" strokeWidth={2} name="Max Weight (kg)" dot={{ fill: '#1d4ed8', r: 4 }} />
-              </LineChart>
-            ) : chartView === 'volume' ? (
-              <ComposedChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke='divider' />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'background.paper', border: '1px solid #e5e7eb', borderRadius: 8 }}
-                  formatter={(value) => [value.toFixed(0), '']}
-                />
-                <Legend />
-                <Bar dataKey="volume" fill="#f59e0b" name="Total Volume (kg)" />
-                <Line type="monotone" dataKey="weight" stroke="#1d4ed8" strokeWidth={2} name="Max Weight (kg)" />
-              </ComposedChart>
-            ) : (
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke='divider' />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'background.paper', border: '1px solid #e5e7eb', borderRadius: 8 }}
-                  formatter={(value) => [value.toFixed(1), '']}
-                />
-                <Legend />
-                <Line type="monotone" dataKey="rpe" stroke="#ef4444" strokeWidth={2} name="Avg RPE" dot={{ fill: '#ef4444', r: 4 }} />
-              </LineChart>
-            )}
-          </ResponsiveContainer>
-        </Card>
-      )}
-
       {/* History Table */}
-      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2, fontSize: '1.1rem' }}>
-        Detailed History
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+          Full Session History
+        </Typography>
+        <Chip label={`${history.length} Sessions`} size="small" variant="outlined" />
+      </Box>
 
       {history.length === 0 ? (
         <Card sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper' }}>
@@ -255,64 +382,57 @@ function ExerciseHistoryPage() {
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, overflowX: 'auto', pb: 1 }}>
           {history.map((log, idx) => (
-            <Card key={idx} sx={{ borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: 'background.paper', overflow: 'hidden' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2, flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
+            <Card key={idx} sx={{ borderRadius: 3, border: '1px solid #e5e7eb', bgcolor: 'background.paper', overflow: 'hidden', transition: 'all 0.2s', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' } }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2.5, flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <CalendarMonthIcon sx={{ color: 'text.secondary' }} />
+                    <Box sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 2 }}>
+                      <CalendarMonthIcon sx={{ color: 'text.secondary' }} />
+                    </Box>
                     <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                        {new Date(log.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                        {new Date(log.date).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: '#9ca3af' }}>
-                        {log.sets?.length} sets
+                      <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600 }}>
+                        {log.sets?.length} sets · {Math.round(log.volume / 1000 * 10) / 10}k kg volume
                       </Typography>
                     </Box>
                   </Box>
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    {log.maxWeight && (
+                    <Chip
+                      label={`Max: ${log.maxWeight}kg`}
+                      size="small"
+                      sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 700, borderRadius: 1.5 }}
+                    />
+                    <Chip
+                      label={`Est. 1RM: ${calculate1RM(log.maxWeight || 0, log.maxReps || 0).toFixed(1)}kg`}
+                      size="small"
+                      sx={{ bgcolor: '#ecfdf5', color: '#059669', fontWeight: 700, borderRadius: 1.5 }}
+                    />
+                    {log.avgRPE > 0 && (
                       <Chip
-                        label={`${log.maxWeight}kg`}
-                        variant="outlined"
-                        sx={{ borderColor: '#1d4ed8', color: '#1d4ed8' }}
-                        icon={<TrendingUpIcon />}
-                      />
-                    )}
-                    {log.maxReps && (
-                      <Chip
-                        label={`${log.maxReps} reps`}
-                        variant="outlined"
-                        sx={{ borderColor: '#059669', color: '#059669' }}
+                        label={`RPE ${log.avgRPE}`}
+                        size="small"
+                        sx={{ bgcolor: '#fff7ed', color: '#c2410c', fontWeight: 700, borderRadius: 1.5 }}
                       />
                     )}
                   </Box>
                 </Box>
 
                 {/* Sets Detail */}
-                <Box sx={{ mt: 2, bgcolor: 'action.hover', borderRadius: 1.5, p: 1.5 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', display: 'block', mb: 1 }}>
-                    Sets
-                  </Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(3, 1fr)', sm: 'repeat(4, 1fr)', md: 'repeat(6, 1fr)' }, gap: 1 }}>
-                    {log.sets?.map((set, setIdx) => (
-                      <Box key={setIdx} sx={{ p: 1, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid #e5e7eb', textAlign: 'center' }}>
-                        <Typography variant="caption" sx={{ display: 'block', color: '#9ca3af', fontWeight: 600 }}>
-                          Set {setIdx + 1}
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700, color: '#1d4ed8' }}>
-                          {set.weight}kg
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          x{set.reps}
-                        </Typography>
-                        {set.rpe && (
-                          <Typography variant="caption" sx={{ display: 'block', color: '#f59e0b' }}>
-                            RPE {set.rpe}
-                          </Typography>
-                        )}
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)', md: 'repeat(6, 1fr)' }, gap: 1.5 }}>
+                  {log.sets?.map((set, setIdx) => (
+                    <Box key={setIdx} sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 2, textAlign: 'center', border: '1px solid transparent', '&:hover': { borderColor: 'divider' } }}>
+                      <Typography variant="caption" sx={{ display: 'block', color: '#9ca3af', fontWeight: 700, mb: 0.5 }}>
+                        SET {setIdx + 1}
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 0.5 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>{set.weight}</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>kg</Typography>
                       </Box>
-                    ))}
-                  </Box>
+                      <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>× {set.reps} reps</Typography>
+                    </Box>
+                  ))}
                 </Box>
               </CardContent>
             </Card>

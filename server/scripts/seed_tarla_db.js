@@ -70,7 +70,16 @@ function buildColumnsArray(row) {
     const tarlaCol = Object.keys(tarlaToIndbMap).find((sourceKey) => tarlaToIndbMap[sourceKey] === key);
     if (tarlaCol) {
       const csvVal = safeString(row[tarlaCol]);
-      if (csvVal) value = csvVal;
+      if (csvVal) {
+        value = csvVal;
+        // Normalize fat breakdown to mg if they are in 'g' in CSV
+        if (['sfa_mg', 'mufa_mg', 'pufa_mg'].includes(key)) {
+           const numeric = parseFloat(csvVal);
+           if (!isNaN(numeric)) {
+             value = String(Math.round(numeric * 1000));
+           }
+        }
+      }
     }
 
     if (key === 'vitb9_ug') {

@@ -1004,100 +1004,93 @@ router.get('/search', authMiddleware, async (req, res) => {
   }
 });
 
-// --- MyFitnessPal Search & Ingest ---
+// --- External Food Search & Ingest (OpenFoodFacts + Gemini AI) ---
 
-router.get('/mfp/search', authMiddleware, async (req, res) => {
+router.get('/external/search', authMiddleware, async (req, res) => {
   try {
     const { q } = req.query;
     if (!q) return res.status(400).json({ error: 'Query is required' });
 
-    console.log('[NutritionRoutes] Combined Live Search:', q);
+    console.log('[NutritionRoutes] External Live Search:', q);
     
     // 1. Fetch from OpenFoodFacts (Fast)
-    const offResults = await require('../services/nutritionSources/offScraper').searchOff(q).catch(e => {
+    const offResultsPromise = require('../services/nutritionSources/offScraper').searchOff(q).catch(e => {
       console.error('[NutritionRoutes] OFF search failed:', e.message);
       return [];
     });
 
-    // 2. Fetch from MFP via Python Bridge (Slower)
-    // We run this only if OFF has few results or just to augment
-    const { spawn } = require('child_process');
-    const path = require('path');
-    
-    const mfpPromise = new Promise((resolve) => {
-      const pythonProcess = spawn('python', [
-        path.join(__dirname, '../../scraping/1.py'),
-        q
-      ]);
-
-      let output = '';
-      pythonProcess.stdout.on('data', (data) => { output += data.toString(); });
-      pythonProcess.stderr.on('data', (data) => { console.error(`[MFP-Bridge] ${data}`); });
-      
-      pythonProcess.on('close', (code) => {
-        try {
-          const results = JSON.parse(output.trim());
-          resolve(Array.isArray(results) ? results : []);
-        } catch (e) {
-          console.error('[MFP-Bridge] Failed to parse JSON output');
-          resolve([]);
-        }
-      });
-      
-      // Timeout after 20s to not block forever
-      setTimeout(() => {
-        pythonProcess.kill();
-        resolve([]);
-      }, 20000);
+    // 2. Generate via Gemini AI
+    const { generateFoodNutrients } = require('../aiClient');
+    const geminiResultPromise = generateFoodNutrients(q).then(nutrients => {
+      if (!nutrients) return null;
+      return {
+        id: `gemini-${Date.now()}`,
+        displayName: `${q} (AI Generated)`,
+        brand: 'LifeSync AI',
+        calories: nutrients.energy_kcal || 0,
+        protein: nutrients.protein_g || 0,
+        carbs: nutrients.carb_g || 0,
+        fat: nutrients.fat_g || 0,
+        fiber: nutrients.fibre_g || 0,
+        servingQty: '100',
+        servingUnit: 'g',
+        nutrients: nutrients,
+        source: 'Gemini API'
+      };
+    }).catch(e => {
+      console.error('[NutritionRoutes] Gemini generation failed:', e.message);
+      return null;
     });
 
-    // We send back OFF results immediately if they are enough, 
-    // or wait for MFP for 10s if needed.
-    // For now, let's wait for both to give a rich result.
-    const mfpResults = await mfpPromise;
+    const [offResults, geminiResult] = await Promise.all([offResultsPromise, geminiResultPromise]);
 
+    const finalResults = [];
+    if (geminiResult) finalResults.push(geminiResult);
+    
     res.json([
-      ...offResults.map(r => ({ ...r, source: 'OpenFoodFacts' })),
-      ...mfpResults.map(r => ({ ...r, source: 'MyFitnessPal' }))
+      ...finalResults,
+      ...offResults.map(r => ({ ...r, source: 'OpenFoodFacts' }))
     ]);
   } catch (err) {
-    console.error('[NutritionRoutes] Combined search error:', err);
-    res.status(500).json({ error: 'Failed to search food databases' });
+    console.error('[NutritionRoutes] External search error:', err);
+    res.status(500).json({ error: 'Failed to search external databases' });
   }
 });
 
-router.post('/mfp/add', authMiddleware, async (req, res) => {
+router.post('/external/add', authMiddleware, async (req, res) => {
   try {
     let { food } = req.body;
     if (!food) return res.status(400).json({ error: 'Food data is required' });
 
-    const scraper = require('../services/nutritionSources/mfpScraper');
-
-    // If the search only provided a link, fetch the full details now
-    if (food.isLinkOnly && food.href) {
-      console.log('[NutritionRoutes] Fetching full details for link-only food:', food.displayName);
-      const details = await scraper.getMfpFoodDetails(food.href);
-      food = { ...food, ...details };
-    }
-
     const MfpFood = require('../models/MfpFood');
     const { getEmbedding } = require('../services/nutritionAI/embeddingService');
 
-    // Map fields to MfpFood schema
-    const columns = [
-      { key: 'energy_kcal', value: food.calories || '-' },
-      { key: 'protein_g', value: food.protein || '-' },
-      { key: 'carb_g', value: food.carbs || '-' },
-      { key: 'fat_g', value: food.fat || '-' },
-      { key: 'fibre_g', value: food.fiber || '-' },
-      { key: 'primarysource', value: 'MFP User Ingest' }
-    ];
+    // Map all available nutrients from food.nutrients to columns
+    const columns = [];
+    if (food.nutrients) {
+      Object.entries(food.nutrients).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          columns.push({ key, value });
+        }
+      });
+    }
 
-    // Add any other nutrients if they exist in food.nutrients
-    const n = food.nutrients || {};
-    if (n.nf_sugars) columns.push({ key: 'freesugar_g', value: n.nf_sugars });
-    if (n.nf_sodium) columns.push({ key: 'sodium_mg', value: n.nf_sodium });
-    if (n.nf_potassium) columns.push({ key: 'potassium_mg', value: n.nf_potassium });
+    // Ensure basic macros are present in columns even if not in nutrients
+    const basicMacros = {
+      energy_kcal: food.calories,
+      protein_g: food.protein,
+      carb_g: food.carbs,
+      fat_g: food.fat,
+      fibre_g: food.fiber
+    };
+
+    Object.entries(basicMacros).forEach(([key, value]) => {
+      if (!columns.find(c => c.key === key)) {
+        columns.push({ key, value: value || 0 });
+      }
+    });
+
+    columns.push({ key: 'primarysource', value: `Imported from ${food.source || 'Unknown'}` });
 
     // Generate embedding for vector search
     const embedding = await getEmbedding(food.displayName).catch(e => {
@@ -1106,21 +1099,21 @@ router.post('/mfp/add', authMiddleware, async (req, res) => {
     });
 
     const newFood = new MfpFood({
-      sourceFile: 'user_ingested_mfp.json',
+      sourceFile: food.source === 'Gemini API' ? 'gemini_ai_gen.json' : 'off_ingest.json',
       displayName: food.displayName,
-      searchText: food.displayName, // Use display name for search
-      servingQty: food.servingQty || '1',
-      servingSize: food.servingUnit || 'serving',
+      searchText: food.displayName,
+      servingQty: food.servingQty || '100',
+      servingSize: food.servingUnit || 'g',
       columns,
       embedding
     });
 
     await newFood.save();
-    console.log('[NutritionRoutes] Saved new MFP food to DB:', food.displayName);
+    console.log('[NutritionRoutes] Saved new food to DB:', food.displayName, 'from', food.source);
 
     res.status(201).json({ message: 'Food added to database successfully', food: newFood });
   } catch (err) {
-    console.error('[NutritionRoutes] MFP add error:', err);
+    console.error('[NutritionRoutes] Food add error:', err);
     res.status(500).json({ error: 'Failed to add food to database' });
   }
 });

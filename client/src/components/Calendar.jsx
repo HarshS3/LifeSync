@@ -16,7 +16,7 @@ import CloseIcon from '@mui/icons-material/Close'
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
-function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) {
+function Calendar({ events = [], onDateClick, onEventClick, compact = false, onMonthChange }) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(null)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -300,9 +300,18 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
               {selectedEvents.map((event, idx) => (
                 <Box
                   key={idx}
+                  onClick={() => {
+                    if (onEventClick) {
+                      onEventClick(event);
+                      setDialogOpen(false);
+                    }
+                  }}
                   sx={{
                     p: 2,
                     borderRadius: 2,
+                    cursor: onEventClick ? 'pointer' : 'default',
+                    transition: 'transform 0.2s',
+                    '&:hover': onEventClick ? { transform: 'translateY(-2px)' } : {},
                     bgcolor: event.type === 'workout' ? '#eff6ff'
                            : event.type === 'mental' ? '#faf5ff'
                            : '#f0fdf4',
@@ -313,7 +322,14 @@ function Calendar({ events = [], onDateClick, compact = false, onMonthChange }) 
                     }`,
                   }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      mb: 1,
+                    }}
+                  >
                     {getEventIcon(event.type)}
                     <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                       {event.title}

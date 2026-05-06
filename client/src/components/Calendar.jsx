@@ -92,90 +92,84 @@ function Calendar({ events = [], onDateClick, onEventClick, compact = false, onM
     for (let day = 1; day <= daysInMonth; day++) {
       const isToday = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year
       const dateKey = new Date(year, month, day).toDateString()
-      const hasEvents = eventsByDate[dateKey]?.length > 0
-      const eventTypes = getEventDots(day)
+      const dayEvents = eventsByDate[dateKey] || []
+      const hasEvents = dayEvents.length > 0
+      
+      const hasWorkout = dayEvents.some(e => e.type === 'workout')
+      const otherTypes = Array.from(new Set(dayEvents.filter(e => e.type !== 'workout').map(e => e.type)))
       
       days.push(
         <Box
           key={day}
           onClick={() => handleDateClick(day)}
           sx={{
-            p: compact ? 0.75 : 1,
-            minHeight: compact ? 36 : 'auto',
+            p: compact ? 0.5 : 1,
+            minHeight: compact ? 40 : 60,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
-            textAlign: 'center',
+            justifyContent: 'flex-start',
             cursor: 'pointer',
-            borderRadius: 1,
+            borderRadius: 1.5,
             position: 'relative',
-            bgcolor: isToday ? '#3b82f6' : 'transparent',
-            color: isToday ? 'background.paper' : 'text.primary',
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            // Workout gives a soft blue background
+            bgcolor: isToday 
+              ? '#3b82f6' 
+              : (hasWorkout ? 'rgba(37, 99, 235, 0.08)' : 'transparent'),
+            color: isToday ? '#ffffff' : 'text.primary',
+            border: hasWorkout && !isToday ? '1px solid rgba(37, 99, 235, 0.15)' : '1px solid transparent',
+            transition: 'all 0.2s ease',
             '&:hover': {
-              bgcolor: isToday ? '#2563eb' : 'action.selected',
-              transform: 'scale(1.05)'
+              bgcolor: isToday ? '#2563eb' : 'action.hover',
+              transform: 'translateY(-1px)',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
             },
-            '&:active': { 
-              transform: 'scale(0.98)'
-            },
-            '&:focus': { 
-              outline: '2px solid #3b82f6',
-              outlineOffset: 1
-            }
           }}
         >
-          <Typography variant={compact ? 'caption' : 'body2'} sx={{ fontWeight: isToday ? 600 : 400 }}>
+          <Typography 
+            variant={compact ? 'caption' : 'body2'} 
+            sx={{ 
+              fontWeight: isToday || hasWorkout ? 700 : 400,
+              fontSize: compact ? '0.75rem' : '0.875rem',
+              mb: 0.5,
+              mt: compact ? 0.25 : 0
+            }}
+          >
             {day}
           </Typography>
-          {hasEvents && !compact && (
+
+          {/* Event Indicators */}
+          {hasEvents && (
             <Box sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
               display: 'flex',
               justifyContent: 'center',
-              gap: 0.3,
-              pointerEvents: 'none',
+              gap: 0.5,
+              width: '100%',
+              mt: 'auto',
+              pb: 0.5
             }}>
-              {eventTypes.slice(0, 3).map((type, i) => (
-                <Box
-                  key={i}
-                  sx={{
-                    width: type === 'workout' ? 28 : 6,
-                    height: type === 'workout' ? 28 : 6,
-                    borderRadius: type === 'workout' ? '50%' : '50%',
-                    bgcolor: type === 'workout' ? '#2563eb'
-                           : type === 'mental' ? '#9333ea'
-                           : type === 'nutrition' ? '#15803d'
-                           : 'text.secondary',
-                    border: type === 'workout' ? '2px solid #2563eb' : 'none',
-                    opacity: type === 'workout' ? 0.8 : 1,
-                  }}
-                />
-              ))}
-            </Box>
-          )}
-          {hasEvents && compact && (
-            <Box sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              pointerEvents: 'none',
-            }}>
-              {eventTypes.includes('workout') && (
-                <Box
-                  sx={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: '50%',
-                    bgcolor: '#2563eb',
-                    border: '2px solid #2563eb',
-                    opacity: 0.8,
-                  }}
-                />
+              {/* If compact, we might show fewer or different indicators */}
+              {compact ? (
+                hasWorkout && !isToday && (
+                  <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: '#2563eb' }} />
+                )
+              ) : (
+                <>
+                  {otherTypes.map((type, i) => (
+                    <Box
+                      key={i}
+                      sx={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        bgcolor: type === 'mental' ? '#9333ea'
+                               : type === 'nutrition' ? '#15803d'
+                               : type === 'habit' ? '#6366f1'
+                               : '#94a3b8',
+                      }}
+                    />
+                  ))}
+                </>
               )}
             </Box>
           )}
@@ -276,10 +270,22 @@ function Calendar({ events = [], onDateClick, onEventClick, compact = false, onM
 
       {/* Legend */}
       {!compact && (
-        <Box sx={{ display: 'flex', gap: 2, mt: 2, justifyContent: 'center' }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: 1, sm: 2 }, mt: 3, justifyContent: 'center', p: 2, bgcolor: 'action.hover', borderRadius: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#2563eb' }} />
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>Workout</Typography>
+            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'rgba(37, 99, 235, 0.2)', border: '1px solid #2563eb' }} />
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Workout</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#15803d' }} />
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Nutrition</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#9333ea' }} />
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Wellness</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#6366f1' }} />
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Habits</Typography>
           </Box>
         </Box>
       )}

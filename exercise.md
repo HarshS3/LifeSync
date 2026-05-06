@@ -2117,7 +2117,7 @@ Forearms
 Yoga
 
 Full Body
- 
+
 
 Zercher Squat
 

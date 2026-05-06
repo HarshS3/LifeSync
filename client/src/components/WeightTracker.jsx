@@ -16,6 +16,7 @@ function WeightTracker({ selectedDate }) {
 
   // Logging state
   const [weightValue, setWeightValue] = useState('');
+  const [dailyLogs, setDailyLogs] = useState([]);
   const [saving, setSaving] = useState(false);
   const [logError, setLogError] = useState('');
 
@@ -71,9 +72,17 @@ function WeightTracker({ selectedDate }) {
       });
       if (dayRes.ok) {
         const dayData = await dayRes.json();
-        setWeightValue(dayData?.weightKg != null ? String(dayData.weightKg) : '');
+        const logs = dayData?.weights || [];
+        setDailyLogs(logs);
+
+        // Extract latest weight from the weights array if available
+        const latestFromLogs = logs.length > 0 
+          ? logs[logs.length - 1].weightKg 
+          : null;
+        setWeightValue(dayData?.weightKg != null ? String(dayData.weightKg) : (latestFromLogs != null ? String(latestFromLogs) : ''));
       } else {
         setWeightValue('');
+        setDailyLogs([]);
       }
     } catch (err) {
       console.error('Error fetching day weight:', err);
@@ -179,6 +188,39 @@ function WeightTracker({ selectedDate }) {
             Logging for: {new Date(selectedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
           </Typography>
         </Box>
+
+        {dailyLogs.length > 0 && (
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, display: 'block', mb: 1, textTransform: 'uppercase' }}>
+              Logs for this day
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              {dailyLogs.map((log, idx) => (
+                <Box
+                  key={log._id || idx}
+                  sx={{
+                    px: 1.5,
+                    py: 0.75,
+                    bgcolor: 'action.hover',
+                    borderRadius: 1.5,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}
+                >
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {log.weightKg} <span style={{ fontWeight: 400, fontSize: '0.8rem' }}>kg</span>
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        )}
       </Box>
 
       {/* Graph Section */}

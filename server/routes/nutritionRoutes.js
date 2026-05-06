@@ -525,6 +525,18 @@ router.post('/weight', authMiddleware, async (req, res) => {
 
     const log = await WeightLog.create({ user: req.userId, date: new Date(date), weightKg: w });
 
+    // Update user profile with latest weight
+    const User = require('../models/User');
+    const latestWeight = await WeightLog.findOne({ user: req.userId }).sort({ date: -1 });
+    if (latestWeight) {
+      await User.findByIdAndUpdate(req.userId, {
+        $set: {
+          weight: latestWeight.weightKg,
+          'biologicalProfile.weightKg': latestWeight.weightKg
+        }
+      });
+    }
+
     triggerDailyLifeStateRecompute({ userId: req.userId, date: d, reason: 'nutritionRoutes upsert weight' });
 
     res.status(201).json({ date: log.date, weightKg: log.weightKg });

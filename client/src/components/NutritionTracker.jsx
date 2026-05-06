@@ -1,4 +1,5 @@
 import ExpandableSection from './ExpandableSection'
+import WeightTracker from './WeightTracker'
 import NutritionInsights from './NutritionInsights'
 import SupplementSection from './Nutrition/SupplementSection'
 import RecipeExplorer from './RecipeExplorer'
@@ -6,7 +7,7 @@ import KitchenInventory from './KitchenInventory'
 import WeeklyReview from './WeeklyReview'
 import InsulinIntelligencePanel from './Nutrition/InsulinIntelligencePanel'
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart } from 'recharts'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -346,14 +347,7 @@ function NutritionTracker() {
   const [clinicalTargetsRequiresSetup, setClinicalTargetsRequiresSetup] = useState(false)
   const [clinicalTargetsMissingFields, setClinicalTargetsMissingFields] = useState([])
   const [clinicalTargetsDebug, setClinicalTargetsDebug] = useState(null)
-  const [weightDayLogs, setWeightDayLogs] = useState([])
 
-  const [weightValue, setWeightValue] = useState('')
-  const [weightLoading, setWeightLoading] = useState(false)
-  const [weightSaving, setWeightSaving] = useState(false)
-  const [weightError, setWeightError] = useState('')
-  const [weightRangeMode, setWeightRangeMode] = useState('week')
-  const [weightSeries, setWeightSeries] = useState([])
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
   const [templateName, setTemplateName] = useState('')
 
@@ -410,6 +404,21 @@ function NutritionTracker() {
   }, [])
 
   useEffect(() => {
+    const handler = (e) => {
+      const tab = e?.detail?.tab
+      if (tab === 'Weight') {
+        setActiveTab(2)
+      } else if (tab === 'Log Meal') {
+        setActiveTab(1)
+      } else if (tab === 'Today') {
+        setActiveTab(0)
+      }
+    }
+    window.addEventListener('lifesync:nutrition:tab', handler)
+    return () => window.removeEventListener('lifesync:nutrition:tab', handler)
+  }, [])
+
+  useEffect(() => {
     if (!token) return
     loadDay()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -428,13 +437,6 @@ function NutritionTracker() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, activeTab])
-
-  useEffect(() => {
-    if (!token) return
-    if (activeTab !== 2) return
-    loadWeightDayAndRange()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, activeTab, selectedDate, weightRangeMode])
 
   useEffect(() => {
     if (!token) return
@@ -589,141 +591,6 @@ function NutritionTracker() {
       setBarcodeLookupError('Could not scan barcode from image.')
     } finally {
       setScanBusy(false)
-    }
-  }
-
-  const loadWeightDayAndRange = async () => {
-    setWeightLoading(true)
-    setWeightError('')
-    try {
-      const headers = getAuthHeaders()
-      const dateStr = selectedDate.toISOString()
-
-      const end = new Date(selectedDate)
-      end.setHours(23, 59, 59, 999)
-      const start = new Date(end)
-      start.setDate(start.getDate() - (weightRangeMode === 'month' ? 30 : 7) + 1)
-      start.setHours(0, 0, 0, 0)
-
-      const [dayRes, rangeRes] = await Promise.all([
-        fetch(`${API_BASE}/api/nutrition/weight/date/${encodeURIComponent(dateStr)}`, { headers }),
-        fetch(
-          `${API_BASE}/api/nutrition/weight/range/${encodeURIComponent(start.toISOString())}/${encodeURIComponent(end.toISOString())}`,
-          { headers }
-        ),
-      ])
-
-      const dayData = await safeReadJson(dayRes)
-      const rangeData = await safeReadJson(rangeRes)
-
-      setWeightValue(dayData?.latestWeight || dayData?.weightKg || '')
-      setWeightDayLogs(dayData?.weights || [])
-      setWeightSeries(Array.isArray(rangeData) ? rangeData : [])
-
-    } catch (e) {
-      setWeightError(e?.message || 'Failed to load weight')
-    } finally {
-      setWeightLoading(false)
-    }
-  }
-
-  const saveWeight = async () => {
-    if (!token) return
-    const w = Number(weightValue)
-    if (!Number.isFinite(w) || w <= 0) {
-      setWeightError('Enter a valid weight')
-      return
-    }
-    setWeightSaving(true)
-    setWeightError('')
-    try {
-      const now = new Date()
-      const sendDate = (selectedDate.toDateString() === now.toDateString()) ? now : selectedDate
-      const res = await fetch(`${API_BASE}/api/nutrition/weight`, {
-        method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: sendDate.toISOString(), weightKg: w }),
-      })
-      if (!res.ok) {
-        const errJson = await safeReadJson(res)
-        throw new Error(errJson?.error || `Failed to save (${res.status})`)
-      }
-      await loadWeightDayAndRange()
-    } catch (e) {
-      setWeightError(e?.message || 'Failed to save weight')
-    } finally {
-      setWeightSaving(false)
-    }
-  }
-
-  const buildWeightChart = ({ start, days, series }) => {
-    const byDay = new Map()
-    ;(series || []).forEach((d) => {
-      const dt = new Date(d?.date)
-      if (Number.isNaN(dt.getTime())) return
-      dt.setHours(0, 0, 0, 0)
-      const key = dt.toISOString().slice(0, 10)
-      const w = d?.weightKg
-      if (typeof w === 'number' && Number.isFinite(w)) byDay.set(key, w)
-    })
-
-    const values = []
-    const labels = []
-    for (let i = 0; i < days; i++) {
-      const d = new Date(start)
-      d.setDate(d.getDate() + i)
-      const key = d.toISOString().slice(0, 10)
-      labels.push(key.slice(5))
-      values.push(byDay.has(key) ? byDay.get(key) : null)
-    }
-
-    const numeric = values.filter((v) => typeof v === 'number')
-    if (numeric.length === 0) return { points: '', min: null, max: null, labels, dims: null }
-
-    let min = Math.min(...numeric)
-    let max = Math.max(...numeric)
-    if (min === max) {
-      min = min - 1
-      max = max + 1
-    }
-
-    const W = 560
-    const H = 200
-    const M = {
-      left: 52,
-      right: 16,
-      top: 16,
-      bottom: 44,
-    }
-    const innerW = W - M.left - M.right
-    const innerH = H - M.top - M.bottom
-
-    const pts = []
-    for (let i = 0; i < values.length; i++) {
-      const v = values[i]
-      if (v == null) continue
-      const x = M.left + (innerW * i) / Math.max(1, values.length - 1)
-      const t = (v - min) / (max - min)
-      const y = M.top + innerH * (1 - t)
-      pts.push(`${x.toFixed(1)},${y.toFixed(1)}`)
-    }
-
-    return {
-      points: pts.join(' '),
-      min,
-      max,
-      labels,
-      dims: {
-        W,
-        H,
-        M,
-        innerW,
-        innerH,
-        x0: M.left,
-        x1: M.left + innerW,
-        y0: M.top,
-        y1: M.top + innerH,
-      },
     }
   }
 
@@ -3210,183 +3077,7 @@ function NutritionTracker() {
       )}
 
       {activeTab === 2 && (
-        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 2 }}>
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                Daily weight
-              </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Log your weight for the selected day and view trends.
-              </Typography>
-            </Box>
-            <Stack direction="row" spacing={1}>
-              <Button
-                variant={weightRangeMode === 'week' ? 'contained' : 'outlined'}
-                onClick={() => setWeightRangeMode('week')}
-                sx={{ textTransform: 'none' }}
-              >
-                Week
-              </Button>
-              <Button
-                variant={weightRangeMode === 'month' ? 'contained' : 'outlined'}
-                onClick={() => setWeightRangeMode('month')}
-                sx={{ textTransform: 'none' }}
-              >
-                Month
-              </Button>
-            </Stack>
-          </Box>
-
-          <Box sx={{ mb: 3 }}>
-            <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', mb: 1, flexWrap: 'wrap' }}>
-              <TextField
-                label="Weight (kg)"
-                type="number"
-                value={weightValue}
-                onChange={(e) => setWeightValue(e.target.value)}
-                size="small"
-                sx={{ width: { xs: '100%', sm: 180 } }}
-              />
-              <Button variant="contained" onClick={saveWeight} disabled={weightSaving || weightLoading}>
-                {weightSaving ? 'Saving…' : 'Log Weight'}
-              </Button>
-              {weightError ? (
-                <Typography variant="body2" sx={{ color: '#b91c1c' }}>
-                  {weightError}
-                </Typography>
-              ) : null}
-            </Box>
-            
-            {weightDayLogs.length > 0 && (
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
-                <Typography variant="caption" sx={{ color: 'text.secondary', alignSelf: 'center', mr: 1 }}>Recent for today:</Typography>
-                {weightDayLogs.map((log, idx) => (
-                  <Chip
-                    key={log._id || idx}
-                    label={`${log.weightKg} kg (${new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`}
-                    size="small"
-                    variant="outlined"
-                    sx={{ fontSize: '0.7rem' }}
-                  />
-                ))}
-              </Box>
-            )}
-          </Box>
-
-          {weightLoading ? (
-            <LinearProgress />
-          ) : (
-            (() => {
-              const end = new Date(selectedDate)
-              end.setHours(23, 59, 59, 999)
-              const start = new Date(end)
-              const days = weightRangeMode === 'month' ? 30 : 7
-              start.setDate(start.getDate() - days + 1)
-              start.setHours(0, 0, 0, 0)
-              const chart = buildWeightChart({ start, end, days, series: weightSeries })
-
-              const fmt = (d) =>
-                d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-              const startLabel = fmt(start)
-              const endLabel = fmt(end)
-
-              return (
-                <Box>
-                  <Box sx={{ width: '100%' }}>
-                    <Box
-                      component="svg"
-                      viewBox="0 0 560 200"
-                      role="img"
-                      aria-label="Weight chart"
-                      sx={{ width: '100%', maxWidth: 560, height: 'auto' }}
-                    >
-                        <rect x="0" y="0" width="560" height="200" fill="#ffffff" />
-
-                        {(() => {
-                          const d = chart.dims
-                          if (!d) return null
-
-                          const yMin = chart.min
-                          const yMax = chart.max
-                          const yMid = yMin != null && yMax != null ? (yMin + yMax) / 2 : null
-
-                          const fmtKg = (v) => (typeof v === 'number' ? `${v.toFixed(1)} kg` : '')
-
-                          return (
-                            <>
-                              {/* axes */}
-                              <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke="#e5e7eb" strokeWidth="1" />
-                              <line x1={d.x0} y1={d.y0} x2={d.x0} y2={d.y1} stroke="#e5e7eb" strokeWidth="1" />
-
-                              {/* y ticks (max/mid/min) */}
-                              <line x1={d.x0} y1={d.y0} x2={d.x1} y2={d.y0} stroke="#f3f4f6" strokeWidth="1" />
-                              <line
-                                x1={d.x0}
-                                y1={(d.y0 + d.y1) / 2}
-                                x2={d.x1}
-                                y2={(d.y0 + d.y1) / 2}
-                                stroke="#f3f4f6"
-                                strokeWidth="1"
-                              />
-                              <line x1={d.x0} y1={d.y1} x2={d.x1} y2={d.y1} stroke="#f3f4f6" strokeWidth="1" />
-
-                              <text x={d.x0 - 8} y={d.y0 + 3} fontSize="10" fill="#6b7280" textAnchor="end">
-                                {fmtKg(yMax)}
-                              </text>
-                              <text
-                                x={d.x0 - 8}
-                                y={(d.y0 + d.y1) / 2 + 3}
-                                fontSize="10"
-                                fill="#9ca3af"
-                                textAnchor="end"
-                              >
-                                {fmtKg(yMid)}
-                              </text>
-                              <text x={d.x0 - 8} y={d.y1 + 3} fontSize="10" fill="#6b7280" textAnchor="end">
-                                {fmtKg(yMin)}
-                              </text>
-
-                              {/* axis titles */}
-                              <text x={(d.x0 + d.x1) / 2} y={200 - 8} fontSize="10" fill="#6b7280" textAnchor="middle">
-                                Date
-                              </text>
-                              <text
-                                x="14"
-                                y={(d.y0 + d.y1) / 2}
-                                fontSize="10"
-                                fill="#6b7280"
-                                textAnchor="middle"
-                                transform={`rotate(-90 14 ${(d.y0 + d.y1) / 2})`}
-                              >
-                                Weight (kg)
-                              </text>
-
-                              {/* x tick labels */}
-                              <text x={d.x0} y={200 - 22} fontSize="10" fill="#6b7280" textAnchor="start">
-                                {startLabel}
-                              </text>
-                              <text x={d.x1} y={200 - 22} fontSize="10" fill="#6b7280" textAnchor="end">
-                                {endLabel}
-                              </text>
-
-                              {chart.points ? (
-                                <polyline fill="none" stroke="#16a34a" strokeWidth="2" points={chart.points} />
-                              ) : null}
-                            </>
-                          )
-                        })()}
-                    </Box>
-                  </Box>
-
-                  <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
-                    {chart.points ? 'Showing logged days only (gaps are days without entries).' : 'No weight entries yet for this range.'}
-                  </Typography>
-                </Box>
-              )
-            })()
-          )}
-        </Box>
+        <WeightTracker selectedDate={selectedDate} />
       )}
 
       {activeTab === 6 && (

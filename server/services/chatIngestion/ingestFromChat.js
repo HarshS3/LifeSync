@@ -148,15 +148,28 @@ async function upsertTodayNutritionLog({ userId, now, patch }) {
   }
   return NutritionLog.create({ user: userId, date: now, ...patch });
 }
-async function upsertTodayWeightLog({ userId, now, weight }) {
+async function upsertTodayWeightLog({ userId, now, weightKg }) {
   const start = startOfDay(now);
   const end = endOfDay(now);
   const existing = await WeightLog.findOne({ user: userId, date: { $gte: start, $lt: end } }).sort({ date: -1 });
+  
   if (existing) {
-    existing.weight = weight;
-    return existing.save();
+    existing.weightKg = weightKg;
+    await existing.save();
+  } else {
+    await WeightLog.create({ user: userId, date: now, weightKg });
   }
-  return WeightLog.create({ user: userId, date: now, weight });
+
+  // Update user profile with latest weight
+  const latestWeight = await WeightLog.findOne({ user: userId }).sort({ date: -1 });
+  if (latestWeight) {
+    await User.findByIdAndUpdate(userId, {
+      $set: {
+        weight: latestWeight.weightKg,
+        'biologicalProfile.weightKg': latestWeight.weightKg
+      }
+    });
+  }
 }
 
 // ── Food logging via Nutrition Agent ─────────────────────────────────────────
@@ -205,7 +218,7 @@ async function ingestFromChat({ userId, message, now = new Date() }) {
   const energyLevel = parseScale10(message, 'energy');
   const mood        = parseMoodEnum(message);
   const waterMl     = parseWaterMl(message);
-  const weight      = parseWeight(message);
+  const weightKg    = parseWeight(message);
 
   const mentalPatch = {};
   if (sleepHours  != null) mentalPatch.sleepHours  = sleepHours;
@@ -219,9 +232,9 @@ async function ingestFromChat({ userId, message, now = new Date() }) {
   }
 
   // Weight check
-  if (weight != null) {
-    await upsertTodayWeightLog({ userId, now, weight });
-    updates.push({ model: 'WeightLog', patch: { weight } });
+  if (weightKg != null) {
+    await upsertTodayWeightLog({ userId, now, weightKg });
+    updates.push({ model: 'WeightLog', patch: { weightKg } });
   }
 
   // Water intake

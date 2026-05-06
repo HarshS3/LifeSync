@@ -36,9 +36,18 @@ export default function PlateCalculator({ targetWeight = 60, barWeight = 20 }) {
           label="Target kg"
           value={weight}
           onChange={(e) => setWeight(Number(e.target.value))}
-          InputProps={{ sx: { height: 32, fontSize: '0.8rem', color: 'background.paper' } }}
-          InputLabelProps={{ sx: { fontSize: '0.7rem', color: '#94a3b8' } }}
-          sx={{ width: 100 }}
+          sx={{ 
+            width: 100,
+            '& .MuiOutlinedInput-root': { 
+              color: '#ffffff', 
+              fontSize: '0.8rem',
+              bgcolor: 'rgba(255,255,255,0.05)',
+              height: 32,
+              '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
+              '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.4)' },
+            },
+            '& .MuiInputLabel-root': { color: '#94a3b8', fontSize: '0.7rem' }
+          }}
         />
       </Box>
 

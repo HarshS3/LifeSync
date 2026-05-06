@@ -169,4 +169,25 @@ router.get('/mental/:userId', async (req, res) => {
   }
 });
 
+// Range fetch for mental logs
+router.get('/mental/range/:start/:end', auth, async (req, res) => {
+  try {
+    const start = new Date(req.params.start);
+    const end = new Date(req.params.end);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return res.status(400).json({ error: 'Invalid range' });
+    }
+    const docs = await MentalLog.find({
+      user: req.userId,
+      date: { $gte: start, $lte: end },
+    })
+      .sort({ date: 1 })
+      .lean();
+    res.json(docs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch mental range' });
+  }
+});
+
 module.exports = router;

@@ -506,6 +506,14 @@ function Dashboard() {
                 sx={{ bgcolor: '#fef3c7', color: '#b45309', fontWeight: 600 }} 
               />
             </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="body2" sx={{ color: 'text.primary', fontWeight: 600 }}>Current Weight</Typography>
+              <Chip 
+                label={user?.biologicalProfile?.weightKg || user?.weight || '—'} 
+                size="small" 
+                sx={{ bgcolor: '#fff7ed', color: '#c2410c', fontWeight: 600 }} 
+              />
+            </Box>
           </Box>
         </Box>
 
@@ -735,18 +743,26 @@ function Dashboard() {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+            gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' },
             gap: 2,
           }}
         >
           {[
             { label: 'Log Workout', icon: '💪', color: '#eff6ff', section: 'logs' },
             { label: 'Log Meal', icon: '🥗', color: '#f0fdf4', section: 'nutrition' },
+            { label: 'Log Weight', icon: '⚖️', color: '#fef3c7', section: 'nutrition', tab: 'Weight' },
             { label: 'Talk to AI', icon: '🤖', color: '#faf5ff', section: 'chat' },
           ].map((action) => (
             <Box
               key={action.label}
-              onClick={() => navigateTo(action.section)}
+              onClick={() => {
+                navigateTo(action.section)
+                if (action.tab) {
+                  setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent('lifesync:nutrition:tab', { detail: { tab: action.tab } }))
+                  }, 100)
+                }
+              }}
               sx={{
                 p: 2,
                 bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : action.color,

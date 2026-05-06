@@ -58,9 +58,6 @@ function ExerciseHistoryPage() {
         const data = await res.json()
         setHistory(data.history || [])
         setStats(data.stats || null)
-        
-        // After loading history, fetch AI analysis
-        fetchAiAnalysis(data.history, data.stats)
       }
     } catch (err) {
       console.error('Failed to load exercise history:', err)
@@ -124,8 +121,8 @@ function ExerciseHistoryPage() {
   const trendInfo = useMemo(() => {
     if (chartData.length < 4) return { status: 'stable', change: 0 }
     
-    const recent = chartData.slice(-3)
-    const previous = chartData.slice(-6, -3)
+    const recent = chartData.slice(-4)
+    const previous = chartData.slice(-8, -4)
     
     const recentAvg = recent.reduce((sum, d) => sum + d.oneRM, 0) / recent.length
     const prevAvg = previous.reduce((sum, d) => sum + d.oneRM, 0) / previous.length

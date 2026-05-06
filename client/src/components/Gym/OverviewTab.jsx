@@ -562,7 +562,7 @@ const OverviewTab = ({
             </Box>
 
             <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 3 }}>
-              This chart connects your vertical health slices. See how your nutrition (Protein/Calories) directly impacts performance for <b>{selectedAnalysisExercise}</b> over the last 8 sessions.
+              This chart connects your vertical health slices. See how your nutrition (Protein/Calories) directly impacts your gym performance over the last 14 days.
             </Typography>
 
             <Box sx={{ height: { xs: 220, md: 300 }, width: '100%' }}>
@@ -618,14 +618,14 @@ const OverviewTab = ({
                   Deep Sync: Clinical Pattern Analysis
                 </Typography>
               </Box>
-              
+
               <Button
                 size="small"
                 variant="contained"
                 onClick={loadCorrelatedInsights}
                 disabled={correlationLoading}
-                sx={{ 
-                  bgcolor: '#ea580c', 
+                sx={{
+                  bgcolor: '#ea580c',
                   '&:hover': { bgcolor: '#c2410c' },
                   textTransform: 'none',
                   fontWeight: 700

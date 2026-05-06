@@ -21,7 +21,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import TipsAndUpdatesIcon from '@mui/icons-material/TipsAndUpdates'
 import WhatshotIcon from '@mui/icons-material/Whatshot'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend, ComposedChart, Area, AreaChart
 } from 'recharts'
 import { useAuth } from '../context/AuthContext'
@@ -40,7 +40,7 @@ function ExerciseHistoryPage() {
   const [history, setHistory] = useState([])
   const [stats, setStats] = useState(null)
   const [chartView, setChartView] = useState('weight') // 'weight', '1rm', 'volume', 'rpe'
-  
+
   const [aiAnalysis, setAiAnalysis] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
 
@@ -73,9 +73,9 @@ function ExerciseHistoryPage() {
       setAiLoading(true)
       const res = await fetch(`${API_BASE}/api/gym/exercise-analysis/${encodeURIComponent(exerciseName)}`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` 
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({ history: historyData, stats: statsData })
       })
@@ -120,15 +120,15 @@ function ExerciseHistoryPage() {
   // Calculate Heuristic Trend
   const trendInfo = useMemo(() => {
     if (chartData.length < 4) return { status: 'stable', change: 0 }
-    
-    const recent = chartData.slice(-4)
-    const previous = chartData.slice(-8, -4)
-    
+
+    const recent = chartData.slice(-3)
+    const previous = chartData.slice(-6, -3)
+
     const recentAvg = recent.reduce((sum, d) => sum + d.oneRM, 0) / recent.length
     const prevAvg = previous.reduce((sum, d) => sum + d.oneRM, 0) / previous.length
-    
+
     const pctChange = ((recentAvg - prevAvg) / prevAvg) * 100
-    
+
     if (pctChange > 2) return { status: 'gaining', change: pctChange, color: '#059669', icon: <TrendingUpIcon /> }
     if (pctChange < -2) return { status: 'losing', change: pctChange, color: '#ef4444', icon: <TrendingDownIcon /> }
     return { status: 'plateauing', change: pctChange, color: '#f59e0b', icon: <TrendingFlatIcon /> }
@@ -149,7 +149,7 @@ function ExerciseHistoryPage() {
     <Box sx={{ maxWidth: 1400, mx: 'auto', p: { xs: 1.5, md: 3 } }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
-        <IconButton 
+        <IconButton
           onClick={() => navigate(-1)}
           sx={{
             transition: 'all 0.2s ease',
@@ -166,16 +166,16 @@ function ExerciseHistoryPage() {
               {exerciseName}
             </Typography>
             {trendInfo && (
-              <Chip 
-                label={trendInfo.status.toUpperCase()} 
-                size="small" 
-                sx={{ 
-                  bgcolor: `${trendInfo.color}15`, 
-                  color: trendInfo.color, 
-                  fontWeight: 700, 
+              <Chip
+                label={trendInfo.status.toUpperCase()}
+                size="small"
+                sx={{
+                  bgcolor: `${trendInfo.color}15`,
+                  color: trendInfo.color,
+                  fontWeight: 700,
                   border: `1px solid ${trendInfo.color}40`,
                   ml: 1
-                }} 
+                }}
                 icon={trendInfo.icon}
               />
             )}
@@ -234,8 +234,8 @@ function ExerciseHistoryPage() {
                 size="small"
                 variant={chartView === view ? 'contained' : 'outlined'}
                 onClick={() => setChartView(view)}
-                sx={{ 
-                  textTransform: 'capitalize', 
+                sx={{
+                  textTransform: 'capitalize',
                   borderRadius: 2,
                   px: 2,
                   bgcolor: chartView === view ? 'text.primary' : 'transparent',
@@ -257,14 +257,14 @@ function ExerciseHistoryPage() {
                   <AreaChart data={chartData}>
                     <defs>
                       <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#1d4ed8" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="#1d4ed8" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#1d4ed8" stopOpacity={0.1} />
+                        <stop offset="95%" stopColor="#1d4ed8" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke='divider' vertical={false} />
                     <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} domain={['dataMin - 5', 'auto']} />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                       formatter={(value) => [value, 'kg']}
                     />
@@ -275,7 +275,7 @@ function ExerciseHistoryPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke='divider' vertical={false} />
                     <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} domain={['dataMin - 5', 'auto']} />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                     />
                     <Line type="stepAfter" dataKey="oneRM" stroke="#059669" strokeWidth={3} name="Est. 1RM (kg)" dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} />
@@ -285,7 +285,7 @@ function ExerciseHistoryPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke='divider' vertical={false} />
                     <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                     />
                     <Bar dataKey="volume" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Total Volume" />
@@ -346,13 +346,13 @@ function ExerciseHistoryPage() {
                 </Box>
               ) : (
                 <Box sx={{ textAlign: 'center', py: 4 }}>
-                   <Button 
-                    variant="outlined" 
+                  <Button
+                    variant="outlined"
                     sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.3)' }}
                     onClick={() => fetchAiAnalysis(history, stats)}
-                   >
-                     Analyze Trends
-                   </Button>
+                  >
+                    Analyze Trends
+                  </Button>
                 </Box>
               )}
             </CardContent>

@@ -259,41 +259,27 @@ function GymTracker() {
   }
 
   const correlationChartData = useMemo(() => {
-    if (!selectedAnalysisExercise) return []
-    
     // Map of date string -> { volume, calories, protein }
     const dayMap = {}
 
-    // 1. Identify the last 8 sessions for this specific exercise
-    const exerciseSessions = workouts
-      .filter(w => w.exercises?.some(ex => ex.name === selectedAnalysisExercise))
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 8)
-
-    const sessionDates = new Set(exerciseSessions.map(w => new Date(w.date).toDateString()))
-
-    // 2. Process those Workouts
-    exerciseSessions.forEach(w => {
+    // Process Workouts
+    workouts.forEach(w => {
       const d = new Date(w.date).toDateString()
-      const ex = w.exercises?.find(e => e.name === selectedAnalysisExercise)
-      const vol = ex?.sets?.reduce((s, set) => s + ((Number(set.reps) || 0) * (Number(set.weight) || 0)), 0) || 0
-      
+      const vol = w.exercises?.reduce((sum, ex) => sum + (ex.sets?.reduce((s, set) => s + (set.reps * set.weight), 0) || 0), 0) || 0
       if (!dayMap[d]) dayMap[d] = { date: d, volume: 0, calories: 0, protein: 0 }
       dayMap[d].volume += vol
     })
 
-    // 3. Process Nutrition for ONLY those dates
+    // Process Nutrition
     nutritionHistory.forEach(log => {
       const d = new Date(log.date).toDateString()
-      if (sessionDates.has(d)) {
-        if (!dayMap[d]) dayMap[d] = { date: d, volume: 0, calories: 0, protein: 0 }
-        dayMap[d].calories = log.macros?.calories || 0
-        dayMap[d].protein = log.macros?.protein || 0
-      }
+      if (!dayMap[d]) dayMap[d] = { date: d, volume: 0, calories: 0, protein: 0 }
+      dayMap[d].calories = log.macros?.calories || 0
+      dayMap[d].protein = log.macros?.protein || 0
     })
 
-    return Object.values(dayMap).sort((a, b) => new Date(a.date) - new Date(b.date))
-  }, [workouts, nutritionHistory, selectedAnalysisExercise])
+    return Object.values(dayMap).sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-14)
+  }, [workouts, nutritionHistory])
 
   useEffect(() => {
     loadWorkouts()

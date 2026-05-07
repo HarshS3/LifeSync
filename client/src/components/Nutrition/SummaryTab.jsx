@@ -66,7 +66,7 @@ function SummaryTab({
 
           for (let d = new Date(pStart); d <= pEnd; d.setDate(d.getDate() + 1)) {
             const dateKey = d.toISOString().split('T')[0]
-            const dyn = dynamicTargets[dateKey]
+            const dyn = (dynamicTargets && typeof dynamicTargets === 'object') ? dynamicTargets[dateKey] : null
             if (dyn) {
               const actualDyn = dyn.targets || {}
               const dynMicros = actualDyn.micronutrients || {}

@@ -8,21 +8,35 @@ const Workout = require('../../models/Workout');
 function calculateSmoothTrend(dataPoints, windowSize = 7) {
   if (!dataPoints || dataPoints.length === 0) return [];
   
+  // To handle sparse data, we create a map of dates to values
+  const dataMap = {};
+  dataPoints.forEach(p => {
+    const dStr = new Date(p.date).toISOString().split('T')[0];
+    dataMap[dStr] = p.value;
+  });
+
   const smoothed = [];
-  for (let i = 0; i < dataPoints.length; i++) {
+  dataPoints.forEach(p => {
+    const currentDate = new Date(p.date);
     let windowSum = 0;
     let windowCount = 0;
-    
-    // Look back `windowSize` elements
-    for (let j = Math.max(0, i - windowSize + 1); j <= i; j++) {
-      windowSum += dataPoints[j].value;
-      windowCount++;
+
+    for (let i = 0; i < windowSize; i++) {
+      const checkDate = new Date(currentDate);
+      checkDate.setDate(checkDate.getDate() - i);
+      const checkStr = checkDate.toISOString().split('T')[0];
+
+      if (dataMap[checkStr] !== undefined) {
+        windowSum += dataMap[checkStr];
+        windowCount++;
+      }
     }
+
     smoothed.push({
-      date: dataPoints[i].date,
-      value: windowSum / windowCount
+      date: p.date,
+      value: windowSum / Math.max(1, windowCount)
     });
-  }
+  });
   return smoothed;
 }
 
@@ -37,11 +51,14 @@ async function calculateAdaptiveTDEE(userId, daysBack = 30, referenceDate = new 
   const cutoffDate = new Date(referenceDate);
   cutoffDate.setDate(cutoffDate.getDate() - daysBack);
 
-  // 1. Fetch Weight Logs
-  const weightLogsRaw = await WeightLog.find({
-    user: userId,
-    date: { $gte: cutoffDate, $lte: referenceDate }
-  }).select('date weightKg').sort({ date: 1 }).lean();
+  // 1. Fetch Weight Logs and User Weight (for bodyweight volume)
+  const [weightLogsRaw, user] = await Promise.all([
+    WeightLog.find({
+      user: userId,
+      date: { $gte: cutoffDate, $lte: referenceDate }
+    }).select('date weightKg').sort({ date: 1 }).lean(),
+    require('../../models/User').findById(userId).select('weight biologicalProfile').lean()
+  ]);
 
   if (weightLogsRaw.length < 3) {
     return { status: 'insufficient_data', message: 'Need at least 3 weight logs to estimate Adaptive TDEE.' };
@@ -131,6 +148,13 @@ async function calculateAdaptiveTDEEForRange(userId, startDate, endDate) {
 
   const results = {};
   
+  // Pre-process weights for smoothing
+  const weightPoints = weights.map(w => ({ date: w.date, value: w.weightKg }));
+  const smoothedWeightsMap = {};
+  calculateSmoothTrend(weightPoints, 7).forEach(p => {
+    smoothedWeightsMap[new Date(p.date).toISOString().split('T')[0]] = p.value;
+  });
+
   // Iterate through each day in the requested range
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const dayKey = d.toISOString().split('T')[0];
@@ -140,26 +164,27 @@ async function calculateAdaptiveTDEEForRange(userId, startDate, endDate) {
     const winStart = new Date(d);
     winStart.setDate(winStart.getDate() - 30);
 
-    const winWeights = weights.filter(w => w.date >= winStart && w.date <= winEnd);
     const winNutri = nutrition.filter(n => n.date >= winStart && n.date <= winEnd && (n.dailyTotals?.calories || 0) > 800);
 
-    if (winWeights.length >= 3 && winNutri.length >= 5) {
-      // Calculate inline for performance
-      const totalCals = winNutri.reduce((sum, n) => sum + (n.dailyTotals.calories || 0), 0);
-      const avgIntake = totalCals / winNutri.length;
+    // Find first and last smoothed points in the 30-day window
+    const windowDateKeys = Object.keys(smoothedWeightsMap)
+      .filter(k => k >= winStart.toISOString().split('T')[0] && k <= dayKey)
+      .sort();
+
+    if (windowDateKeys.length >= 2 && winNutri.length >= 5) {
+      const firstKey = windowDateKeys[0];
+      const lastKey = windowDateKeys[windowDateKeys.length - 1];
       
-      const pts = winWeights.map(w => ({ date: w.date, value: w.weightKg }));
-      const smoothed = calculateSmoothTrend(pts, 7);
+      const firstVal = smoothedWeightsMap[firstKey];
+      const lastVal = smoothedWeightsMap[lastKey];
       
-      if (smoothed.length >= 2) {
-        const first = smoothed[0];
-        const last = smoothed[smoothed.length - 1];
-        const elapsed = (new Date(last.date).getTime() - new Date(first.date).getTime()) / (1000 * 60 * 60 * 24);
-        
-        if (elapsed >= 5) {
-          const delta = ((last.value - first.value) * 7700) / elapsed;
-          results[dayKey] = Math.round(avgIntake - delta);
-        }
+      const elapsed = (new Date(lastKey) - new Date(firstKey)) / 86400000;
+      
+      if (elapsed >= 5) {
+        const totalCals = winNutri.reduce((sum, n) => sum + (n.dailyTotals.calories || 0), 0);
+        const avgIntake = totalCals / winNutri.length;
+        const delta = ((lastVal - firstVal) * 7700) / elapsed;
+        results[dayKey] = Math.round(avgIntake - delta);
       }
     }
   }
@@ -192,7 +217,7 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
 
   // ── Fetch all data in parallel ──────────────────────────────────
   const [user, nutritionLogs, weightLogs, mentalLogs, workouts] = await Promise.all([
-    require('../../models/User').findById(userId).select('biologicalProfile').lean(),
+    require('../../models/User').findById(userId).select('weight biologicalProfile').lean(),
     NutritionLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date dailyTotals.calories').sort({ date: 1 }).lean(),
     WeightLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date weightKg').sort({ date: 1 }).lean(),
     MentalLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date stressLevel').sort({ date: 1 }).lean(),
@@ -250,15 +275,20 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
     return daysAgo > 7 && daysAgo <= 35;
   });
 
+  const userWeight = user?.biologicalProfile?.weight || user?.weight || 75;
+
   const calcVolume = (ws) => ws.reduce((total, w) => {
     const wVol = (w.exercises || []).reduce((ex, e) =>
-      ex + (e.sets || []).reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0), 0);
+      ex + (e.sets || []).reduce((s, set) => {
+        const effectiveWeight = (set.weight && set.weight > 0) ? set.weight : userWeight;
+        return s + effectiveWeight * (set.reps || 0);
+      }, 0), 0);
     return total + wVol;
   }, 0);
 
   const recentVolume = calcVolume(recentWeekWorkouts);
   const avgWeeklyVolume = olderWorkouts.length > 0
-    ? calcVolume(olderWorkouts) / Math.max(1, olderWorkouts.length / 3)
+    ? calcVolume(olderWorkouts) / 4 // Correctly divide by 4 weeks
     : recentVolume;
 
   const volumeRatio = avgWeeklyVolume > 0 ? recentVolume / avgWeeklyVolume : 1;
@@ -273,10 +303,11 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
     : `Training load is at your normal level.`;
 
   // ── 4. METABOLIC ADAPTATION MODIFIER ───────────────────────────
-  // Detect sustained caloric deficit (8+ weeks below TDEE)
+  // Detect sustained caloric deficit (consecutive weeks below TDEE)
   let adaptationModifier = 0;
   let adaptationLabel = 'No metabolic adaptation detected.';
   let deficitStreak = 0;
+  let maxConsecutiveDeficit = 0;
 
   // Walk through nutrition logs weekly and check if intake < baseTDEE
   const weeklyCalories = {};
@@ -286,10 +317,19 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
     weeklyCalories[weekKey].push(l.dailyTotals?.calories || 0);
   });
 
-  Object.values(weeklyCalories).forEach(weekLogs => {
+  // Sort weeks descending (0 is most recent) and check for consecutive deficit
+  const sortedWeeks = Object.keys(weeklyCalories).map(Number).sort((a, b) => a - b);
+  for (const week of sortedWeeks) {
+    const weekLogs = weeklyCalories[week];
     const weekAvg = weekLogs.reduce((s, c) => s + c, 0) / weekLogs.length;
-    if (weekAvg < baseTDEE - 200) deficitStreak++;
-  });
+    if (weekAvg < baseTDEE - 150) { // Using 150 as a meaningful deficit threshold
+      deficitStreak++;
+    } else {
+      maxConsecutiveDeficit = Math.max(maxConsecutiveDeficit, deficitStreak);
+      deficitStreak = 0;
+    }
+  }
+  deficitStreak = Math.max(maxConsecutiveDeficit, deficitStreak);
 
   if (deficitStreak >= 8) {
     adaptationModifier = -Math.round(baseTDEE * 0.12); // 12% suppression

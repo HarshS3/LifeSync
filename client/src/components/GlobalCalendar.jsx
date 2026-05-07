@@ -8,13 +8,13 @@ import DialogContent from '@mui/material/DialogContent'
 import IconButton from '@mui/material/IconButton'
 import Tabs from '@mui/material/Tabs'
 import Tab from '@mui/material/Tab'
-import FitnessCenterIcon from '@mui/icons-material/FitnessCenter'
 import SpaIcon from '@mui/icons-material/Spa'
 import RestaurantIcon from '@mui/icons-material/Restaurant'
 import CloseIcon from '@mui/icons-material/Close'
 import MedicationIcon from '@mui/icons-material/Medication'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import TimelineIcon from '@mui/icons-material/Timeline'
 import Calendar from './Calendar'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
@@ -53,29 +53,17 @@ function GlobalCalendar() {
         return
       }
 
-      const [workouts, mental, nutrition, habits] = await Promise.all([
-        fetchJson(`${API_BASE}/api/gym/workouts/range/${encodeURIComponent(startStr)}/${encodeURIComponent(endStr)}`),
+      const [mentalRaw, nutritionRaw, habitsRaw] = await Promise.all([
         fetchJson(`${API_BASE}/api/logs/mental/range/${encodeURIComponent(startStr)}/${encodeURIComponent(endStr)}`),
         fetchJson(`${API_BASE}/api/nutrition/logs/range/${encodeURIComponent(startStr)}/${encodeURIComponent(endStr)}`),
         fetchJson(`${API_BASE}/api/habits/logs/range?start=${startStr}&end=${endStr}`),
       ])
 
-      const allEvents = []
+      const mental = Array.isArray(mentalRaw) ? mentalRaw : [];
+      const nutrition = Array.isArray(nutritionRaw) ? nutritionRaw : (Array.isArray(nutritionRaw?.logs) ? nutritionRaw.logs : []);
+      const habits = Array.isArray(habitsRaw) ? habitsRaw : [];
 
-      // Workout events
-      workouts.forEach(w => {
-        allEvents.push({
-          date: w.date,
-          type: 'workout',
-          title: w.name || 'Workout',
-          icon: <FitnessCenterIcon sx={{ fontSize: 16 }} />,
-          color: '#2563eb',
-          bgColor: 'rgba(37, 99, 235, 0.08)',
-          details: `${w.exercises?.length || 0} exercises`,
-          data: w,
-          summary: w.exercises?.map(e => e.name).join(', ') || '',
-        })
-      })
+      const allEvents = []
 
       // Mental/Wellness events
       mental.forEach(m => {
@@ -165,14 +153,8 @@ function GlobalCalendar() {
     setVisibleMonth(date)
   }
 
-  // Filter events by type
-  const filteredEvents = filterTab === 0
-    ? events
-    : events.filter(e => {
-        if (filterTab === 1) return e.type === 'workout'
-        if (filterTab === 2) return e.type === 'habit'
-        return true
-      })
+  // Use all events for the main calendar view
+  const filteredEvents = events
 
   // Stats for the visible month
   const monthEvents = events.filter(e => {
@@ -181,7 +163,6 @@ function GlobalCalendar() {
   })
   
   const stats = {
-    workouts: monthEvents.filter(e => e.type === 'workout').length,
     checkins: monthEvents.filter(e => e.type === 'mental').length,
     nutrition: monthEvents.filter(e => e.type === 'nutrition').length,
     habits: monthEvents.filter(e => e.type === 'habit').length,
@@ -204,16 +185,11 @@ function GlobalCalendar() {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' },
+          gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
           gap: 2,
           mb: 4,
         }}
       >
-        <Box sx={{ p: 2.5, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 3, textAlign: 'center', transition: 'transform 0.2s', '&:hover': { transform: 'translateY(-2px)' } }}>
-          <FitnessCenterIcon sx={{ color: '#2563eb', mb: 1, fontSize: 24 }} />
-          <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>{stats.workouts}</Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Workouts</Typography>
-        </Box>
         <Box sx={{ p: 2.5, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 3, textAlign: 'center', transition: 'transform 0.2s', '&:hover': { transform: 'translateY(-2px)' } }}>
           <SpaIcon sx={{ color: '#9333ea', mb: 1, fontSize: 24 }} />
           <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>{stats.checkins}</Typography>
@@ -223,11 +199,6 @@ function GlobalCalendar() {
           <RestaurantIcon sx={{ color: '#15803d', mb: 1, fontSize: 24 }} />
           <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>{stats.nutrition}</Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nutrition</Typography>
-        </Box>
-        <Box sx={{ p: 2.5, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 3, textAlign: 'center', transition: 'transform 0.2s', '&:hover': { transform: 'translateY(-2px)' } }}>
-          <CheckCircleIcon sx={{ color: '#6366f1', mb: 1, fontSize: 24 }} />
-          <Typography variant="h4" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>{stats.habits}</Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Habits</Typography>
         </Box>
       </Box>
 
@@ -252,8 +223,6 @@ function GlobalCalendar() {
           }}
         >
           <Tab label="All Activity" />
-          <Tab icon={<FitnessCenterIcon sx={{ fontSize: 18 }} />} label="Workouts" iconPosition="start" />
-          <Tab icon={<CheckCircleIcon sx={{ fontSize: 18 }} />} label="Habits" iconPosition="start" />
         </Tabs>
       </Box>
 
@@ -393,29 +362,6 @@ function GlobalCalendar() {
                   </Box>
                 </Box>
 
-                {/* Workout Details */}
-                {event.type === 'workout' && event.data?.exercises && (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                    {event.data.exercises.map((ex, i) => (
-                      <Box key={i} sx={{ 
-                        p: 1.5,
-                        borderRadius: 2,
-                        bgcolor: 'action.hover',
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center',
-                      }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: event.color }} />
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>{ex.name}</Typography>
-                        </Box>
-                        <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                          {ex.sets?.length || 0} sets
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                )}
 
                 {/* Mental Details */}
                 {event.type === 'mental' && event.data && (

@@ -851,11 +851,31 @@ function Dashboard() {
           )}
         </Box>
 
-        <Box sx={{ p: 3, bgcolor: 'text.primary', borderRadius: 2, color: 'background.paper' }}>
-          <Typography variant="subtitle2" sx={{ mb: 1, color: '#9ca3af' }}>
+        <Box 
+          sx={{ 
+            p: 3, 
+            bgcolor: (theme) => theme.palette.mode === 'dark' ? 'primary.main' : '#111827', 
+            borderRadius: 2, 
+            color: 'background.paper' 
+          }}
+        >
+          <Typography 
+            variant="subtitle2" 
+            sx={{ 
+              mb: 1, 
+              color: (theme) => theme.palette.mode === 'dark' ? 'background.default' : '#9ca3af' 
+            }}
+          >
             AI Understanding
           </Typography>
-          <Typography variant="body2" sx={{ color: 'divider', lineHeight: 1.6, mb: 2 }}>
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              color: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.7)', 
+              lineHeight: 1.6, 
+              mb: 2 
+            }}
+          >
             I'm learning your patterns. The more you check in, the better I understand:
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -866,8 +886,22 @@ function Dashboard() {
               'What motivates you',
             ].map((item, i) => (
               <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: '#6366f1' }} />
-                <Typography variant="caption" sx={{ color: '#d1d5db' }}>{item}</Typography>
+                <Box 
+                  sx={{ 
+                    width: 4, 
+                    height: 4, 
+                    borderRadius: '50%', 
+                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'secondary.main' : '#6366f1' 
+                  }} 
+                />
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    color: (theme) => theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.8)' : '#d1d5db' 
+                  }}
+                >
+                  {item}
+                </Typography>
               </Box>
             ))}
           </Box>

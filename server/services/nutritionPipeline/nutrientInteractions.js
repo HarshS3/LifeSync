@@ -87,7 +87,6 @@ const interactionRules = {
     {
       id: 'iron_tannins',
       primary: 'iron_mg',
-      secondary: 'tannins', // Pseudo-nutrient or food flag
       type: 'blocking',
       effect: '40–60% reduction',
       title: 'Iron blocked by Tannins (Tea/Coffee)',
@@ -256,21 +255,34 @@ function evaluateMealInteractions(foods) {
 
 /**
  * Evaluates interactions across all meals in a day.
- * Aggregates all foods from all meals and checks for interactions.
+ * Evaluates each meal individually to prevent false positives from time-separated consumption.
  * @param {Array} meals - Array of meal objects, each containing foods array
  * @returns {Object} { synergies: [], antagonisms: [] }
  */
 function evaluateDayInteractions(meals) {
-  // Aggregate all foods from all meals
-  const allFoods = [];
+  const allSynergies = new Map();
+  const allAntagonisms = new Map();
+  const dailyTotals = {};
+
   meals.forEach(meal => {
     if (meal.foods && Array.isArray(meal.foods)) {
-      allFoods.push(...meal.foods);
+      const { synergies, antagonisms, aggregateNutrients } = evaluateMealInteractions(meal.foods);
+      
+      synergies.forEach(s => allSynergies.set(s.id, s));
+      antagonisms.forEach(a => allAntagonisms.set(a.id, a));
+      
+      // Accumulate daily totals
+      Object.entries(aggregateNutrients).forEach(([key, val]) => {
+        dailyTotals[key] = (dailyTotals[key] || 0) + val;
+      });
     }
   });
 
-  // Use the existing meal interaction function on aggregated foods
-  return evaluateMealInteractions(allFoods);
+  return { 
+    synergies: Array.from(allSynergies.values()), 
+    antagonisms: Array.from(allAntagonisms.values()),
+    aggregateNutrients: dailyTotals 
+  };
 }
 
 module.exports = {

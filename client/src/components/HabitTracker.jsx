@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, Fragment } from 'react'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -765,7 +765,7 @@ function HabitTracker() {
 
               {/* Habit Rows */}
               {habits.map((habit) => (
-                <>
+                <Fragment key={habit._id}>
                   <Box
                     key={`label-${habit._id}`}
                     sx={{
@@ -836,7 +836,7 @@ function HabitTracker() {
                       </Box>
                     )
                   })}
-                </>
+                </Fragment>
               ))}
 
               {/* Completion Row */}

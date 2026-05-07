@@ -1,11 +1,15 @@
 import ExpandableSection from './ExpandableSection'
 import WeightTracker from './WeightTracker'
 import NutritionInsights from './NutritionInsights'
+import DailyLogTab from './Nutrition/DailyLogTab'
+import LogMealTab from './Nutrition/LogMealTab'
+import DetailsTab from './Nutrition/DetailsTab'
+import SummaryTab from './Nutrition/SummaryTab'
+import ScanProductTab from './Nutrition/ScanProductTab'
 import SupplementSection from './Nutrition/SupplementSection'
 import RecipeExplorer from './RecipeExplorer'
 import KitchenInventory from './KitchenInventory'
 import WeeklyReview from './WeeklyReview'
-import InsulinIntelligencePanel from './Nutrition/InsulinIntelligencePanel'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart } from 'recharts'
 import Box from '@mui/material/Box'
@@ -39,7 +43,7 @@ import ThumbDownIcon from '@mui/icons-material/ThumbDown'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
-import { generateCGMData } from '../lib/nutritionHelpers'
+import { generateCGMData, frontendEvaluateInteractions } from '../lib/nutritionHelpers'
 
 const formatTime = (timeStr) => {
   if (!timeStr) return '';
@@ -310,7 +314,7 @@ function NutritionTracker() {
     d.setHours(0, 0, 0, 0)
     return d
   })
-  const [log, setLog] = useState({ meals: [], waterIntake: 0, dailyTotals: EMPTY_TOTALS, notes: '' })
+  const [log, setLog] = useState({ meals: [], supplements: [], waterIntake: 0, dailyTotals: EMPTY_TOTALS, notes: '' })
   const [loading, setLoading] = useState(false)
 
   const [nutritionInsight, setNutritionInsight] = useState(null)
@@ -347,6 +351,10 @@ function NutritionTracker() {
   const [clinicalTargetsRequiresSetup, setClinicalTargetsRequiresSetup] = useState(false)
   const [clinicalTargetsMissingFields, setClinicalTargetsMissingFields] = useState([])
   const [clinicalTargetsDebug, setClinicalTargetsDebug] = useState(null)
+  const [savedTemplates, setSavedTemplates] = useState([])
+  const [savedTemplatesLoading, setSavedTemplatesLoading] = useState(false)
+  const [frequentMeals, setFrequentMeals] = useState([])
+  const [frequentMealsLoading, setFrequentMealsLoading] = useState(false)
 
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
   const [templateName, setTemplateName] = useState('')
@@ -446,6 +454,14 @@ function NutritionTracker() {
   }, [token, activeTab])
 
   useEffect(() => {
+    if (!token) return
+    if (activeTab === 1) {
+      loadSavedTemplates()
+      loadFrequentMeals()
+    }
+  }, [token, activeTab])
+
+  useEffect(() => {
     setSupportsBarcodeDetector(typeof window !== 'undefined' && 'BarcodeDetector' in window)
   }, [])
 
@@ -464,7 +480,7 @@ function NutritionTracker() {
         URL.revokeObjectURL(uploadedBarcodePreview)
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [uploadedBarcodePreview])
 
   const getAuthHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {})
@@ -700,7 +716,8 @@ function NutritionTracker() {
       const d = logItem?.dailyTotals || {}
       Object.keys(out).forEach((k) => {
         if (k === 'waterIntake') {
-          out[k] += Number(logItem?.waterIntake || 0)
+          const val = logItem?.totalWaterOverride != null ? logItem.totalWaterOverride : (logItem?.waterIntake || 0)
+          out[k] += Number(val)
         } else {
           out[k] += Number(d[k] || 0)
         }
@@ -778,7 +795,7 @@ function NutritionTracker() {
       const dateStr = toDateKey(selectedDate)
       fetchTimingAnalysis(selectedDate)
       if (!user || !user._id) {
-        setLog({ meals: [], waterIntake: 0, dailyTotals: { ...EMPTY_TOTALS }, notes: '' })
+        setLog({ meals: [], waterIntake: 0, totalWaterOverride: null, dailyTotals: { ...EMPTY_TOTALS }, notes: '' })
         return
       }
       const res = await fetch(`${API_BASE}/api/nutrition/logs/date/${encodeURIComponent(dateStr)}`, {
@@ -788,17 +805,19 @@ function NutritionTracker() {
         const data = await res.json()
         setLog({
           meals: data.meals || [],
+          supplements: data.supplements || [],
           waterIntake: data.waterIntake || 0,
+          totalWaterOverride: data.totalWaterOverride || null,
           dailyTotals: data.dailyTotals || { ...EMPTY_TOTALS },
           notes: data.notes || '',
           _id: data._id,
         })
       } else {
-        setLog({ meals: [], waterIntake: 0, dailyTotals: { ...EMPTY_TOTALS }, notes: '' })
+        setLog({ meals: [], supplements: [], waterIntake: 0, totalWaterOverride: null, dailyTotals: { ...EMPTY_TOTALS }, notes: '' })
       }
     } catch (err) {
       console.error('Failed to load nutrition log:', err)
-      setLog({ meals: [], waterIntake: 0, dailyTotals: { ...EMPTY_TOTALS }, notes: '' })
+      setLog({ meals: [], waterIntake: 0, totalWaterOverride: null, dailyTotals: { ...EMPTY_TOTALS }, notes: '' })
     }
     setLoading(false)
   }
@@ -1150,6 +1169,68 @@ function NutritionTracker() {
     }
   }
 
+  const loadSavedTemplates = async () => {
+    if (!token) return
+    try {
+      setSavedTemplatesLoading(true)
+      const res = await fetch(`${API_BASE}/api/nutrition/saved-templates`, {
+        headers: getAuthHeaders(),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setSavedTemplates(Array.isArray(data) ? data : [])
+      }
+    } catch (err) {
+      console.error('Failed to load templates:', err)
+    } finally {
+      setSavedTemplatesLoading(false)
+    }
+  }
+
+  const loadFrequentMeals = async () => {
+    if (!token) return
+    try {
+      setFrequentMealsLoading(true)
+      const res = await fetch(`${API_BASE}/api/nutrition/frequent-meals`, {
+        headers: getAuthHeaders(),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setFrequentMeals(Array.isArray(data) ? data : [])
+      }
+    } catch (err) {
+      console.error('Failed to load frequent meals:', err)
+    } finally {
+      setFrequentMealsLoading(false)
+    }
+  }
+
+  const useTemplate = (tpl) => {
+    if (!tpl || !tpl.foods) return
+    setNewMeal({
+      name: tpl.name || tpl.mealName || '',
+      mealType: tpl.mealType || 'breakfast',
+      time: tpl.time || '',
+      foods: JSON.parse(JSON.stringify(tpl.foods)),
+      notes: tpl.notes || '',
+    })
+  }
+
+  const deleteTemplate = async (id) => {
+    if (!token || !window.confirm('Are you sure you want to delete this template?')) return
+    try {
+      const res = await fetch(`${API_BASE}/api/nutrition/saved-templates/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      })
+      if (res.ok) {
+        setSavedTemplates(prev => prev.filter(t => t._id !== id))
+      }
+    } catch (err) {
+      console.error('Failed to delete template:', err)
+    }
+  }
+
   const resetNewMeal = () => {
     setNewMeal({
       name: '',
@@ -1192,6 +1273,7 @@ function NutritionTracker() {
     setLog(updatedLog)
     resetNewMeal()
     autoSaveLog(updatedLog)
+    setActiveTab(0) // Redirect to Today tab
   }
 
   const removeMealFromDay = (indexToRemove) => {
@@ -1224,6 +1306,24 @@ function NutritionTracker() {
     const updatedLog = {
       ...log,
       waterIntake: Math.max(0, (log.waterIntake || 0) + delta),
+    }
+    setLog(updatedLog)
+    autoSaveLog(updatedLog)
+  }
+
+  const handleTotalWaterChange = (val) => {
+    const updatedLog = {
+      ...log,
+      totalWaterOverride: val === '' ? null : Number(val),
+    }
+    setLog(updatedLog)
+    autoSaveLog(updatedLog)
+  }
+
+  const handleSupplementUpdate = (updatedSupps) => {
+    const updatedLog = {
+      ...log,
+      supplements: updatedSupps
     }
     setLog(updatedLog)
     autoSaveLog(updatedLog)
@@ -1274,7 +1374,9 @@ function NutritionTracker() {
       const payload = {
         date: toDateKey(selectedDate),
         meals: dataToSave.meals,
+        supplements: dataToSave.supplements || [],
         waterIntake: dataToSave.waterIntake || 0,
+        totalWaterOverride: dataToSave.totalWaterOverride,
         notes: dataToSave.notes,
       }
       const res = await fetch(`${API_BASE}/api/nutrition/logs`, {
@@ -1384,8 +1486,14 @@ function NutritionTracker() {
     return String(Number(n.toFixed(decimals)))
   }
 
+  const liveInsights = useMemo(() => {
+    return frontendEvaluateInteractions(newMeal.foods)
+  }, [newMeal.foods])
+
   const formatDate = (d) =>
     d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+
+  const effectiveWater = log?.totalWaterOverride != null ? log.totalWaterOverride : (log?.waterIntake || 0)
 
   const insightMatchesSelectedDay = useMemo(() => {
     if (!nutritionInsight?.forDate) return false
@@ -1418,7 +1526,7 @@ function NutritionTracker() {
       (totals?.protein || 0) > 0 ||
       (totals?.carbs || 0) > 0 ||
       (totals?.fat || 0) > 0 ||
-      (log?.waterIntake || 0) > 0 ||
+      (effectiveWater > 0) ||
       Boolean((log?.notes || '').trim())
 
     if (!hasAnySignal) return
@@ -1438,7 +1546,7 @@ function NutritionTracker() {
         `carbs: ${fmt(totals.carbs)} g`,
         `fat: ${fmt(totals.fat)} g`,
         `fiber: ${fmt(totals.fiber)} g`,
-        `water: ${log.waterIntake || 0} ml`,
+        `water: ${effectiveWater} ml`,
         notes ? `notes: ${notes}` : null,
       ].filter(Boolean).join('\n')
 
@@ -1474,7 +1582,7 @@ function NutritionTracker() {
       (totals?.protein || 0) > 0 ||
       (totals?.carbs || 0) > 0 ||
       (totals?.fat || 0) > 0 ||
-      (log?.waterIntake || 0) > 0
+      (effectiveWater > 0)
 
     if (!hasAnySignal) {
       alert('Log at least one meal or water first.')
@@ -1495,7 +1603,7 @@ function NutritionTracker() {
         `- carbs so far: ${Math.round(totals.carbs || 0)} g`,
         `- fat so far: ${Math.round(totals.fat || 0)} g`,
         `- fiber so far: ${Math.round(totals.fiber || 0)} g`,
-        `- water so far: ${Math.round(log.waterIntake || 0)} ml`,
+        `- water so far: ${Math.round(effectiveWater)} ml`,
         '',
         'Give 3 options for what to eat next (simple, commonly available foods).',
         'Each option must include:',
@@ -1695,1387 +1803,122 @@ function NutritionTracker() {
       </Tabs>
 
       {activeTab === 0 && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {/* Meals list */}
-          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                Meals
-              </Typography>
-              <Chip
-                icon={<RestaurantIcon sx={{ fontSize: 16 }} />}
-                label={`${fmt(totals.calories, 0)} kcal`}
-                size="small"
-                sx={{ bgcolor: '#f0fdf4', color: '#166534', borderRadius: 1 }}
-              />
-            </Box>
-
-            {log.meals?.length === 0 && (
-              <Typography variant="body2" sx={{ color: '#9ca3af' }}>
-                No meals logged yet for this day.
-              </Typography>
-            )}
-
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {log.meals?.map((meal, idx) => {
-                const mealTotals = meal.foods?.reduce(
-                  (acc, f) => ({
-                    calories: acc.calories + (f.calories || 0),
-                    protein: acc.protein + (f.protein || 0),
-                    carbs: acc.carbs + (f.carbs || 0),
-                    fat: acc.fat + (f.fat || 0),
-                  }),
-                  { calories: 0, protein: 0, carbs: 0, fat: 0 }
-                ) || { calories: 0, protein: 0, carbs: 0, fat: 0 }
-
-                return (
-                  <Box
-                    key={idx}
-                    sx={{
-                      p: 2,
-                      borderRadius: 1.5,
-                      border: '1px solid #e5e7eb',
-                      bgcolor: 'action.hover',
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', mb: 1, gap: 1 }}>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {meal.name}
-                        </Typography>
-                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                          <Chip
-                            label={meal.mealType}
-                            size="small"
-                            sx={{ height: 20, fontSize: '0.7rem', bgcolor: 'divider' }}
-                          />
-                          {meal.time && (
-                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                              {formatTime(meal.time)}
-                            </Typography>
-                          )}
-                          {meal.loggedAt && (
-                            <Typography variant="caption" sx={{ color: 'text.secondary', opacity: 0.6 }}>
-                              (Logged: {formatTime(meal.loggedAt)})
-                            </Typography>
-                          )}
-                        </Box>
-                      </Box>
-                      <Box sx={{ textAlign: { xs: 'left', sm: 'right' }, display: 'flex', flexDirection: 'column', alignItems: { xs: 'flex-start', sm: 'flex-end' } }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {fmt(mealTotals.calories, 0)} kcal
-                          </Typography>
-                          <IconButton
-                            size="small"
-                            onClick={() => editMealFromDay(idx)}
-                            sx={{ p: 0.25, color: '#3b82f6', '&:hover': { bgcolor: '#eff6ff' } }}
-                            title="Edit meal"
-                          >
-                            <EditIcon sx={{ fontSize: '1.1rem' }} />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => removeMealFromDay(idx)}
-                            sx={{ p: 0.25, color: '#ef4444', '&:hover': { bgcolor: '#fee2e2' } }}
-                            title="Delete meal"
-                          >
-                            <CloseIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          P {fmt(mealTotals.protein)}g · C {fmt(mealTotals.carbs)}g · F {fmt(mealTotals.fat)}g
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                      {meal.foods?.map((food, i) => (
-                        <Typography key={i} variant="caption" sx={{ color: 'text.secondary' }}>
-                          {food.name} {food.quantity ? `· ${food.quantity}${food.unit}` : ''}{' '}
-                          {food.calories ? `· ${food.calories} kcal` : ''}
-                        </Typography>
-                      ))}
-                    </Box>
-
-                    {meal.notes && (
-                      <Typography variant="caption" sx={{ color: '#9ca3af', mt: 0.5, display: 'block' }}>
-                        {meal.notes}
-                      </Typography>
-                    )}
-
-                    {/* Nutrient Interactions & Bioavailability Collapsibles */}
-                    {meal.insights && (meal.insights.synergies?.length > 0 || meal.insights.antagonisms?.length > 0) && (
-                      <Box sx={{ mt: 1.5 }}>
-                        <ExpandableSection 
-                          title="Nutrient Interactions & Bioavailability" 
-                          defaultOpen={false}
-                        >
-                          <Box sx={{ p: 1.5, bgcolor: 'background.paper', borderRadius: 1.5, border: '1px dashed #d1d5db' }}>
-                            {meal.insights.synergies?.map((syn, i) => (
-                              <Box key={`syn-${i}`} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'start' }}>
-                                <Box sx={{ mt: 0.25, width: 6, height: 6, borderRadius: '50%', bgcolor: '#10b981', flexShrink: 0 }} />
-                                <Box>
-                                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#065f46', display: 'block' }}>{syn.title} ({syn.effect})</Typography>
-                                  <Typography variant="caption" sx={{ color: '#047857', display: 'block', lineHeight: 1.3 }}>{syn.description}</Typography>
-                                </Box>
-                              </Box>
-                            ))}
-                            {meal.insights.antagonisms?.map((ant, i) => (
-                              <Box key={`ant-${i}`} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'start' }}>
-                                <Box sx={{ mt: 0.25, width: 6, height: 6, borderRadius: '50%', bgcolor: '#f59e0b', flexShrink: 0 }} />
-                                <Box>
-                                  <Typography variant="caption" sx={{ fontWeight: 700, color: '#b45309', display: 'block' }}>{ant.title} ({ant.effect})</Typography>
-                                  <Typography variant="caption" sx={{ color: '#92400e', display: 'block', lineHeight: 1.3 }}>{ant.description}</Typography>
-                                  {ant.fix && <Typography variant="caption" sx={{ color: '#78350f', fontWeight: 600, display: 'block', mt: 0.25 }}>Fix: {ant.fix}</Typography>}
-                                </Box>
-                              </Box>
-                            ))}
-                          </Box>
-                        </ExpandableSection>
-                      </Box>
-                    )}
-
-                    {meal.bioavailability?.results && Object.keys(meal.bioavailability.results).length > 0 && (
-                      <Box sx={{ mt: 1.5 }}>
-                        <ExpandableSection
-                          title={`Absorption Analysis (${meal.bioavailability.overallConfidence || 'medium'} confidence)`}
-                          defaultOpen={false}
-                        >
-                          <Box sx={{ p: 1.5, bgcolor: 'background.paper', borderRadius: 1.5, border: '1px dashed #c7d2fe' }}>
-                            {meal.bioavailability.narratives?.length > 0 && (
-                              <Box sx={{ mb: 1.5, p: 1, bgcolor: '#f0f9ff', borderRadius: 1, border: '1px solid #bae6fd' }}>
-                                {meal.bioavailability.narratives.map((n, i) => (
-                                  <Typography key={i} variant="caption" sx={{ display: 'block', color: '#0369a1', lineHeight: 1.5 }}>{n}</Typography>
-                                ))}
-                              </Box>
-                            )}
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-                              {Object.entries(meal.bioavailability.results).map(([nutrient, data]) => {
-                                const pctAbsorbed = Math.round(data.multiplier * 100)
-                                const isLow = data.multiplier < 0.5
-                                const isMedium = data.multiplier >= 0.5 && data.multiplier < 0.8
-                                const barColor = isLow ? '#ef4444' : isMedium ? '#f59e0b' : '#10b981'
-                                const label = nutrient.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
-                                return (
-                                  <Box key={nutrient}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 0.5 }}>
-                                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>{label}</Typography>
-                                      <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'baseline' }}>
-                                        <Typography variant="caption" sx={{ color: '#9ca3af', textDecoration: 'line-through' }}>
-                                          {data.consumed_amount}{data.unit}
-                                        </Typography>
-                                        <Typography variant="caption" sx={{ fontWeight: 700, color: barColor }}>
-                                          ~{data.effective_amount}{data.unit} absorbed ({pctAbsorbed}%)
-                                        </Typography>
-                                      </Box>
-                                    </Box>
-                                    <Box sx={{ position: 'relative', height: 6, bgcolor: 'action.selected', borderRadius: 99, overflow: 'hidden' }}>
-                                      <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '100%', bgcolor: 'divider', borderRadius: 99 }} />
-                                      <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(pctAbsorbed, 100)}%`, bgcolor: barColor, borderRadius: 99, transition: 'width 0.5s' }} />
-                                    </Box>
-                                    {data.interactions?.length > 0 && (
-                                      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25, lineHeight: 1.3 }}>
-                                        {data.interactions.filter(i => i.type !== 'neutral').map(i => `${i.agent.replace(/_/g,' ')}: ${i.effect}`).join(' · ')}
-                                      </Typography>
-                                    )}
-                                  </Box>
-                                )
-                              })}
-                            </Box>
-                          </Box>
-                        </ExpandableSection>
-                      </Box>
-                    )}
-                  </Box>
-                )
-              })}
-            </Box>
-          </Box>
-
-
-          {/* ── macro summary strip ── */}
-
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, 1fr)' }, gap: 2 }}>
-            {[
-              { label: 'Calories', val: fmt(totals.calories, 0), unit: 'kcal', pct: percent(totals.calories, calorieTarget), color: '#16a34a' },
-              { label: 'Protein',  val: fmt(totals.protein),     unit: 'g',    pct: percent(totals.protein, proteinTarget),   color: '#2563eb' },
-              { label: 'Carbs',    val: fmt(totals.carbs),       unit: 'g',    pct: null, color: '#d97706' },
-              { label: 'Fat',      val: fmt(totals.fat),         unit: 'g',    pct: null, color: '#dc2626' },
-            ].map((m) => (
-              <Box key={m.label} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>{m.label}</Typography>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>
-                  {m.val} <span style={{ fontWeight: 400, fontSize: '0.8em', color: '#9ca3af' }}>{m.unit}</span>
-                </Typography>
-                {m.pct != null && (
-                  <LinearProgress variant="determinate" value={m.pct} sx={{ mt: 1, height: 4, borderRadius: 99, bgcolor: 'action.selected', '& .MuiLinearProgress-bar': { bgcolor: m.color } }} />
-                )}
-              </Box>
-            ))}
-          </Box>
-
-          {/* Daily Warnings & Insights */}
-          {(() => {
-            const alerts = [];
-            if (totals.saturatedFat > 30) {
-              alerts.push({ type: 'warning', text: `High Saturated Fat (${fmt(totals.saturatedFat)}g): Keeping saturated fat <20-30g protects your heart health over the long term.` });
-            }
-
-            const cholesterolCap = clinicalTargets?.targets?.cholesterol ?? 300;
-            const cholesterolRationale = clinicalTargets?.targets?.cholesterolRationale;
-            if (totals.cholesterol > cholesterolCap) {
-              const rationaleText = cholesterolRationale && cholesterolCap < 300
-                ? cholesterolRationale
-                : `High Cholesterol (${fmt(totals.cholesterol)}mg / cap: ${cholesterolCap}mg): Consider balancing this with high-fiber foods (oats, beans, leafy greens) which help clear excess cholesterol from your system.`;
-              alerts.push({ type: 'warning', text: rationaleText });
-            }
-
-            if (totals.sodium > 3000) {
-              alerts.push({ type: 'warning', text: `High Sodium Detected (${fmt(totals.sodium)}mg): Hydrate extra today or expect 1-2lbs of water retention on the scale tomorrow. This is not fat gain.` });
-            }
-            if (totals.protein > 50 && log.meals) {
-              const spikeMeal = log.meals.find(meal => {
-                const p = meal.foods?.reduce((acc, f) => acc + (f.protein || 0), 0) || 0;
-                return p > 50 && p > (totals.protein * 0.5);
-              });
-              if (spikeMeal) {
-                alerts.push({ type: 'info', text: `Lopsided Protein Loading: More than 50% of your daily protein is in "${spikeMeal.name}". Your body maximizes muscle synthesis at ~30-40g per meal. Spread it out for better gains.` });
-              }
-              }
-
-              timingAlerts.forEach(t => {
-              alerts.push({ 
-                type: t.type === 'timing_warning' ? 'warning' : 'info', 
-                text: `${t.title}: ${t.text}` 
-              });
-              });
-
-              if (alerts.length === 0) return null;
-            return (
-              <Box sx={{ p: 2.5, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5, color: '#111827' }}>
-                  Daily Medical Alerts & Insights
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {alerts.map((alert, i) => (
-                    <Box key={i} sx={{ display: 'flex', gap: 1.5, p: 1.5, bgcolor: alert.type === 'warning' ? '#fef2f2' : '#eff6ff', borderRadius: 1.5, border: `1px solid ${alert.type === 'warning' ? '#fecaca' : '#bfdbfe'}` }}>
-                      <Typography sx={{ fontSize: '1.2rem' }}>{alert.type === 'warning' ? '🚨' : '💡'}</Typography>
-                      <Typography variant="caption" sx={{ color: alert.type === 'warning' ? '#991b1b' : '#1e3a8a', lineHeight: 1.4, fontWeight: 500 }}>
-                        {alert.text}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            );
-          })()}
-
-          {/* Simulated CGM Graph */}
-          <Box sx={{ p: 2.5, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Simulated Glucose Response</Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Based on meal Glycemic Pressure & macro buffering.</Typography>
-              </Box>
-              <Chip label="Simulation" size="small" sx={{ height: 20, fontSize: '0.65rem', bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600 }} />
-            </Box>
-            <Box sx={{ height: 250, width: '100%', mt: 2 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={generateCGMData(log.meals)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="glucoseGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
-                      <stop offset="35%" stopColor="#f59e0b" stopOpacity={0.6}/>
-                      <stop offset="65%" stopColor="#10b981" stopOpacity={0.4}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke='divider' />
-                  <XAxis dataKey="time" minTickGap={30} tick={{ fontSize: 11, fill: 'text.secondary' }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[70, 180]} tick={{ fontSize: 11, fill: 'text.secondary' }} axisLine={false} tickLine={false} width={50} />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    itemStyle={{ fontSize: 13, fontWeight: 700 }}
-                    labelStyle={{ fontSize: 12, color: 'text.secondary', marginBottom: 4 }}
-                  />
-                  <Area type="monotone" dataKey="glucose" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#glucoseGradient)" animationDuration={1500} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </Box>
-          </Box>
-
-          {/* Insulin Intelligence Panel */}
-          <InsulinIntelligencePanel meals={log.meals} />
-
-          {/* ── AI insight + hydration ── */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
-            <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>AI Insight</Typography>
-              {insightMatchesSelectedDay && nutritionInsight?.text ? (
-                <>
-                  <Typography variant="body2" sx={{ color: 'text.secondary', whiteSpace: 'pre-line', lineHeight: 1.7 }}>{nutritionInsight.text}</Typography>
-                  {nutritionInsight?.createdAt && (
-                    <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block', mt: 1 }}>
-                      Updated {new Date(nutritionInsight.createdAt).toLocaleString()}
-                    </Typography>
-                  )}
-                </>
-              ) : (
-                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Generate an insight for today.</Typography>
-              )}
-              {mealSuggestions && (
-                <Typography variant="body2" sx={{ color: 'text.secondary', whiteSpace: 'pre-line', lineHeight: 1.7, mt: 2, pt: 2, borderTop: '1px solid #f3f4f6' }}>{mealSuggestions}</Typography>
-              )}
-              <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
-                <Button variant="outlined" size="small" onClick={generateNutritionInsight} disabled={nutritionInsightGenerating} sx={{ textTransform: 'none', borderColor: 'divider', color: 'text.secondary' }}>
-                  {nutritionInsightGenerating ? 'Generating...' : 'Generate Insight'}
-                </Button>
-                <Button variant="outlined" size="small" onClick={generateMealSuggestions} disabled={mealSuggestionsGenerating} sx={{ textTransform: 'none', borderColor: 'divider', color: 'text.secondary' }}>
-                  {mealSuggestionsGenerating ? 'Thinking...' : 'Suggest Meals'}
-                </Button>
-              </Box>
-            </Box>
-
-            <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>Hydration</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-                <WaterDropIcon sx={{ color: '#0ea5e9', fontSize: 28 }} />
-                <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>{Math.round((log.waterIntake || 0) / 250)} glasses</Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    {log.waterIntake || 0} / {timingAlerts?.hydrationGoalMl || 2500} ml total
-                  </Typography>
-                </Box>
-              </Box>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button size="small" variant="outlined" onClick={() => handleWaterChange(250)} sx={{ flex: 1, py: 1.5, borderRadius: 2 }} startIcon={<WaterDropIcon sx={{ fontSize: 15 }} />}>+250 ml</Button>
-                <Button size="small" variant="outlined" onClick={() => handleWaterChange(500)} sx={{ flex: 1, py: 1.5, borderRadius: 2 }} startIcon={<WaterDropIcon sx={{ fontSize: 15 }} />}>+500 ml</Button>
-              </Box>
-              <Button size="small" onClick={() => handleWaterChange(-250)} sx={{ mt: 1, color: '#9ca3af', textTransform: 'none', fontSize: '0.75rem' }}>- Remove 250 ml</Button>
-            </Box>
-
-            <SupplementSection 
-              log={log} 
-              onUpdate={async (updatedSupps) => {
-                let updatedLog = null
-                setLog(prev => {
-                  updatedLog = {
-                    ...prev,
-                    supplements: updatedSupps
-                  }
-                  return updatedLog
-                })
-                if (updatedLog) await autoSaveLog(updatedLog)
-              }} 
-            />
-          </Box>
-
-          {/* â”€â”€ CTA to Log Meal tab â”€â”€ */}
-          <Box sx={{ p: 2.5, bgcolor: '#f0fdf4', borderRadius: 2, border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}>
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: '#166534' }}>Ready to log a meal?</Typography>
-              <Typography variant="caption" sx={{ color: '#15803d' }}>Search the food database, set your portion, and add it to today.</Typography>
-            </Box>
-            <Button variant="contained" size="small" onClick={() => setActiveTab(1)} sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, color: 'background.paper', fontWeight: 700 }}>
-              + Log Meal
-            </Button>
-          </Box>
-        </Box>
+        <DailyLogTab
+          log={log}
+          totals={totals}
+          fmt={fmt}
+          formatTime={formatTime}
+          editMealFromDay={editMealFromDay}
+          removeMealFromDay={removeMealFromDay}
+          percent={percent}
+          calorieTarget={calorieTarget}
+          proteinTarget={proteinTarget}
+          clinicalTargets={clinicalTargets}
+          timingAlerts={timingAlerts}
+          generateCGMData={generateCGMData}
+          insightMatchesSelectedDay={insightMatchesSelectedDay}
+          nutritionInsight={nutritionInsight}
+          generateNutritionInsight={generateNutritionInsight}
+          nutritionInsightGenerating={nutritionInsightGenerating}
+          mealSuggestions={mealSuggestions}
+          generateMealSuggestions={generateMealSuggestions}
+          mealSuggestionsGenerating={mealSuggestionsGenerating}
+          handleWaterChange={handleWaterChange}
+          setActiveTab={setActiveTab}
+          SupplementSection={SupplementSection}
+          onSupplementUpdate={handleSupplementUpdate}
+          autoSaveLog={autoSaveLog}
+        />
       )}
-
-      {/* â”€â”€â”€ TAB 1: LOG MEAL â”€â”€â”€ */}
+      {/* ─── TAB 1: LOG MEAL ─── */}
       {activeTab === 1 && (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1.25fr' }, gap: 3, alignItems: 'start' }}>
-
-          {/* LEFT: Search + Deep Analysis */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>Search Food Database</Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>Find any dish or ingredient to auto-fill nutrition data.</Typography>
-              {isMobile && (
-                <Typography variant="caption" sx={{ color: '#94a3b8', display: 'block', mb: 1 }}>
-                  Tip: tap a search result to instantly fill the last food row.
-                </Typography>
-              )}
-              <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
-                <TextField
-                  placeholder="e.g. paneer tikka, dal, rice, tea"
-                  value={foodSearchQuery}
-                  onChange={(e) => {
-                    setFoodSearchQuery(e.target.value)
-                  }}
-                  size="small"
-                  fullWidth
-                  InputProps={{
-                    endAdornment: foodSearchLoading ? <Typography variant="caption" sx={{ color: 'text.secondary' }}>Searching...</Typography> : null
-                  }}
-                />
-              </Box>
-
-              {!foodSearchLoading && foodSearchAttempted && foodResults.length === 0 && (
-                <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', textAlign: 'center', py: 2 }}>No item found</Typography>
-              )}
-
-              {foodResults.length > 0 && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, maxHeight: { xs: 220, sm: 300 }, overflow: 'auto', borderRadius: 1.5, border: '1px solid #e5e7eb', p: 0.75 }}>
-                  {foodResults.map((f, idx) => (
-                    <Box
-                      key={f.id || idx}
-                      sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: { xs: 1.25, sm: 1 }, px: 1.25, borderRadius: 1.5, cursor: 'pointer', transition: 'background 0.1s', '&:hover': { bgcolor: '#f0fdf4' } }}
-                      onClick={() => {
-                        addFoodFromSearch(f)
-                        setSelectedFoodForAnalysis(String(f.name || ''))
-                      }}
-                    >
-                      <Box>
-                        <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1, fontWeight: 600 }}>
-                          {f.name}
-                          {f.brand && (
-                            <Typography component="span" variant="caption" sx={{ color: '#059669', bgcolor: '#d1fae5', px: 0.6, py: 0.2, borderRadius: 1, fontSize: '0.65rem', fontWeight: 700 }}>
-                              {f.brand}
-                            </Typography>
-                          )}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          {formatServingDisplay(f.servingLabel || `${f.servingQty} ${f.servingUnit}`, f.servingWeightG)} · {Math.round(f.calories)} kcal
-                        </Typography>
-                      </Box>
-                      <Box sx={{ textAlign: 'right', ml: 1, flexShrink: 0 }}>
-                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>P {Math.round(f.protein)}g</Typography>
-                        <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block' }}>C {Math.round(f.carbs)}g · F {Math.round(f.fat)}g</Typography>
-                      </Box>
-                    </Box>
-                  ))}
-                </Box>
-              )}
-            </Box>
-
-            <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>Deep Food Analysis</Typography>
-              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1, mb: 1 }}>
-                <TextField
-                  placeholder="Enter food name to analyze"
-                  value={selectedFoodForAnalysis}
-                  onChange={(e) => setSelectedFoodForAnalysis(e.target.value)}
-                  size="small"
-                  fullWidth
-                />
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <Button size="small" variant="contained" onClick={() => analyzeSelectedFood({ includeLLM: false })} disabled={foodAnalysisLoading} sx={{ whiteSpace: 'nowrap', flex: 1 }}>
-                    {foodAnalysisLoading ? 'â€¦' : 'Analyze'}
-                  </Button>
-                  <Button size="small" variant="outlined" onClick={() => analyzeSelectedFood({ includeLLM: true })} disabled={foodAnalysisLoading} sx={{ whiteSpace: 'nowrap', flex: 1 }}>
-                    + LLM
-                  </Button>
-                </Box>
-              </Box>
-              {foodAnalysisError && <Typography variant="caption" sx={{ color: '#b91c1c', display: 'block', mb: 1 }}>{foodAnalysisError}</Typography>}
-              {foodAnalysis && (
-                <Box sx={{ borderRadius: 1.5, border: '1px solid #e5e7eb', bgcolor: 'action.hover', p: 1.5, mt: 1 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>
-                    {foodAnalysis.canonical_id || '-'} · {Math.round((foodAnalysis.resolver?.confidence || 0) * 100)}% confidence
-                  </Typography>
-                  {!!foodAnalysis.derived_metrics && (
-                    <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: 1 }}>
-                      <Chip size="small" label={`Glycemic: ${foodAnalysis.derived_metrics.glycemic_pressure?.label || '-'}`} sx={{ fontSize: '0.7rem' }} />
-                      <Chip size="small" label={`Satiety: ${foodAnalysis.derived_metrics.satiety_index?.label || '-'}`} sx={{ fontSize: '0.7rem' }} />
-                      <Chip size="small" label={`Inflam: ${foodAnalysis.derived_metrics.inflammatory_potential?.label || '-'}`} sx={{ fontSize: '0.7rem' }} />
-                    </Box>
-                  )}
-                  {foodAnalysis.explanation?.narrative && (
-                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', lineHeight: 1.6 }}>{foodAnalysis.explanation.narrative}</Typography>
-                  )}
-                  {foodAnalysis.llm?.narrative && (
-                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', lineHeight: 1.6, mt: 0.5 }}>{foodAnalysis.llm.narrative}</Typography>
-                  )}
-
-                  {/* Hypotheses Section */}
-                  <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed #e2e8f0' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <AutoAwesomeIcon sx={{ fontSize: 14 }} /> AI HYPOTHESES ({hypothesesCount || 0})
-                      </Typography>
-                      <Button 
-                        size="small" 
-                        variant="text" 
-                        onClick={() => generateHypothesis(foodAnalysis.canonical_id || foodSearchQuery)}
-                        disabled={hypothesesLoading}
-                        sx={{ fontSize: '0.65rem', textTransform: 'none', minWidth: 0, p: 0.5 }}
-                      >
-                        {hypothesesLoading ? '...' : 'Regenerate'}
-                      </Button>
-                    </Box>
-
-                    {hypothesesLoading && !hypotheses.length ? (
-                      <LinearProgress sx={{ height: 2, borderRadius: 1 }} />
-                    ) : (
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        {hypotheses.slice(0, 3).map((h) => (
-                          <Box key={h._id} sx={{ p: 1, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid #f1f5f9' }}>
-                            <Typography variant="caption" sx={{ display: 'block', fontWeight: 600, color: 'text.primary', mb: 0.5 }}>
-                              {h.title}
-                            </Typography>
-                            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontStyle: 'italic', mb: 1 }}>
-                              "{h.description}"
-                            </Typography>
-                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                              <IconButton size="small" onClick={() => feedbackHypothesis(h._id, true)} sx={{ p: 0.2, color: h.feedback === 1 ? 'primary.main' : 'action.disabled' }}>
-                                <ThumbUpIcon sx={{ fontSize: 12 }} />
-                              </IconButton>
-                              <IconButton size="small" onClick={() => feedbackHypothesis(h._id, false)} sx={{ p: 0.2, color: h.feedback === -1 ? 'error.main' : 'action.disabled' }}>
-                                <ThumbDownIcon sx={{ fontSize: 12 }} />
-                              </IconButton>
-                            </Box>
-                          </Box>
-                        ))}
-                        {!hypotheses.length && !hypothesesLoading && (
-                          <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
-                            No hypotheses for this pattern yet.
-                          </Typography>
-                        )}
-                      </Box>
-                    )}
-                  </Box>
-                </Box>
-              )}
-            </Box>
-          </Box>
-
-          {/* RIGHT: Meal Builder */}
-          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-            <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
-              <TextField
-                select
-                label="Meal Type"
-                value={newMeal.mealType}
-                onChange={(e) => setNewMeal({ ...newMeal, mealType: e.target.value })}
-                size="small"
-                SelectProps={{ native: true }}
-                sx={{ 
-                  flex: 1,
-                  minWidth: { xs: '100%', sm: 160 },
-                  '& .MuiOutlinedInput-root': {
-                    transition: 'all 0.2s ease',
-                    '&:hover': { borderColor: '#1f2937' },
-                    '&:focus-within': { borderColor: '#1f2937', boxShadow: '0 0 0 2px rgba(31, 41, 55, 0.1)' }
-                  }
-                }}
-              >
-                {MEAL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </TextField>
-              <TextField
-                label="Log Time"
-                type="time"
-                value={newMeal.time}
-                onChange={(e) => setNewMeal({ ...newMeal, time: e.target.value })}
-                size="small"
-                sx={{ 
-                  flex: 1,
-                  minWidth: { xs: '100%', sm: 160 },
-                  '& .MuiOutlinedInput-root': {
-                    transition: 'all 0.2s ease',
-                    '&:hover': { borderColor: '#1f2937' },
-                    '&:focus-within': { borderColor: '#1f2937', boxShadow: '0 0 0 2px rgba(31, 41, 55, 0.1)' }
-                  }
-                }}
-                InputLabelProps={{ shrink: true }}
-                inputProps={{ step: 300 }} // 5 min steps
-              />
-            </Box>
-
-            <Divider sx={{ mb: 2 }} />
-            <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', mb: 1.5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Foods</Typography>
-
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
-              {newMeal.foods.map((food, idx) => (
-                <Box key={idx} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden', position: 'relative' }}>
-                  <IconButton
-                    size="small"
-                    onClick={() => removeFoodRow(idx)}
-                    sx={{ 
-                      position: 'absolute', 
-                      top: 4, 
-                      right: 4, 
-                      zIndex: 10, 
-                      bgcolor: 'rgba(255,255,255,0.7)',
-                      transition: 'all 0.2s ease',
-                      '&:hover': { 
-                        bgcolor: 'rgba(220, 38, 38, 0.15)',
-                        color: '#dc2626',
-                        transform: 'scale(1.1)'
-                      },
-                      '&:active': { 
-                        transform: 'scale(0.95)'
-                      }
-                    }}
-                  >
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
-                  {!!food.servingLabel && (
-                    <Box sx={{ px: 1.5, py: 0.5, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                        Reference: {food.servingLabel} {food.servingWeightG ? `(${food.servingWeightG}g)` : ''}
-                      </Typography>
-                    </Box>
-                  )}
-                  <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                    <TextField
-                      label="Food Item"
-                      placeholder="e.g. Chicken Breast"
-                      value={food.name}
-                      onChange={(e) => updateFoodField(idx, 'name', e.target.value)}
-                      size="small"
-                      sx={{ width: '100%' }}
-                    />
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 1 }}>
-                      <TextField
-                        label="Qty"
-                        value={food.quantity}
-                        onChange={(e) => updateFoodField(idx, 'quantity', e.target.value)}
-                        size="small"
-                        inputProps={{ inputMode: 'decimal', style: { textAlign: 'center' } }}
-                      />
-                      <TextField
-                        label="Unit"
-                        value={food.baseServingUnit || food.unit || 'serving'}
-                        size="small"
-                        sx={{ bgcolor: 'action.selected', '& .MuiOutlinedInput-input': { color: 'text.secondary' } }}
-                        InputProps={{ readOnly: true }}
-                      />
-                      <TextField
-                        label="Weight (g)"
-                        type="number"
-                        value={food.baseServingQty && food.servingWeightG && food.quantity ?
-                          Math.round((Number(food.quantity) / Number(food.baseServingQty)) * Number(food.servingWeightG)) : ''}
-                        onChange={(e) => {
-                          const newWeight = Number(e.target.value)
-                          if (!newWeight || !food.servingWeightG || !food.baseServingQty) return
-                          const impliedQty = (newWeight * Number(food.baseServingQty)) / Number(food.servingWeightG)
-                          updateFoodField(idx, 'quantity', impliedQty.toFixed(2))
-                        }}
-                        size="small"
-                        inputProps={{ style: { fontWeight: 600 } }}
-                      />
-                      <TextField
-                        label="Calories"
-                        value={food.calories}
-                        onChange={(e) => updateFoodField(idx, 'calories', e.target.value)}
-                        size="small"
-                        InputProps={{ 
-                          endAdornment: <Typography variant="caption" sx={{ ml: 0.5, opacity: 0.5 }}>kcal</Typography>
-                        }}
-                      />
-                    </Box>
-                  </Box>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, p: 1.5 }}>
-                    <ExpandableSection title="Macros and Fats" defaultOpen={false}>
-                      {renderNutrientInputs({ food, index: idx, fields: MACRO_FIELD_META, updateFoodField })}
-                    </ExpandableSection>
-                    <ExpandableSection title="Minerals" defaultOpen={false}>
-                      {renderNutrientInputs({ food, index: idx, fields: MINERAL_FIELD_META, updateFoodField })}
-                    </ExpandableSection>
-                    <ExpandableSection title="Vitamins" defaultOpen={false}>
-                      {renderNutrientInputs({ food, index: idx, fields: VITAMIN_FIELD_META, updateFoodField })}
-                    </ExpandableSection>
-                  </Box>
-                </Box>
-              ))}
-            </Box>
-
-            <Button 
-              size="small" 
-              onClick={addFoodRow} 
-              sx={{ 
-                textTransform: 'none', 
-                mb: 2,
-                transition: 'all 0.2s ease',
-                '&:hover': { bgcolor: 'action.selected', color: '#1f2937' },
-                '&:active': { opacity: 0.7 },
-                '&:focus': { outline: '2px solid #1f2937' }
-              }}
-            >
-              + Add another food
-            </Button>
-
-            <TextField
-              label="Meal notes (optional)"
-              value={newMeal.notes}
-              onChange={(e) => setNewMeal({ ...newMeal, notes: e.target.value })}
-              multiline
-              minRows={2}
-              fullWidth
-              size="small"
-              sx={{ 
-                mb: 2.5,
-                '& .MuiOutlinedInput-root': {
-                  transition: 'all 0.2s ease',
-                  '&:hover': { borderColor: '#1f2937' },
-                  '&:focus-within': { borderColor: '#1f2937', boxShadow: '0 0 0 2px rgba(31, 41, 55, 0.1)' }
-                }
-              }}
-            />
-
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
-            <Button 
-              variant="outlined" 
-              size="small" 
-              onClick={resetNewMeal} 
-              sx={{ 
-                borderColor: 'divider', 
-                color: 'text.secondary',
-                transition: 'all 0.2s ease',
-                '&:hover': { 
-                  borderColor: '#1f2937',
-                  color: '#1f2937',
-                  bgcolor: 'action.selected'
-                },
-                '&:active': { opacity: 0.7 }
-              }}
-            >
-              Clear
-            </Button>
-              <Button
-                variant="contained"
-                onClick={() => { addMealToDay(); setActiveTab(0); }}
-                disabled={newMeal.foods.length === 0}
-                fullWidth={isMobile}
-                sx={{ 
-                  bgcolor: '#16a34a',
-                  transition: 'all 0.2s ease',
-                  '&:hover': { 
-                    bgcolor: '#15803d',
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 4px 12px rgba(22, 163, 74, 0.3)'
-                  },
-                  '&:active': { 
-                    transform: 'translateY(0px)',
-                    boxShadow: '0 2px 4px rgba(22, 163, 74, 0.2)'
-                  },
-                  '&:disabled': {
-                    opacity: 0.5,
-                    cursor: 'not-allowed',
-                    transform: 'none'
-                  },
-                  '&:focus': { outline: '2px solid #3b82f6', outlineOffset: 2 },
-                  fontWeight: 700
-                }}
-              >
-                {`Add to ${formatDate(selectedDate)}`}
-              </Button>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => setTemplateDialogOpen(true)}
-                sx={{ 
-                  borderColor: '#16a34a', 
-                  color: '#16a34a',
-                  '&:hover': { bgcolor: 'rgba(22, 163, 74, 0.05)', borderColor: '#15803d' }
-                }}
-              >
-                Save Template
-              </Button>
-            </Box>
-
-            {isMobile && (
-              <Box
-                sx={{
-                  position: 'sticky',
-                  bottom: 8,
-                  mt: 2,
-                  p: 1,
-                  borderRadius: 2,
-                  border: '1px solid #bbf7d0',
-                  bgcolor: 'rgba(240, 253, 244, 0.96)',
-                  zIndex: 20,
-                }}
-              >
-                <Button
-                  variant="contained"
-                  fullWidth
-                  onClick={() => { addMealToDay(); setActiveTab(0); }}
-                  disabled={newMeal.foods.length === 0}
-                  sx={{ 
-                    bgcolor: '#16a34a',
-                    transition: 'all 0.2s ease',
-                    '&:hover': { 
-                      bgcolor: '#15803d',
-                      transform: 'translateY(-2px)',
-                      boxShadow: '0 4px 12px rgba(22, 163, 74, 0.3)'
-                    },
-                    '&:active': { 
-                      transform: 'translateY(0px)',
-                      boxShadow: '0 2px 4px rgba(22, 163, 74, 0.2)'
-                    },
-                    '&:disabled': {
-                      opacity: 0.5,
-                      cursor: 'not-allowed',
-                      transform: 'none'
-                    },
-                    '&:focus': { outline: '2px solid #3b82f6', outlineOffset: 2 },
-                    fontWeight: 700
-                  }}
-                >
-                  Add Meal To Today
-                </Button>
-              </Box>
-            )}
-          </Box>
-        </Box>
+        <LogMealTab
+          newMeal={newMeal}
+          setNewMeal={setNewMeal}
+          foodSearchQuery={foodSearchQuery}
+          setFoodSearchQuery={setFoodSearchQuery}
+          foodResults={foodResults}
+          foodSearchLoading={foodSearchLoading}
+          foodSearchAttempted={foodSearchAttempted}
+          handleSearchResultSelect={addFoodFromSearch}
+          selectedFoodForAnalysis={selectedFoodForAnalysis}
+          setSelectedFoodForAnalysis={setSelectedFoodForAnalysis}
+          analyzeSelectedFood={analyzeSelectedFood}
+          foodAnalysis={foodAnalysis}
+          foodAnalysisLoading={foodAnalysisLoading}
+          foodAnalysisError={foodAnalysisError}
+          savedTemplates={savedTemplates}
+          savedTemplatesLoading={savedTemplatesLoading}
+          useTemplate={useTemplate}
+          deleteTemplate={deleteTemplate}
+          frequentMeals={frequentMeals}
+          frequentMealsLoading={frequentMealsLoading}
+          templateName={templateName}
+          setTemplateName={setTemplateName}
+          saveAsTemplate={handleSaveTemplate}
+          savingTemplate={loading}
+          addFoodRow={addFoodRow}
+          removeFoodRow={removeFoodRow}
+          updateFoodField={updateFoodField}
+          addMealToDay={addMealToDay}
+          liveInsights={liveInsights}
+          log={log}
+          handleWaterChange={handleWaterChange}
+          handleTotalWaterChange={handleTotalWaterChange}
+        />
       )}
 
+      {/* ─── TAB 3: DETAILS ─── */}
       {activeTab === 3 && (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.4fr 1fr' }, gap: 3 }}>
-          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-              Today's Details
-            </Typography>
-
-              {(!log?.meals || log.meals.length === 0) && (
-                <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-                  No meals logged for this selected date yet.
-                </Typography>
-              )}
-
-              {clinicalTargetsRequiresSetup && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" sx={{ color: '#92400e' }}>
-                    Clinical targets need setup. Complete Body + Clinical Profile to unlock personalized targets.
-                  </Typography>
-                  {clinicalTargetsMissingFields.length > 0 && (
-                    <Typography variant="caption" sx={{ color: '#b45309', display: 'block', mt: 0.5 }}>
-                      Debug missing fields: {clinicalTargetsMissingFields.join(', ')}
-                    </Typography>
-                  )}
-                  {clinicalTargetsDebug && (
-                    <Typography
-                      variant="caption"
-                      component="pre"
-                      sx={{
-                        color: '#7c2d12',
-                        bgcolor: '#fff7ed',
-                        border: '1px solid #fed7aa',
-                        borderRadius: 1,
-                        p: 1,
-                        mt: 1,
-                        display: 'block',
-                        whiteSpace: 'pre-wrap',
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                      }}
-                    >
-                      {JSON.stringify(clinicalTargetsDebug, null, 2)}
-                    </Typography>
-                  )}
-                </Box>
-              )}
-
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography variant="body2" sx={{ color: 'text.primary' }}>
-                    Calories
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {fmt(totals.calories, 0)} / {calorieTarget ? fmt(calorieTarget, 0) : '—'} kcal
-                  </Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={percent(totals.calories, calorieTarget)}
-                  sx={{ height: 8, borderRadius: 99, '& .MuiLinearProgress-bar': { bgcolor: '#16a34a' } }}
-                />
-              </Box>
-
-              <Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                  <Typography variant="body2" sx={{ color: 'text.primary' }}>
-                    Protein
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {fmt(totals.protein)} / {proteinTarget ? fmt(proteinTarget) : '—'} g
-                  </Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={percent(totals.protein, proteinTarget)}
-                  sx={{ height: 8, borderRadius: 99, '& .MuiLinearProgress-bar': { bgcolor: '#2563eb' } }}
-                />
-              </Box>
-
-              <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    Carbs
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {fmt(totals.carbs)} g
-                  </Typography>
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    Fat
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {fmt(totals.fat)} g
-                  </Typography>
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    Fiber
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {fmt(totals.fiber)} g
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                Micros
-              </Typography>
-
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
-                {SUMMARY_MICRO_META.map(({ key, label, unit }) => (
-                  <Box key={key}>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>{label}</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {Number(totals?.[key] || 0).toFixed(unit === 'ug' ? 0 : 1)} {unit}
-                    </Typography>
-                    {(() => {
-                      const targetKey = MICRO_TO_TARGET_KEY[key]
-                      const target = targetKey ? Number(microTargetLookup?.[targetKey]) : NaN
-                      const hasTarget = Number.isFinite(target) && target > 0
-                      return (
-                        <>
-                          <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block', mt: 0.25 }}>
-                            {hasTarget
-                              ? `Target ${target.toFixed(unit === 'ug' ? 0 : 1)} ${unit}`
-                              : 'Target unavailable'}
-                          </Typography>
-                          <LinearProgress
-                            variant="determinate"
-                            value={hasTarget ? percent(Number(totals?.[key] || 0), target) : 0}
-                            sx={{
-                              mt: 0.5,
-                              height: 5,
-                              borderRadius: 99,
-                              bgcolor: 'action.selected',
-                              '& .MuiLinearProgress-bar': {
-                                bgcolor: hasTarget ? '#10b981' : '#d1d5db',
-                              },
-                            }}
-                          />
-                        </>
-                      )
-                    })()}
-                  </Box>
-                ))}
-              </Box>
-
-              {clinicalTargetRows.length > 0 && (
-                <>
-                  <Divider sx={{ my: 2 }} />
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                    Clinical Targets
-                  </Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
-                    {clinicalTargetRows.map((row) => (
-                      <Box key={row.key}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
-                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>{row.label}</Typography>
-                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                            {Number(row.currentValue || 0).toFixed(row.unit === 'kcal' ? 0 : 1)} / {Number(row.targetValue || 0).toFixed(row.unit === 'kcal' ? 0 : 1)} {row.unit}
-                          </Typography>
-                        </Box>
-                        <LinearProgress
-                          variant="determinate"
-                          value={percent(row.currentValue, row.targetValue)}
-                          sx={{ height: 6, borderRadius: 99, bgcolor: 'action.selected' }}
-                        />
-                      </Box>
-                    ))}
-                  </Box>
-                </>
-              )}
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                Macro Split (by calories)
-              </Typography>
-
-              <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-                <Chip
-                  icon={<LocalDiningIcon sx={{ fontSize: 16 }} />}
-                  label={`Protein ${Math.round((macroCalories.protein / totalMacroCalories) * 100)}%`}
-                  size="small"
-                  sx={{ bgcolor: '#eff6ff', color: '#1d4ed8' }}
-                />
-                <Chip
-                  icon={<LocalDiningIcon sx={{ fontSize: 16 }} />}
-                  label={`Carbs ${Math.round((macroCalories.carbs / totalMacroCalories) * 100)}%`}
-                  size="small"
-                  sx={{ bgcolor: '#fef9c3', color: '#854d0e' }}
-                />
-                <Chip
-                  icon={<LocalDiningIcon sx={{ fontSize: 16 }} />}
-                  label={`Fat ${Math.round((macroCalories.fat / totalMacroCalories) * 100)}%`}
-                  size="small"
-                  sx={{ bgcolor: '#fee2e2', color: '#b91c1c' }}
-                />
-              </Box>
-
-              <Typography variant="caption" sx={{ color: '#9ca3af' }}>
-                Based on logged macros. Calories from alcohol or unlogged foods are not included.
-              </Typography>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                Trends (server)
-              </Typography>
-
-              {nutritionStatsLoading && <LinearProgress sx={{ height: 6, borderRadius: 99, mb: 1 }} />}
-
-              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                7d avg: {nutritionStats?.weeklyAvg?.calories ?? '—'} kcal · P {nutritionStats?.weeklyAvg?.protein ?? '—'}g · Water {nutritionStats?.weeklyAvg?.water ?? '—'} ml
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                30d avg: {nutritionStats?.monthlyAvg?.calories ?? '—'} kcal · P {nutritionStats?.monthlyAvg?.protein ?? '—'}g · Water {nutritionStats?.monthlyAvg?.water ?? '—'} ml
-              </Typography>
-              <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block', mt: 0.5 }}>
-                Days logged: 7d {nutritionStats?.weeklyAvg?.daysLogged ?? '—'} · 30d {nutritionStats?.monthlyAvg?.daysLogged ?? '—'} · 30d range {rangeDaysLogged ?? '—'}
-              </Typography>
-            </Box>
-          </Box>
-
-          {/* Daily Effective Absorption Summary */}
-          {log.effectiveNutrientTotals && Object.keys(log.effectiveNutrientTotals).length > 0 && (
-            <Box sx={{ mb: 3 }}>
-              <ExpandableSection title="Daily Effective Absorption Summary" defaultOpen={false}>
-                <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                    {Object.entries(log.effectiveNutrientTotals).map(([nutrient, data]) => {
-                      const pct = Math.round((data.multiplier || 0) * 100)
-                      const label = nutrient.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())
-                      return (
-                        <Box key={nutrient} sx={{ p: 1.5, borderRadius: 1.5, border: '1px solid #f3f4f6' }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                            <Typography variant="caption" sx={{ fontWeight: 700 }}>{label}</Typography>
-                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{pct}% efficiency</Typography>
-                          </Box>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            ~{data.effective}{data.unit}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block' }}>
-                            vs {data.consumed}{data.unit} consumed
-                          </Typography>
-                        </Box>
-                      )
-                    })}
-                  </Box>
-                </Box>
-              </ExpandableSection>
-            </Box>
-          )}
-
-          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-              Notes
-            </Typography>
-            <TextField
-              multiline
-              minRows={6}
-              value={log.notes || ''}
-              onChange={(e) => {
-                const updatedLog = {
-                  ...log,
-                  notes: e.target.value
-                }
-                setLog(updatedLog)
-                autoSaveLog(updatedLog)
-              }}
-              fullWidth
-            />
-          </Box>
-        </Box>
+        <DetailsTab
+          log={log}
+          setLog={setLog}
+          totals={totals}
+          calorieTarget={calorieTarget}
+          proteinTarget={proteinTarget}
+          clinicalTargetsRequiresSetup={clinicalTargetsRequiresSetup}
+          clinicalTargetsMissingFields={clinicalTargetsMissingFields}
+          microTargetLookup={microTargetLookup}
+          clinicalTargetRows={clinicalTargetRows}
+          macroCalories={macroCalories}
+          totalMacroCalories={totalMacroCalories}
+          nutritionStats={nutritionStats}
+          nutritionStatsLoading={nutritionStatsLoading}
+          rangeDaysLogged={rangeDaysLogged}
+          autoSaveLog={autoSaveLog}
+          formatDate={(d) => d.toISOString().split('T')[0]}
+          selectedDate={selectedDate}
+        />
       )}
 
+      {/* ─── TAB 4: SUMMARY ─── */}
       {activeTab === 4 && (
-        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>Nutrition Summary</Typography>
-          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-            Weekly and monthly nutrient consumption vs total required amount for each period.
-          </Typography>
-
-          {periodSummaryLoading && <LinearProgress sx={{ mb: 2 }} />}
-
-          {['Weekly', 'Monthly'].map((period) => {
-            const totalsForPeriod = period === 'Weekly' ? weeklyTotals : monthlyTotals
-            const days = period === 'Weekly' ? 7 : 30
-            const fallbackTargets = {
-              calories: user?.dailyCalorieTarget,
-              protein: user?.dailyProteinTarget,
-            }
-            const targets = clinicalTargets?.targets || fallbackTargets
-            const micros = targets?.micronutrients || {}
-
-            const rowMap = new Map()
-
-            // Add water consumption first
-            const waterConsumed = Number(totalsForPeriod?.waterIntake || 0)
-            const waterRequired = Number(user?.hydrationGoal || 0) * 250 * days
-            rowMap.set('waterIntake', {
-              key: `${period}-water`,
-              label: 'Water',
-              consumed: waterConsumed,
-              required: Number.isFinite(waterRequired) && waterRequired > 0 ? waterRequired : null,
-              unit: 'ml',
-            })
-
-            Object.entries(TARGET_KEY_TO_TOTAL_KEY).forEach(([targetKey, totalKey]) => {
-              const perDay = (targetKey in targets) ? targets[targetKey] : micros[targetKey]
-              const required = Number(perDay) * days
-              const consumed = Number(totalsForPeriod?.[totalKey] || 0)
-              const unit =
-                targetKey === 'calories' ? 'kcal' :
-                targetKey === 'omega3' ? 'mg' :
-                ['vitaminD', 'vitaminA', 'folate', 'selenium'].includes(targetKey) ? 'ug' :
-                ['protein', 'fat', 'carbs', 'fiber', 'sugar'].includes(targetKey) ? 'g' : 'mg'
-              const label = targetKey.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase())
-              rowMap.set(totalKey, {
-                key: `${period}-${targetKey}`,
-                label,
-                consumed,
-                required: Number.isFinite(required) && required > 0 ? required : null,
-                unit,
-              })
-            })
-
-            SUMMARY_MICRO_META.forEach(({ key, label, unit }) => {
-              if (rowMap.has(key)) return
-              const targetKey = MICRO_TO_TARGET_KEY[key]
-              const perDay = targetKey ? micros[targetKey] : null
-              const required = Number(perDay) * days
-              const consumed = Number(totalsForPeriod?.[key] || 0)
-              rowMap.set(key, {
-                key: `${period}-micro-${key}`,
-                label,
-                consumed,
-                required: Number.isFinite(required) && required > 0 ? required : null,
-                unit,
-              })
-            })
-
-            const rows = Array.from(rowMap.values())
-
-            return (
-              <Box key={period} sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>{period}</Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
-                  {rows.map((row) => (
-                    <Box key={row.key}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>{row.label}</Typography>
-                        <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                          {fmt(row.consumed, row.unit === 'kcal' ? 0 : 1)} / {row.required == null ? '—' : fmt(row.required, row.unit === 'kcal' ? 0 : 1)} {row.unit}
-                        </Typography>
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={row.required == null ? 0 : percent(row.consumed, row.required)}
-                        sx={{
-                          height: 6,
-                          borderRadius: 99,
-                          bgcolor: 'action.selected',
-                          '& .MuiLinearProgress-bar': {
-                            bgcolor: row.required == null ? '#d1d5db' : '#2563eb',
-                          },
-                        }}
-                      />
-                      {row.required == null && (
-                        <Typography variant="caption" sx={{ color: '#9ca3af' }}>Target unavailable</Typography>
-                      )}
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            )
-          })}
-
-          {!clinicalTargets?.targets && (
-            <Typography variant="body2" sx={{ color: '#92400e' }}>
-              Clinical targets are required to compute weekly/monthly requirement bars.
-            </Typography>
-          )}
-        </Box>
+        <SummaryTab
+          log={log}
+          totals={totals}
+          clinicalTargets={clinicalTargets}
+          periodSummaryLoading={periodSummaryLoading}
+          weeklyTotals={weeklyTotals}
+          monthlyTotals={monthlyTotals}
+          user={user}
+          dynamicTargets={{}}
+        />
       )}
-
+      {/* ─── TAB 5: SCAN PRODUCT ─── */}
       {activeTab === 5 && (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.1fr 1fr' }, gap: 3 }}>
-          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>Scan Product Barcode</Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-              Scan with camera or enter barcode manually to fetch product details and nutrient values.
-            </Typography>
-
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-              <TextField
-                label="Barcode"
-                value={barcodeInput}
-                onChange={(e) => setBarcodeInput(e.target.value)}
-                size="small"
-                sx={{ minWidth: 220, flex: 1 }}
-                placeholder="e.g. 8901030865432"
-              />
-              <Button
-                variant="contained"
-                onClick={() => lookupBarcode(barcodeInput)}
-                disabled={barcodeLookupLoading}
-              >
-                {barcodeLookupLoading ? 'Looking up...' : 'Lookup'}
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={startBarcodeScanner}
-                disabled={!supportsBarcodeDetector || scannerOpen}
-              >
-                Open Camera
-              </Button>
-              <Button
-                variant="outlined"
-                component="label"
-                disabled={!supportsBarcodeDetector || scanBusy}
-              >
-                Upload Barcode Image
-                <input
-                  hidden
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) scanUploadedBarcodeImage(file)
-                    e.target.value = ''
-                  }}
-                />
-              </Button>
-            </Box>
-
-            {scannerOpen && (
-              <Box sx={{ border: '1px solid #e5e7eb', borderRadius: 2, p: 1.5, mb: 2 }}>
-                <Box
-                  component="video"
-                  ref={scanVideoRef}
-                  muted
-                  playsInline
-                  sx={{ width: '100%', maxHeight: 320, borderRadius: 1, bgcolor: '#111827' }}
-                />
-                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                  <Button variant="contained" onClick={scanBarcodeFrame} disabled={scanBusy}>
-                    {scanBusy ? 'Scanning...' : 'Scan Frame'}
-                  </Button>
-                  <Button variant="outlined" onClick={stopBarcodeScanner}>Close Camera</Button>
-                </Box>
-              </Box>
-            )}
-
-            {!!uploadedBarcodePreview && (
-              <Box sx={{ border: '1px solid #e5e7eb', borderRadius: 2, p: 1.5, mb: 2 }}>
-                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
-                  Uploaded image preview
-                </Typography>
-                <Box
-                  component="img"
-                  src={uploadedBarcodePreview}
-                  alt="Uploaded barcode"
-                  sx={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 1, bgcolor: 'action.hover' }}
-                />
-              </Box>
-            )}
-
-            {barcodeLookupError && (
-              <Typography variant="body2" sx={{ color: '#b91c1c' }}>{barcodeLookupError}</Typography>
-            )}
-
-            {!supportsBarcodeDetector && (
-              <Typography variant="caption" sx={{ color: '#9ca3af' }}>
-                Camera scanning is unavailable in this browser. Manual barcode lookup still works.
-              </Typography>
-            )}
-          </Box>
-
-          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>Product Details</Typography>
-
-            {!barcodeProduct && (
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Lookup a barcode to view product info and nutrients per 100 g.
-              </Typography>
-            )}
-
-            {barcodeProduct && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-                {barcodeProduct?.imageUrl && (
-                  <Box
-                    component="img"
-                    src={barcodeProduct.imageUrl}
-                    alt={barcodeProduct.name || 'Product image'}
-                    sx={{ width: '100%', maxHeight: 220, objectFit: 'contain', borderRadius: 1, border: '1px solid #e5e7eb', bgcolor: 'background.paper' }}
-                  />
-                )}
-                <Typography variant="body1" sx={{ fontWeight: 700 }}>{barcodeProduct.name}</Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  Brand: {barcodeProduct.brand || '—'} · Barcode: {barcodeProduct.barcode || '—'}
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  Qty: {barcodeProduct.quantityLabel || '—'} · Serving: {barcodeProduct.servingSize || '—'}
-                </Typography>
-
-                <Divider sx={{ my: 1 }} />
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, letterSpacing: '0.03em' }}>
-                  Nutrients (per 100 g)
-                </Typography>
-                
-                {barcodeProduct?._estimatedFields && barcodeProduct._estimatedFields.length > 0 && (
-                  <Typography variant="caption" sx={{ color: '#d97706', display: 'flex', alignItems: 'center', gap: 0.5, mb: 1, bgcolor: '#fef3c7', p: 1, borderRadius: 1 }}>
-                    <InfoIcon sx={{ fontSize: '1rem' }} />
-                    Fields marked with * are AI-estimated because the manufacturer did not provide them.
-                  </Typography>
-                )}
-
-                {[
-                  ['Calories', 'caloriesKcal', `${Number(barcodeProduct?.nutrimentsPer100g?.caloriesKcal || 0).toFixed(0)} kcal`],
-                  ['Protein', 'proteinG', `${Number(barcodeProduct?.nutrimentsPer100g?.proteinG || 0).toFixed(1)} g`],
-                  ['Carbs', 'carbsG', `${Number(barcodeProduct?.nutrimentsPer100g?.carbsG || 0).toFixed(1)} g`],
-                  ['Fat', 'fatG', `${Number(barcodeProduct?.nutrimentsPer100g?.fatG || 0).toFixed(1)} g`],
-                  ['Fiber', 'fiberG', `${Number(barcodeProduct?.nutrimentsPer100g?.fiberG || 0).toFixed(1)} g`],
-                  ['Sugar', 'sugarG', `${Number(barcodeProduct?.nutrimentsPer100g?.sugarG || 0).toFixed(1)} g`],
-                  ['Sodium', 'sodiumMg', `${Number(barcodeProduct?.nutrimentsPer100g?.sodiumMg || 0).toFixed(0)} mg`],
-                  ['Potassium', 'potassiumMg', `${Number(barcodeProduct?.nutrimentsPer100g?.potassiumMg || 0).toFixed(0)} mg`],
-                  ['Calcium', 'calciumMg', `${Number(barcodeProduct?.nutrimentsPer100g?.calciumMg || 0).toFixed(0)} mg`],
-                  ['Iron', 'ironMg', `${Number(barcodeProduct?.nutrimentsPer100g?.ironMg || 0).toFixed(2)} mg`],
-                  ['Vitamin C', 'vitaminCMg', `${Number(barcodeProduct?.nutrimentsPer100g?.vitaminCMg || 0).toFixed(2)} mg`],
-                  ['Vitamin B12', 'vitaminB12Ug', `${Number(barcodeProduct?.nutrimentsPer100g?.vitaminB12Ug || 0).toFixed(2)} ug`],
-                  ['Vitamin D', 'vitaminDUg', `${Number(barcodeProduct?.nutrimentsPer100g?.vitaminDUg || 0).toFixed(2)} ug`],
-                  ['Omega-3', 'omega3G', `${Number(barcodeProduct?.nutrimentsPer100g?.omega3G || 0).toFixed(3)} g`],
-                ].map(([label, key, value]) => {
-                  const isEstimated = barcodeProduct?._estimatedFields?.includes(key);
-                  return (
-                    <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #f3f4f6', py: 0.5 }}>
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        {label}
-                        {isEstimated && <span style={{ color: '#d97706', marginLeft: 4, fontWeight: 'bold' }} title="Estimated using AI based on product type">*</span>}
-                      </Typography>
-                      <Typography variant="caption" sx={{ fontWeight: isEstimated ? 500 : 600, color: isEstimated ? '#b45309' : 'inherit' }}>{value}</Typography>
-                    </Box>
-                  );
-                })}
-              </Box>
-            )}
-          </Box>
-        </Box>
+        <ScanProductTab
+          barcodeInput={barcodeInput}
+          setBarcodeInput={setBarcodeInput}
+          lookupBarcode={lookupBarcode}
+          barcodeLookupLoading={barcodeLookupLoading}
+          startBarcodeScanner={startBarcodeScanner}
+          supportsBarcodeDetector={supportsBarcodeDetector}
+          scannerOpen={scannerOpen}
+          scanBusy={scanBusy}
+          stopBarcodeScanner={stopBarcodeScanner}
+          scanVideoRef={scanVideoRef}
+        />
       )}
-
       {activeTab === 2 && (
         <WeightTracker selectedDate={selectedDate} />
       )}

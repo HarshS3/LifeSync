@@ -184,7 +184,12 @@ router.delete('/workouts/:id', auth, async (req, res) => {
 // Get workout stats (user-specific)
 router.get('/stats', auth, async (req, res) => {
   try {
-    const workouts = await Workout.find({ user: req.userId }).sort({ date: -1 });
+    const [workouts, user] = await Promise.all([
+      Workout.find({ user: req.userId }).sort({ date: -1 }),
+      require('../models/User').findById(req.userId).select('weight biologicalProfile').lean()
+    ]);
+    
+    const userWeight = user?.biologicalProfile?.weight || user?.weight || 75;
     
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -213,10 +218,12 @@ router.get('/stats', auth, async (req, res) => {
 
         // Calculate volume
         ex.sets?.forEach((set) => {
-          totalVolume += (set.reps || 0) * (set.weight || 0);
+          const effectiveWeight = (set.weight && set.weight > 0) ? set.weight : userWeight;
+          totalVolume += (set.reps || 0) * effectiveWeight;
           exerciseHistory[ex.name].push({
             date: w.date,
-            weight: set.weight,
+            weight: set.weight, // Keep original weight for PRs
+            effectiveWeight,
             reps: set.reps,
           });
         });
@@ -227,7 +234,7 @@ router.get('/stats', auth, async (req, res) => {
     const personalRecords = {};
     Object.entries(exerciseHistory).forEach(([exercise, history]) => {
       const maxWeight = Math.max(...history.map((h) => h.weight || 0));
-      const maxVolume = Math.max(...history.map((h) => (h.weight || 0) * (h.reps || 0)));
+      const maxVolume = Math.max(...history.map((h) => (h.effectiveWeight || 0) * (h.reps || 0)));
       personalRecords[exercise] = { maxWeight, maxVolume };
     });
 
@@ -250,7 +257,12 @@ router.get('/exercise-history/:exerciseName', auth, async (req, res) => {
   try {
     const { exerciseName } = req.params;
     const decodedName = decodeURIComponent(exerciseName).toLowerCase().trim();
-    const workouts = await Workout.find({ user: req.userId }).sort({ date: -1 }).limit(200);
+    const [workouts, user] = await Promise.all([
+      Workout.find({ user: req.userId }).sort({ date: -1 }).limit(200),
+      require('../models/User').findById(req.userId).select('weight biologicalProfile').lean()
+    ]);
+
+    const userWeight = user?.biologicalProfile?.weight || user?.weight || 75;
     
     const history = [];
     const allWeights = [];
@@ -269,13 +281,18 @@ router.get('/exercise-history/:exerciseName', auth, async (req, res) => {
               ? ex.sets.reduce((sum, s) => sum + (s.rpe || 0), 0) / ex.sets.length 
               : 0;
             
+            const volume = ex.sets.reduce((sum, s) => {
+              const effectiveWeight = (s.weight && s.weight > 0) ? s.weight : userWeight;
+              return sum + (effectiveWeight * (s.reps || 0));
+            }, 0);
+
             history.push({
               date: workout.date,
               sets: ex.sets,
               maxWeight,
               maxReps,
               avgRPE: avgRPE.toFixed(1),
-              volume: ex.sets.reduce((sum, s) => sum + ((s.weight || 0) * (s.reps || 0)), 0)
+              volume
             });
             
             ex.sets.forEach(set => {

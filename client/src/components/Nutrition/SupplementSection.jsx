@@ -45,14 +45,14 @@ function SupplementSection({ log, onUpdate }) {
       takenAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
     };
     
-    const updatedSupps = [...(log.supplements || []), newSupp];
+    const updatedSupps = [...(log?.supplements || []), newSupp];
     await onUpdate(updatedSupps);
     setSelectedSupp('');
     setLoading(false);
   };
 
   const removeSupp = async (idx) => {
-    const updatedSupps = log.supplements.filter((_, i) => i !== idx);
+    const updatedSupps = (log?.supplements || []).filter((_, i) => i !== idx);
     await onUpdate(updatedSupps);
   };
 
@@ -63,7 +63,7 @@ function SupplementSection({ log, onUpdate }) {
       </Typography>
       
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
-        {(log.supplements || []).map((s, i) => (
+        {(log?.supplements || []).map((s, i) => (
           <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
             <Box>
               <Typography variant="body2" sx={{ fontWeight: 500 }}>{s.name}</Typography>
@@ -74,7 +74,7 @@ function SupplementSection({ log, onUpdate }) {
             <IconButton size="small" onClick={() => removeSupp(i)}><DeleteIcon sx={{ fontSize: 18 }} /></IconButton>
           </Box>
         ))}
-        {(!log.supplements || log.supplements.length === 0) && (
+        {(!log?.supplements || log.supplements.length === 0) && (
           <Typography variant="caption" sx={{ color: '#9ca3af' }}>No supplements logged for today.</Typography>
         )}
       </Box>

@@ -19,6 +19,10 @@ const ProgressNarrative = () => {
         const res = await fetch(`${API_BASE}/api/insights/progress`, {
           headers: { Authorization: `Bearer ${token}` }
         })
+        if (!res.ok) {
+          const errorText = await res.text()
+          throw new Error(`Server error (${res.status}): ${errorText}`)
+        }
         const json = await res.json()
         setData(json)
       } catch (err) {

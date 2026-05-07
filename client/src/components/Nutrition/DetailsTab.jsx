@@ -209,19 +209,19 @@ function DetailsTab({
           <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
             <Chip
               icon={<LocalDiningIcon sx={{ fontSize: 16 }} />}
-              label={`Protein ${Math.round((macroCalories.protein / totalMacroCalories) * 100)}%`}
+              label={`Protein ${totalMacroCalories > 0 ? Math.round(((macroCalories?.protein || 0) / totalMacroCalories) * 100) : 0}%`}
               size="small"
               sx={{ bgcolor: '#eff6ff', color: '#1d4ed8' }}
             />
             <Chip
               icon={<LocalDiningIcon sx={{ fontSize: 16 }} />}
-              label={`Carbs ${Math.round((macroCalories.carbs / totalMacroCalories) * 100)}%`}
+              label={`Carbs ${totalMacroCalories > 0 ? Math.round(((macroCalories?.carbs || 0) / totalMacroCalories) * 100) : 0}%`}
               size="small"
               sx={{ bgcolor: '#fef9c3', color: '#854d0e' }}
             />
             <Chip
               icon={<LocalDiningIcon sx={{ fontSize: 16 }} />}
-              label={`Fat ${Math.round((macroCalories.fat / totalMacroCalories) * 100)}%`}
+              label={`Fat ${totalMacroCalories > 0 ? Math.round(((macroCalories?.fat || 0) / totalMacroCalories) * 100) : 0}%`}
               size="small"
               sx={{ bgcolor: '#fee2e2', color: '#b91c1c' }}
             />

@@ -73,13 +73,9 @@ async function seedKnowledgeIfEnabled() {
 }
 
 async function ensureUser() {
-  const existing = await User.findOne({ email: SEED_DEMO_EMAIL });
-  if (existing) return existing;
-
   const passwordHash = await bcrypt.hash(SEED_DEMO_PASSWORD, 10);
 
-  // Only set on insert; do not overwrite if user already exists.
-  return User.create({
+  const userData = {
     name: SEED_DEMO_NAME,
     email: SEED_DEMO_EMAIL,
     password: passwordHash,
@@ -97,6 +93,40 @@ async function ensureUser() {
     injuries: ['tight hamstring'],
     medications: [{ name: 'Cetirizine', dosage: '10mg', schedule: 'night' }],
     supplements: ['Vitamin D', 'Omega-3'],
+    
+    // Comprehensive Biological & Metabolic Profile
+    biologicalProfile: {
+      biologicalSex: 'male',
+      dob: new Date('1997-05-15'),
+      heightCm: 176,
+      weightKg: 74,
+      bodyFatPercentage: 16,
+      activityLevel: 'moderately_active',
+      metabolicGoal: 'lean_gain',
+      pregnancyStatus: 'none',
+      dietaryPreference: 'omnivore',
+      hypertension: false,
+      insulinSensitivity: 'normal',
+      defaultSleepTime: '23:00',
+      useAdaptiveTdee: true
+    },
+
+    // Key Lab Markers
+    labMarkers: {
+      hemoglobin: { value: 14.2, unit: 'g/dL' },
+      ferritin: { value: 110, unit: 'ng/mL' },
+      vitaminD: { value: 38, unit: 'ng/mL' },
+      fastingGlucose: { value: 88, unit: 'mg/dL' },
+      hba1c: { value: 5.2, unit: '%' },
+      lipids: {
+        totalCholesterol: { value: 180, unit: 'mg/dL' },
+        ldl: { value: 105, unit: 'mg/dL' },
+        hdl: { value: 55, unit: 'mg/dL' },
+        triglycerides: { value: 95, unit: 'mg/dL' },
+      },
+      updatedAt: new Date(),
+      source: 'manual'
+    },
 
     // Nutrition
     dietType: 'omnivore',
@@ -165,7 +195,13 @@ async function ensureUser() {
     },
 
     preferences: { darkMode: true },
-  });
+  };
+
+  return User.findOneAndUpdate(
+    { email: SEED_DEMO_EMAIL },
+    userData,
+    { upsert: true, new: true }
+  );
 }
 
 async function ensureHabits(userId) {
@@ -240,7 +276,7 @@ async function ensureHabits(userId) {
 }
 
 async function ensureHabitLogs(userId, habits) {
-  for (let i = 0; i < 21; i++) {
+  for (let i = 0; i < 90; i++) {
     const date = daysAgo(i);
 
     for (const habit of habits) {
@@ -267,7 +303,7 @@ async function ensureHabitLogs(userId, habits) {
 }
 
 async function ensureFitnessLogs(userId) {
-  for (let i = 0; i < 21; i++) {
+  for (let i = 0; i < 90; i++) {
     const date = daysAgo(i);
     const exists = await FitnessLog.exists({ user: userId, date });
     if (exists) continue;
@@ -285,7 +321,7 @@ async function ensureFitnessLogs(userId) {
 }
 
 async function ensureNutritionLogs(userId) {
-  for (let i = 0; i < 21; i++) {
+  for (let i = 0; i < 90; i++) {
     const date = daysAgo(i);
     const exists = await NutritionLog.exists({ user: userId, date });
     if (exists) continue;
@@ -669,22 +705,46 @@ async function ensureGymWorkouts(userId) {
         { name: 'Treadmill Walk', muscleGroup: 'cardio', sets: [{ weight: 0, reps: 1 }] },
       ],
     },
+    {
+      name: 'Push Day (Hypertrophy)',
+      duration: 50 * 60,
+      exercises: [
+        { name: 'Incline Dumbbell Press', muscleGroup: 'chest', sets: [{ weight: 22, reps: 12 }, { weight: 22, reps: 12 }, { weight: 20, reps: 15 }] },
+        { name: 'Lateral Raises', muscleGroup: 'shoulders', sets: [{ weight: 8, reps: 15 }, { weight: 8, reps: 15 }] },
+        { name: 'Tricep Pushdowns', muscleGroup: 'triceps', sets: [{ weight: 20, reps: 12 }, { weight: 20, reps: 12 }] },
+      ],
+    },
   ];
 
-  // Seed ~10 workouts across the last 30 days.
-  for (let i = 0; i < 30; i += 3) {
+  // Seed workouts across the last 90 days.
+  for (let i = 0; i < 90; i++) {
+    // Skip 2 days a week (weekends or just arbitrary rest)
+    if (i % 7 === 0 || i % 7 === 4) continue;
+
     const date = daysAgo(i);
-    const template = templates[(i / 3) % templates.length];
+    const templateIndex = i % templates.length;
+    const template = templates[templateIndex];
 
     const exists = await Workout.exists({ user: userId, date, name: template.name });
     if (exists) continue;
+
+    // Add slight randomization to weights for "progressive overload" feel
+    const variance = 1 - (i / 120); // weights were higher in recent days (lower i)
+    const randomizedExercises = template.exercises.map(ex => ({
+      ...ex,
+      sets: ex.sets.map(s => ({
+        ...s,
+        weight: s.weight > 0 ? Math.round(s.weight * (0.9 + Math.random() * 0.2) * variance) : 0,
+        reps: s.reps + (Math.random() > 0.8 ? 1 : 0)
+      }))
+    }));
 
     await Workout.create({
       user: userId,
       name: template.name,
       date,
-      duration: template.duration,
-      exercises: template.exercises,
+      duration: template.duration + Math.floor(Math.random() * 300),
+      exercises: randomizedExercises,
       notes: `${SEED_TAG} seeded workout`,
     });
   }

@@ -92,9 +92,17 @@ async function calculateReadiness(userId) {
   const stressScore = Math.max(1, Math.min(10, 11 - avgStress));
 
   // ── 5. TRAINING LOAD SCORE (20% weight) ───────
+  const [user] = await Promise.all([
+    require('../../models/User').findById(userId).select('weight biologicalProfile').lean()
+  ]);
+  const userWeight = user?.biologicalProfile?.weight || user?.weight || 75;
+
   const calcVolume = (ws) => ws.reduce((total, w) => {
     return total + (w.exercises || []).reduce((ex, e) =>
-      ex + (e.sets || []).reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0), 0);
+      ex + (e.sets || []).reduce((s, set) => {
+        const effectiveWeight = (set.weight && set.weight > 0) ? set.weight : userWeight;
+        return s + effectiveWeight * (set.reps || 0);
+      }, 0), 0);
   }, 0);
 
   const workoutsOlder = workoutsLast28.filter(w => new Date(w.date) < sevenDaysAgo);

@@ -14,6 +14,7 @@ const { computeWeeklyMacroAggregation, computeWeeklyMicroAggregation, getISOWeek
 const { estimateMissingMicronutrients } = require('../aiClient');
 const { evaluateMealInteractions, evaluateDayInteractions } = require('../services/nutritionPipeline/nutrientInteractions');
 const { calculateEffectiveNutrients } = require('../services/nutritionPipeline/bioavailabilityEngine');
+const { evaluateProteinDistribution } = require('../services/nutritionPipeline/proteinDistributionEngine');
 const BarcodeProduct = require('../models/BarcodeProduct');
 const MealTemplate = require('../models/MealTemplate');
 const { calculateAdaptiveTDEE, calculateAdaptiveTDEEForRange, calculateMetabolicMap } = require('../services/nutritionPipeline/adaptiveTdeeEngine');
@@ -201,11 +202,12 @@ function _aggregateEffectiveTotals(meals) {
       totals[nutrient].effective += data.effective_amount || 0;
     });
   });
-  // Compute daily multiplier = effective / consumed
+  // Compute daily multiplier and explicit "Gap"
   Object.values(totals).forEach(t => {
     t.consumed = parseFloat(t.consumed.toFixed(3));
     t.effective = parseFloat(t.effective.toFixed(3));
     t.multiplier = t.consumed > 0 ? parseFloat((t.effective / t.consumed).toFixed(3)) : 1;
+    t.gap = parseFloat(Math.max(0, t.consumed - t.effective).toFixed(3));
   });
   return totals;
 }
@@ -275,6 +277,9 @@ async function getLogForDate(req, res, dateStr) {
       logPayload.dailyInsights = evaluateDayInteractions(logPayload.meals);
       // Aggregate effective daily totals across all meals
       logPayload.effectiveNutrientTotals = _aggregateEffectiveTotals(logPayload.meals);
+
+      // Feature 2: Protein Distribution Analysis
+      logPayload.proteinDistribution = await evaluateProteinDistribution(req.userId, logPayload.meals);
     }
 
     res.json({
@@ -474,6 +479,9 @@ async function upsertNutritionLog(req, res) {
         meal.bioavailability = calculateEffectiveNutrients(meal.foods);
       });
       logObj.effectiveNutrientTotals = _aggregateEffectiveTotals(logObj.meals);
+      
+      // Feature 2: Protein Distribution Analysis
+      logObj.proteinDistribution = await evaluateProteinDistribution(req.userId, logObj.meals);
     }
     
     res.status(201).json(logObj);

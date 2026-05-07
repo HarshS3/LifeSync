@@ -332,6 +332,7 @@ async function computeWeeklyMicroAggregation(userId, weekKey) {
     vitaminD: { daily: 15, group: 'fat_soluble', unit: 'ug' },
     vitaminA: { daily: 900, group: 'fat_soluble', unit: 'ug' },
     vitaminE: { daily: 15, group: 'fat_soluble', unit: 'mg' },
+    vitaminK: { daily: 120, group: 'fat_soluble', unit: 'ug' },
     sodium: { daily: 2300, group: 'electrolytes', unit: 'mg' },
     potassium: { daily: 3400, group: 'electrolytes', unit: 'mg' },
     magnesium: { daily: 420, group: 'electrolytes', unit: 'mg' },
@@ -396,14 +397,21 @@ async function computeWeeklyMicroAggregation(userId, weekKey) {
 
   // Fat-soluble: compute storage surplus
   const fatSolublestorage = {};
-  ['vitaminD', 'vitaminA', 'vitaminE'].forEach(nutrient => {
+  ['vitaminD', 'vitaminA', 'vitaminE', 'vitaminK'].forEach(nutrient => {
     const weeklyTotal = microTotals[nutrient];
-    const weeklyTarget = TARGETS[nutrient].daily * dayLogs.length;
-    const weeklyStorage = weeklyTotal - weeklyTarget;
+    const targetDaily = TARGETS[nutrient]?.daily || 0;
+    const weeklyTarget = targetDaily * dayLogs.length;
+    const weeklyStorage = Math.max(0, weeklyTotal - weeklyTarget);
+    
+    // storageMonths = (Weekly Excess / Daily Target) / 4.33 weeks per month
+    const storageMonths = targetDaily > 0 
+      ? Math.round((weeklyStorage / targetDaily / 4.33) * 10) / 10 
+      : 0;
+
     fatSolublestorage[nutrient] = {
-      ...grouped['fat_soluble'][nutrient],
+      ...grouped['fat_soluble']?.[nutrient],
       weeklyStorage,
-      storageMonths: Math.round((weeklyStorage / TARGETS[nutrient].daily / 4.33) * 10) / 10,
+      storageMonths,
     };
   });
 

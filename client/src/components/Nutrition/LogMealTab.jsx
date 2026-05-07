@@ -13,6 +13,7 @@ import HistoryIcon from '@mui/icons-material/History'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
 import RestaurantIcon from '@mui/icons-material/Restaurant'
+import WaterDropIcon from '@mui/icons-material/WaterDrop'
 import ExpandableSection from '../ExpandableSection'
 import { 
   MEAL_TYPES, 
@@ -51,7 +52,10 @@ function LogMealTab({
   setTemplateName,
   saveAsTemplate,
   savingTemplate,
-  liveInsights
+  liveInsights,
+  log,
+  handleWaterChange,
+  handleTotalWaterChange
 }) {
   const renderNutrientInputs = (food, index, fields) => (
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.25 }}>
@@ -245,6 +249,47 @@ function LogMealTab({
             </Box>
           )}
         </Box>
+
+        {/* HYDRATION SECTION */}
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>Hydration Tracking</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>Log quick glasses or enter total consumption for today.</Typography>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+            <WaterDropIcon sx={{ color: '#0ea5e9', fontSize: 32 }} />
+            <Box sx={{ flexGrow: 1 }}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Total Daily Water (ml)"
+                placeholder="e.g. 2500"
+                value={log?.totalWaterOverride ?? ''}
+                onChange={(e) => handleTotalWaterChange(e.target.value)}
+                helperText={log?.totalWaterOverride ? "Using this as ground truth for today" : "Incremental logs will be used if this is empty"}
+              />
+            </Box>
+          </Box>
+
+          <Divider sx={{ my: 2, borderStyle: 'dashed' }} />
+
+          <Box sx={{ opacity: log?.totalWaterOverride ? 0.5 : 1, pointerEvents: log?.totalWaterOverride ? 'none' : 'auto' }}>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 1 }}>
+              Quick Add (Incremental)
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button size="small" variant="outlined" onClick={() => handleWaterChange(250)} startIcon={<WaterDropIcon sx={{ fontSize: 15 }} />} fullWidth>+250 ml</Button>
+              <Button size="small" variant="outlined" onClick={() => handleWaterChange(500)} startIcon={<WaterDropIcon sx={{ fontSize: 15 }} />} fullWidth>+500 ml</Button>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1.5 }}>
+               <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                 Currently logged: {log?.waterIntake || 0} ml
+               </Typography>
+               <Button size="small" onClick={() => handleWaterChange(-250)} sx={{ color: '#9ca3af', textTransform: 'none', fontSize: '0.75rem', minWidth: 0, p: 0 }}>
+                 − Remove 250ml
+               </Button>
+            </Box>
+          </Box>
+        </Box>
       </Box>
 
       {/* RIGHT: Meal Builder */}
@@ -349,7 +394,7 @@ function LogMealTab({
         </Button>
 
         {/* Real-time Interaction Insights */}
-        {(liveInsights.synergies?.length > 0 || liveInsights.antagonisms?.length > 0) && (
+        {(liveInsights?.synergies?.length > 0 || liveInsights?.antagonisms?.length > 0) && (
           <Box sx={{ mb: 3, p: 2, bgcolor: '#f0f9ff', borderRadius: 1.5, border: '1px solid #bae6fd' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: '#0369a1', display: 'flex', alignItems: 'center', gap: 1 }}>
               <RestaurantIcon sx={{ fontSize: 18 }} />

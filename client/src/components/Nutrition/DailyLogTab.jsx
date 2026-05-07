@@ -32,6 +32,7 @@ function DailyLogTab({
   insightMatchesSelectedDay,
   setActiveTab,
   SupplementSection,
+  onSupplementUpdate,
   clinicalTargets
 }) {
   return (
@@ -406,25 +407,7 @@ function DailyLogTab({
           </Box>
         </Box>
 
-        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>Hydration</Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-            <WaterDropIcon sx={{ color: '#0ea5e9', fontSize: 28 }} />
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.2 }}>{Math.round((log.waterIntake || 0) / 250)} glasses</Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {log.waterIntake || 0} / {timingAlerts?.hydrationGoalMl || 2500} ml total
-              </Typography>
-            </Box>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button size="small" variant="outlined" onClick={() => handleWaterChange(250)} startIcon={<WaterDropIcon sx={{ fontSize: 15 }} />} fullWidth>+250 ml</Button>
-            <Button size="small" variant="outlined" onClick={() => handleWaterChange(500)} startIcon={<WaterDropIcon sx={{ fontSize: 15 }} />} fullWidth>+500 ml</Button>
-          </Box>
-          <Button size="small" onClick={() => handleWaterChange(-250)} sx={{ mt: 1, color: '#9ca3af', textTransform: 'none', fontSize: '0.75rem' }}>− Remove 250 ml</Button>
-        </Box>
-        
-        {SupplementSection && <SupplementSection />}
+        {SupplementSection && <SupplementSection log={log} onUpdate={onSupplementUpdate} />}
       </Box>
 
       {/* CTA to Log Meal tab */}

@@ -329,41 +329,51 @@ async function ensureNutritionLogs(userId) {
     const dayOffset = i;
     const waterIntake = 1800 + (dayOffset % 6) * 200;
 
+    const meals = [
+      {
+        name: 'Breakfast',
+        mealType: 'breakfast',
+        time: '08:30',
+        foods: [
+          { name: 'Oats', quantity: 60, unit: 'g', calories: 230, protein: 8, carbs: 40, fat: 4, fiber: 6, sugar: 1, sodium: 10 },
+          { name: 'Curd', quantity: 150, unit: 'g', calories: 110, protein: 6, carbs: 8, fat: 6, fiber: 0, sugar: 6, sodium: 90 },
+        ],
+        notes: `${SEED_TAG} breakfast`,
+      },
+      {
+        name: 'Lunch',
+        mealType: 'lunch',
+        time: '13:15',
+        foods: [
+          { name: 'Dal', quantity: 250, unit: 'g', calories: 260, protein: 16, carbs: 38, fat: 6, fiber: 10, sugar: 3, sodium: 380 },
+          { name: 'Rice', quantity: 180, unit: 'g', calories: 230, protein: 4, carbs: 49, fat: 1, fiber: 1, sugar: 0, sodium: 4 },
+        ],
+        notes: `${SEED_TAG} lunch`,
+      },
+      {
+        name: 'Dinner',
+        mealType: 'dinner',
+        time: '20:15',
+        foods: [
+          { name: 'Paneer', quantity: 120, unit: 'g', calories: 320, protein: 20, carbs: 6, fat: 24, fiber: 0, sugar: 2, sodium: 260 },
+          { name: 'Mixed veggies', quantity: 250, unit: 'g', calories: 140, protein: 6, carbs: 22, fat: 4, fiber: 7, sugar: 8, sodium: 180 },
+        ],
+        notes: `${SEED_TAG} dinner`,
+      },
+    ];
+
+    // Pre-calculate meal totals for consistency
+    meals.forEach(m => {
+      m.totalCalories = m.foods.reduce((s, f) => s + f.calories, 0);
+      m.totalProtein = m.foods.reduce((s, f) => s + f.protein, 0);
+      m.totalCarbs = m.foods.reduce((s, f) => s + f.carbs, 0);
+      m.totalFat = m.foods.reduce((s, f) => s + f.fat, 0);
+    });
+
     await NutritionLog.create({
       user: userId,
       date,
-      meals: [
-        {
-          name: 'Breakfast',
-          mealType: 'breakfast',
-          time: '08:30',
-          foods: [
-            { name: 'Oats', quantity: 60, unit: 'g', calories: 230, protein: 8, carbs: 40, fat: 4, fiber: 6, sugar: 1, sodium: 10 },
-            { name: 'Curd', quantity: 150, unit: 'g', calories: 110, protein: 6, carbs: 8, fat: 6, fiber: 0, sugar: 6, sodium: 90 },
-          ],
-          notes: `${SEED_TAG} breakfast`,
-        },
-        {
-          name: 'Lunch',
-          mealType: 'lunch',
-          time: '13:15',
-          foods: [
-            { name: 'Dal', quantity: 250, unit: 'g', calories: 260, protein: 16, carbs: 38, fat: 6, fiber: 10, sugar: 3, sodium: 380 },
-            { name: 'Rice', quantity: 180, unit: 'g', calories: 230, protein: 4, carbs: 49, fat: 1, fiber: 1, sugar: 0, sodium: 4 },
-          ],
-          notes: `${SEED_TAG} lunch`,
-        },
-        {
-          name: 'Dinner',
-          mealType: 'dinner',
-          time: '20:15',
-          foods: [
-            { name: 'Paneer', quantity: 120, unit: 'g', calories: 320, protein: 20, carbs: 6, fat: 24, fiber: 0, sugar: 2, sodium: 260 },
-            { name: 'Mixed veggies', quantity: 250, unit: 'g', calories: 140, protein: 6, carbs: 22, fat: 4, fiber: 7, sugar: 8, sodium: 180 },
-          ],
-          notes: `${SEED_TAG} dinner`,
-        },
-      ],
+      meals,
       waterIntake,
       dailyTotals: {
         calories: 2300 + (dayOffset % 4) * 100,

@@ -7,8 +7,10 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "plugins": ["expo-router"],
+    "newArchEnabled": false,
+    "plugins": [
+      "expo-router"
+    ],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -18,14 +20,23 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.harshs3.lifesync",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "ce274d88-0793-406e-9b14-5db549aa0e8c"
+      }
     }
   }
 }

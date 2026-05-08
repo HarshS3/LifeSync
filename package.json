@@ -1,5 +1,21 @@
 {
-  "dependencies": {
-    "react-hot-toast": "^2.6.0"
+  "name": "lifesync",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "App",
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "eas-build-pre-install": "npm install --workspace App"
+  },
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "ajv-keywords": "^5.1.0"
+  },
+  "overrides": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   }
 }

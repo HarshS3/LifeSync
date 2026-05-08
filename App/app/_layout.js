@@ -1,16 +1,16 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { useEffect } from 'react';
-import { useRouter, useSegments } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 
 function RootLayoutNav() {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const navigationState = useRootNavigationState();
 
   useEffect(() => {
-    if (loading) return;
+    if (!navigationState?.key || loading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
 
@@ -21,15 +21,7 @@ function RootLayoutNav() {
       // Redirect to dashboard if authenticated and in auth group
       router.replace('/(tabs)');
     }
-  }, [user, loading, segments]);
-
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#0000ff" />
-      </View>
-    );
-  }
+  }, [user, loading, segments, navigationState?.key]);
 
   return (
     <Stack>

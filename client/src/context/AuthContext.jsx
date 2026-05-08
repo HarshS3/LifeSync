@@ -41,16 +41,18 @@ export function AuthProvider({ children }) {
         const userData = await res.json()
         setUser(userData)
         localStorage.setItem(USER_KEY, JSON.stringify(userData))
-      } else {
-        // Token invalid or user not found, clear auth
-        console.warn('[AuthContext] Token verification failed:', res.status)
+      } else if (res.status === 401) {
+        // Token strictly invalid or user not found, clear auth
+        console.warn('[AuthContext] Token verification failed (401):', res.status)
         logout()
+      } else {
+        // For 500, 404 (other than user not found), or other status codes, 
+        // we keep the session active as it might be a temporary server issue.
+        console.warn('[AuthContext] Token verification returned error status:', res.status)
       }
     } catch (err) {
-      console.error('[AuthContext] Verify token failed:', err)
-      // On network error, we don't necessarily want to log out immediately 
-      // but for consistency we will if the error is persistent.
-      logout()
+      console.error('[AuthContext] Verify token failed (network or other):', err)
+      // On network error, we don't logout immediately to allow offline use/recovery
     } finally {
       setLoading(false)
     }

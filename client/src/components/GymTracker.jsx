@@ -26,6 +26,8 @@ import FitnessCenterIcon from '@mui/icons-material/FitnessCenter'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
+import DirectionsRunIcon from '@mui/icons-material/DirectionsRun'
+import HistoryIcon from '@mui/icons-material/History'
 import TimerIcon from '@mui/icons-material/Timer'
 import WhatshotIcon from '@mui/icons-material/Whatshot'
 import CloseIcon from '@mui/icons-material/Close'
@@ -47,7 +49,6 @@ import { toast } from 'react-hot-toast'
 import { computeTrainingInsights } from '../lib/trainingInsights'
 import { computeMuscleHeatmap } from '../lib/muscleHeatmap'
 import MuscleHeatmapFigure from './MuscleHeatmapFigure'
-import GlbModelViewer from './GlbModelViewer.jsx'
 import RestTimer from './RestTimer'
 import PlateCalculator from './PlateCalculator'
 import LastSetsReference from './LastSetsReference'
@@ -60,7 +61,7 @@ import HistoryTab from './gym/HistoryTab';
 import WorkoutDialogs from './gym/WorkoutDialogs';
 import { EXERCISE_LIBRARY } from '../data/exerciseLibrary'
 
-const DEFAULT_BODY_MODEL_GLB_URL = new URL('../assets/Untitled.glb', import.meta.url).href
+const EXERCISE_HISTORY_LIMIT = 50
 
 function GymTracker() {
   const theme = useTheme()
@@ -643,7 +644,7 @@ function GymTracker() {
     }
   }
 
-  const useTemplate = (tpl) => {
+  const startWorkout = (tpl) => {
     startWorkout({
       name: tpl.name,
       exercises: tpl.exercises.map(ex => ({
@@ -652,7 +653,7 @@ function GymTracker() {
       })),
       date: new Date().toISOString().split('T')[0],
     })
-    setActiveTab(0)
+    setActiveTab(4)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -916,7 +917,7 @@ function GymTracker() {
       })) || []
     })
     setWorkoutStartTime(Date.now() - (workout.duration || 0) * 1000)
-    setActiveTab(0) // Switch to active workout tab
+    setActiveTab(4) // Switch to active workout tab
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -1032,7 +1033,7 @@ function GymTracker() {
             <Button
               variant="contained"
               startIcon={<AddIcon />}
-              onClick={() => startWorkout()}
+              onClick={() => startWorkout({ name: 'New Workout', exercises: [] })}
               fullWidth={isMobile}
               sx={{
                 bgcolor: 'text.primary',
@@ -1061,7 +1062,7 @@ function GymTracker() {
         templateDialogOpen={templateDialogOpen}
         setTemplateDialogOpen={setTemplateDialogOpen}
         templates={templates}
-        useTemplate={useTemplate}
+        useTemplate={startWorkout}
         deleteTemplate={deleteTemplate}
         saveRoutineDialogOpen={saveRoutineDialogOpen}
         setSaveRoutineDialogOpen={setSaveRoutineDialogOpen}
@@ -1112,6 +1113,10 @@ function GymTracker() {
             '& .MuiTabs-indicator': { bgcolor: 'text.primary' },
           }}
         >
+          <Tab icon={<TrendingUpIcon />} label={isMobile ? 'Home' : 'Overview'} iconPosition={isMobile ? 'top' : 'start'} />
+          <Tab icon={<DirectionsRunIcon />} label={isMobile ? 'Steps' : 'Daily Steps'} iconPosition={isMobile ? 'top' : 'start'} />
+          <Tab icon={<CalendarMonthIcon />} label={isMobile ? 'Cal' : 'Calendar'} iconPosition={isMobile ? 'top' : 'start'} />
+          <Tab icon={<HistoryIcon />} label={isMobile ? 'Logs' : 'History'} iconPosition={isMobile ? 'top' : 'start'} />
           {currentWorkout && (
             <Tab
               icon={<FitnessCenterIcon sx={{ color: '#f59e0b' }} />}
@@ -1120,17 +1125,88 @@ function GymTracker() {
               sx={{ fontWeight: 700, color: '#f59e0b !important' }}
             />
           )}
-          <Tab icon={<TrendingUpIcon />} label={isMobile ? 'Home' : 'Overview'} iconPosition={isMobile ? 'top' : 'start'} />
-          <Tab icon={<TimerIcon />} label="Steps" iconPosition={isMobile ? 'top' : 'start'} />
-          <Tab icon={<CalendarMonthIcon />} label={isMobile ? 'Cal' : 'Calendar'} iconPosition={isMobile ? 'top' : 'start'} />
-          <Tab icon={<FitnessCenterIcon />} label={isMobile ? 'Logs' : 'History'} iconPosition={isMobile ? 'top' : 'start'} />
         </Tabs>
       </Box>
 
       {/* Tabs Content */}
       <Box>
+        {/* Overview Tab */}
+        {activeTab === 0 && (
+          <OverviewTab
+            stats={stats}
+            readiness={readiness}
+            readinessLoading={readinessLoading}
+            showAdvancedOverview={showAdvancedOverview}
+            setShowAdvancedOverview={setShowAdvancedOverview}
+            volumeChartData={volumeChartData}
+            selectedAnalysisExercise={selectedAnalysisExercise}
+            setSelectedAnalysisExercise={setSelectedAnalysisExercise}
+            allExerciseNames={allExerciseNames}
+            analysisChartMode={analysisChartMode}
+            setAnalysisChartMode={setAnalysisChartMode}
+            exerciseProgressionData={exerciseProgressionData}
+            trainingInsights={trainingInsights}
+            generateAiWorkoutSuggestion={generateAiWorkoutSuggestion}
+            aiWorkoutSuggestionLoading={aiWorkoutSuggestionLoading}
+            aiWorkoutSuggestion={aiWorkoutSuggestion}
+            generateAiRecoverySuggestion={generateAiRecoverySuggestion}
+            aiRecoverySuggestionLoading={aiRecoverySuggestionLoading}
+            aiRecoverySuggestion={aiRecoverySuggestion}
+            correlationChartData={correlationChartData}
+            correlatedInsights={correlatedInsights}
+            loadCorrelatedInsights={loadCorrelatedInsights}
+            correlationLoading={correlationLoading}
+            muscleHeatmap={muscleHeatmap}
+            muscleDistribution={muscleDistribution}
+            workouts={workouts}
+            isMobile={isMobile}
+            EXERCISE_LIBRARY={EXERCISE_LIBRARY}
+          />
+        )}
+
+        {/* Steps Tab */}
+        {activeTab === 1 && (
+          <StepsTab
+            stepsRangeMode={stepsRangeMode}
+            setStepsRangeMode={setStepsRangeMode}
+            stepsDate={stepsDate}
+            setStepsDate={setStepsDate}
+            stepsValue={stepsValue}
+            setStepsValue={setStepsValue}
+            saveSteps={saveSteps}
+            stepsSaving={stepsSaving}
+            stepsLoading={stepsLoading}
+            stepsError={stepsError}
+            stepsSeries={stepsSeries}
+            buildStepsChart={buildStepsChart}
+            isMobile={isMobile}
+          />
+        )}
+
+        {/* Calendar Tab */}
+        {activeTab === 2 && (
+          <CalendarTab
+            calendarLoading={calendarLoading}
+            calendarEvents={calendarEvents}
+            isMobile={isMobile}
+            loadCalendarRange={loadCalendarRange}
+            editWorkout={editWorkout}
+          />
+        )}
+
+        {/* History Tab */}
+        {activeTab === 3 && (
+          <HistoryTab
+            workouts={workouts}
+            handleWorkoutClick={handleWorkoutClick}
+            editWorkout={editWorkout}
+            deleteWorkout={deleteWorkout}
+            EXERCISE_LIBRARY={EXERCISE_LIBRARY}
+          />
+        )}
+
         {/* Active Workout Content */}
-        {currentWorkout && activeTab === 0 && (
+        {currentWorkout && activeTab === 4 && (
           <ActiveWorkoutView
             currentWorkout={currentWorkout}
             elapsedTime={elapsedTime}
@@ -1152,83 +1228,7 @@ function GymTracker() {
             EXERCISE_LIBRARY={EXERCISE_LIBRARY}
           />
         )}
-
       </Box>
-
-      {/* Overview Tab */}
-      {activeTab === (currentWorkout ? 1 : 0) && (
-        <OverviewTab
-          stats={stats}
-          readiness={readiness}
-          readinessLoading={readinessLoading}
-          showAdvancedOverview={showAdvancedOverview}
-          setShowAdvancedOverview={setShowAdvancedOverview}
-          volumeChartData={volumeChartData}
-          selectedAnalysisExercise={selectedAnalysisExercise}
-          setSelectedAnalysisExercise={setSelectedAnalysisExercise}
-          allExerciseNames={allExerciseNames}
-          analysisChartMode={analysisChartMode}
-          setAnalysisChartMode={setAnalysisChartMode}
-          exerciseProgressionData={exerciseProgressionData}
-          trainingInsights={trainingInsights}
-          generateAiWorkoutSuggestion={generateAiWorkoutSuggestion}
-          aiWorkoutSuggestionLoading={aiWorkoutSuggestionLoading}
-          aiWorkoutSuggestion={aiWorkoutSuggestion}
-          generateAiRecoverySuggestion={generateAiRecoverySuggestion}
-          aiRecoverySuggestionLoading={aiRecoverySuggestionLoading}
-          aiRecoverySuggestion={aiRecoverySuggestion}
-          correlationChartData={correlationChartData}
-          correlatedInsights={correlatedInsights}
-          loadCorrelatedInsights={loadCorrelatedInsights}
-          correlationLoading={correlationLoading}
-          muscleHeatmap={muscleHeatmap}
-          muscleDistribution={muscleDistribution}
-          workouts={workouts}
-          isMobile={isMobile}
-          EXERCISE_LIBRARY={EXERCISE_LIBRARY}
-        />
-      )}
-
-      {/* Steps Tab */}
-      {activeTab === (currentWorkout ? 2 : 1) && (
-        <StepsTab
-          stepsRangeMode={stepsRangeMode}
-          setStepsRangeMode={setStepsRangeMode}
-          stepsDate={stepsDate}
-          setStepsDate={setStepsDate}
-          stepsValue={stepsValue}
-          setStepsValue={setStepsValue}
-          saveSteps={saveSteps}
-          stepsSaving={stepsSaving}
-          stepsLoading={stepsLoading}
-          stepsError={stepsError}
-          stepsSeries={stepsSeries}
-          buildStepsChart={buildStepsChart}
-          isMobile={isMobile}
-        />
-      )}
-
-      {/* Calendar Tab */}
-      {activeTab === (currentWorkout ? 3 : 2) && (
-        <CalendarTab
-          calendarLoading={calendarLoading}
-          calendarEvents={calendarEvents}
-          isMobile={isMobile}
-          loadCalendarRange={loadCalendarRange}
-          editWorkout={editWorkout}
-        />
-      )}
-
-      {/* History Tab */}
-      {activeTab === (currentWorkout ? 4 : 3) && (
-        <HistoryTab
-          workouts={workouts}
-          handleWorkoutClick={handleWorkoutClick}
-          editWorkout={editWorkout}
-          deleteWorkout={deleteWorkout}
-          EXERCISE_LIBRARY={EXERCISE_LIBRARY}
-        />
-      )}
 
       {currentWorkout && isMobile && (
         <Box

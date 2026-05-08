@@ -25,6 +25,26 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+// GET /api/daily-life-state/range?start=YYYY-MM-DD&end=YYYY-MM-DD
+router.get('/range', authMiddleware, async (req, res) => {
+  try {
+    const { start, end } = req.query;
+    if (!start || !end) {
+      return res.status(400).json({ error: 'Missing start or end date' });
+    }
+
+    const docs = await DailyLifeState.find({
+      user: req.userId,
+      dayKey: { $gte: start, $lte: end }
+    }).sort({ dayKey: 1 });
+
+    res.json(docs);
+  } catch (err) {
+    console.error('[DailyLifeStateRoutes] GET range error:', err);
+    res.status(500).json({ error: 'Failed to fetch range' });
+  }
+});
+
 // GET /api/daily-life-state/:dayKey[?refresh=1]
 router.get('/:dayKey', authMiddleware, async (req, res) => {
   try {

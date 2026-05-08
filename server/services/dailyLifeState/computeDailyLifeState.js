@@ -334,6 +334,16 @@ async function computeDailyLifeState({ userId, dayKey }) {
 
   const summaryState = chooseSummaryState({ signals });
 
+  // Compute metrics (Readiness & Load)
+  const readinessValue = signals.sleep.value != null && signals.energy.value != null && signals.stress.value != null
+    ? (signals.sleep.value * 0.4 + signals.energy.value * 0.4 + (1 - signals.stress.value) * 0.2)
+    : (signals.energy.value || signals.sleep.value || 0.5);
+
+  const metrics = {
+    readinessScore: readinessValue != null ? Math.round(readinessValue * 100) : null,
+    trainingLoad: signals.trainingLoad.value != null ? Math.round(signals.trainingLoad.value * 100) : null,
+  };
+
   const inputsHash = hashInputs({
     dayKey,
     dateStart: dateStart.toISOString(),
@@ -355,6 +365,7 @@ async function computeDailyLifeState({ userId, dayKey }) {
     dateEnd,
     signals,
     summaryState,
+    metrics,
     evidence: {
       mentalLogIds: mentalLogs.map((d) => d._id),
       nutritionLogIds: nutritionLogs.map((d) => d._id),

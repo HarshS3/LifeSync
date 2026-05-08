@@ -5,9 +5,13 @@ import api from '../../services/api';
 import { Send, Mic, Square, Camera, Image as ImageIcon, X } from 'lucide-react-native';
 import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
+import { useTheme } from '../../constants/Theme';
 
 export default function ChatScreen() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const router = useRouter();
+  const { COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY } = useTheme();
   const [messages, setMessages] = useState([
     {
       id: '1',
@@ -73,8 +77,30 @@ export default function ChatScreen() {
         playsInSilentModeIOS: true,
       });
 
-      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      setRecording(recording);
+      const customOptions = {
+        isMeteringEnabled: true,
+        android: {
+          extension: '.webm',
+          outputFormat: Audio.AndroidOutputFormat.WEBM_OPUS,
+          audioEncoder: Audio.AndroidAudioEncoder.OPUS,
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: '.wav',
+          audioQuality: Audio.IOSAudioQuality.HIGH,
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+      };
+
+      const { recording: newRec } = await Audio.Recording.createAsync(customOptions);
+      setRecording(newRec);
       setIsRecording(true);
     } catch (err) {
       console.error('Failed to start recording', err);
@@ -86,38 +112,39 @@ export default function ChatScreen() {
     setIsRecording(false);
     if (!recording) return;
 
-    try {
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      setRecording(null);
+    const currentRec = recording;
+    setRecording(null);
 
+    try {
+      try {
+        await currentRec.stopAndUnloadAsync();
+      } catch (e) {
+        // ignore if already unloaded
+      }
+      
+      const uri = currentRec.getURI();
       if (!uri) return;
 
       setIsSending(true);
       addMessage({ from: 'system', text: 'Processing voice...' });
 
-      // Upload audio to STT
+      const ext = Platform.OS === 'android' ? 'webm' : 'wav';
+      const mime = Platform.OS === 'android' ? 'audio/webm' : 'audio/wav';
+      const fileUri = Platform.OS === 'android' && !uri.startsWith('file://') ? `file://${uri}` : uri;
+
       const formData = new FormData();
       formData.append('audio', {
-        uri,
-        type: 'audio/m4a',
-        name: 'voice.m4a',
+        uri: fileUri,
+        type: mime,
+        name: `voice.${ext}`,
       });
 
-      const res = await fetch(`${api.defaults.baseURL}/stt`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-        body: formData,
+      const res = await api.post('/stt', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      setInput(data.transcript);
-      addMessage({ from: 'system', text: `Heard: "${data.transcript}"` });
+      setInput(res.data.transcript);
+      addMessage({ from: 'system', text: `Heard: "${res.data.transcript}"` });
       
     } catch (err) {
       console.error('STT error', err);
@@ -165,24 +192,19 @@ export default function ChatScreen() {
     setIsSending(true);
 
     try {
+      const fileUri = Platform.OS === 'android' && !uri.startsWith('file://') ? `file://${uri}` : uri;
+      
       const formData = new FormData();
       formData.append('image', {
-        uri,
+        uri: fileUri,
         type: 'image/jpeg',
         name: 'meal.jpg',
       });
 
-      const res = await fetch(`${api.defaults.baseURL}/photo-log/analyze`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-        body: formData,
+      const res = await api.post('/photo-log/analyze', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const data = res.data;
 
       if (data.foodDetected) {
         addMessage({ 
@@ -207,20 +229,20 @@ export default function ChatScreen() {
 
     if (isSystem) {
       return (
-        <View style={styles.systemMessage}>
-          <Text style={styles.systemText}>{item.text}</Text>
+        <View style={themedStyles.systemMessage}>
+          <Text style={themedStyles.systemText}>{item.text}</Text>
         </View>
       );
     }
 
     return (
-      <View style={[styles.messageRow, isAi ? styles.aiRow : styles.userRow]}>
-        <View style={[styles.messageBubble, isAi ? styles.aiBubble : styles.userBubble]}>
+      <View style={[themedStyles.messageRow, isAi ? themedStyles.aiRow : themedStyles.userRow]}>
+        <View style={[themedStyles.messageBubble, isAi ? themedStyles.aiBubble : themedStyles.userBubble]}>
           {item.image && (
-            <Image source={{ uri: item.image }} style={styles.messageImage} />
+            <Image source={{ uri: item.image }} style={themedStyles.messageImage} />
           )}
           {item.text && (
-             <Text style={[styles.messageText, isAi ? styles.aiText : styles.userText]}>
+             <Text style={[themedStyles.messageText, isAi ? themedStyles.aiText : themedStyles.userText]}>
                {item.text}
              </Text>
           )}
@@ -229,84 +251,133 @@ export default function ChatScreen() {
     );
   };
 
+  const themedStyles = styles(COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY);
+
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.messageList}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
-      />
+    <View style={themedStyles.container}>
+      <View style={themedStyles.header}>
+        <View>
+          <Text style={themedStyles.headerTitle}>Assistant</Text>
+          <Text style={themedStyles.headerSubtitle}>AI-powered health intelligence</Text>
+        </View>
+        <TouchableOpacity onPress={() => router.push('/profile')} style={themedStyles.avatarMini}>
+           <Text style={themedStyles.avatarTextMini}>{user?.name?.charAt(0)}</Text>
+        </TouchableOpacity>
+      </View>
 
-      <View style={styles.inputArea}>
-        {!input && !isRecording && (
-          <View style={styles.hardwareButtons}>
-            <TouchableOpacity style={styles.iconButton} onPress={takePhoto}>
-              <Camera size={24} color="#666" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton} onPress={pickImage}>
-              <ImageIcon size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <TextInput
-          style={[styles.input, isRecording && styles.inputHidden]}
-          placeholder="Message or log food..."
-          value={input}
-          onChangeText={setInput}
-          multiline
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={themedStyles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={item => item.id}
+          contentContainerStyle={themedStyles.messageList}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
         />
 
-        {isRecording && (
-          <View style={styles.recordingIndicator}>
-            <View style={styles.redDot} />
-            <Text style={styles.recordingText}>Listening...</Text>
-          </View>
-        )}
+        <View style={themedStyles.inputArea}>
+          {!input && !isRecording && (
+            <View style={themedStyles.hardwareButtons}>
+              <TouchableOpacity style={themedStyles.iconButton} onPress={takePhoto}>
+                <Camera size={24} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={themedStyles.iconButton} onPress={pickImage}>
+                <ImageIcon size={24} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          )}
 
-        {input.trim() ? (
-          <TouchableOpacity 
-            style={[styles.sendButton, styles.primaryButton]} 
-            onPress={sendMessage}
-            disabled={isSending}
-          >
-            {isSending ? <ActivityIndicator size="small" color="#fff" /> : <Send size={20} color="#fff" />}
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity 
-            style={[styles.sendButton, isRecording ? styles.stopButton : styles.primaryButton]} 
-            onPressIn={startRecording}
-            onPressOut={stopRecording}
-            disabled={isSending}
-          >
-            {isSending ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : isRecording ? (
-              <Square size={20} color="#fff" />
-            ) : (
-              <Mic size={20} color="#fff" />
-            )}
-          </TouchableOpacity>
-        )}
-      </View>
-    </KeyboardAvoidingView>
+          <TextInput
+            style={[themedStyles.input, isRecording && themedStyles.inputHidden]}
+            placeholder="Message or log food..."
+            value={input}
+            onChangeText={setInput}
+            multiline
+            placeholderTextColor={COLORS.gray400}
+          />
+
+          {isRecording && (
+            <View style={themedStyles.recordingIndicator}>
+              <View style={themedStyles.redDot} />
+              <Text style={themedStyles.recordingText}>Listening...</Text>
+            </View>
+          )}
+
+          {input.trim() ? (
+            <TouchableOpacity 
+              style={[themedStyles.sendButton, themedStyles.primaryButton]} 
+              onPress={sendMessage}
+              disabled={isSending}
+            >
+              {isSending ? <ActivityIndicator size="small" color="#fff" /> : <Send size={20} color="#fff" />}
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={[themedStyles.sendButton, isRecording ? themedStyles.stopButton : themedStyles.primaryButton]} 
+              onPressIn={startRecording}
+              onPressOut={stopRecording}
+              disabled={isSending}
+            >
+              {isSending ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : isRecording ? (
+                <Square size={20} color="#fff" />
+              ) : (
+                <Mic size={20} color="#fff" />
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
+  },
+  header: {
+    padding: SPACING.lg,
+    paddingTop: 60,
+    backgroundColor: COLORS.surface,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray100,
+    ...SHADOWS,
+  },
+  headerTitle: {
+    ...TYPOGRAPHY.h2,
+    color: COLORS.text,
+  },
+  headerSubtitle: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
+  },
+  avatarMini: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarTextMini: {
+    color: COLORS.surface,
+    fontWeight: 'bold',
+  },
+  keyboardView: {
+    flex: 1,
   },
   messageList: {
-    padding: 16,
+    padding: SPACING.md,
     paddingBottom: 32,
   },
   messageRow: {
@@ -326,11 +397,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   aiBubble: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: COLORS.gray100,
     borderBottomLeftRadius: 4,
   },
   userBubble: {
-    backgroundColor: '#000',
+    backgroundColor: COLORS.primary,
     borderBottomRightRadius: 4,
   },
   messageImage: {
@@ -340,35 +411,36 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   messageText: {
+    ...TYPOGRAPHY.body,
     fontSize: 15,
     lineHeight: 20,
   },
   aiText: {
-    color: '#000',
+    color: COLORS.text,
   },
   userText: {
-    color: '#fff',
+    color: COLORS.surface,
   },
   systemMessage: {
     alignSelf: 'center',
     marginVertical: 12,
     paddingHorizontal: 16,
     paddingVertical: 6,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: COLORS.gray100,
     borderRadius: 12,
   },
   systemText: {
-    color: '#666',
-    fontSize: 12,
+    ...TYPOGRAPHY.caption,
+    color: COLORS.textSecondary,
     fontWeight: '600',
   },
   inputArea: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
-    backgroundColor: '#fff',
+    borderTopColor: COLORS.gray100,
+    backgroundColor: COLORS.surface,
   },
   hardwareButtons: {
     flexDirection: 'row',
@@ -379,12 +451,13 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: COLORS.gray100,
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 10,
     marginRight: 12,
     fontSize: 16,
+    color: COLORS.text,
     maxHeight: 100,
   },
   inputHidden: {
@@ -395,7 +468,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fee2e2',
+    backgroundColor: COLORS.error + '25',
     borderRadius: 24,
     height: 44,
     marginRight: 12,
@@ -404,11 +477,11 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#ef4444',
+    backgroundColor: COLORS.error,
     marginRight: 8,
   },
   recordingText: {
-    color: '#ef4444',
+    color: COLORS.error,
     fontWeight: '600',
   },
   sendButton: {
@@ -419,9 +492,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryButton: {
-    backgroundColor: '#000',
+    backgroundColor: COLORS.primary,
   },
   stopButton: {
-    backgroundColor: '#ef4444',
+    backgroundColor: COLORS.error,
   },
 });

@@ -1,10 +1,31 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { LogOut, User, Settings, Shield, HelpCircle } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import api from '../../services/api';
+import { LogOut, User, Settings, Shield, HelpCircle, Target, Activity, Heart, Scale } from 'lucide-react-native';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
+  const router = useRouter();
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      try {
+        const res = await api.get('/users/profile');
+        setStats(res.data);
+      } catch (err) {
+        console.error('Failed to fetch profile stats', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfileData();
+  }, []);
+
+  const bio = stats?.biologicalProfile || {};
 
   return (
     <ScrollView style={styles.container}>
@@ -16,12 +37,34 @@ export default function ProfileScreen() {
         <Text style={styles.email}>{user?.email || 'email@example.com'}</Text>
       </View>
 
+      {/* Bio Stats Grid */}
+      <View style={styles.bioGrid}>
+        <View style={styles.bioItem}>
+          <Scale size={18} color="#666" />
+          <Text style={styles.bioValue}>{bio.weight || '--'} kg</Text>
+          <Text style={styles.bioLabel}>Weight</Text>
+        </View>
+        <View style={styles.bioItem}>
+          <Activity size={18} color="#666" />
+          <Text style={styles.bioValue}>{bio.height || '--'} cm</Text>
+          <Text style={styles.bioLabel}>Height</Text>
+        </View>
+        <View style={styles.bioItem}>
+          <Heart size={18} color="#666" />
+          <Text style={styles.bioValue}>{bio.age || '--'}</Text>
+          <Text style={styles.bioLabel}>Age</Text>
+        </View>
+      </View>
+
       <View style={styles.section}>
-        <TouchableOpacity style={styles.menuItem}>
+        <Text style={styles.sectionTitle}>Preferences</Text>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/profile/edit')}>
           <User size={20} color="#333" />
-          <Text style={styles.menuText}>Edit Profile</Text>
+          <Text style={styles.menuText}>Biological Profile</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem}>
+        
+        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Settings</Text>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/profile/settings')}>
           <Settings size={20} color="#333" />
           <Text style={styles.menuText}>App Settings</Text>
         </TouchableOpacity>
@@ -56,7 +99,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 32,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#f3f4f6',
   },
   avatarPlaceholder: {
     width: 80,
@@ -82,8 +125,38 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
+  bioGrid: {
+    flexDirection: 'row',
+    padding: 24,
+    justifyContent: 'space-between',
+    backgroundColor: '#f9fafb',
+  },
+  bioItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  bioValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 8,
+    color: '#333',
+  },
+  bioLabel: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 2,
+    textTransform: 'uppercase',
+  },
   section: {
     padding: 16,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#999',
+    textTransform: 'uppercase',
+    marginLeft: 16,
+    marginBottom: 8,
   },
   menuItem: {
     flexDirection: 'row',

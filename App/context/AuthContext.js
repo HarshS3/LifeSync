@@ -42,8 +42,12 @@ export function AuthProvider({ children }) {
       setUser(res.data);
       await SecureStore.setItemAsync(USER_KEY, JSON.stringify(res.data));
     } catch (err) {
-      console.warn('[AuthContext] Token verification failed:', err.message);
-      logout();
+      if (err.response?.status === 401) {
+        console.warn('[AuthContext] Token verification failed (401):', err.message);
+        logout();
+      } else {
+        console.warn('[AuthContext] Token verification failed (non-401):', err.message);
+      }
     } finally {
       setLoading(false);
     }

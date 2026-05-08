@@ -38,13 +38,17 @@ export const WorkoutProvider = ({ children }) => {
 
   // Save active workout to localStorage when it changes
   useEffect(() => {
-    if (currentWorkout) {
-      localStorage.setItem('lifesync_active_workout', JSON.stringify({
-        workout: currentWorkout,
-        startTime: workoutStartTime
-      }))
-    } else {
-      localStorage.removeItem('lifesync_active_workout')
+    try {
+      if (currentWorkout) {
+        localStorage.setItem('lifesync_active_workout', JSON.stringify({
+          workout: currentWorkout,
+          startTime: workoutStartTime
+        }))
+      } else {
+        localStorage.removeItem('lifesync_active_workout')
+      }
+    } catch (err) {
+      console.error('Failed to update storage with active workout:', err)
     }
   }, [currentWorkout, workoutStartTime])
 
@@ -76,7 +80,11 @@ export const WorkoutProvider = ({ children }) => {
       setCurrentWorkout(null)
       setWorkoutStartTime(null)
       setElapsedTime(0)
-      localStorage.removeItem('lifesync_active_workout')
+      try {
+        localStorage.removeItem('lifesync_active_workout')
+      } catch (err) {
+        console.error('Failed to remove active workout from storage:', err)
+      }
     }
   }, [])
 
@@ -109,7 +117,11 @@ export const WorkoutProvider = ({ children }) => {
         setCurrentWorkout(null)
         setWorkoutStartTime(null)
         setElapsedTime(0)
-        localStorage.removeItem('lifesync_active_workout')
+        try {
+          localStorage.removeItem('lifesync_active_workout')
+        } catch (err) {
+          console.error('Failed to clear active workout after finish:', err)
+        }
         return true
       }
     } catch (err) {

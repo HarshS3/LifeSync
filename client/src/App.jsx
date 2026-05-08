@@ -345,12 +345,21 @@ function AppContent() {
   // Show loading spinner while checking auth
   if (loading) {
     return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', bgcolor: ui.bg }}>
-          <CircularProgress sx={{ color: ui.accent }} />
-        </Box>
-      </ThemeProvider>
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: ui.bg,
+          color: ui.text,
+          fontFamily: 'system-ui, sans-serif',
+          gap: '12px',
+        }}
+      >
+        <div style={{ width: 12, height: 12, borderRadius: '50%', background: ui.accent }} />
+        <span>Loading LifeSync</span>
+      </div>
     )
   }
 

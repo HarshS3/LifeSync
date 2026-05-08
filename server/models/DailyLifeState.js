@@ -61,7 +61,13 @@ const DailyLifeStateSchema = new mongoose.Schema(
 
     summaryState: { type: SummaryStateSchema, default: () => ({}) },
 
-    evidence: { type: EvidencePointersSchema, default: () => ({}) },
+    metrics: {
+      readinessScore: { type: Number, default: null },
+      trainingLoad: { type: Number, default: null },
+    },
+
+    evidence: {
+ type: EvidencePointersSchema, default: () => ({}) },
 
     computedAt: { type: Date, default: Date.now, index: true },
     computeVersion: { type: Number, default: 1 },

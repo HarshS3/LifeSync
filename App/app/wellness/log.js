@@ -44,7 +44,7 @@ export default function LogWellnessScreen() {
     setLoading(true);
     try {
       const dateStr = new Date().toISOString().split('T')[0];
-      await api.post('/log/mental', {
+      await api.post('/logs/mental', {
         date: dateStr,
         moodRating: mood,
         energyLevel: energy,

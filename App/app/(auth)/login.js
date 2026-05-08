@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -21,8 +22,11 @@ export default function LoginScreen() {
     setIsSubmitting(true);
     try {
       await login(email, password);
-      // AuthProvider useEffect will handle redirection
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Redirect explicitly as a fallback to the layout-based redirect
+      router.replace('/(tabs)');
     } catch (err) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError(err.message);
     } finally {
       setIsSubmitting(false);
@@ -46,20 +50,24 @@ export default function LoginScreen() {
           <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.input}
-            placeholder="example@email.com"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
+            textContentType="emailAddress"
+            autoComplete="email"
+            importantForAutofill="yes"
           />
 
           <Text style={styles.label}>Password</Text>
           <TextInput
             style={styles.input}
-            placeholder="••••••••"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            textContentType="password"
+            autoComplete="password"
+            importantForAutofill="yes"
           />
 
           <TouchableOpacity 

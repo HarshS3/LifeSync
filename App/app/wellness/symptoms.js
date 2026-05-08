@@ -32,7 +32,7 @@ export default function LogSymptomsScreen() {
     setLoading(true);
     try {
       const dateStr = new Date().toISOString().split('T')[0];
-      await api.post('/log/symptoms', {
+      await api.post('/symptoms', {
         date: dateStr,
         symptoms: selected.map(s => ({
           name: s,

@@ -1,5 +1,4 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const crypto = require('crypto');
@@ -8,7 +7,6 @@ const auth = require('../middleware/authMiddleware');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
-const resetTokens = {}; // Back-compat for in-memory tokens
 
 function getClientBaseUrl() {
   return (
@@ -42,15 +40,11 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(String(password), salt);
-
-    // Create user
+    // Create user (password hashing handled by pre-save hook)
     const user = await User.create({
       name: String(name).trim(),
       email: normalizedEmail,
-      password: hashedPassword,
+      password: password,
     });
 
     // Generate token
@@ -83,17 +77,18 @@ router.post('/login', async (req, res) => {
     // Find user
     const normalizedEmail = String(email).toLowerCase().trim();
     const user = await User.findOne({ email: normalizedEmail });
-    if (!user) {
-      return res.status(401).json({ error: 'Account with this email does not exist' });
-    }
-    if (!user.password) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+    
+    // Generic error to prevent email enumeration
+    const invalidError = 'Invalid email or password';
+    
+    if (!user || !user.password) {
+      return res.status(401).json({ error: invalidError });
     }
 
-    // Check password
-    const isMatch = await bcrypt.compare(String(password), user.password);
+    // Check password using model method
+    const isMatch = await user.comparePassword(String(password));
     if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: invalidError });
     }
 
     // Generate token
@@ -115,7 +110,6 @@ router.post('/login', async (req, res) => {
 });
 
 // Get current user (protected)
-// Get current user (protected)
 router.get('/me', auth, async (req, res) => {
   try {
     const user = await User.findById(req.userId).select('-password');
@@ -129,8 +123,36 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
+// --- Change Password (protected) ---
+router.post('/change-password', auth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current and new password are required' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
 
-// Direct reset is removed for security. Use forgot-password flow.
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Verify current password
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Incorrect current password' });
+    }
+
+    // Update password (pre-save hook will hash it)
+    user.password = newPassword;
+    await user.save();
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
 
 // --- Forgot Password ---
 router.post('/forgot-password', async (req, res) => {
@@ -193,17 +215,10 @@ router.post('/reset-password', async (req, res) => {
       resetPasswordExpiresAt: { $gt: new Date() },
     });
 
-    // Back-compat: accept in-memory tokens issued by older dev flow.
-    if (!user) {
-      const data = resetTokens[token];
-      if (!data || data.expires < Date.now()) return res.status(400).json({ error: 'Invalid or expired token' });
-      user = await User.findById(data.userId);
-      if (!user) return res.status(404).json({ error: 'User not found' });
-      delete resetTokens[token];
-    }
+    if (!user) return res.status(400).json({ error: 'Invalid or expired token' });
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    // Update password (pre-save hook will hash it)
+    user.password = password;
     user.resetPasswordTokenHash = undefined;
     user.resetPasswordExpiresAt = undefined;
     await user.save();

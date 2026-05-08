@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const rateLimit = require('express-rate-limit');
 
 const userRoutes = require('./routes/userRoutes');
 const logRoutes = require('./routes/logRoutes');
@@ -35,6 +36,20 @@ const ALLOW_LOCAL_FALLBACK = String(process.env.MONGO_URI_FALLBACK_LOCAL || '1')
 
 app.use(cors());
 app.use(express.json());
+
+// Rate limiting for auth routes
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // Limit each IP to 20 requests per windowMs
+  message: { error: 'Too many requests from this IP, please try again after 15 minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/auth/reset-password', authLimiter);
 
 // Middleware to log API response time
 app.use((req, res, next) => {
@@ -77,11 +92,6 @@ app.use('/api/chat-ingestion', chatIngestionRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/photo-log', photoLogRoutes);
 app.use('/api/recipes', recipeRoutes);
-app.get("/ip", (req, res) => {
-  res.json({
-    ip: req.headers["x-forwarded-for"] || req.socket.remoteAddress
-  });
-});
 
 async function start() {
   try {
@@ -108,8 +118,8 @@ async function start() {
     }
     console.log('Connected to MongoDB');
 
-    app.listen(PORT, () => {
-      console.log(`LifeSync API running on port ${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`LifeSync API running on port ${PORT} and bound to 0.0.0.0`);
     });
   } catch (err) {
     console.error('Failed to start server', err);

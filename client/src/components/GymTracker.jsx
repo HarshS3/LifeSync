@@ -644,10 +644,11 @@ function GymTracker() {
     }
   }
 
-  const startWorkout = (tpl) => {
+  const handleStartWorkout = (tpl) => {
+    const data = tpl || { name: 'New Workout', exercises: [] }
     startWorkout({
-      name: tpl.name,
-      exercises: tpl.exercises.map(ex => ({
+      name: data.name,
+      exercises: (data.exercises || []).map(ex => ({
         ...ex,
         sets: ex.sets?.map(s => ({ ...s })) || [{ reps: 0, weight: 0, rpe: 8 }]
       })),
@@ -1033,7 +1034,7 @@ function GymTracker() {
             <Button
               variant="contained"
               startIcon={<AddIcon />}
-              onClick={() => startWorkout({ name: 'New Workout', exercises: [] })}
+              onClick={() => handleStartWorkout()}
               fullWidth={isMobile}
               sx={{
                 bgcolor: 'text.primary',
@@ -1062,7 +1063,7 @@ function GymTracker() {
         templateDialogOpen={templateDialogOpen}
         setTemplateDialogOpen={setTemplateDialogOpen}
         templates={templates}
-        useTemplate={startWorkout}
+        useTemplate={handleStartWorkout}
         deleteTemplate={deleteTemplate}
         saveRoutineDialogOpen={saveRoutineDialogOpen}
         setSaveRoutineDialogOpen={setSaveRoutineDialogOpen}

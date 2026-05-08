@@ -52,13 +52,13 @@ import MuscleHeatmapFigure from './MuscleHeatmapFigure'
 import RestTimer from './RestTimer'
 import PlateCalculator from './PlateCalculator'
 import LastSetsReference from './LastSetsReference'
-import StatCard from './gym/StatCard';
-import ActiveWorkoutView from './gym/ActiveWorkoutView';
-import OverviewTab from './gym/OverviewTab';
-import StepsTab from './gym/StepsTab';
-import CalendarTab from './gym/CalendarTab';
-import HistoryTab from './gym/HistoryTab';
-import WorkoutDialogs from './gym/WorkoutDialogs';
+import StatCard from './Gym/StatCard.jsx';
+import ActiveWorkoutView from './Gym/ActiveWorkoutView.jsx';
+import OverviewTab from './Gym/OverviewTab.jsx';
+import StepsTab from './Gym/StepsTab.jsx';
+import CalendarTab from './Gym/CalendarTab.jsx';
+import HistoryTab from './Gym/HistoryTab.jsx';
+import WorkoutDialogs from './Gym/WorkoutDialogs.jsx';
 import { EXERCISE_LIBRARY } from '../data/exerciseLibrary'
 
 const EXERCISE_HISTORY_LIMIT = 50

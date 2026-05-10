@@ -36,6 +36,7 @@ async function callOpenAICompatibleChat({
   user,
   messages,
   providerLabel,
+  jsonMode,
 }) {
   try {
     const payloadMessages = Array.isArray(messages) && messages.length
@@ -45,18 +46,23 @@ async function callOpenAICompatibleChat({
           { role: 'user', content: user },
         ]
 
+    const bodyPayload = {
+      model,
+      messages: payloadMessages,
+      temperature: 0.5,
+      max_tokens: LLM_MAX_OUTPUT_TOKENS,
+    };
+    if (jsonMode) {
+      bodyPayload.response_format = { type: 'json_object' };
+    }
+
     const res = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        messages: payloadMessages,
-        temperature: 0.5,
-        max_tokens: LLM_MAX_OUTPUT_TOKENS,
-      }),
+      body: JSON.stringify(bodyPayload),
     })
 
     if (!res.ok) {
@@ -72,7 +78,7 @@ async function callOpenAICompatibleChat({
   }
 }
 
-async function callGeminiGenerateContent({ apiKey, model, system, user, messages }) {
+async function callGeminiGenerateContent({ apiKey, model, system, user, messages, jsonMode }) {
   try {
     const payloadMessages = Array.isArray(messages) && messages.length
       ? messages
@@ -95,16 +101,21 @@ async function callGeminiGenerateContent({ apiKey, model, system, user, messages
       model
     )}:generateContent?key=${encodeURIComponent(apiKey)}`
 
+    const generationConfig = {
+      temperature: 0.5,
+      maxOutputTokens: LLM_MAX_OUTPUT_TOKENS,
+    };
+    if (jsonMode) {
+      generationConfig.response_mime_type = 'application/json';
+    }
+
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...(systemText ? { system_instruction: { parts: [{ text: systemText }] } } : {}),
         contents,
-        generationConfig: {
-          temperature: 0.5,
-          maxOutputTokens: LLM_MAX_OUTPUT_TOKENS,
-        },
+        generationConfig,
       }),
     })
 
@@ -154,7 +165,7 @@ async function callGeminiGenerateContent({ apiKey, model, system, user, messages
   }
 }
 
-async function callProvider({ provider, system, user, messages, modelOverride }) {
+async function callProvider({ provider, system, user, messages, modelOverride, jsonMode }) {
   if (provider === 'groq' && GROQ_API_KEY) {
     return callOpenAICompatibleChat({
       apiKey: GROQ_API_KEY,
@@ -164,6 +175,7 @@ async function callProvider({ provider, system, user, messages, modelOverride })
       user,
       messages,
       providerLabel: 'Groq',
+      jsonMode,
     })
   }
 
@@ -176,6 +188,7 @@ async function callProvider({ provider, system, user, messages, modelOverride })
       user,
       messages,
       providerLabel: 'OpenAI',
+      jsonMode,
     })
   }
 
@@ -186,28 +199,17 @@ async function callProvider({ provider, system, user, messages, modelOverride })
       system,
       user,
       messages,
+      jsonMode,
     })
   }
 
   return null
 }
 
-async function generateLLMReply({ message, memoryContext, systemPrompt, history, providerOverride, modelOverride }) {
-  const defaultSystem = [
-    'You are LifeSync, a personal wellness companion.',
-    'You have access to the user\'s fitness, nutrition, sleep, mental health, medications, and habit data.',
-    'IMPORTANT: Only mention data that is DIRECTLY relevant to the user\'s question.',
-    'Do NOT list all their stats or data in every response. Stay focused, natural, and avoid data-dumps.',
-    'If they ask about sleep, focus on sleep. If they ask about habits, focus on habits.',
-    'Be conversational and human, not a data dump.',
-    'Avoid medical diagnosis. You may describe symptom patterns and risk levels, but do not label diseases.',
-    'You may do: pattern analysis, risk stratification, red-flag detection, and question generation for doctor visits.',
-    'You must NOT do: prescriptions, medication dosing, starting/stopping meds, deterministic medical claims.',
-    'Use uncertainty-aware language (e.g., "may", "could", "can be worth checking").',
-    'If red flags are present, advise urgent professional evaluation (without prescribing a treatment).',
-    'Default to 1–2 short paragraphs. Be concise, but not overly short unless the user asks for brevity.',
-  ].join(' ')
+const { buildSystemPrompt } = require('./services/assistant/prompts');
 
+async function generateLLMReply({ message, memoryContext, systemPrompt, history, providerOverride, modelOverride }) {
+  const defaultSystem = buildSystemPrompt({ mode: 'general' });
   const system = (systemPrompt && String(systemPrompt).trim()) ? String(systemPrompt).trim() : defaultSystem
 
   const safeHistory = Array.isArray(history)
@@ -252,9 +254,13 @@ async function estimateMissingMicronutrients(productName, knownMacros, missingMi
     'You are LifeSync Nutrition Estimator.',
     'You are given a product name, its known macros per 100g, and a list of missing micronutrients.',
     'Estimate the missing micronutrients per 100g based on the food type.',
-    'Return STRICT JSON ONLY containing the exact requested keys as JSON properties with numeric values.',
+    'Return STRICT JSON ONLY matching this schema:',
+    '{',
+    '  "estimatedNutrients": { "calciumMg": 120, ... },',
+    '  "confidence": "high" | "medium" | "low"',
+    '}',
     'Do not include any units in the values, just numbers.',
-    'If you are completely unsure, return 0 for that nutrient.',
+    'If you are completely unsure, return 0 for that nutrient and set confidence to "low".',
   ].join('\n')
 
   const prompt = `Product: ${productName}\nMacros per 100g: ${JSON.stringify(knownMacros)}\nMissing nutrients to estimate directly as keys: [${keysString}]`
@@ -285,6 +291,7 @@ async function estimateMissingMicronutrients(productName, knownMacros, missingMi
             { role: 'user', content: prompt }
           ],
           temperature: 0,
+          response_format: { type: 'json_object' }
         })
       })
       const dt = await res.json()
@@ -300,6 +307,7 @@ async function estimateMissingMicronutrients(productName, knownMacros, missingMi
             { role: 'user', content: prompt }
           ],
           temperature: 0,
+          response_format: { type: 'json_object' }
         })
       })
       const dt = await res.json()
@@ -310,7 +318,7 @@ async function estimateMissingMicronutrients(productName, knownMacros, missingMi
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: system + '\n\n' + prompt }] }],
-          generationConfig: { temperature: 0 }
+          generationConfig: { temperature: 0, response_mime_type: 'application/json' }
         })
       })
       const dt = await res.json()
@@ -321,6 +329,7 @@ async function estimateMissingMicronutrients(productName, knownMacros, missingMi
   }
   return null
 }
+
 
 async function generateNutritionSemanticJson({
   canonicalId,

@@ -1175,6 +1175,7 @@ router.get('/barcode/:code', authMiddleware, async (req, res) => {
     const keyMicros = ['calciumMg', 'ironMg', 'magnesiumMg', 'zincMg', 'vitaminCMg', 'vitaminB12Ug', 'vitaminDUg', 'omega3G'];
     const missing = keyMicros.filter(k => !n[k] || n[k] === 0);
 
+    let estimationConfidence = 'none';
     if (missing.length > 0) {
       const knownMacros = {
         caloriesKcal: n.caloriesKcal || 0,
@@ -1185,9 +1186,11 @@ router.get('/barcode/:code', authMiddleware, async (req, res) => {
       };
 
       console.log(`[NutritionRoutes] Estimating missing micros for ${pd.name}: ${missing.join(', ')}`);
-      const estimated = await estimateMissingMicronutrients(pd.name || pd.brand || 'Unknown', knownMacros, missing);
+      const estimatedResult = await estimateMissingMicronutrients(pd.name || pd.brand || 'Unknown', knownMacros, missing);
       
-      if (estimated) {
+      if (estimatedResult && estimatedResult.estimatedNutrients) {
+        estimationConfidence = estimatedResult.confidence || 'low';
+        const estimated = estimatedResult.estimatedNutrients;
         for (const k of missing) {
           if (estimated[k] && typeof estimated[k] === 'number') {
             n[k] = estimated[k];
@@ -1207,7 +1210,8 @@ router.get('/barcode/:code', authMiddleware, async (req, res) => {
       imageUrl: pd.imageUrl,
       nutrimentsPer100g: n,
       source: pd.source,
-      estimatedFields
+      estimatedFields,
+      estimationConfidence
     };
 
     try {

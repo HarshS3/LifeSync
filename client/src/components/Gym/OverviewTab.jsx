@@ -92,9 +92,11 @@ const OverviewTab = ({
         <Box sx={{
           p: 3, borderRadius: 2,
           background: readiness
-            ? `linear-gradient(135deg, ${readiness.color}12 0%, #fff 60%)`
+            ? (theme.palette.mode === 'dark' 
+                ? `linear-gradient(135deg, ${readiness.color}25 0%, ${theme.palette.background.paper} 60%)`
+                : `linear-gradient(135deg, ${readiness.color}12 0%, #fff 60%)`)
             : 'background.paper',
-          border: `1px solid ${readiness ? readiness.color + '40' : 'divider'}`,
+          border: `1px solid ${readiness ? readiness.color + '40' : theme.palette.divider}`,
           position: 'relative', overflow: 'hidden'
         }}>
           {/* Background glow */}
@@ -102,22 +104,22 @@ const OverviewTab = ({
             <Box sx={{
               position: 'absolute', top: -40, right: -40,
               width: 180, height: 180, borderRadius: '50%',
-              bgcolor: readiness.color, opacity: 0.06, pointerEvents: 'none'
+              bgcolor: readiness.color, opacity: theme.palette.mode === 'dark' ? 0.12 : 0.06, pointerEvents: 'none'
             }} />
           )}
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
             <WhatshotIcon sx={{ color: readiness?.color || '#f59e0b' }} />
-            <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: '1.1rem', color: '#0f172a' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: '1.1rem', color: 'text.primary' }}>
               Today's Training Readiness
             </Typography>
             {readinessLoading && (
-              <Typography variant="caption" sx={{ color: '#94a3b8', ml: 'auto' }}>Calculating…</Typography>
+              <Typography variant="caption" sx={{ color: 'text.disabled', ml: 'auto' }}>Calculating…</Typography>
             )}
           </Box>
 
           {!readiness && !readinessLoading && (
-            <Typography variant="body2" sx={{ color: '#94a3b8', py: 2 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', py: 2 }}>
               Log your daily wellness check-in (sleep, energy, stress) for 3+ days to unlock your readiness score.
             </Typography>
           )}
@@ -136,7 +138,7 @@ const OverviewTab = ({
                   <Typography sx={{ fontSize: '2.2rem', fontWeight: 900, color: readiness.color, lineHeight: 1 }}>
                     {readiness.readinessScore}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600 }}>/10</Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>/10</Typography>
                 </Box>
                 <Box sx={{
                   mt: 1.5, px: 2, py: 0.5, borderRadius: 2,
@@ -153,7 +155,7 @@ const OverviewTab = ({
 
               {/* Recommendation + Components */}
               <Box sx={{ flex: 1, minWidth: 200 }}>
-                <Typography variant="body2" sx={{ color: '#334155', lineHeight: 1.7, mb: 2, fontSize: '0.95rem' }}>
+                <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.7, mb: 2, fontSize: '0.95rem' }}>
                   {readiness.recommendation}
                 </Typography>
 
@@ -169,18 +171,18 @@ const OverviewTab = ({
                     const pct = (comp.score / 10) * 100
                     const c = comp.score >= 7 ? '#22c55e' : comp.score >= 5 ? '#f59e0b' : '#ef4444'
                     return (
-                      <Box key={comp.label} sx={{ p: 1.5, bgcolor: 'background.default', borderRadius: 1.5, border: '1px solid #e2e8f0' }}>
+                      <Box key={comp.label} sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 1.5, border: '1px solid', borderColor: 'divider' }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                          <Typography variant="caption" sx={{ fontWeight: 700, color: '#334155' }}>
+                          <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.primary' }}>
                             {comp.emoji} {comp.label}
                           </Typography>
                           <Typography variant="caption" sx={{ fontWeight: 800, color: c }}>{comp.score}/10</Typography>
                         </Box>
                         <LinearProgress
                           variant="determinate" value={pct}
-                          sx={{ height: 4, borderRadius: 2, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { bgcolor: c, borderRadius: 2 } }}
+                          sx={{ height: 4, borderRadius: 2, bgcolor: 'divider', '& .MuiLinearProgress-bar': { bgcolor: c, borderRadius: 2 } }}
                         />
-                        <Typography variant="caption" sx={{ color: '#94a3b8', fontSize: '0.65rem' }}>{comp.detail}</Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>{comp.detail}</Typography>
                       </Box>
                     )
                   })}
@@ -191,16 +193,23 @@ const OverviewTab = ({
               {readiness.overtraining.risk !== 'low' && (
                 <Box sx={{
                   p: 2, borderRadius: 2, minWidth: 200, flex: 1,
-                  bgcolor: readiness.overtraining.risk === 'high' ? '#fef2f2' : '#fffbeb',
-                  border: `1px solid ${readiness.overtraining.risk === 'high' ? '#fca5a5' : '#fde68a'}`
+                  bgcolor: readiness.overtraining.risk === 'high' 
+                    ? (theme.palette.mode === 'dark' ? '#450a0a' : '#fef2f2') 
+                    : (theme.palette.mode === 'dark' ? '#451a03' : '#fffbeb'),
+                  border: `1px solid ${readiness.overtraining.risk === 'high' 
+                    ? (theme.palette.mode === 'dark' ? '#991b1b' : '#fca5a5') 
+                    : (theme.palette.mode === 'dark' ? '#92400e' : '#fde68a')}`
                 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                     <WarningAmberIcon sx={{ fontSize: 18, color: readiness.overtraining.risk === 'high' ? '#ef4444' : '#f59e0b' }} />
-                    <Typography variant="caption" sx={{ fontWeight: 800, color: readiness.overtraining.risk === 'high' ? '#991b1b' : '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 800, color: readiness.overtraining.risk === 'high' 
+                      ? (theme.palette.mode === 'dark' ? '#f87171' : '#991b1b') 
+                      : (theme.palette.mode === 'dark' ? '#fbbf24' : '#92400e'), 
+                      textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       {readiness.overtraining.risk === 'high' ? 'Overtraining Risk: HIGH' : 'Overtraining Risk: Moderate'}
                     </Typography>
                   </Box>
-                  <Typography variant="caption" sx={{ color: '#475569', lineHeight: 1.6, display: 'block' }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.6, display: 'block' }}>
                     {readiness.overtraining.detail}
                   </Typography>
                 </Box>
@@ -210,28 +219,28 @@ const OverviewTab = ({
 
           {/* Stagnation Alerts */}
           {readiness?.stagnationAlerts?.length > 0 && (
-            <Box sx={{ mt: 3, pt: 2.5, borderTop: '1px solid #e2e8f0' }}>
+            <Box sx={{ mt: 3, pt: 2.5, borderTop: '1px solid', borderColor: 'divider' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
                 <TrendingUpIcon sx={{ color: '#7c3aed', fontSize: 20 }} />
-                <Typography variant="caption" sx={{ fontWeight: 800, color: '#4c1d95', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                <Typography variant="caption" sx={{ fontWeight: 800, color: theme.palette.mode === 'dark' ? '#a78bfa' : '#4c1d95', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                   Stagnation Detected — {readiness.stagnationAlerts.length} exercise{readiness.stagnationAlerts.length > 1 ? 's' : ''} plateaued
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                 {readiness.stagnationAlerts.map((alert, i) => (
                   <Box key={i} sx={{
-                    p: 2, bgcolor: '#faf5ff', borderRadius: 1.5,
+                    p: 2, bgcolor: 'action.hover', borderRadius: 1.5,
                     borderLeft: '4px solid #7c3aed', display: 'flex', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap'
                   }}>
                     <Box>
-                      <Typography variant="caption" sx={{ fontWeight: 800, color: '#3b0764', display: 'block' }}>
+                      <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.primary', display: 'block' }}>
                         {alert.exercise}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: '#6b21a8' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                         No progress in {alert.sessionsStagnated} sessions — best: {alert.currentBest}kg
                       </Typography>
                     </Box>
-                    <Typography variant="caption" sx={{ color: '#475569', lineHeight: 1.6, maxWidth: 300 }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.6, maxWidth: 300 }}>
                       💡 {alert.suggestion}
                     </Typography>
                   </Box>
@@ -336,11 +345,11 @@ const OverviewTab = ({
       {/* Exercise Specific Progression */}
       {(!isMobile || showAdvancedOverview) && (
         <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 3 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <AutoGraphIcon sx={{ color: '#ec4899' }} />
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem', color: 'text.primary' }}>
                   Exercise Progression
                 </Typography>
               </Box>
@@ -371,28 +380,34 @@ const OverviewTab = ({
               <Box sx={{ height: { xs: 220, md: 300 }, width: '100%' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={exerciseProgressionData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.palette.divider} />
                     <XAxis
                       dataKey="date"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 10, fill: '#94a3b8' }}
+                      tick={{ fontSize: 10, fill: theme.palette.text.secondary }}
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 10, fill: '#94a3b8' }}
+                      tick={{ fontSize: 10, fill: theme.palette.text.secondary }}
                       unit="kg"
                     />
                     <Tooltip
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      contentStyle={{
+                        borderRadius: '8px',
+                        border: 'none',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                        backgroundColor: theme.palette.background.paper,
+                        color: theme.palette.text.primary
+                      }}
                     />
                     <Line
                       type="monotone"
                       dataKey={analysisChartMode === '1rm' ? 'oneRepMax' : 'weight'}
                       stroke="#ec4899"
                       strokeWidth={3}
-                      dot={{ r: 4, fill: '#ec4899', strokeWidth: 2, stroke: 'background.paper' }}
+                      dot={{ r: 4, fill: '#ec4899', strokeWidth: 2, stroke: theme.palette.background.paper }}
                       activeDot={{ r: 6, strokeWidth: 0 }}
                       name={analysisChartMode === '1rm' ? 'Est. 1RM' : 'Max Weight'}
                     />
@@ -400,8 +415,8 @@ const OverviewTab = ({
                 </ResponsiveContainer>
               </Box>
             ) : (
-              <Box sx={{ p: 4, textAlign: 'center', bgcolor: 'background.default', borderRadius: 2 }}>
-                <Typography variant="body2" sx={{ color: '#94a3b8' }}>
+              <Box sx={{ p: 4, textAlign: 'center', bgcolor: 'action.hover', borderRadius: 2 }}>
+                <Typography variant="body2" sx={{ color: 'text.disabled' }}>
                   Need at least 2 sessions with this exercise to show a trend.
                 </Typography>
               </Box>
@@ -413,10 +428,10 @@ const OverviewTab = ({
       {/* Training Insights - Advanced Analysis */}
       {(!isMobile || showAdvancedOverview) && (
         <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
               <AutoGraphIcon sx={{ color: '#38bdf8' }} />
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem', color: 'text.primary' }}>
                 Performance Analysis & Insights
               </Typography>
             </Box>
@@ -426,28 +441,29 @@ const OverviewTab = ({
                 {trainingInsights.map((insight, idx) => {
                   let Icon = InsightsIcon;
                   let color = '#64748b';
-                  let bgColor = 'background.default';
+                  let bgColor = theme.palette.mode === 'dark' ? '#1e293b' : '#f1f5f9';
 
-                  if (insight.title.includes('Progression')) { Icon = TimelineIcon; color = '#10b981'; bgColor = '#ecfdf5'; }
-                  else if (insight.title.includes('Plateau')) { Icon = WarningAmberIcon; color = '#f59e0b'; bgColor = '#fffbeb'; }
-                  else if (insight.title.includes('Load') || insight.title.includes('Volume')) { Icon = FitnessCenterIcon; color = '#3b82f6'; bgColor = '#eff6ff'; }
-                  else if (insight.title.includes('Consistency') || insight.title.includes('Streak') || insight.title.includes('Balance')) { Icon = TrendingUpIcon; color = '#8b5cf6'; bgColor = '#f5f3ff'; }
-                  else if (insight.title.includes('Best') || insight.title.includes('PR')) { Icon = EmojiEventsIcon; color = '#eab308'; bgColor = '#fefce8'; }
-                  else if (insight.title.includes('Muscle')) { Icon = InsightsIcon; color = '#0ea5e9'; bgColor = '#f0f9ff'; }
+                  if (insight.title.includes('Progression')) { Icon = TimelineIcon; color = '#10b981'; bgColor = theme.palette.mode === 'dark' ? '#064e3b' : '#ecfdf5'; }
+                  else if (insight.title.includes('Plateau')) { Icon = WarningAmberIcon; color = '#f59e0b'; bgColor = theme.palette.mode === 'dark' ? '#451a03' : '#fffbeb'; }
+                  else if (insight.title.includes('Load') || insight.title.includes('Volume')) { Icon = FitnessCenterIcon; color = '#3b82f6'; bgColor = theme.palette.mode === 'dark' ? '#1e3a8a' : '#eff6ff'; }
+                  else if (insight.title.includes('Consistency') || insight.title.includes('Streak') || insight.title.includes('Balance')) { Icon = TrendingUpIcon; color = '#8b5cf6'; bgColor = theme.palette.mode === 'dark' ? '#2e1065' : '#f5f3ff'; }
+                  else if (insight.title.includes('Best') || insight.title.includes('PR')) { Icon = EmojiEventsIcon; color = '#eab308'; bgColor = theme.palette.mode === 'dark' ? '#422006' : '#fefce8'; }
+                  else if (insight.title.includes('Muscle')) { Icon = InsightsIcon; color = '#0ea5e9'; bgColor = theme.palette.mode === 'dark' ? '#0c4a6e' : '#f0f9ff'; }
 
                   return (
                     <Box key={idx} sx={{
                       p: 2.5,
                       bgcolor: 'background.paper',
                       borderRadius: 2,
-                      border: '1px solid #e2e8f0',
+                      border: '1px solid',
+                      borderColor: 'divider',
                       display: 'flex',
                       gap: 2,
-                      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+                      boxShadow: theme.palette.mode === 'light' ? '0 1px 3px 0 rgba(0, 0, 0, 0.05)' : 'none',
                       transition: 'transform 0.2s, box-shadow 0.2s',
                       '&:hover': {
                         transform: 'translateY(-2px)',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                        boxShadow: theme.palette.mode === 'light' ? '0 4px 6px -1px rgba(0, 0, 0, 0.1)' : '0 4px 12px rgba(0,0,0,0.4)',
                         borderColor: color
                       }
                     }}>
@@ -459,10 +475,10 @@ const OverviewTab = ({
                         <Icon fontSize="small" />
                       </Box>
                       <Box>
-                        <Typography variant="subtitle2" sx={{ color: '#1e293b', fontWeight: 700, mb: 0.5 }}>
+                        <Typography variant="subtitle2" sx={{ color: 'text.primary', fontWeight: 700, mb: 0.5 }}>
                           {insight.title}
                         </Typography>
-                        <Typography variant="body2" sx={{ color: '#475569', lineHeight: 1.5 }}>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.5 }}>
                           {insight.detail}
                         </Typography>
                       </Box>
@@ -471,12 +487,12 @@ const OverviewTab = ({
                 })}
               </Box>
             ) : (
-              <Box sx={{ p: 4, textAlign: 'center', bgcolor: 'background.default', borderRadius: 2, border: '1px dashed #cbd5e1' }}>
-                <AutoGraphIcon sx={{ fontSize: 40, color: '#94a3b8', mb: 1, opacity: 0.5 }} />
-                <Typography variant="body1" sx={{ color: '#475569', fontWeight: 600 }}>
+              <Box sx={{ p: 4, textAlign: 'center', bgcolor: 'action.hover', borderRadius: 2, border: '1px dashed', borderColor: 'divider' }}>
+                <AutoGraphIcon sx={{ fontSize: 40, color: 'text.disabled', mb: 1, opacity: 0.5 }} />
+                <Typography variant="body1" sx={{ color: 'text.primary', fontWeight: 600 }}>
                   No insights generated yet.
                 </Typography>
-                <Typography variant="body2" sx={{ color: '#94a3b8' }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   Log a few more workouts to unlock advanced performance analysis and trend detection.
                 </Typography>
               </Box>
@@ -488,8 +504,8 @@ const OverviewTab = ({
       {/* AI Suggestions */}
       {(!isMobile || showAdvancedOverview) && (
         <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
               AI Suggestions
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 2 }}>
@@ -520,29 +536,29 @@ const OverviewTab = ({
             {(aiWorkoutSuggestion || aiRecoverySuggestion) ? (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {aiWorkoutSuggestion ? (
-                  <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                  <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
                     <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
                       Today’s Workout
                     </Typography>
-                    <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary', lineHeight: 1.7 }}>
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.primary', lineHeight: 1.7 }}>
                       {aiWorkoutSuggestion}
                     </Typography>
                   </Box>
                 ) : null}
 
                 {aiRecoverySuggestion ? (
-                  <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+                  <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
                     <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
                       Recovery + Adjustment
                     </Typography>
-                    <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.secondary', lineHeight: 1.7 }}>
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.primary', lineHeight: 1.7 }}>
                       {aiRecoverySuggestion}
                     </Typography>
                   </Box>
                 ) : null}
               </Box>
             ) : (
-              <Typography variant="body2" sx={{ color: '#9ca3af' }}>
+              <Typography variant="body2" sx={{ color: 'text.disabled' }}>
                 Ask when you want suggestions.
               </Typography>
             )}
@@ -553,7 +569,7 @@ const OverviewTab = ({
       {/* Life Sync: Cross-Domain Correlation */}
       {(!isMobile || showAdvancedOverview) && (
         <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-          <Box sx={{ p: 3, bgcolor: '#0f172a', borderRadius: 2, border: '1px solid rgba(56, 189, 248, 0.2)', color: 'background.paper' }}>
+          <Box sx={{ p: 3, bgcolor: '#0f172a', borderRadius: 2, border: '1px solid rgba(56, 189, 248, 0.2)', color: '#ffffff' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
               <InsightsIcon sx={{ color: '#38bdf8' }} />
               <Typography variant="subtitle2" sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#38bdf8' }}>
@@ -579,7 +595,7 @@ const OverviewTab = ({
                   <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
                   <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
                   <Tooltip
-                    contentStyle={{ bgcolor: '#1e293b', border: 'none', borderRadius: '8px', color: 'background.paper' }}
+                    contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#ffffff' }}
                   />
                   <Line
                     yAxisId="left"
@@ -610,11 +626,11 @@ const OverviewTab = ({
       {/* Life Sync: Deep Correlation Insights */}
       {(!isMobile || showAdvancedOverview) && (
         <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-          <Box sx={{ p: 3, bgcolor: '#fff7ed', borderRadius: 2, border: '1px solid #ffedd5' }}>
+          <Box sx={{ p: 3, bgcolor: theme.palette.mode === 'dark' ? '#1c1917' : '#fff7ed', borderRadius: 2, border: '1px solid', borderColor: theme.palette.mode === 'dark' ? '#44403c' : '#ffedd5' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 <AutoGraphIcon sx={{ color: '#ea580c' }} />
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: '1.2rem', color: '#9a3412' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, fontSize: '1.2rem', color: theme.palette.mode === 'dark' ? '#fb923c' : '#9a3412' }}>
                   Deep Sync: Clinical Pattern Analysis
                 </Typography>
               </Box>
@@ -643,19 +659,19 @@ const OverviewTab = ({
                     bgcolor: 'background.paper',
                     borderRadius: 2,
                     borderLeft: `6px solid ${insight.impact === 'high' ? '#ef4444' : '#f97316'}`,
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                    boxShadow: theme.palette.mode === 'light' ? '0 4px 6px -1px rgba(0, 0, 0, 0.05)' : 'none'
                   }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#1e293b', mb: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'text.primary', mb: 1 }}>
                       {insight.title}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.6, mb: 2 }}>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.95rem', lineHeight: 1.6, mb: 2 }}>
                       {insight.detail}
                     </Typography>
-                    <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1.5, border: '1px dashed #e2e8f0' }}>
-                      <Typography variant="caption" sx={{ fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
+                    <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1.5, border: '1px dashed', borderColor: 'divider' }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.disabled', textTransform: 'uppercase', display: 'block', mb: 0.5 }}>
                         Recommended Action
                       </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#0f172a' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                         {insight.action}
                       </Typography>
                     </Box>
@@ -664,7 +680,7 @@ const OverviewTab = ({
               </Box>
             ) : (
               <Box sx={{ py: 4, textAlign: 'center' }}>
-                <Typography variant="body2" sx={{ color: '#9a3412', opacity: 0.8, maxWidth: 400, mx: 'auto', mb: 2 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 400, mx: 'auto', mb: 2 }}>
                   Click the button above to have AI analyze the patterns between your nutrition, sleep, and workout volume. This uses advanced processing to find what drives your gains.
                 </Typography>
               </Box>
@@ -676,9 +692,9 @@ const OverviewTab = ({
       {/* Monthly Muscle Heatmap */}
       {(!isMobile || showAdvancedOverview) && (
         <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 2, mb: 1.5 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                 Muscle Heatmap (30 days)
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -693,7 +709,7 @@ const OverviewTab = ({
                 </Box>
               </Box>
             ) : (
-              <Typography variant="body2" sx={{ color: '#9ca3af' }}>
+              <Typography variant="body2" sx={{ color: 'text.disabled' }}>
                 Log a few workouts with named exercises to see this.
               </Typography>
             )}
@@ -703,15 +719,15 @@ const OverviewTab = ({
 
       {/* Weekly Hypertrophy Volume (Hard Sets) */}
       {(!isMobile || showAdvancedOverview) && (
-        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
               Weekly Hypertrophy Volume
             </Typography>
             <Chip
               label="Target: 10 sets/week"
               size="small"
-              sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, bgcolor: '#f1f5f9', color: '#64748b' }}
+              sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, bgcolor: 'action.selected', color: 'text.secondary' }}
             />
           </Box>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -720,12 +736,12 @@ const OverviewTab = ({
               const count = muscleDistribution[key] || 0
               const target = 10;
               const percentage = Math.min((count / target) * 100, 100)
-              const statusColor = count >= 10 ? '#10b981' : count >= 5 ? '#f59e0b' : '#64748b'
+              const statusColor = count >= 10 ? '#10b981' : count >= 5 ? '#f59e0b' : theme.palette.text.disabled;
 
               return (
                 <Box key={key}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 600, color: '#334155' }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
                       {data.label}
                     </Typography>
                     <Typography variant="caption" sx={{ fontWeight: 700, color: statusColor }}>
@@ -738,7 +754,7 @@ const OverviewTab = ({
                     sx={{
                       height: 6,
                       borderRadius: 3,
-                      bgcolor: '#f1f5f9',
+                      bgcolor: 'divider',
                       '& .MuiLinearProgress-bar': {
                         bgcolor: statusColor,
                         borderRadius: 3,
@@ -749,7 +765,7 @@ const OverviewTab = ({
               )
             })}
           </Box>
-          <Typography variant="caption" sx={{ display: 'block', mt: 2, color: '#94a3b8', fontStyle: 'italic' }}>
+          <Typography variant="caption" sx={{ display: 'block', mt: 2, color: 'text.disabled', fontStyle: 'italic' }}>
             * Scientific standard: 10-20 "hard sets" per muscle group per week is optimal for muscle growth.
           </Typography>
         </Box>
@@ -758,8 +774,8 @@ const OverviewTab = ({
       {/* Recent Workouts Preview */}
       {(!isMobile || showAdvancedOverview) && (
         <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600, color: 'text.primary' }}>
               Recent Workouts
             </Typography>
             {workouts.length > 0 ? (
@@ -777,7 +793,7 @@ const OverviewTab = ({
                     }}
                   >
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                         {workout.name || 'Workout'}
                       </Typography>
                       <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -792,7 +808,7 @@ const OverviewTab = ({
                             width: 12,
                             height: 12,
                             borderRadius: '50%',
-                            bgcolor: EXERCISE_LIBRARY[muscle]?.color || 'text.secondary',
+                            bgcolor: EXERCISE_LIBRARY[muscle]?.color || theme.palette.text.secondary,
                           }}
                         />
                       ))}
@@ -801,7 +817,7 @@ const OverviewTab = ({
                 ))}
               </Box>
             ) : (
-              <Typography variant="body2" sx={{ color: '#9ca3af', textAlign: 'center', py: 4 }}>
+              <Typography variant="body2" sx={{ color: 'text.disabled', textAlign: 'center', py: 4 }}>
                 No workouts yet. Start your first workout!
               </Typography>
             )}

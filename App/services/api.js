@@ -1,9 +1,12 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-// Change this to your local machine IP for physical device testing
-// Example: http://192.168.1.5:5000
-export const API_BASE = 'https://lifesync.onrender.com/api'; // Make sure this matches exactly your render URL
+const DEV_API_ORIGIN = 'http://192.168.1.9:5000';
+const PROD_API_ORIGIN = 'https://lifesync-5ahi.onrender.com';
+
+// Note: localhost works for simulators/emulators and desktop-hosted local testing.
+// For a physical phone on Wi-Fi, replace localhost with your machine's LAN IP.
+export const API_BASE = `${__DEV__ ? DEV_API_ORIGIN : PROD_API_ORIGIN}/api`;
 
 const api = axios.create({
   baseURL: API_BASE,

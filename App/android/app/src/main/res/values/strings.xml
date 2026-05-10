@@ -1,0 +1,9 @@
+<resources>
+  <string name="app_name">app</string>
+  <string name="widget_today_dashboard_name">LifeSync Today</string>
+  <string name="widget_today_dashboard_description">Today dashboard with calories, protein, readiness, and workout status.</string>
+  <string name="widget_quick_log_name">LifeSync Quick Log</string>
+  <string name="widget_quick_log_description">Quick assistant actions for chat, voice, meal, workout, and wellness logging.</string>
+  <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
+  <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
+</resources>

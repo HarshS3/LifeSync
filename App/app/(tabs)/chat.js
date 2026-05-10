@@ -5,12 +5,13 @@ import api from '../../services/api';
 import { Send, Mic, Square, Camera, Image as ImageIcon, X } from 'lucide-react-native';
 import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../constants/Theme';
 
 export default function ChatScreen() {
   const { token, user } = useAuth();
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY } = useTheme();
   const [messages, setMessages] = useState([
     {
@@ -24,6 +25,8 @@ export default function ChatScreen() {
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState(null);
   const flatListRef = useRef(null);
+  const inputRef = useRef(null);
+  const handledWidgetActionRef = useRef(null);
 
   useEffect(() => {
     return () => {
@@ -153,6 +156,20 @@ export default function ChatScreen() {
       setIsSending(false);
     }
   };
+
+  useEffect(() => {
+    const action = params.widgetAction;
+    if (!action || handledWidgetActionRef.current === action) return;
+
+    handledWidgetActionRef.current = action;
+    if (action === 'voice') {
+      addMessage({ from: 'system', text: 'Voice quick log opened from your widget.' });
+      setTimeout(() => startRecording(), 500);
+    } else if (action === 'text' || action === 'assistant') {
+      addMessage({ from: 'system', text: 'Assistant quick log opened from your widget.' });
+      setTimeout(() => inputRef.current?.focus(), 300);
+    }
+  }, [params.widgetAction]);
 
   // --- PHOTO LOGGING ---
   const takePhoto = async () => {
@@ -292,6 +309,7 @@ export default function ChatScreen() {
           )}
 
           <TextInput
+            ref={inputRef}
             style={[themedStyles.input, isRecording && themedStyles.inputHidden]}
             placeholder="Message or log food..."
             value={input}

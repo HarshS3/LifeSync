@@ -5,16 +5,18 @@ import { fileURLToPath } from 'node:url'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+const workspaceRoot = path.resolve(__dirname, '..')
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, 'src'),
-      'react': path.resolve(__dirname, 'node_modules/react'),
-      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
-    },
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, 'src') },
+      { find: /^react$/, replacement: path.resolve(workspaceRoot, 'node_modules/react/index.js') },
+      { find: /^react-dom$/, replacement: path.resolve(__dirname, 'node_modules/react-dom/index.js') },
+    ],
+    dedupe: ['react', 'react-dom'],
   },
   server: {
     proxy: {

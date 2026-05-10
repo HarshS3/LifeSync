@@ -63,6 +63,36 @@ import { EXERCISE_LIBRARY } from '../data/exerciseLibrary'
 
 const EXERCISE_HISTORY_LIMIT = 50
 
+const getStepsRangeBoundaries = (dateStr, mode) => {
+  const [y, m, dd] = dateStr.split('-').map(Number)
+  if (!y || !m || !dd || y > 9999) return null
+
+  const selectedDate = new Date(y, m - 1, dd)
+  let start, end, days
+
+  if (mode === 'month') {
+    // Full Calendar Month (e.g., May 1st to May 31st)
+    start = new Date(y, m - 1, 1, 0, 0, 0, 0)
+    const lastDay = new Date(y, m, 0)
+    end = new Date(y, m, 0, 23, 59, 59, 999)
+    days = lastDay.getDate()
+  } else {
+    // Monday to Sunday calendar week
+    const dayOfWeek = selectedDate.getDay() // 0 (Sun) to 6 (Sat)
+    const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+    
+    start = new Date(selectedDate)
+    start.setDate(selectedDate.getDate() - diffToMonday)
+    start.setHours(0, 0, 0, 0)
+    
+    end = new Date(start)
+    end.setDate(start.getDate() + 6)
+    end.setHours(23, 59, 59, 999)
+    days = 7
+  }
+  return { start, end, days }
+}
+
 function GymTracker() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
@@ -293,6 +323,13 @@ function GymTracker() {
     loadStepsDayAndRange()
   }, [token, stepsDate, stepsRangeMode])
 
+  // Reset activeTab if currentWorkout is null and activeTab was on "Active Session" (4)
+  useEffect(() => {
+    if (!currentWorkout && activeTab === 4) {
+      setActiveTab(0)
+    }
+  }, [currentWorkout, activeTab])
+
   const volumeChartData = useMemo(() => {
     return workouts.slice().reverse().map(w => ({
       date: new Date(w.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
@@ -434,12 +471,13 @@ function GymTracker() {
   const buildStepsChart = ({ start, end, days, series }) => {
     const byDay = new Map()
       ; (series || []).forEach((d) => {
-        const dt = new Date(d?.date)
-        if (Number.isNaN(dt.getTime())) return
-        dt.setHours(0, 0, 0, 0)
-        const key = dt.toISOString().slice(0, 10)
+        if (!d?.date) return
+        // Use IST date part only to match the calculated labels
+        const dateObj = new Date(d.date);
+        // Correctly handle IST offset: d.date is ISO (UTC), we want the date in IST
+        const istDateStr = new Date(dateObj.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0];
         const s = d?.stepsCount
-        if (typeof s === 'number' && Number.isFinite(s)) byDay.set(key, s)
+        if (typeof s === 'number' && Number.isFinite(s)) byDay.set(istDateStr, s)
       })
 
     const values = []
@@ -447,8 +485,11 @@ function GymTracker() {
     for (let i = 0; i < days; i++) {
       const d = new Date(start)
       d.setDate(d.getDate() + i)
-      const key = d.toISOString().slice(0, 10)
-      labels.push(key.slice(5))
+      const year = d.getFullYear()
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      const key = `${year}-${month}-${day}`
+      labels.push(`${month}/${day}`)
       values.push(byDay.has(key) ? byDay.get(key) : null)
     }
 
@@ -466,22 +507,34 @@ function GymTracker() {
     const H = 200
     const M = {
       left: 80,
+      right: 20,
+      top: 20,
+      bottom: 40,
     }
     const innerW = W - M.left - M.right
     const innerH = H - M.top - M.bottom
 
+    const pointsData = []
+    const xLabels = []
     const pts = []
+    
     for (let i = 0; i < values.length; i++) {
-      const v = values[i]
-      if (v == null) continue
       const x = M.left + (innerW * i) / Math.max(1, values.length - 1)
-      const t = (v - min) / (max - min)
-      const y = M.top + innerH * (1 - t)
-      pts.push(`${x.toFixed(1)},${y.toFixed(1)}`)
+      xLabels.push({ x, label: labels[i], index: i })
+      
+      const v = values[i]
+      if (v != null) {
+        const t = (v - min) / (max - min)
+        const y = M.top + innerH * (1 - t)
+        pts.push(`${x.toFixed(1)},${y.toFixed(1)}`)
+        pointsData.push({ x, y, value: v, label: labels[i], index: i })
+      }
     }
 
     return {
       points: pts.join(' '),
+      pointsData,
+      xLabels,
       min,
       max,
       labels,
@@ -504,6 +557,16 @@ function GymTracker() {
     setStepsLoading(true)
     setStepsError('')
     try {
+      // 1. Enforce max date (no future logging)
+      const nowIST = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
+      const todayISTStr = nowIST.toISOString().split('T')[0];
+      
+      if (stepsDate > todayISTStr) {
+        setStepsDate(todayISTStr);
+        return; 
+      }
+
+      // 2. Load today's steps (IST aware)
       const dayRes = await fetch(`${API_BASE}/api/gym/steps/date/${encodeURIComponent(stepsDate)}?t=${Date.now()}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -513,12 +576,10 @@ function GymTracker() {
       }
       setStepsValue(dayJson?.stepsCount == null ? '' : String(dayJson.stepsCount))
 
-      const end = new Date(stepsDate)
-      end.setHours(23, 59, 59, 999)
-      const start = new Date(end)
-      const days = stepsRangeMode === 'month' ? 30 : 7
-      start.setDate(start.getDate() - days + 1)
-      start.setHours(0, 0, 0, 0)
+      // 3. Calculate Calendar Boundaries using helper
+      const boundaries = getStepsRangeBoundaries(stepsDate, stepsRangeMode)
+      if (!boundaries) throw new Error("Invalid date")
+      const { start, end } = boundaries
 
       const rangeRes = await fetch(
         `${API_BASE}/api/gym/steps/range/${encodeURIComponent(start.toISOString())}/${encodeURIComponent(end.toISOString())}?t=${Date.now()}`,
@@ -538,11 +599,23 @@ function GymTracker() {
 
   const saveSteps = async () => {
     if (!token) return
-    const d = new Date(stepsDate)
-    if (Number.isNaN(d.getTime())) {
+    const [y, m, d] = stepsDate.split('-').map(Number);
+    if (!y || !m || !d || y > 9999) {
       setStepsError('Invalid date')
       return
     }
+
+    // Prevent future dates
+    const nowIST = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
+    const selectedIST = new Date(y, m - 1, d);
+    if (selectedIST > nowIST) {
+      setStepsError('Cannot log for future dates');
+      return;
+    }
+    
+    // Create date specifically at noon IST to avoid UTC shifting to prev day
+    const istDate = new Date(y, m - 1, d, 12, 0, 0);
+    
     const s = Number(stepsValue)
     if (!Number.isFinite(s) || s < 0 || s > 200000) {
       setStepsError('Enter a valid step count')
@@ -558,13 +631,14 @@ function GymTracker() {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ date: d.toISOString(), stepsCount: s }),
+        body: JSON.stringify({ date: istDate.toISOString(), stepsCount: s }),
       })
       if (!res.ok) {
         const errJson = await safeReadJson(res)
         throw new Error(errJson?.error || `Failed to save (${res.status})`)
       }
       await loadStepsDayAndRange()
+      toast.success('Steps updated');
     } catch (e) {
       setStepsError(e?.message || 'Failed to save steps')
     } finally {
@@ -1003,7 +1077,7 @@ function GymTracker() {
                 borderColor: 'divider',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  borderColor: '#1f2937',
+                  borderColor: 'text.primary',
                   bgcolor: 'action.hover',
                   transform: 'translateY(-1px)'
                 },
@@ -1022,8 +1096,9 @@ function GymTracker() {
                 width: 18, height: 18, bgcolor: '#ef4444',
                 borderRadius: '50%', display: 'flex',
                 alignItems: 'center', justifyContent: 'center',
-                color: 'background.paper', fontSize: '10px', fontWeight: 700,
-                border: '2px solid #fff',
+                color: '#ffffff', fontSize: '10px', fontWeight: 700,
+                border: '2px solid',
+                borderColor: 'background.paper',
                 animation: 'pulse 2s infinite'
               }}>
                 {templates.length}
@@ -1038,13 +1113,14 @@ function GymTracker() {
               fullWidth={isMobile}
               sx={{
                 bgcolor: 'text.primary',
+                color: 'background.paper',
                 textTransform: 'none',
                 fontWeight: 600,
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  bgcolor: '#1f2937',
+                  bgcolor: 'text.secondary',
                   transform: 'translateY(-2px)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                  boxShadow: theme.palette.mode === 'light' ? '0 4px 12px rgba(0,0,0,0.15)' : '0 4px 12px rgba(0,0,0,0.5)'
                 },
                 '&:active': {
                   transform: 'translateY(0px)',
@@ -1095,7 +1171,7 @@ function GymTracker() {
       />
 
       {/* Tabs */}
-      <Box sx={{ borderBottom: '1px solid #e5e7eb', mb: 3 }}>
+      <Box sx={{ borderBottom: '1px solid', borderColor: 'divider', mb: 3 }}>
         <Tabs
           value={activeTab}
           onChange={(e, v) => setActiveTab(v)}

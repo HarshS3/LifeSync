@@ -34,6 +34,7 @@ function ChatPanel() {
   const { token } = useAuth()
   const [messages, setMessages] = useState([
     {
+      id: 'init',
       from: 'ai',
       text: 'Hi! Tell me what you ate, ask about your wellness patterns, or use the quick actions below to log in seconds.',
     },
@@ -45,6 +46,7 @@ function ChatPanel() {
   const [isListening, setIsListening] = useState(false)
   const handleMealTemplateRelog = (payload) => {
     setMessages(prev => [...prev, {
+      id: `ai-${Date.now()}`,
       from: 'ai',
       text: `Great! I've logged your ${payload.mealName || 'meal'} (${payload.totalCalories} kcal).`,
       foodLogged: true,
@@ -65,6 +67,7 @@ function ChatPanel() {
   const voiceActiveRef   = useRef(false)
   const voiceTextRef     = useRef('')
   const submitOnStopRef  = useRef(false)
+  const inputRef         = useRef(null)
 
   // Auto-scroll to latest message — scroll the container directly to avoid
   // triggering a window-level scroll via scrollIntoView.
@@ -76,16 +79,18 @@ function ChatPanel() {
   useEffect(() => {
     return () => {
       if (autoStopTimerRef.current) clearTimeout(autoStopTimerRef.current)
-      try { voiceActiveRef.current = false; submitOnStopRef.current = false; speechRecognitionRef.current?.stop?.() } catch { /* ignore */ }
+      voiceActiveRef.current = false;
+      submitOnStopRef.current = false;
+      try { speechRecognitionRef.current?.stop?.() } catch { /* ignore */ }
       try { mediaRecorderRef.current?.stop?.() } catch { /* ignore */ }
       try { streamRef.current?.getTracks?.().forEach((t) => t.stop()) } catch { /* ignore */ }
     }
   }, [])
 
   // ── Undo a logged meal ───────────────────────────────────────────────────────
-  const undoMeal = async (committedMealId, msgIdx) => {
+  const undoMeal = async (committedMealId, msgId) => {
     if (!token || undoingId !== null) return
-    setUndoingId(msgIdx)
+    setUndoingId(msgId)
     try {
       const body = committedMealId
         ? { logId: committedMealId.logId, mealIndex: committedMealId.mealIndex }
@@ -98,15 +103,15 @@ function ChatPanel() {
       const data = await res.json()
       if (res.ok) {
         // Mark that message as undone
-        setMessages(prev => prev.map((m, i) =>
-          i === msgIdx ? { ...m, foodLogged: false, undone: true } : m
+        setMessages(prev => prev.map((m) =>
+          m.id === msgId ? { ...m, foodLogged: false, undone: true } : m
         ))
-        setMessages(prev => [...prev, { from: 'system', text: `↩ Removed "${data.removed}" from today's log.` }])
+        setMessages(prev => [...prev, { id: `sys-${Date.now()}`, from: 'system', text: `↩ Removed "${data.removed}" from today's log.` }])
       } else {
-        setMessages(prev => [...prev, { from: 'system', text: data.error || 'Could not undo meal.' }])
+        setMessages(prev => [...prev, { id: `sys-${Date.now()}`, from: 'system', text: data.error || 'Could not undo meal.' }])
       }
     } catch (e) {
-      setMessages(prev => [...prev, { from: 'system', text: 'Undo failed — please try again.' }])
+      setMessages(prev => [...prev, { id: `sys-${Date.now()}`, from: 'system', text: 'Undo failed — please try again.' }])
     } finally {
       setUndoingId(null)
     }
@@ -117,7 +122,8 @@ function ChatPanel() {
     const trimmed = String(text || '').trim()
     if (!trimmed || isSending) return
 
-    setMessages(prev => [...prev, { from: 'user', text: trimmed }])
+    setMessages(prev => [...prev, { id: `u-${Date.now()}`, from: 'user', text: trimmed }])
+    const lastInput = trimmed;
     setInput('')
     setIsSending(true)
 
@@ -139,15 +145,17 @@ function ChatPanel() {
 
       // Build the AI message — attach food-log metadata when present
       const aiMsg = {
+        id: `ai-${Date.now()}`,
         from: 'ai',
-        text: data.reply || 'Let me think about that…',
+        text: data.reply || data.error || 'Let me think about that…',
         foodLogged: Boolean(data.foodLogged),
         committedMealId: data.committedMealId || null,
         undone: false,
       }
       setMessages(prev => [...prev, aiMsg])
     } catch {
-      setMessages(prev => [...prev, { from: 'system', text: 'Could not connect. Please try again.' }])
+      setMessages(prev => [...prev, { id: `sys-${Date.now()}`, from: 'system', text: 'Could not connect. Please try again.' }])
+      setInput(lastInput) // Restore input on failure
     } finally {
       setIsSending(false)
     }
@@ -165,13 +173,14 @@ function ChatPanel() {
     if (!token) { await sendMessageText(t); return }
 
     try {
-      setMessages(prev => [...prev, { from: 'user', text: t }])
+      setMessages(prev => [...prev, { id: `u-${Date.now()}`, from: 'user', text: t }])
       setInput('')
       setIsSending(true)
 
       const result = await voiceAgent.sendToAgent(t)
       if (result.reply) {
         const aiMsg = {
+          id: `ai-${Date.now()}`,
           from: 'ai',
           text: result.reply,
           foodLogged: Boolean(result.foodLogged),
@@ -181,10 +190,10 @@ function ChatPanel() {
         setMessages(prev => [...prev, aiMsg])
         voiceAgent.speak(result.reply)
       } else {
-        setMessages(prev => [...prev, { from: 'system', text: "Agent didn't respond." }])
+        setMessages(prev => [...prev, { id: `sys-${Date.now()}`, from: 'system', text: "Agent didn't respond." }])
       }
     } catch (e) {
-      setMessages(prev => [...prev, { from: 'system', text: 'Voice action failed: ' + e.message }])
+      setMessages(prev => [...prev, { id: `sys-${Date.now()}`, from: 'system', text: 'Voice action failed: ' + e.message }])
     } finally {
       setIsSending(false)
     }
@@ -205,7 +214,7 @@ function ChatPanel() {
     const Ctor = getSpeechRecognitionCtor()
     if (!Ctor) return false
     if (isListening || isRecording || isTranscribing || isSending) return true
-    if (!token) setMessages(prev => [...prev, { from: 'system', text: 'Voice works, but sign in to auto-log across the app.' }])
+    if (!token) setMessages(prev => [...prev, { id: `sys-${Date.now()}`, from: 'system', text: 'Voice works, but sign in to auto-log across the app.' }])
 
     try {
       const rec = new Ctor()
@@ -226,13 +235,13 @@ function ChatPanel() {
           if (r.isFinal) voiceTextRef.current += t
           else interim += t
         }
-        const combined = `${voiceTextRef.current} ${interim}`.trim()
+        const combined = `${voiceTextRef.current}${interim}`.trim()
         if (combined) setInput(combined)
       }
       rec.onerror = () => {
         setIsListening(false)
         speechRecognitionRef.current = null
-        setMessages(prev => [...prev, { from: 'system', text: 'Voice recognition failed. Try again or type manually.' }])
+        setMessages(prev => [...prev, { id: `sys-${Date.now()}`, from: 'system', text: 'Voice recognition failed. Try again or type manually.' }])
       }
       rec.onend = async () => {
         setIsListening(false)
@@ -246,7 +255,8 @@ function ChatPanel() {
           await beginVoiceConfirmFlow(transcript)
           return
         }
-        if (voiceActiveRef.current) {
+        // Safety: only restart if still active and not sending
+        if (voiceActiveRef.current && !isSending) {
           setTimeout(() => { if (voiceActiveRef.current) startBrowserStt().catch(() => {}) }, 250)
         }
       }
@@ -262,18 +272,18 @@ function ChatPanel() {
   const startRecording = async () => {
     const startedBrowser = await startBrowserStt()
     if (startedBrowser) return
-    if (!token) { setMessages(prev => [...prev, { from: 'system', text: 'Please sign in to use voice transcription.' }]); return }
+    if (!token) { setMessages(prev => [...prev, { id: `sys-${Date.now()}`, from: 'system', text: 'Please sign in to use voice transcription.' }]); return }
     if (isRecording || isTranscribing || isSending) return
     if (!navigator?.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      setMessages(prev => [...prev, { from: 'system', text: 'Voice input is not supported in this browser.' }]); return
+      setMessages(prev => [...prev, { id: `sys-${Date.now()}`, from: 'system', text: 'Voice input is not supported in this browser.' }]); return
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
       const preferredMime = 'audio/webm;codecs=opus'
-      const mr = MediaRecorder.isTypeSupported?.(preferredMime)
-        ? new MediaRecorder(stream, { mimeType: preferredMime })
-        : new MediaRecorder(stream)
+      const actualMime = MediaRecorder.isTypeSupported?.(preferredMime) ? preferredMime : ''
+      const mr = actualMime ? new MediaRecorder(stream, { mimeType: actualMime }) : new MediaRecorder(stream)
+      
       mediaRecorderRef.current = mr
       chunksRef.current = []
       mr.ondataavailable = (e) => { if (e?.data?.size > 0) chunksRef.current.push(e.data) }
@@ -292,11 +302,11 @@ function ChatPanel() {
           const json = await res.json().catch(() => null)
           if (!res.ok) throw new Error(json?.error || `Transcription failed (${res.status})`)
           const transcript = String(json?.transcript || '').trim()
-          if (!transcript) { setMessages(prev => [...prev, { from: 'system', text: 'I couldn\'t hear anything clearly — try again.' }]); return }
+          if (!transcript) { setMessages(prev => [...prev, { id: `sys-${Date.now()}`, from: 'system', text: 'I couldn\'t hear anything clearly — try again.' }]); return }
           if (submitOnStopRef.current) { submitOnStopRef.current = false; await beginVoiceConfirmFlow(transcript) }
           else setInput(prev => { const p = String(prev || '').trim(); return p ? `${p} ${transcript}`.trim() : transcript })
         } catch (e) {
-          setMessages(prev => [...prev, { from: 'system', text: e?.message || 'Voice transcription failed.' }])
+          setMessages(prev => [...prev, { id: `sys-${Date.now()}`, from: 'system', text: e?.message || 'Voice transcription failed.' }])
         } finally { setIsTranscribing(false) }
       }
       setIsRecording(true)
@@ -306,7 +316,7 @@ function ChatPanel() {
       setIsRecording(false)
       try { streamRef.current?.getTracks?.().forEach(t => t.stop()) } catch { /* ignore */ }
       streamRef.current = null
-      setMessages(prev => [...prev, { from: 'system', text: 'Microphone permission denied or unavailable.' }])
+      setMessages(prev => [...prev, { id: `sys-${Date.now()}`, from: 'system', text: 'Microphone permission denied or unavailable.' }])
     }
   }
 
@@ -319,8 +329,8 @@ function ChatPanel() {
       {/* Messages list */}
       <Box ref={messagesContainerRef} sx={{ flex: 1, overflow: 'auto', p: 3 }}>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          {messages.map((m, idx) => (
-            <Box key={idx} sx={{ display: 'flex', gap: 2, flexDirection: m.from === 'user' ? 'row-reverse' : 'row', alignItems: 'flex-start' }}>
+          {messages.map((m) => (
+            <Box key={m.id} sx={{ display: 'flex', gap: 2, flexDirection: m.from === 'user' ? 'row-reverse' : 'row', alignItems: 'flex-start' }}>
               <Avatar sx={{ width: 32, height: 32, bgcolor: m.from === 'user' ? 'text.primary' : m.from === 'system' ? 'action.selected' : '#f0fdf4', color: m.from === 'user' ? 'background.paper' : m.from === 'system' ? '#9ca3af' : '#16a34a', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                 {m.from === 'user' ? 'U' : m.from === 'system' ? '·' : 'L'}
               </Avatar>
@@ -350,11 +360,11 @@ function ChatPanel() {
                     <Button
                       size="small"
                       startIcon={<UndoIcon sx={{ fontSize: 12 }} />}
-                      onClick={() => undoMeal(m.committedMealId, idx)}
+                      onClick={() => undoMeal(m.committedMealId, m.id)}
                       disabled={undoingId !== null}
                       sx={{ ml: 0.5, minWidth: 0, py: 0, px: 0.75, fontSize: '0.68rem', color: '#9ca3af', textTransform: 'none', lineHeight: 1.5, '&:hover': { color: '#ef4444', bgcolor: '#fef2f2' } }}
                     >
-                      {undoingId === idx ? 'Undoing…' : 'Undo'}
+                      {undoingId === m.id ? 'Undoing…' : 'Undo'}
                     </Button>
                   </Box>
                 )}
@@ -395,7 +405,10 @@ function ChatPanel() {
               icon={action.icon}
               label={action.label}
               size="small"
-              onClick={() => setInput(action.prefix)}
+              onClick={() => {
+                setInput(action.prefix);
+                inputRef.current?.focus();
+              }}
               sx={{ fontSize: '0.75rem', height: 26, cursor: 'pointer', bgcolor: 'action.selected', color: 'text.secondary', border: '1px solid #e5e7eb', '&:hover': { bgcolor: 'divider' }, '& .MuiChip-icon': { color: 'text.secondary' } }}
             />
           ))}
@@ -403,6 +416,7 @@ function ChatPanel() {
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1, border: '1px solid #e5e7eb', borderRadius: 2, bgcolor: 'background.paper', '&:focus-within': { borderColor: 'text.primary' } }}>
           <TextField
+            inputRef={inputRef}
             variant="standard"
             placeholder={isListening ? 'Listening…' : 'Tell me what you ate, ask a question, or use a quick action…'}
             value={input}

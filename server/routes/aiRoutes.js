@@ -633,7 +633,11 @@ const getUserFromToken = async (req) => {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) return null;
     const token = authHeader.split(' ')[1];
-    const secret = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      console.error('[AI Auth] JWT_SECRET is not defined in environment variables');
+      return null;
+    }
     const decoded = jwt.verify(token, secret);
     // Token uses userId, not id
     const user = await User.findById(decoded.userId).select('-password');
@@ -648,22 +652,34 @@ const getUserFromToken = async (req) => {
 router.post('/chat', async (req, res) => {
   try {
     const { message, history } = req.body;
-    if (!message) {
-      return res.status(400).json({ error: 'message is required' });
+    
+    // --- Input Validation ---
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'A valid message string is required.' });
+    }
+    if (message.length > 2000) {
+      return res.status(400).json({ error: 'Message is too long (max 2000 characters).' });
+    }
+    if (history && (!Array.isArray(history) || history.length > 20)) {
+      return res.status(400).json({ error: 'Invalid or excessively long chat history.' });
     }
 
     const skipIngestion = Boolean(req.body?.skipIngestion);
-
-    const simpleGeminiMode = String(process.env.AI_CHAT_SIMPLE_GEMINI || '').trim() === '1';
-
-    const explicitInsightRequest = detectExplicitInsightRequest(message);
-
     const mode = detectAssistantMode({ message });
 
     // Get user profile if authenticated
     const user = await getUserFromToken(req);
     const userId = user?._id;
-    console.log('[AI Chat] Mode:', mode, '| User:', user ? `${user.name} (${user.email}), diet: ${user.dietType}` : 'NO USER - token missing or invalid');
+
+    // --- Security: Enforce authentication for non-greetings ---
+    if (!userId && !isGreetingOnly(message)) {
+      return res.status(401).json({ 
+        error: 'Authentication required',
+        reply: 'Please sign in to your LifeSync account so I can provide personalized insights and log your progress.' 
+      });
+    }
+
+    console.log('[AI Chat] Mode:', mode, '| User:', user ? `${user.name} (${user.email})` : 'PUBLIC (GREETING ONLY)');
 
     // --- Chat ingestion (ALWAYS ON, auth-only) ---
     let chatIngestion = { ingested: false, dayKey: null, updates: [], foodIngestion: null };
@@ -674,6 +690,8 @@ router.post('/chat', async (req, res) => {
           triggerDailyLifeStateRecompute({ userId, date: new Date(), reason: 'chat_ingestion' });
         }
       } catch (e) {
+        console.error('[Ingestion Error]', e);
+        // We continue, but track the error for the snapshot
         chatIngestion = { ingested: false, dayKey: null, updates: [], foodIngestion: null, error: String(e?.message || e) };
       }
     }
@@ -738,9 +756,10 @@ router.post('/chat', async (req, res) => {
     const weekAgo = new Date(today);
     weekAgo.setDate(weekAgo.getDate() - 7);
 
-    const [fitness, nutrition, mental, habits, habitLogs, wardrobeItems, journalEntries, symptomLogs, labReports] = userId
+    const [fitness, workouts, nutrition, mental, habits, habitLogs, wardrobeItems, journalEntries, symptomLogs, labReports] = userId
       ? await Promise.all([
           FitnessLog.find({ user: userId }).sort({ date: -1 }).limit(10),
+          require('../models/Workout').find({ user: userId }).sort({ date: -1 }).limit(5),
           NutritionLog.find({ user: userId }).sort({ date: -1 }).limit(10),
           MentalLog.find({ user: userId }).sort({ date: -1 }).limit(10),
           Habit.find({ user: userId, isActive: true }),
@@ -757,7 +776,7 @@ router.post('/chat', async (req, res) => {
             ? LabReport.find({ user: userId }).sort({ date: -1 }).limit(3)
             : [],
         ])
-      : [[], [], [], [], [], [], [], [], []];
+      : [[], [], [], [], [], [], [], [], [], []];
 
     // Phase 4: Optional textbook RAG (permissioned) for medical mode.
     // If the service is unavailable, proceed without it.
@@ -825,6 +844,7 @@ router.post('/chat', async (req, res) => {
 
     const latestMental = mental[0];
     const latestFitness = fitness[0];
+    const latestWorkout = workouts[0];
     const latestNutrition = nutrition[0];
     const latestJournal = journalEntries?.[0];
 
@@ -866,7 +886,12 @@ router.post('/chat', async (req, res) => {
     // Build nutrition context
     const nutritionContext = latestNutrition ? (() => {
       const totals = latestNutrition.dailyTotals || {};
-      return `Today's nutrition: ${totals.calories || 0} cal, ${totals.protein || 0}g protein, ${totals.carbs || 0}g carbs, ${totals.fat || 0}g fat. Water: ${latestNutrition.waterIntake || 0}ml.`;
+      const mealsStr = (latestNutrition.meals || [])
+        .map(m => {
+          const foods = (m.foods || []).map(f => f.name).join(', ');
+          return `${m.mealName}: ${m.totalCalories}cal (${foods})`;
+        }).join(' | ');
+      return `Today's nutrition: ${totals.calories || 0} cal, ${totals.protein || 0}g protein, ${totals.carbs || 0}g carbs, ${totals.fat || 0}g fat. Water: ${latestNutrition.waterIntake || 0}ml. Meals: ${mealsStr}`;
     })() : '';
 
     // Build user profile context
@@ -896,10 +921,20 @@ router.post('/chat', async (req, res) => {
       ? `Latest journal entry: "${latestJournal.text.slice(0, 700)}"`
       : '';
 
-    // Build fitness context
-    const fitnessContext = latestFitness 
-      ? `Last workout: ${latestFitness.focus || latestFitness.type}, intensity ${latestFitness.intensity}/10, fatigue ${latestFitness.fatigue}/10.${latestFitness.notes ? ` Notes: ${latestFitness.notes}` : ''}`
-      : '';
+    // Build fitness context combining both logs and actual workouts
+    const fitnessContext = (() => {
+      const parts = [];
+      if (latestFitness) {
+        parts.push(`Last quick log: ${latestFitness.focus || latestFitness.type}, intensity ${latestFitness.intensity}/10, fatigue ${latestFitness.fatigue}/10.`);
+      }
+      if (latestWorkout) {
+        const exStr = (latestWorkout.exercises || [])
+          .map(e => `${e.name} (${e.sets?.length || 0} sets)`)
+          .join(', ');
+        parts.push(`Last detailed workout (${latestWorkout.name || 'Unnamed'}): ${exStr}.`);
+      }
+      return parts.join(' ');
+    })();
 
     const symptomsContext = mode === 'medical' && Array.isArray(symptomLogs) && symptomLogs.length
       ? (() => {
@@ -1378,14 +1413,19 @@ router.post('/nutrition-agent', async (req, res) => {
     }
   });
   
-  let agentId = sessionId || `session_${userId}_${nowTs}`;
-  if (!global.agentSessions[agentId]) {
+  let agentId = sessionId;
+  
+  if (!agentId || !global.agentSessions[agentId] || global.agentSessions[agentId].userId !== userId) {
+    agentId = `session_${userId}_${nowTs}`;
     const { NutritionAgentSession } = require('../services/nutritionAI/nutritionAgent');
     global.agentSessions[agentId] = new NutritionAgentSession(userId);
+    // Explicitly attach userId so we can verify it on subsequent requests
+    global.agentSessions[agentId].userId = userId;
   }
   
   const agent = global.agentSessions[agentId];
   agent.lastActive = nowTs;
+
   
   try {
     const result = await agent.handleVoiceInput(message);

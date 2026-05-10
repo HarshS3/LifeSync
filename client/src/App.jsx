@@ -601,6 +601,29 @@ function AppContent() {
 
               <Box
                 onClick={() => {
+                  toggleTheme()
+                  setMobileNavOpen(false)
+                }}
+                sx={{
+                  mt: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  cursor: 'pointer',
+                  p: 1,
+                  borderRadius: 1.5,
+                  color: ui.text,
+                  '&:hover': { bgcolor: ui.navHoverBg },
+                }}
+              >
+                <SpaOutlinedIcon fontSize="small" />
+                <Typography variant="body2" sx={{ color: 'inherit' }}>
+                  Theme: {ui.name}
+                </Typography>
+              </Box>
+
+              <Box
+                onClick={() => {
                   setMobileNavOpen(false)
                   setAnchorEl(null)
                   logout()

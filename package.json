@@ -17,12 +17,9 @@
   },
   "devDependencies": {
     "ajv": "^8.20.0",
-    "ajv-keywords": "^5.1.0",
-    "expo-router": "~4.0.22"
+    "ajv-keywords": "^5.1.0"
   },
   "overrides": {
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "react-native-svg": "15.8.0"
+    "react-native-svg": "15.12.1"
   }
 }

@@ -8,7 +8,8 @@ const config = getDefaultConfig(projectRoot);
 
 // Keep Metro focused on the app and the hoisted workspace dependencies.
 config.watchFolders = [
-  path.resolve(workspaceRoot, 'node_modules'),
+  projectRoot,
+  workspaceRoot,
 ];
 
 // Resolve packages from the app first, then the root workspace install.
@@ -17,7 +18,7 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
-// Avoid walking into unrelated workspace packages while resolving modules.
-config.resolver.disableHierarchicalLookup = true;
+// Ensure we can find the modules even if they are heavily hoisted or in the root.
+config.resolver.disableHierarchicalLookup = false;
 
 module.exports = config;

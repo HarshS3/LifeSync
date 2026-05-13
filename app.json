@@ -1,5 +1,8 @@
 {
   "expo": {
+    "name": "app",
+    "slug": "app",
+    "newArchEnabled": true,
     "extra": {
       "eas": {
         "projectId": "ce274d88-0793-406e-9b14-5db549aa0e8c"

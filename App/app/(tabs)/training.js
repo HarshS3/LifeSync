@@ -288,11 +288,12 @@ export default function TrainingScreen() {
         {/* ── Quick nav ──────────────────────────────────────────────── */}
         <View style={s.quickRow}>
           {[
+            { icon: '📅',  label: 'Calendar',    path: '/workout-calendar', params: { returnTo: '/(tabs)/training' } },
             { icon: '🗺️',  label: 'Heatmap',     path: '/training/heatmap' },
             { icon: '👣',  label: 'Steps',        path: '/training/steps' },
             { icon: '📊',  label: 'Progression',  path: '/training/progression' },
           ].map((item) => (
-            <TouchableOpacity key={item.label} style={s.quickBtn} onPress={() => nav(item.path)}>
+            <TouchableOpacity key={item.label} style={s.quickBtn} onPress={() => nav(item.path, item.params)}>
               <Text style={s.quickIcon}>{item.icon}</Text>
               <Text style={s.quickLabel}>{item.label}</Text>
             </TouchableOpacity>

@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, MessageSquare, Dumbbell, Utensils, User, BarChart } from 'lucide-react-native';
+import { Home, MessageSquare, Dumbbell, Utensils, User, BarChart, Calendar } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -12,13 +12,6 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <Home size={24} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="insights"
-        options={{
-          title: 'Insights',
-          tabBarIcon: ({ color }) => <BarChart size={24} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -43,9 +36,29 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="calendar"
+        options={{
+          title: 'Calendar',
+          tabBarIcon: ({ color }) => <Calendar size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="workout-calendar"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="insights"
+        options={{
+          title: 'Insights',
+          tabBarIcon: ({ color }) => <BarChart size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
-          href: null, // This hides it from the bottom bar but keeps the route
+          href: null,
         }}
       />
     </Tabs>

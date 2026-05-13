@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import api, { API_BASE } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -20,20 +19,7 @@ export function AuthProvider({ children }) {
   const loadStorageData = async () => {
     try {
       const savedToken = await SecureStore.getItemAsync(TOKEN_KEY);
-      
-      // Try to get user from AsyncStorage (new way)
-      let savedUser = await AsyncStorage.getItem(USER_KEY);
-      
-      // Migration: If not in AsyncStorage, check SecureStore (old way)
-      if (!savedUser) {
-        savedUser = await SecureStore.getItemAsync(USER_KEY);
-        if (savedUser) {
-          // Move to AsyncStorage and remove from SecureStore
-          await AsyncStorage.setItem(USER_KEY, savedUser);
-          await SecureStore.deleteItemAsync(USER_KEY);
-          console.log('[AuthContext] Migrated user data to AsyncStorage');
-        }
-      }
+      const savedUser = await SecureStore.getItemAsync(USER_KEY);
       
       if (savedToken && savedUser) {
         setToken(savedToken);
@@ -54,7 +40,7 @@ export function AuthProvider({ children }) {
     try {
       const res = await api.get('/auth/me');
       setUser(res.data);
-      await AsyncStorage.setItem(USER_KEY, JSON.stringify(res.data));
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(res.data));
     } catch (err) {
       if (err.response?.status === 401) {
         console.warn('[AuthContext] Token verification failed (401):', err.message);
@@ -75,7 +61,7 @@ export function AuthProvider({ children }) {
       setToken(token);
       setUser(user);
       await SecureStore.setItemAsync(TOKEN_KEY, token);
-      await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
       
       return res.data;
     } catch (err) {
@@ -91,7 +77,7 @@ export function AuthProvider({ children }) {
       setToken(token);
       setUser(user);
       await SecureStore.setItemAsync(TOKEN_KEY, token);
-      await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
       
       return res.data;
     } catch (err) {
@@ -103,9 +89,7 @@ export function AuthProvider({ children }) {
     setToken(null);
     setUser(null);
     await SecureStore.deleteItemAsync(TOKEN_KEY);
-    await AsyncStorage.removeItem(USER_KEY);
-    // Also clean up legacy key just in case
-    await SecureStore.deleteItemAsync(USER_KEY).catch(() => {});
+    await SecureStore.deleteItemAsync(USER_KEY);
   };
 
   const refreshUser = async () => {
@@ -113,7 +97,7 @@ export function AuthProvider({ children }) {
     try {
       const res = await api.get('/auth/me');
       setUser(res.data);
-      await AsyncStorage.setItem(USER_KEY, JSON.stringify(res.data));
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(res.data));
       return res.data;
     } catch (err) {
       console.error('Failed to refresh user:', err);

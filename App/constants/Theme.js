@@ -135,8 +135,10 @@ export const TYPOGRAPHY = {
   },
 };
 
+import { useThemeContext } from '../context/ThemeContext';
+
 export const useTheme = () => {
-  const theme = 'light'; // Force light theme for consistency with cream branding
+  const { theme } = useThemeContext();
   
   return {
     COLORS: COLORS[theme],
@@ -145,6 +147,7 @@ export const useTheme = () => {
     SHADOWS: SHADOWS[theme],
     TYPOGRAPHY,
     isDark: theme === 'dark',
+    theme,
   };
 };
 

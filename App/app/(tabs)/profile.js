@@ -3,8 +3,9 @@ import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } fro
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
 import api from '../../services/api';
-import { LogOut, User, Settings, Shield, HelpCircle, Activity, Heart, Scale } from 'lucide-react-native';
+import { LogOut, User, Settings, Shield, HelpCircle, Activity, Heart, Scale, Moon, Sun } from 'lucide-react-native';
 import { useTheme } from '../../constants/Theme';
+import { useThemeContext } from '../../context/ThemeContext';
 
 // UI Components
 import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
@@ -33,6 +34,8 @@ export default function ProfileScreen() {
   }, []);
 
   const bio = stats?.biologicalProfile || {};
+
+  const { toggleTheme, isDark } = useThemeContext();
 
   return (
     <ScreenWrapper title="Profile" showBack={false}>
@@ -77,6 +80,10 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/profile/settings')}>
             <Settings size={22} color={COLORS.text} />
             <Body style={styles.menuText}>App Settings</Body>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={toggleTheme}>
+            {isDark ? <Sun size={22} color={COLORS.text} /> : <Moon size={22} color={COLORS.text} />}
+            <Body style={styles.menuText}>{isDark ? 'Light Mode' : 'Dark Mode'}</Body>
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem}>
             <Shield size={22} color={COLORS.text} />

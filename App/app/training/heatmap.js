@@ -47,12 +47,19 @@ export default function HeatmapScreen() {
       'hamstrings': 'hamstring',
       'calves': 'calves',
       'forearms': 'forearms',
+      'traps': 'trapezius',
+      'quads': 'quadriceps',
     };
     
-    return {
-      slug: slugMap[muscle.toLowerCase()] || muscle.toLowerCase(),
-      intensity: Math.min(count, 5)
-    };
+    const slug = slugMap[muscle.toLowerCase()] || muscle.toLowerCase();
+    
+    // Scale intensity: 1 set = 1, 3 sets = 2, 6 sets = 3, 10+ sets = 4
+    let intensity = 1;
+    if (count > 10) intensity = 4;
+    else if (count > 6) intensity = 3;
+    else if (count > 2) intensity = 2;
+    
+    return { slug, intensity };
   }) : [];
 
   return (

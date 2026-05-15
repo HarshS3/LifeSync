@@ -18,10 +18,12 @@ export default function MuscleHeatmap({ data = [], gender = 'male' }) {
   // Memoize data and inject highlight color for selected muscle
   const heatmapData = useMemo(() => {
     // 1. Mark existing data if selected
-    const updatedData = data.map(item => ({
-      ...item,
-      color: item.slug === selectedMuscle ? HEATMAP_COLORS[5] : undefined
-    }));
+    const updatedData = data.map(item => {
+      if (item.slug === selectedMuscle) {
+        return { ...item, color: HEATMAP_COLORS[5] };
+      }
+      return item;
+    });
 
     // 2. If selected muscle has no training data, add it as a highlight
     if (selectedMuscle && !updatedData.some(d => d.slug === selectedMuscle)) {

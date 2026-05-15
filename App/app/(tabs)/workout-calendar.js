@@ -7,6 +7,7 @@ import { Calendar } from 'react-native-calendars';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, ChevronRight, Activity, Dumbbell } from 'lucide-react-native';
 import api from '../../services/api';
+import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
 
 const { width } = Dimensions.get('window');
 
@@ -84,16 +85,8 @@ export default function WorkoutCalendarScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ChevronLeft size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Workout History</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <ScreenWrapper title="Workout History">
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.calendarCard}>
           <Calendar
             current={selectedDate}
@@ -186,7 +179,7 @@ export default function WorkoutCalendarScreen() {
           <Text style={styles.todayButtonText}>Go to Today</Text>
         </TouchableOpacity>
       )}
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

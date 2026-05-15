@@ -1,19 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Info, Play, Activity } from 'lucide-react-native';
+import { Info, Play, Activity as ActivityIcon } from 'lucide-react-native';
 import api from '../../services/api';
 import MuscleHeatmap from '../../components/MuscleHeatmap';
+import { useTheme } from '../../constants/Theme';
+
+// UI Components
+import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
+import { Card } from '../../components/ui/Card';
+import { Body, Caption, H3 } from '../../components/ui/Typography';
 
 export default function HeatmapScreen() {
   const router = useRouter();
+  const { COLORS } = useTheme();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
 
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/gym/stats');
+      const res = await api.get('/gym/stats').catch(() => ({ data: null }));
       setStats(res.data);
     } catch (err) {
       console.error('Failed to fetch stats for heatmap', err);
@@ -25,14 +32,6 @@ export default function HeatmapScreen() {
   useEffect(() => {
     fetchStats();
   }, []);
-
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#000" />
-      </View>
-    );
-  }
 
   // Map muscle distribution to heatmap slugs
   const muscleHeatmapData = stats?.muscleDistribution ? Object.entries(stats.muscleDistribution).map(([muscle, count]) => {
@@ -57,94 +56,62 @@ export default function HeatmapScreen() {
   }) : [];
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ChevronLeft size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Muscle Distribution</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.infoCard}>
-          <Activity size={20} color="#3b82f6" />
-          <Text style={styles.infoText}>
+    <ScreenWrapper title="Muscle Distribution">
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <Card style={[styles.infoCard, { backgroundColor: COLORS.training + '10' }]} padding={16}>
+          <ActivityIcon size={20} color={COLORS.training} />
+          <Body style={{ color: COLORS.training, flex: 1 }}>
             This heatmap shows your training intensity across different muscle groups based on your workout history.
-          </Text>
-        </View>
+          </Body>
+        </Card>
 
-        {muscleHeatmapData.length > 0 ? (
-          <MuscleHeatmap data={muscleHeatmapData} />
+        {loading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          </View>
+        ) : muscleHeatmapData.length > 0 ? (
+          <View style={styles.heatmapContainer}>
+            <MuscleHeatmap data={muscleHeatmapData} />
+          </View>
         ) : (
           <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconCircle}>
-              <Info size={32} color="#94a3b8" />
+            <View style={[styles.emptyIconCircle, { backgroundColor: COLORS.gray100 }]}>
+              <Info size={32} color={COLORS.gray400} />
             </View>
-            <Text style={styles.emptyTitle}>No Data Available</Text>
-            <Text style={styles.emptyDesc}>
+            <H3 style={{ marginBottom: 8 }}>No Data Available</H3>
+            <Body secondary style={{ textAlign: 'center', paddingHorizontal: 40, marginBottom: 24 }}>
               Log some workouts with exercises to see your muscle distribution heatmap!
-            </Text>
+            </Body>
             <TouchableOpacity 
-              style={styles.emptyAction}
+              style={[styles.emptyAction, { backgroundColor: COLORS.primary }]}
               onPress={() => router.push('/training/active')}
             >
-              <Play size={16} color="#fff" />
-              <Text style={styles.emptyActionText}>Start Workout</Text>
+              <Play size={16} color={COLORS.surface} />
+              <Body style={{ color: COLORS.surface, fontWeight: '700' }}>Start Workout</Body>
             </TouchableOpacity>
           </View>
         )}
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
   centered: {
-    flex: 1,
-    justifyContent: 'center',
+    padding: 60,
     alignItems: 'center',
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#000',
   },
   scrollContent: {
-    padding: 20,
+    padding: 16,
   },
   infoCard: {
     flexDirection: 'row',
-    backgroundColor: '#eff6ff',
-    padding: 16,
-    borderRadius: 16,
     marginBottom: 24,
     alignItems: 'center',
     gap: 12,
   },
-  infoText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#1e40af',
-    lineHeight: 20,
+  heatmapContainer: {
+    paddingBottom: 40,
   },
   emptyContainer: { 
     paddingVertical: 60,
@@ -155,37 +122,16 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#334155',
-    marginBottom: 8,
-  },
-  emptyDesc: {
-    fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 40,
-    marginBottom: 24,
-  },
   emptyAction: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#000',
     paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    paddingHorizontal: 24,
+    borderRadius: 16,
     gap: 8,
-  },
-  emptyActionText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
   },
 });

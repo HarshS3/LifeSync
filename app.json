@@ -1,9 +1,7 @@
 {
   "expo": {
     "extra": {
-      "eas": {
-        "projectId": "ce274d88-0793-406e-9b14-5db549aa0e8c"
-      }
+      "eas": {}
     },
     "android": {
       "package": "com.harshs3.lifesync"

@@ -1,32 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  View, StyleSheet, TouchableOpacity, Text, SafeAreaView, 
-  ScrollView, ActivityIndicator, Dimensions 
+  View, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView 
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { X, ChevronLeft, ChevronRight, Activity, Zap, Utensils, CheckCircle } from 'lucide-react-native';
+import { ChevronRight, Activity, Zap, Utensils, CheckCircle } from 'lucide-react-native';
 import api from '../../services/api';
+import { useTheme } from '../../constants/Theme';
 
-const { width } = Dimensions.get('window');
-
-const COLORS = {
-  workout: '#2563eb',
-  mental: '#9333ea',
-  nutrition: '#15803d',
-  habit: '#6366f1',
-  today: '#3b82f6',
-  bg: '#f6f1e7',
-  surface: '#ffffff',
-  text: '#161310',
-  muted: 'rgba(22,19,16,0.62)',
-  border: 'rgba(22,19,16,0.10)',
-};
+// UI Components
+import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
+import { Card } from '../../components/ui/Card';
+import { H3, Body, Caption } from '../../components/ui/Typography';
 
 export default function CalendarScreen() {
   const router = useRouter();
+  const { COLORS } = useTheme();
   const params = useLocalSearchParams();
-  const returnTo = params.returnTo || '/(tabs)';
   const today = new Date().toISOString().split('T')[0];
 
   const [loading, setLoading] = useState(true);
@@ -41,7 +31,6 @@ export default function CalendarScreen() {
       const year = date.getFullYear();
       const month = date.getMonth();
 
-      // Range: 1 month before and 1 month after current visible month
       const start = new Date(year, month - 1, 1);
       const end = new Date(year, month + 2, 0);
       const startStr = start.toISOString();
@@ -62,9 +51,9 @@ export default function CalendarScreen() {
         const d = new Date(w.date).toISOString().split('T')[0];
         allEvents.push({
           date: d,
-          type: 'workout',
+          type: 'training',
           title: w.name || 'Workout',
-          icon: <Activity size={16} color={COLORS.workout} />,
+          icon: <Activity size={16} color={COLORS.training} />,
           details: `${w.exercises?.length || 0} exercises`,
           original: w
         });
@@ -76,9 +65,9 @@ export default function CalendarScreen() {
         const d = new Date(m.date).toISOString().split('T')[0];
         allEvents.push({
           date: d,
-          type: 'mental',
+          type: 'wellness',
           title: 'Wellness Log',
-          icon: <Zap size={16} color={COLORS.mental} />,
+          icon: <Zap size={16} color={COLORS.wellness} />,
           details: `Mood ${m.moodScore || 5}/10 • Energy ${m.energyLevel || 5}/10`,
           original: m
         });
@@ -106,9 +95,9 @@ export default function CalendarScreen() {
           const d = new Date(h.date).toISOString().split('T')[0];
           allEvents.push({
             date: d,
-            type: 'habit',
+            type: 'insight',
             title: h.habit?.name || 'Habit',
-            icon: <CheckCircle size={16} color={h.habit?.color || COLORS.habit} />,
+            icon: <CheckCircle size={16} color={h.habit?.color || COLORS.insight} />,
             details: 'Completed',
             original: h
           });
@@ -126,29 +115,23 @@ export default function CalendarScreen() {
 
   const processMarkedDates = (allEvents, selected) => {
     const marks = {};
-    
-    // Add dots for events
     allEvents.forEach(event => {
       if (!marks[event.date]) {
         marks[event.date] = { dots: [] };
       }
-      
-      const typeColor = COLORS[event.type] || COLORS.muted;
+      const typeColor = COLORS[event.type] || COLORS.gray400;
       const dotExists = marks[event.date].dots.some(d => d.color === typeColor);
-      
       if (!dotExists && marks[event.date].dots.length < 4) {
         marks[event.date].dots.push({ key: event.type, color: typeColor });
       }
     });
 
-    // Mark today
     if (!marks[today]) marks[today] = { dots: marks[today]?.dots || [] };
     marks[today].today = true;
 
-    // Mark selected
     if (!marks[selected]) marks[selected] = { dots: marks[selected]?.dots || [] };
     marks[selected].selected = true;
-    marks[selected].selectedColor = COLORS.today;
+    marks[selected].selectedColor = COLORS.primary;
 
     setMarkedDates(marks);
   };
@@ -164,22 +147,10 @@ export default function CalendarScreen() {
 
   const selectedDayEvents = events.filter(e => e.date === selectedDate);
 
-  const handleEventClick = (event) => {
-    if (event.type === 'workout' && event.original?._id) {
-      router.push(`/training/${event.original._id}`);
-    }
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={{ width: 40 }} />
-        <Text style={styles.title}>Calendar</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.calendarCard}>
+    <ScreenWrapper title="Calendar" showBack={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Card padding={8} style={styles.calendarCard}>
           <Calendar
             current={selectedDate}
             onDayPress={handleDayPress}
@@ -187,20 +158,20 @@ export default function CalendarScreen() {
             markedDates={markedDates}
             markingType={'multi-dot'}
             theme={{
-              backgroundColor: '#ffffff',
-              calendarBackground: '#ffffff',
-              textSectionTitleColor: COLORS.muted,
-              selectedDayBackgroundColor: COLORS.today,
-              selectedDayTextColor: '#ffffff',
-              todayTextColor: COLORS.today,
+              backgroundColor: 'transparent',
+              calendarBackground: 'transparent',
+              textSectionTitleColor: COLORS.textSecondary,
+              selectedDayBackgroundColor: COLORS.primary,
+              selectedDayTextColor: COLORS.surface,
+              todayTextColor: COLORS.primary,
               dayTextColor: COLORS.text,
-              textDisabledColor: '#d1d5db',
-              dotColor: COLORS.today,
-              selectedDotColor: '#ffffff',
-              arrowColor: COLORS.today,
-              disabledArrowColor: '#d1d5db',
+              textDisabledColor: COLORS.gray300,
+              dotColor: COLORS.primary,
+              selectedDotColor: COLORS.surface,
+              arrowColor: COLORS.primary,
+              disabledArrowColor: COLORS.gray300,
               monthTextColor: COLORS.text,
-              indicatorColor: COLORS.today,
+              indicatorColor: COLORS.primary,
               textDayFontWeight: '400',
               textMonthFontWeight: 'bold',
               textDayHeaderFontWeight: '600',
@@ -211,21 +182,21 @@ export default function CalendarScreen() {
           />
           {loading && (
             <View style={styles.loaderOverlay}>
-              <ActivityIndicator color={COLORS.today} />
+              <ActivityIndicator color={COLORS.primary} />
             </View>
           )}
-        </View>
+        </Card>
 
         <View style={styles.eventsSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {new Date(selectedDate).toLocaleDateString('en-US', { 
+            <H3>
+              {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { 
                 weekday: 'long', month: 'long', day: 'numeric' 
               })}
-            </Text>
+            </H3>
             {selectedDate === today && (
-              <View style={styles.todayBadge}>
-                <Text style={styles.todayBadgeText}>TODAY</Text>
+              <View style={[styles.todayBadge, { backgroundColor: COLORS.primary + '15' }]}>
+                <Caption style={{ color: COLORS.primary, fontWeight: '800' }}>TODAY</Caption>
               </View>
             )}
           </View>
@@ -234,77 +205,47 @@ export default function CalendarScreen() {
             selectedDayEvents.map((event, idx) => (
               <TouchableOpacity 
                 key={idx} 
-                style={[styles.eventCard, { borderLeftColor: COLORS[event.type] || COLORS.border }]}
-                onPress={() => handleEventClick(event)}
+                style={[styles.eventCard, { borderLeftColor: COLORS[event.type] || COLORS.border, backgroundColor: COLORS.surface }]}
+                onPress={() => event.type === 'training' && router.push(`/training/${event.original?._id}`)}
               >
-                <View style={styles.eventIconContainer}>
+                <View style={[styles.eventIconContainer, { backgroundColor: COLORS.gray100 }]}>
                   {event.icon}
                 </View>
                 <View style={styles.eventInfo}>
-                  <Text style={styles.eventTitle}>{event.title}</Text>
-                  <Text style={styles.eventDetails}>{event.details}</Text>
+                  <Body style={{ fontWeight: '700' }}>{event.title}</Body>
+                  <Caption secondary>{event.details}</Caption>
                 </View>
-                <ChevronRight size={18} color={COLORS.muted} />
+                <ChevronRight size={18} color={COLORS.gray400} />
               </TouchableOpacity>
             ))
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No activities logged for this day</Text>
+              <Body secondary>No activities logged for this day</Body>
             </View>
           )}
         </View>
+        
+        {selectedDate !== today && (
+          <TouchableOpacity 
+            style={[styles.todayButton, { backgroundColor: COLORS.primary }]}
+            onPress={() => {
+              setSelectedDate(today);
+              setVisibleMonth(new Date(today));
+              processMarkedDates(events, today);
+            }}
+          >
+            <Body style={{ color: COLORS.surface, fontWeight: '700' }}>Go to Today</Body>
+          </TouchableOpacity>
+        )}
       </ScrollView>
-
-      {selectedDate !== today && (
-        <TouchableOpacity 
-          style={styles.todayButton}
-          onPress={() => {
-            setSelectedDate(today);
-            setVisibleMonth(new Date(today));
-            processMarkedDates(events, today);
-          }}
-        >
-          <Text style={styles.todayButtonText}>Go to Today</Text>
-        </TouchableOpacity>
-      )}
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: COLORS.bg,
-    marginTop: 40,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  scrollContent: {
-    padding: 16,
-  },
+  content: { padding: 16 },
   calendarCard: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 10,
-    marginBottom: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    overflow: 'hidden',
-    position: 'relative',
+    marginBottom: 24,
   },
   loaderOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -320,43 +261,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.text,
+    gap: 12,
   },
   todayBadge: {
-    backgroundColor: COLORS.today + '20',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  todayBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: COLORS.today,
-  },
   eventCard: {
-    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     borderLeftWidth: 4,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
   },
   eventIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.bg,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -364,36 +287,15 @@ const styles = StyleSheet.create({
   eventInfo: {
     flex: 1,
   },
-  eventTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 2,
-  },
-  eventDetails: {
-    fontSize: 12,
-    color: COLORS.muted,
-  },
   emptyState: {
     padding: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyStateText: {
-    fontSize: 14,
-    color: COLORS.muted,
-    textAlign: 'center',
-  },
   todayButton: {
-    margin: 16,
+    marginTop: 16,
     padding: 16,
-    backgroundColor: COLORS.text,
     borderRadius: 16,
     alignItems: 'center',
-  },
-  todayButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
   },
 });

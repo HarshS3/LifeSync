@@ -1,10 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, FlatList, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, FlatList, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import api from '../../services/api';
-import { ChevronLeft, Plus, Trash2, Check, Clock, Search, X } from 'lucide-react-native';
+import { Plus, Trash2, Check, Clock, Search, X } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { useTheme } from '../../constants/Theme';
+
+// UI Components
+import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
+import { Card } from '../../components/ui/Card';
+import { H2, H3, Body, Caption } from '../../components/ui/Typography';
 
 const STORAGE_KEY = '@active_workout_draft';
 
@@ -16,6 +22,7 @@ const COMMON_EXERCISES = [
 ];
 
 export default function ActiveWorkoutScreen() {
+  const { COLORS } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
   const [name, setName] = useState('Empty Workout');
@@ -81,7 +88,6 @@ export default function ActiveWorkoutScreen() {
         const savedDraft = await AsyncStorage.getItem(STORAGE_KEY);
         if (savedDraft) {
           const draft = JSON.parse(savedDraft);
-          // Only prompt if it's recent (e.g., within last 24 hours)
           const isRecent = (Date.now() - draft.lastSaved) < 24 * 60 * 60 * 1000;
           
           if (isRecent) {
@@ -124,7 +130,7 @@ export default function ActiveWorkoutScreen() {
       setElapsed(Math.floor((Date.now() - startTime) / 1000));
     }, 1000);
     return () => clearInterval(timer);
-  }, [params.template]);
+  }, [params.template, startTime]);
 
   // Save changes effect
   useEffect(() => {
@@ -202,7 +208,7 @@ export default function ActiveWorkoutScreen() {
 
   const handleFinish = async () => {
     if (exercises.length === 0) {
-      alert('Add at least one exercise!');
+      Alert.alert('Empty Workout', 'Add at least one exercise!');
       return;
     }
     
@@ -227,7 +233,7 @@ export default function ActiveWorkoutScreen() {
       router.replace('/(tabs)/training');
     } catch (err) {
       console.error('Failed to save workout', err);
-      alert('Error saving workout.');
+      Alert.alert('Error', 'Failed to save workout.');
       setIsSaving(false);
     }
   };
@@ -254,85 +260,98 @@ export default function ActiveWorkoutScreen() {
     }
   };
 
-  if (!isReady) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#000" />
-      </View>
-    );
-  }
-
   const filteredExercises = COMMON_EXERCISES.filter(ex => 
     ex.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleCancel}>
-          <ChevronLeft size={24} color="#000" />
-        </TouchableOpacity>
-        <View style={styles.timerContainer}>
-          <Clock size={16} color="#666" />
-          <Text style={styles.timerText}>{formatTime(elapsed)}</Text>
-        </View>
+    <ScreenWrapper 
+      title={name} 
+      onBack={handleCancel}
+      headerRight={
         <TouchableOpacity 
-          style={styles.finishButton} 
+          style={[styles.finishButton, { backgroundColor: COLORS.primary }]} 
           onPress={handleFinish}
           disabled={isSaving}
         >
-          {isSaving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.finishButtonText}>Finish</Text>}
+          {isSaving ? <ActivityIndicator size="small" color="#fff" /> : <Body style={{ color: '#fff', fontWeight: 'bold' }}>Finish</Body>}
         </TouchableOpacity>
-      </View>
-
-
+      }
+    >
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <TextInput
-            style={styles.workoutNameInput}
-            value={name}
-            onChangeText={setName}
-            placeholder="Workout Name"
-          />
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Timer and Name Input */}
+          <View style={styles.topSection}>
+            <View style={[styles.timerContainer, { backgroundColor: COLORS.gray100 }]}>
+              <Clock size={16} color={COLORS.textSecondary} />
+              <Body style={[styles.timerText, { color: COLORS.text }]}>{formatTime(elapsed)}</Body>
+            </View>
+            <TextInput
+              style={[styles.workoutNameInput, { color: COLORS.text }]}
+              value={name}
+              onChangeText={setName}
+              placeholder="Workout Name"
+              placeholderTextColor={COLORS.gray400}
+            />
+            <Caption secondary style={{ marginTop: 4 }}>Tap the name to edit</Caption>
+          </View>
 
-          {exercises.map((ex, exIdx) => (
-            <View key={ex.id} style={styles.exerciseCard}>
+          {/* Exercises List */}
+          {exercises.length === 0 ? (
+            <View style={styles.emptyWorkoutState}>
+              <View style={[styles.emptyIconCircle, { backgroundColor: COLORS.gray100 }]}>
+                <Plus size={32} color={COLORS.gray400} />
+              </View>
+              <H3 style={{ marginBottom: 8 }}>Ready to work?</H3>
+              <Body secondary style={{ textAlign: 'center', marginBottom: 24 }}>
+                Your workout is currently empty. Add exercises to start tracking your progress.
+              </Body>
+              <TouchableOpacity 
+                style={[styles.startEmptyAction, { backgroundColor: COLORS.primary }]}
+                onPress={() => setShowPicker(true)}
+              >
+                <Plus size={20} color={COLORS.surface} />
+                <Body style={{ color: COLORS.surface, fontWeight: '700', marginLeft: 8 }}>Add Exercise</Body>
+              </TouchableOpacity>
+            </View>
+          ) : exercises.map((ex, exIdx) => (
+              <Card key={ex.id} style={styles.exerciseCard} padding={16}>
               <View style={styles.exerciseHeader}>
                 <TextInput
-                  style={styles.exerciseNameInput}
+                  style={[styles.exerciseNameInput, { color: COLORS.text }]}
                   value={ex.name}
                   onChangeText={(text) => updateExerciseName(ex.id, text)}
                   placeholder="Exercise Name"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={COLORS.gray400}
                 />
-                <TouchableOpacity onPress={() => removeExercise(ex.id)}>
-                  <Trash2 size={18} color="#ff3b30" />
+                <TouchableOpacity onPress={() => removeExercise(ex.id)} style={styles.iconButton}>
+                  <Trash2 size={18} color={COLORS.error} />
                 </TouchableOpacity>
               </View>
 
               <View style={styles.setsHeader}>
-                <Text style={[styles.setHeaderLabel, { flex: 0.5 }]}>Set</Text>
-                <Text style={styles.setHeaderLabel}>kg</Text>
-                <Text style={styles.setHeaderLabel}>Reps</Text>
+                <Caption secondary style={[styles.setHeaderLabel, { flex: 0.5 }]}>Set</Caption>
+                <Caption secondary style={styles.setHeaderLabel}>kg</Caption>
+                <Caption secondary style={styles.setHeaderLabel}>Reps</Caption>
               </View>
 
               {ex.sets.map((set, sIdx) => (
                 <View key={sIdx} style={styles.setRow}>
                   <View style={styles.setNumber}>
-                    <Text style={styles.setNumberText}>{sIdx + 1}</Text>
+                    <Body style={{ color: COLORS.gray400, fontWeight: '700' }}>{sIdx + 1}</Body>
                   </View>
                   <TextInput
-                    style={styles.setInput}
+                    style={[styles.setInput, { backgroundColor: COLORS.gray100, color: COLORS.text }]}
                     keyboardType="numeric"
                     value={set.weight.toString()}
                     onChangeText={(v) => updateSet(ex.id, sIdx, 'weight', v)}
                     placeholder="0"
                   />
                   <TextInput
-                    style={styles.setInput}
+                    style={[styles.setInput, { backgroundColor: COLORS.gray100, color: COLORS.text }]}
                     keyboardType="numeric"
                     value={set.reps.toString()}
                     onChangeText={(v) => updateSet(ex.id, sIdx, 'reps', v)}
@@ -341,16 +360,22 @@ export default function ActiveWorkoutScreen() {
                 </View>
               ))}
 
-              <TouchableOpacity style={styles.addSetButton} onPress={() => addSet(ex.id)}>
-                <Plus size={16} color="#000" />
-                <Text style={styles.addSetText}>Add Set</Text>
+              <TouchableOpacity 
+                style={[styles.addSetButton, { backgroundColor: COLORS.gray100 }]} 
+                onPress={() => addSet(ex.id)}
+              >
+                <Plus size={16} color={COLORS.text} />
+                <Body style={{ marginLeft: 6, fontWeight: '600' }}>Add Set</Body>
               </TouchableOpacity>
-            </View>
+            </Card>
           ))}
 
-          <TouchableOpacity style={styles.addExerciseButton} onPress={() => setShowPicker(true)}>
-            <Plus size={20} color="#000" />
-            <Text style={styles.addExerciseText}>Add Exercise</Text>
+          <TouchableOpacity 
+            style={[styles.addExerciseButton, { borderColor: COLORS.border }]} 
+            onPress={() => setShowPicker(true)}
+          >
+            <Plus size={20} color={COLORS.primary} />
+            <Body style={{ marginLeft: 8, fontWeight: '700' }}>Add Exercise</Body>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -361,29 +386,33 @@ export default function ActiveWorkoutScreen() {
         transparent={true}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: COLORS.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Exercises</Text>
+              <H2>Add Exercises</H2>
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 {selectedToBatch.length > 0 && (
-                  <TouchableOpacity style={styles.batchDoneButton} onPress={addBatchExercises}>
-                    <Text style={styles.batchDoneText}>Add ({selectedToBatch.length})</Text>
+                  <TouchableOpacity 
+                    style={[styles.batchDoneButton, { backgroundColor: COLORS.primary }]} 
+                    onPress={addBatchExercises}
+                  >
+                    <Caption style={{ color: COLORS.surface, fontWeight: 'bold' }}>Add ({selectedToBatch.length})</Caption>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity onPress={() => setShowPicker(false)}>
-                  <X size={24} color="#000" />
+                  <X size={24} color={COLORS.text} />
                 </TouchableOpacity>
               </View>
             </View>
             
-            <View style={styles.searchContainer}>
-              <Search size={18} color="#999" />
+            <View style={[styles.searchContainer, { backgroundColor: COLORS.gray100 }]}>
+              <Search size={18} color={COLORS.textSecondary} />
               <TextInput
-                style={styles.searchInput}
+                style={[styles.searchInput, { color: COLORS.text }]}
                 placeholder="Search or add custom..."
                 value={search}
                 onChangeText={setSearch}
                 autoFocus
+                placeholderTextColor={COLORS.gray400}
               />
             </View>
 
@@ -392,11 +421,16 @@ export default function ActiveWorkoutScreen() {
               keyExtractor={(item) => item}
               renderItem={({ item }) => (
                 <TouchableOpacity 
-                  style={[styles.exerciseOption, selectedToBatch.includes(item) && styles.exerciseOptionSelected]}
+                  style={[
+                    styles.exerciseOption, 
+                    selectedToBatch.includes(item) && { backgroundColor: COLORS.primary + '10' }
+                  ]}
                   onPress={() => handleToggleBatchExercise(item)}
                 >
-                  <Text style={[styles.exerciseOptionText, selectedToBatch.includes(item) && styles.exerciseOptionTextSelected]}>{item}</Text>
-                  {selectedToBatch.includes(item) && <Check size={18} color="#8b5cf6" />}
+                  <Body style={[
+                    selectedToBatch.includes(item) && { color: COLORS.primary, fontWeight: 'bold' }
+                  ]}>{item}</Body>
+                  {selectedToBatch.includes(item) && <Check size={18} color={COLORS.primary} />}
                 </TouchableOpacity>
               )}
               ListEmptyComponent={
@@ -405,78 +439,57 @@ export default function ActiveWorkoutScreen() {
                     style={styles.exerciseOption}
                     onPress={addCustomExercise}
                   >
-                    <Text style={styles.exerciseOptionText}>Add "{search}"</Text>
+                    <Body>Add "{search}"</Body>
                   </TouchableOpacity>
                 ) : (
-                  <Text style={styles.emptySearchText}>No exercises found</Text>
+                  <View style={{ padding: 20, alignItems: 'center' }}>
+                    <Caption secondary>No exercises found</Caption>
+                  </View>
                 )
               }
             />
           </View>
         </View>
       </Modal>
-    </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  timerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  timerText: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginLeft: 6,
-    color: '#000',
-    fontVariant: ['tabular-nums'],
-  },
-  finishButton: {
-    backgroundColor: '#000',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  finishButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
   scrollContent: {
     padding: 16,
     paddingBottom: 40,
   },
-  workoutNameInput: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  topSection: {
     marginBottom: 24,
-    color: '#000',
+  },
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 12,
+  },
+  timerText: {
+    fontWeight: '700',
+    marginLeft: 6,
+    fontVariant: ['tabular-nums'],
+  },
+  workoutNameInput: {
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  finishButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   exerciseCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#eee',
   },
   exerciseHeader: {
     flexDirection: 'row',
@@ -487,21 +500,19 @@ const styles = StyleSheet.create({
   exerciseNameInput: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#000',
     flex: 1,
     marginRight: 12,
+  },
+  iconButton: {
+    padding: 4,
   },
   setsHeader: {
     flexDirection: 'row',
     marginBottom: 8,
-    paddingHorizontal: 4,
   },
   setHeaderLabel: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#999',
     textTransform: 'uppercase',
   },
   setRow: {
@@ -513,14 +524,8 @@ const styles = StyleSheet.create({
     flex: 0.5,
     alignItems: 'center',
   },
-  setNumberText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#ccc',
-  },
   setInput: {
     flex: 1,
-    backgroundColor: '#f9fafb',
     height: 40,
     marginHorizontal: 4,
     borderRadius: 8,
@@ -528,19 +533,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  batchDoneText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  emptyWorkoutState: {
+    paddingVertical: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  startEmptyAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 16,
+  },
   addSetButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    marginTop: 8,
-    backgroundColor: '#f3f4f6',
+    marginTop: 12,
     borderRadius: 10,
-  },
-  addSetText: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginLeft: 6,
   },
   addExerciseButton: {
     flexDirection: 'row',
@@ -548,14 +572,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 16,
     borderWidth: 2,
-    borderColor: '#eee',
     borderStyle: 'dashed',
     borderRadius: 16,
-  },
-  addExerciseText: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginLeft: 8,
   },
   modalOverlay: {
     flex: 1,
@@ -563,10 +581,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    height: '80%',
+    height: '85%',
     padding: 24,
   },
   modalHeader: {
@@ -575,14 +592,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f3f4f6',
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 12,
@@ -595,39 +607,16 @@ const styles = StyleSheet.create({
   },
   exerciseOption: {
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  exerciseOptionText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  exerciseOptionSelected: {
-    backgroundColor: '#f5f3ff',
+    paddingHorizontal: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
+    alignItems: 'center',
     borderRadius: 8,
-  },
-  exerciseOptionTextSelected: {
-    color: '#8b5cf6',
-    fontWeight: '700',
   },
   batchDoneButton: {
-    backgroundColor: '#8b5cf6',
     paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: 8,
     justifyContent: 'center',
-  },
-  batchDoneText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  emptySearchText: {
-    textAlign: 'center',
-    color: '#999',
-    marginTop: 20,
   },
 });

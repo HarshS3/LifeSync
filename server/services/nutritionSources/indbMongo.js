@@ -219,6 +219,7 @@ function toSearchResult(doc) {
   }
 
   // 2. If no explicit weight, try to infer it from nutrition ratios (standardized to 100g)
+  let wasInferred = false;
   if (finalServingWeightG == null && hasUnitServing) {
     finalServingWeightG = inferServingWeightG({
       baseCalories,
@@ -232,10 +233,13 @@ function toSearchResult(doc) {
       baseFiber,
       unitFiber,
     });
+    if (finalServingWeightG != null) wasInferred = true;
   }
 
-  const pickValue = (unitServingKeys, baseKeys) =>
-    hasUnitServing ? firstNumeric(map, [...unitServingKeys, ...baseKeys]) : firstNumeric(map, [...baseKeys, ...unitServingKeys]);
+  const pickValue = (unitServingKeys, baseKeys) => {
+    const val = hasUnitServing ? firstNumeric(map, [...unitServingKeys, ...baseKeys]) : firstNumeric(map, [...baseKeys, ...unitServingKeys]);
+    return (Number.isFinite(val)) ? val : 0;
+  };
 
   const calories = pickValue(['unit_serving_energy_kcal', 'unit_serving_kcal'], ['calories', 'energy_kcal', 'energy (kcal)', 'kcal', 'energy']);
   const protein = pickValue(['unit_serving_protein_g'], ['protein', 'protein_g', 'protein (g)']);
@@ -258,9 +262,9 @@ function toSearchResult(doc) {
   // Keep omega3 in API shape, but only from explicit omega-3 source columns.
   const omega3 = pickValue(['unit_serving_omega3_g', 'unit_serving_omega_3_g'], ['omega3', 'omega_3', 'omega-3']);
     // INDB returns fats in mg natively. Core app standardizes all fat macros in grams.
-    const saturatedFat = pickValue(['unit_serving_sfa_mg'], ['sfa_mg', 'saturated_fat_mg']) / 1000;
-    const monounsaturatedFat = pickValue(['unit_serving_mufa_mg'], ['mufa_mg']) / 1000;
-    const polyunsaturatedFat = pickValue(['unit_serving_pufa_mg'], ['pufa_mg']) / 1000;
+    const saturatedFat = (pickValue(['unit_serving_sfa_mg'], ['sfa_mg', 'saturated_fat_mg']) || 0) / 1000;
+    const monounsaturatedFat = (pickValue(['unit_serving_mufa_mg'], ['mufa_mg']) || 0) / 1000;
+    const polyunsaturatedFat = (pickValue(['unit_serving_pufa_mg'], ['pufa_mg']) || 0) / 1000;
   const cholesterol = pickValue(['unit_serving_cholesterol_mg'], ['cholesterol_mg']);
   const phosphorus = pickValue(['unit_serving_phosphorus_mg'], ['phosphorus_mg']);
   const copper = pickValue(['unit_serving_copper_mg'], ['copper_mg']);
@@ -270,7 +274,8 @@ function toSearchResult(doc) {
   const vitaminE = pickValue(['unit_serving_vite_mg'], ['vite_mg']);
   const vitaminD2 = pickValue(['unit_serving_vitd2_ug'], ['vitd2_ug']);
   const vitaminD3 = pickValue(['unit_serving_vitd3_ug'], ['vitd3_ug']);
-  const vitaminD = (vitaminD2 + vitaminD3) || pickValue(['unit_serving_vitd_ug'], ['vitd_ug', 'vitamin_d_ug']);
+  const vitaminDRaw = pickValue(['unit_serving_vitd_ug'], ['vitd_ug', 'vitamin_d_ug']);
+  const vitaminD = (Number.isFinite(vitaminD2 + vitaminD3) && (vitaminD2 + vitaminD3) > 0) ? (vitaminD2 + vitaminD3) : vitaminDRaw;
   const vitaminB1 = pickValue(['unit_serving_vitb1_mg'], ['vitb1_mg', 'thiamin_mg']);
   const vitaminB2 = pickValue(['unit_serving_vitb2_mg'], ['vitb2_mg', 'riboflavin_mg']);
   const vitaminB3 = pickValue(['unit_serving_vitb3_mg'], ['vitb3_mg', 'niacin_mg']);
@@ -331,7 +336,7 @@ function toSearchResult(doc) {
       sheetName: doc.sheetName,
       rowNumber: doc.rowNumber,
       sourceFile: doc.sourceFile,
-      servingWeightSource: inferredServingWeightG != null ? 'inferred_from_unit_serving_ratio' : null,
+      servingWeightSource: wasInferred ? 'inferred_from_unit_serving_ratio' : (finalServingWeightG != null ? 'explicit_label' : null),
       columns: doc.columns,
     },
   };

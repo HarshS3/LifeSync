@@ -14,7 +14,7 @@ export default defineConfig({
     alias: [
       { find: '@', replacement: path.resolve(__dirname, 'src') },
       { find: /^react$/, replacement: path.resolve(workspaceRoot, 'node_modules/react/index.js') },
-      { find: /^react-dom$/, replacement: path.resolve(__dirname, 'node_modules/react-dom/index.js') },
+      { find: /^react-dom$/, replacement: path.resolve(workspaceRoot, 'node_modules/react-dom/index.js') },
     ],
     dedupe: ['react', 'react-dom'],
   },

@@ -22,7 +22,15 @@ function joinTranscript(sttJson) {
 async function googleRecognize({ buffer, mimeType, languageCode = DEFAULT_LANGUAGE }) {
   const apiKey = String(process.env.GOOGLE_STT_API_KEY || '').trim();
   if (!apiKey) {
-    const err = new Error('GOOGLE_STT_API_KEY is not set');
+    if (process.env.MOCK_STT === '1') {
+      console.log('[STT] MOCK MODE: Returning placeholder transcription.');
+      return {
+        transcript: "This is a mock transcription because GOOGLE_STT_API_KEY is not set. (Mock Mode)",
+        raw: {},
+        provider: 'mock',
+      };
+    }
+    const err = new Error('GOOGLE_STT_API_KEY is not configured on the server. Please add it to your .env file or enable MOCK_STT=1 for testing.');
     err.code = 'MISSING_STT_KEY';
     throw err;
   }

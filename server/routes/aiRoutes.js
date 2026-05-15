@@ -665,6 +665,8 @@ router.post('/chat', async (req, res) => {
     }
 
     const skipIngestion = Boolean(req.body?.skipIngestion);
+    const explicitInsightRequest = Boolean(req.body?.explicitInsightRequest);
+    const simpleGeminiMode = String(process.env.SIMPLE_GEMINI_MODE || '1').trim() === '1';
     const mode = detectAssistantMode({ message });
 
     // Get user profile if authenticated
@@ -680,12 +682,15 @@ router.post('/chat', async (req, res) => {
     }
 
     console.log('[AI Chat] Mode:', mode, '| User:', user ? `${user.name} (${user.email})` : 'PUBLIC (GREETING ONLY)');
+    console.log(`[AI Chat] DEBUG: userId=${userId} message="${message}"`);
 
     // --- Chat ingestion (ALWAYS ON, auth-only) ---
     let chatIngestion = { ingested: false, dayKey: null, updates: [], foodIngestion: null };
     if (userId && !skipIngestion) {
       try {
+        console.log('[AI Chat] Attempting ingestFromChat...');
         chatIngestion = await ingestFromChat({ userId, message });
+        console.log(`[AI Chat] Ingestion result: handled=${chatIngestion?.foodIngestion?.handled}, foodLogged=${chatIngestion?.foodIngestion?.foodLogged}`);
         if (chatIngestion?.ingested) {
           triggerDailyLifeStateRecompute({ userId, date: new Date(), reason: 'chat_ingestion' });
         }
@@ -698,13 +703,14 @@ router.post('/chat', async (req, res) => {
 
     // --- Short-circuit: if Nutrition Agent handled the message, return its reply directly ---
     const foodIngestion = chatIngestion?.foodIngestion;
-    if (foodIngestion?.handled && foodIngestion?.agentReply) {
+    if (chatIngestion?.foodIngestion?.handled && chatIngestion?.foodIngestion?.agentReply) {
+      console.log(`[aiRoutes] Food ingestion handled: logged=${chatIngestion.foodIngestion.foodLogged}, reply=${chatIngestion.foodIngestion.agentReply}`);
       return res.json({
         message,
         mode: 'nutrition',
-        reply: foodIngestion.agentReply,
-        foodLogged: foodIngestion.foodLogged || false,
-        committedMealId: foodIngestion.committedMealId || null,
+        reply: chatIngestion.foodIngestion.agentReply,
+        foodLogged: chatIngestion.foodIngestion.foodLogged || false,
+        committedMealId: chatIngestion.foodIngestion.committedMealId || null,
         safety: { risk_level: 'none' },
         memorySnapshot: { chatIngestion, nutritionAgent: true },
       });
@@ -1062,11 +1068,11 @@ router.post('/chat', async (req, res) => {
         memoryContext,
         systemPrompt,
         history,
-        providerOverride: 'gemini',
+        // Remove providerOverride: 'gemini' to allow fallback to Groq if Gemini is busy
       });
 
       if (!reply) {
-        reply = 'I couldn\'t reach Gemini right now. Please check GEMINI_API_KEY and try again.';
+        reply = 'The AI service is currently overloaded or unavailable. Please try again in a few seconds.';
       }
 
       const shouldAppendTriage = riskRank(safety.risk_level) >= 1 || (safety.red_flags || []).length > 0;
@@ -1288,12 +1294,18 @@ router.post('/chat', async (req, res) => {
 
     // Default: forward to Gemini with memory context (no gatekeeping for normal Q&A).
     if (!llmReply) {
+      let finalSystemPrompt = systemPrompt;
+      // If food intent was detected but the agent failed, tell Gemini to be honest.
+      if (chatIngestion?.foodIngestion && !chatIngestion.foodIngestion.handled) {
+        finalSystemPrompt += "\n\nCRITICAL: The specialized food logging agent encountered an error. If the user is trying to log food, do NOT pretend you have logged it. Instead, apologize and say that the nutrition system is currently experiencing issues and they should try again in a moment.";
+      }
+
       llmReply = await generateLLMReply({
         message,
         // Include memory context so Gemini can answer questions about user data.
         memoryContext: buildMemoryContextForMode(),
         // Use the system prompt that fits the detected mode.
-        systemPrompt,
+        systemPrompt: finalSystemPrompt,
         history,
       });
     }

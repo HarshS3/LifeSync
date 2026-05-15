@@ -49,8 +49,9 @@ const calculateBMR = (sex, age, weightKg, heightCm, bodyFat) => {
  * @param {Object} biologicalProfile - Extracted from User.js
  * @param {number|null} adaptiveTdeeOverride
  * @param {Object|null} labMarkers - User's clinical lab markers (e.g. lipids)
+ * @param {number|null} bmrOverride - High-fidelity BMR from body scan (OCR)
  */
-const calculateDailyTargets = (biologicalProfile, adaptiveTdeeOverride = null, labMarkers = null) => {
+const calculateDailyTargets = (biologicalProfile, adaptiveTdeeOverride = null, labMarkers = null, bmrOverride = null) => {
   if (!biologicalProfile) return null;
 
   const { 
@@ -79,7 +80,8 @@ const calculateDailyTargets = (biologicalProfile, adaptiveTdeeOverride = null, l
   }
 
   // 1. Calculate Basal Metabolic Rate (BMR)
-  const bmr = calculateBMR(biologicalSex, age, weightKg, heightCm, bodyFatPercentage);
+  // Use high-fidelity override (e.g. from InBody OCR) if available, otherwise calculate from formula.
+  const bmr = bmrOverride ? Number(bmrOverride) : calculateBMR(biologicalSex, age, weightKg, heightCm, bodyFatPercentage);
 
   // 2. Apply Physical Activity Level (PAL) -> TDEE (Total Daily Energy Expenditure)
   // PAL includes Exercise Activity Thermogenesis (EAT) and Non-Exercise Activity Thermogenesis (NEAT).

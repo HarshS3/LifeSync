@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, Dimensions, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
 import { LineChart } from 'react-native-chart-kit';
@@ -7,12 +7,17 @@ import api from '../../services/api';
 import { TrendingUp, Info } from 'lucide-react-native';
 import { useTheme } from '../../constants/Theme';
 
+// UI Components
+import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
+import { Card } from '../../components/ui/Card';
+import { H2, H3, Body, Caption } from '../../components/ui/Typography';
+
 const screenWidth = Dimensions.get('window').width;
 
 export default function InsightsScreen() {
   const { user } = useAuth();
   const router = useRouter();
-  const { COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY } = useTheme();
+  const { COLORS, SHADOWS } = useTheme();
   
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -25,8 +30,8 @@ export default function InsightsScreen() {
       const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       
       const [rangeRes, learningRes] = await Promise.all([
-        api.get(`/daily-life-state/range?start=${start}&end=${end}`),
-        api.get('/insights/learning/overall?days=7')
+        api.get(`/daily-life-state/range?start=${start}&end=${end}`).catch(() => ({ data: [] })),
+        api.get('/insights/learning/overall?days=7').catch(() => ({ data: null }))
       ]);
       
       setData(rangeRes.data);
@@ -48,16 +53,6 @@ export default function InsightsScreen() {
     fetchData();
   };
 
-  const themedStyles = styles(COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY);
-
-  if (loading && !refreshing) {
-    return (
-      <View style={themedStyles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
-  }
-
   const chartConfig = {
     backgroundColor: COLORS.surface,
     backgroundGradientFrom: COLORS.surface,
@@ -65,18 +60,12 @@ export default function InsightsScreen() {
     decimalPlaces: 0,
     color: (opacity = 1) => COLORS.text,
     labelColor: (opacity = 1) => COLORS.textSecondary,
-    style: {
-      borderRadius: 16
-    },
-    propsForDots: {
-      r: '4',
-      strokeWidth: '2',
-      stroke: COLORS.warning
-    }
+    style: { borderRadius: 16 },
+    propsForDots: { r: '4', strokeWidth: '2', stroke: COLORS.primary }
   };
 
   // Prepare chart data
-  const labels = data.map(d => d.dayKey.split('-').slice(2).join('/')); // Only show DD
+  const labels = data.map(d => d.dayKey.split('-').slice(2).join('/'));
   const readinessData = data.map(d => d.metrics?.readinessScore || 50);
   const trainingLoadData = data.map(d => d.metrics?.trainingLoad || 0);
   const moodData = data.map(d => (d.signals?.mood?.value || 0.5) * 100);
@@ -86,12 +75,12 @@ export default function InsightsScreen() {
     datasets: [
       {
         data: readinessData.length > 0 ? readinessData : [0],
-        color: (opacity = 1) => COLORS.info, // Blue
+        color: (opacity = 1) => COLORS.training,
         strokeWidth: 2
       },
       {
         data: trainingLoadData.length > 0 ? trainingLoadData : [0],
-        color: (opacity = 1) => COLORS.error, // Red
+        color: (opacity = 1) => COLORS.wellness,
         strokeWidth: 2
       }
     ],
@@ -103,147 +92,116 @@ export default function InsightsScreen() {
     datasets: [
       {
         data: moodData.length > 0 ? moodData : [0],
-        color: (opacity = 1) => COLORS.success, // Green
+        color: (opacity = 1) => COLORS.insight,
         strokeWidth: 2
       }
     ]
   };
 
   return (
-    <View style={themedStyles.container}>
-      <View style={themedStyles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={themedStyles.title}>Trends & Insights</Text>
-          <Text style={themedStyles.subtitle}>Last 7 Days Analysis</Text>
-        </View>
-        <TouchableOpacity onPress={() => router.push('/profile')} style={themedStyles.avatarMini}>
-           <Text style={themedStyles.avatarTextMini}>{user?.name?.charAt(0)}</Text>
+    <ScreenWrapper 
+      title="Trends & Insights" 
+      showBack={false}
+      headerRight={
+        <TouchableOpacity onPress={() => router.push('/profile')} style={[styles.avatarMini, { backgroundColor: COLORS.primary }]}>
+           <Caption style={{ color: COLORS.surface, fontWeight: 'bold' }}>{user?.name?.charAt(0)}</Caption>
         </TouchableOpacity>
-      </View>
-
+      }
+    >
       <ScrollView 
-        style={themedStyles.scrollContainer}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={themedStyles.chartCard}>
-          <Text style={themedStyles.chartTitle}>Readiness vs. Training Load</Text>
-          <LineChart
-            data={readinessChartData}
-            width={screenWidth - 48}
-            height={200}
-            chartConfig={chartConfig}
-            bezier
-            style={themedStyles.chart}
-          />
-        </View>
+        <Caption secondary style={styles.subtitle}>Last 7 Days Analysis</Caption>
 
-        <View style={themedStyles.chartCard}>
-          <Text style={themedStyles.chartTitle}>Mood Stability</Text>
-          <LineChart
-            data={moodChartData}
-            width={screenWidth - 48}
-            height={180}
-            chartConfig={{...chartConfig, color: (opacity = 1) => COLORS.success }}
-            bezier
-            style={themedStyles.chart}
-          />
-        </View>
-
-        <View style={themedStyles.section}>
-          <Text style={themedStyles.sectionTitle}>Patterns Identified</Text>
-          {learning?.patterns?.length > 0 ? (
-            learning.patterns.map((p, i) => (
-              <View key={i} style={themedStyles.patternCard}>
-                <TrendingUp size={20} color={COLORS.info} style={themedStyles.patternIcon} />
-                <View style={themedStyles.patternContent}>
-                  <Text style={themedStyles.patternName}>{p.name}</Text>
-                  <Text style={themedStyles.patternDesc}>{p.description}</Text>
-                </View>
-              </View>
-            ))
-          ) : (
-            <View style={themedStyles.emptyCard}>
-              <Info size={20} color={COLORS.gray400} />
-              <Text style={themedStyles.emptyText}>Keep logging to discover patterns!</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={themedStyles.section}>
-          <Text style={themedStyles.sectionTitle}>State Summary</Text>
-          <View style={themedStyles.summaryGrid}>
-            {Object.entries(learning?.stateSummary?.counts || {}).map(([label, count]) => (
-              <View key={label} style={themedStyles.summaryItem}>
-                <Text style={themedStyles.summaryValue}>{count}</Text>
-                <Text style={themedStyles.summaryLabel}>{label}</Text>
-              </View>
-            ))}
+        {loading && !refreshing ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
           </View>
-        </View>
+        ) : (
+          <>
+            <Card style={styles.chartCard}>
+              <Body style={styles.chartTitle}>Readiness vs. Training Load</Body>
+              <LineChart
+                data={readinessChartData}
+                width={screenWidth - 64}
+                height={200}
+                chartConfig={chartConfig}
+                bezier
+                style={styles.chart}
+              />
+            </Card>
 
-        <View style={themedStyles.footerSpacer} />
+            <Card style={styles.chartCard}>
+              <Body style={styles.chartTitle}>Mood Stability</Body>
+              <LineChart
+                data={moodChartData}
+                width={screenWidth - 64}
+                height={180}
+                chartConfig={{...chartConfig, color: (opacity = 1) => COLORS.insight }}
+                bezier
+                style={styles.chart}
+              />
+            </Card>
+
+            <View style={styles.section}>
+              <H3 style={styles.sectionTitle}>Patterns Identified</H3>
+              {learning?.patterns?.length > 0 ? (
+                learning.patterns.map((p, i) => (
+                  <Card key={i} style={styles.patternCard} padding={12}>
+                    <TrendingUp size={20} color={COLORS.training} style={styles.patternIcon} />
+                    <View style={styles.patternContent}>
+                      <Body style={{ fontWeight: '700' }}>{p.name}</Body>
+                      <Caption secondary>{p.description}</Caption>
+                    </View>
+                  </Card>
+                ))
+              ) : (
+                <View style={styles.emptyCard}>
+                  <Info size={20} color={COLORS.gray400} />
+                  <Caption secondary style={{ marginTop: 8 }}>Keep logging to discover patterns!</Caption>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.section}>
+              <H3 style={styles.sectionTitle}>State Summary</H3>
+              <View style={styles.summaryGrid}>
+                {Object.entries(learning?.stateSummary?.counts || {}).map(([label, count]) => (
+                  <Card key={label} style={styles.summaryItem} padding={12}>
+                    <H2 style={{ color: COLORS.primary }}>{count}</H2>
+                    <Caption secondary style={{ textTransform: 'capitalize', textAlign: 'center' }}>{label}</Caption>
+                  </Card>
+                ))}
+              </View>
+            </View>
+          </>
+        )}
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 }
 
-const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollContainer: {
-    flex: 1,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  header: {
-    padding: SPACING.lg,
-    paddingTop: 60,
-    backgroundColor: COLORS.surface,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.gray100,
-    ...SHADOWS,
-  },
-  title: {
-    ...TYPOGRAPHY.h2,
-    color: COLORS.text,
-  },
-  subtitle: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
+const styles = StyleSheet.create({
+  content: { padding: 16 },
+  centered: { padding: 40, alignItems: 'center' },
+  subtitle: { marginBottom: 16, textAlign: 'center' },
   avatarMini: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  avatarTextMini: {
-    color: COLORS.surface,
-    fontWeight: 'bold',
   },
   chartCard: {
-    margin: SPACING.md,
-    padding: SPACING.md,
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.lg,
-    ...SHADOWS,
+    marginBottom: 20,
+    padding: 12,
   },
   chartTitle: {
-    ...TYPOGRAPHY.label,
     fontSize: 16,
-    color: COLORS.text,
-    marginBottom: SPACING.md,
+    fontWeight: '700',
+    marginBottom: 12,
     textAlign: 'center',
   },
   chart: {
@@ -251,80 +209,35 @@ const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleShe
     borderRadius: 16,
   },
   section: {
-    paddingHorizontal: SPACING.md,
-    marginBottom: SPACING.lg,
+    marginBottom: 24,
   },
   sectionTitle: {
-    ...TYPOGRAPHY.h3,
-    color: COLORS.text,
-    marginBottom: SPACING.sm,
-    paddingHorizontal: 8,
+    marginBottom: 12,
   },
   patternCard: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surface,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
-    marginBottom: SPACING.sm,
+    marginBottom: 8,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
   },
   patternIcon: {
-    marginRight: SPACING.md,
+    marginRight: 12,
   },
   patternContent: {
     flex: 1,
   },
-  patternName: {
-    ...TYPOGRAPHY.label,
-    fontSize: 15,
-    color: COLORS.text,
-  },
-  patternDesc: {
-    ...TYPOGRAPHY.body,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
   emptyCard: {
     alignItems: 'center',
-    padding: SPACING.xl,
-    backgroundColor: COLORS.surface,
-    borderRadius: BORDER_RADIUS.md,
-  },
-  emptyText: {
-    ...TYPOGRAPHY.body,
-    color: COLORS.gray400,
-    marginTop: 8,
-    fontSize: 14,
+    padding: 32,
   },
   summaryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: 8,
   },
   summaryItem: {
-    width: '31%',
-    backgroundColor: COLORS.surface,
-    padding: SPACING.md,
-    borderRadius: BORDER_RADIUS.md,
+    flex: 1,
+    minWidth: '30%',
     alignItems: 'center',
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  summaryValue: {
-    ...TYPOGRAPHY.h2,
-    color: COLORS.info,
-  },
-  summaryLabel: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textSecondary,
-    textTransform: 'capitalize',
-    marginTop: 4,
-  },
-  footerSpacer: {
-    height: 40,
+    justifyContent: 'center',
   },
 });

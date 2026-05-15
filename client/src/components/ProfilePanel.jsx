@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import TextField from '@mui/material/TextField'
@@ -15,10 +15,178 @@ import IconButton from '@mui/material/IconButton'
 import Divider from '@mui/material/Divider'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import Accordion from '@mui/material/Accordion'
+import AccordionSummary from '@mui/material/AccordionSummary'
+import AccordionDetails from '@mui/material/AccordionDetails'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { toast } from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
 import ChipListInput from './ChipListInput'
+import BodyCompositionTab from './Profile/BodyCompositionTab'
+
+const emptySegmental = () => ({
+  rightArm: '',
+  leftArm: '',
+  trunk: '',
+  rightLeg: '',
+  leftLeg: '',
+})
+
+const createEmptyBodyComposition = () => ({
+  date: '',
+  bmi: '',
+  bodyFatPercent: '',
+  fatMassKg: '',
+  smmKg: '',
+  proteinKg: '',
+  mineralKg: '',
+  tbwKg: '',
+  bmrKcal: '',
+  metabolicAge: '',
+  visceralFatLevel: '',
+  segmentalFatKg: emptySegmental(),
+  segmentalFatPercent: emptySegmental(),
+  segmentalMuscleKg: emptySegmental(),
+  updatedAt: '',
+  source: 'manual',
+})
+
+const compositionEntryHasData = (c) => {
+  if (!c || typeof c !== 'object') return false
+  const top = ['date', 'bmi', 'bodyFatPercent', 'fatMassKg', 'smmKg', 'proteinKg', 'mineralKg', 'tbwKg', 'bmrKcal', 'metabolicAge', 'visceralFatLevel']
+  if (top.some((k) => c[k] != null && c[k] !== '')) return true
+  const segHas = (s) => s && typeof s === 'object' && Object.values(s).some((v) => v != null && v !== '')
+  return segHas(c.segmentalFatKg) || segHas(c.segmentalFatPercent) || segHas(c.segmentalMuscleKg)
+}
+
+const hydrateCompositionFromServer = (raw) => {
+  const empty = createEmptyBodyComposition()
+  if (!raw || typeof raw !== 'object') return { ...empty }
+  return {
+    ...empty,
+    ...raw,
+    date: raw.date ? String(raw.date).split('T')[0] : '',
+    segmentalFatKg: { ...empty.segmentalFatKg, ...(raw.segmentalFatKg || {}) },
+    segmentalFatPercent: { ...empty.segmentalFatPercent, ...(raw.segmentalFatPercent || {}) },
+    segmentalMuscleKg: { ...empty.segmentalMuscleKg, ...(raw.segmentalMuscleKg || {}) },
+  }
+}
+
+const mergeCompositionStateFromApi = (data) => {
+  let logs = []
+  if (Array.isArray(data.bodyCompositionLogs) && data.bodyCompositionLogs.length > 0) {
+    logs = data.bodyCompositionLogs.map(hydrateCompositionFromServer)
+    logs.sort((a, b) => {
+      const da = a.date ? new Date(a.date) : new Date(a.updatedAt || 0)
+      const db = b.date ? new Date(b.date) : new Date(b.updatedAt || 0)
+      return da - db
+    })
+  } else if (compositionEntryHasData(data.bodyComposition)) {
+    logs = [hydrateCompositionFromServer(data.bodyComposition)]
+  }
+  const active = logs.length > 0 ? hydrateCompositionFromServer(logs[logs.length - 1]) : createEmptyBodyComposition()
+  return { bodyCompositionLogs: logs, bodyComposition: active }
+}
+
+/** Persist helpers + full profile save (same rules as handleSave for these fields). */
+function normalizeMeasurementsForSave(m) {
+  if (m == null || typeof m !== 'object') return undefined
+  const toNum = (v) => {
+    if (v == null || v === '') return undefined
+    const n = Number(v)
+    return Number.isFinite(n) ? n : undefined
+  }
+  const numeric = {
+    waistCm: toNum(m?.waistCm),
+    hipCm: toNum(m?.hipCm),
+    chestCm: toNum(m?.chestCm),
+    neckCm: toNum(m?.neckCm),
+    wristCm: toNum(m?.wristCm),
+    bicepCm: toNum(m?.bicepCm),
+    thighCm: toNum(m?.thighCm),
+  }
+  const hasAnyNumeric = Object.values(numeric).some((v) => v !== undefined)
+  const base = {
+    source: m?.source || 'manual',
+    updatedAt: m?.updatedAt ? new Date(m.updatedAt) : new Date(),
+  }
+  if (!hasAnyNumeric) {
+    if (!m?.updatedAt) return undefined
+    return base
+  }
+  const out = { ...base, ...numeric }
+  const pruned = {}
+  for (const [k, v] of Object.entries(out)) {
+    if (v !== undefined) pruned[k] = v
+  }
+  return pruned
+}
+
+function normalizeMeasurementLogsForSave(logs) {
+  if (!Array.isArray(logs)) return []
+  return logs.map((m) => normalizeMeasurementsForSave(m)).filter(Boolean)
+}
+
+function normalizeBodyCompositionForSave(c) {
+  if (c == null || typeof c !== 'object') return undefined
+  const toNum = (v) => {
+    if (v == null || v === '') return undefined
+    const n = Number(v)
+    return Number.isFinite(n) ? n : undefined
+  }
+  const seg = (o) => {
+    const out = {
+      rightArm: toNum(o?.rightArm),
+      leftArm: toNum(o?.leftArm),
+      trunk: toNum(o?.trunk),
+      rightLeg: toNum(o?.rightLeg),
+      leftLeg: toNum(o?.leftLeg),
+    }
+    const hasAny = Object.values(out).some((v) => v !== undefined)
+    return hasAny ? out : undefined
+  }
+  const numeric = {
+    bmi: toNum(c?.bmi),
+    bodyFatPercent: toNum(c?.bodyFatPercent),
+    fatMassKg: toNum(c?.fatMassKg),
+    smmKg: toNum(c?.smmKg),
+    proteinKg: toNum(c?.proteinKg),
+    mineralKg: toNum(c?.mineralKg),
+    tbwKg: toNum(c?.tbwKg),
+    bmrKcal: toNum(c?.bmrKcal),
+    metabolicAge: toNum(c?.metabolicAge),
+    visceralFatLevel: toNum(c?.visceralFatLevel),
+  }
+  const segmentalFatKg = seg(c?.segmentalFatKg)
+  const segmentalFatPercent = seg(c?.segmentalFatPercent)
+  const segmentalMuscleKg = seg(c?.segmentalMuscleKg)
+  const hasAnyNumeric = Object.values(numeric).some((v) => v !== undefined)
+  const hasAnySegmental = !!segmentalFatKg || !!segmentalFatPercent || !!segmentalMuscleKg
+  const hasDate = c?.date && String(c.date).trim() !== ''
+  if (!hasAnyNumeric && !hasAnySegmental && !hasDate) {
+    return undefined
+  }
+  const out = {
+    ...numeric,
+    ...(segmentalFatKg ? { segmentalFatKg } : {}),
+    ...(segmentalFatPercent ? { segmentalFatPercent } : {}),
+    ...(segmentalMuscleKg ? { segmentalMuscleKg } : {}),
+    source: c?.source || 'manual',
+    date: c?.date ? new Date(c.date) : undefined,
+    updatedAt: c?.updatedAt ? new Date(c.updatedAt) : new Date(),
+  }
+  const pruned = {}
+  for (const [k, v] of Object.entries(out)) {
+    if (v !== undefined) pruned[k] = v
+  }
+  return pruned
+}
+
+function normalizeBodyCompositionLogsForSave(logs) {
+  if (!Array.isArray(logs)) return []
+  return logs.map((c) => normalizeBodyCompositionForSave(c)).filter(Boolean)
+}
 
 const inputSx = {
   '& .MuiOutlinedInput-root': {
@@ -29,8 +197,8 @@ const inputSx = {
   '& .MuiInputLabel-root.Mui-focused': { color: 'text.primary' },
 }
 
-const SectionTitle = ({ children }) => (
-  <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>
+const SectionTitle = ({ children, sx }) => (
+  <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5, ...sx }}>
     {children}
   </Typography>
 )
@@ -48,6 +216,11 @@ function ProfilePanel() {
   const [bodyCompOcrLoading, setBodyCompOcrLoading] = useState(false)
   const [bodyCompOcrError, setBodyCompOcrError] = useState('')
   const [selectedMeasurementLogIndex, setSelectedMeasurementLogIndex] = useState(0)
+  const [selectedCompositionLogIndex, setSelectedCompositionLogIndex] = useState(0)
+  const [lastSaved, setLastSaved] = useState(null)
+  
+  const [activeMeasurementLog, setActiveMeasurementLog] = useState(null)
+  const [activeCompositionLog, setActiveCompositionLog] = useState(null)
 
   const [profile, setProfile] = useState({
     // Basic Info
@@ -76,14 +249,14 @@ function ProfilePanel() {
       wristCm: '',
       bicepCm: '',
       thighCm: '',
-      bmi: '',
       updatedAt: '',
       source: 'manual',
     },
     bodyMeasurementLogs: [],
 
-    // Body Composition (OCR / manual)
+    // Body composition (manual entry or OCR import)
     bodyComposition: {
+      date: '',
       bmi: '',
       bodyFatPercent: '',
       fatMassKg: '',
@@ -101,13 +274,6 @@ function ProfilePanel() {
         rightLeg: '',
         leftLeg: '',
       },
-      segmentalFatPercent: {
-        rightArm: '',
-        leftArm: '',
-        trunk: '',
-        rightLeg: '',
-        leftLeg: '',
-      },
       segmentalMuscleKg: {
         rightArm: '',
         leftArm: '',
@@ -118,6 +284,7 @@ function ProfilePanel() {
       updatedAt: '',
       source: 'manual',
     },
+    bodyCompositionLogs: [],
     
     // Health Conditions
     conditions: [],
@@ -205,6 +372,91 @@ function ProfilePanel() {
     },
   })
 
+  const profileRef = useRef(profile)
+  const persistMeasTimerRef = useRef(null)
+  const persistCompTimerRef = useRef(null)
+
+  useEffect(() => {
+    profileRef.current = profile
+  }, [profile])
+
+  useEffect(() => {
+    return () => {
+      if (persistMeasTimerRef.current) clearTimeout(persistMeasTimerRef.current)
+      if (persistCompTimerRef.current) clearTimeout(persistCompTimerRef.current)
+    }
+  }, [])
+
+  const persistBodyMeasurements = useCallback(async (p) => {
+    if (!token) return false
+    const bodyMeasurementLogsPayload = normalizeMeasurementLogsForSave(p.bodyMeasurementLogs)
+    const bodyMeasurementsPayload = normalizeMeasurementsForSave(p.bodyMeasurements)
+    setSaving(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/users/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          bodyMeasurementLogs: bodyMeasurementLogsPayload,
+          ...(bodyMeasurementsPayload ? { bodyMeasurements: bodyMeasurementsPayload } : {}),
+        }),
+      })
+      if (res.ok) {
+        setLastSaved(new Date())
+        return true
+      }
+      return false
+    } catch {
+      return false
+    } finally {
+      setSaving(false)
+    }
+  }, [token])
+
+  const persistBodyComposition = useCallback(async (p) => {
+    if (!token) return false
+    const bodyCompositionLogsPayload = normalizeBodyCompositionLogsForSave(p.bodyCompositionLogs)
+    const newest =
+      Array.isArray(p.bodyCompositionLogs) && p.bodyCompositionLogs.length > 0 ? p.bodyCompositionLogs[0] : p.bodyComposition
+    const bodyCompositionPayload = normalizeBodyCompositionForSave(newest)
+    setSaving(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/users/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          bodyCompositionLogs: bodyCompositionLogsPayload,
+          ...(bodyCompositionPayload ? { bodyComposition: bodyCompositionPayload } : {}),
+        }),
+      })
+      if (res.ok) {
+        setLastSaved(new Date())
+        return true
+      }
+      return false
+    } catch {
+      return false
+    } finally {
+      setSaving(false)
+    }
+  }, [token])
+
+  const schedulePersistMeasurements = useCallback(() => {
+    if (persistMeasTimerRef.current) clearTimeout(persistMeasTimerRef.current)
+    persistMeasTimerRef.current = setTimeout(() => {
+      persistMeasTimerRef.current = null
+      persistBodyMeasurements(profileRef.current)
+    }, 500)
+  }, [persistBodyMeasurements])
+
+  const schedulePersistComposition = useCallback(() => {
+    if (persistCompTimerRef.current) clearTimeout(persistCompTimerRef.current)
+    persistCompTimerRef.current = setTimeout(() => {
+      persistCompTimerRef.current = null
+      persistBodyComposition(profileRef.current)
+    }, 500)
+  }, [persistBodyComposition])
+
   useEffect(() => {
     loadProfile()
   }, [token])
@@ -220,101 +472,99 @@ function ProfilePanel() {
       })
       if (res.ok) {
         const data = await res.json()
-        // Merge loaded data with defaults
-        setProfile(prev => ({
-          ...prev,
-          ...data,
-          gender: data.gender || data.biologicalProfile?.biologicalSex || prev.gender,
-          height: data.height || data.biologicalProfile?.heightCm || prev.height,
-          weight: data.weight || data.biologicalProfile?.weightKg || prev.weight,
-          bodyFat: data.bodyFat || data.biologicalProfile?.bodyFatPercentage || prev.bodyFat,
-          dob: data.biologicalProfile?.dob ? data.biologicalProfile.dob.split('T')[0] : (data.dob ? data.dob.split('T')[0] : prev.dob),
-          defaultSleepTime: data.biologicalProfile?.defaultSleepTime || prev.defaultSleepTime,
-          // Ensure arrays are arrays
-          conditions: data.conditions || [],
-          allergies: data.allergies || [],
-          injuries: data.injuries || [],
-          medications: data.medications || [],
-          supplements: data.supplements || [],
-          skills: data.skills || [],
-          avoidFoods: data.avoidFoods || [],
-          favoriteFoods: data.favoriteFoods || [],
-          mealSchedule: {
-            ...prev.mealSchedule,
-            ...(data.mealSchedule || {}),
-          },
-          preferredWorkouts: data.preferredWorkouts || [],
-          homeEquipment: data.homeEquipment || [],
-          trainingGoals: data.trainingGoals || [],
-          stressTriggers: data.stressTriggers || [],
-          motivators: data.motivators || [],
-          focusChallenges: data.focusChallenges || [],
-          favoriteColors: data.favoriteColors || [],
-          avoidColors: data.avoidColors || [],
-          styleGoals: data.styleGoals || [],
-          bodyMeasurementLogs: Array.isArray(data.bodyMeasurementLogs) && data.bodyMeasurementLogs.length > 0
-            ? data.bodyMeasurementLogs
-            : (data.bodyMeasurements ? [data.bodyMeasurements] : []),
-
-          personality: {
-            ...prev.personality,
-            ...(data.personality || {}),
-            bigFive: {
-              ...prev.personality.bigFive,
-              ...(data.personality?.bigFive || {}),
+        setProfile(prev => {
+          const merged = {
+            ...prev,
+            ...data,
+            gender: data.gender || data.biologicalProfile?.biologicalSex || prev.gender,
+            height: data.height || data.biologicalProfile?.heightCm || prev.height,
+            weight: data.weight || data.biologicalProfile?.weightKg || prev.weight,
+            bodyFat: data.bodyFat || data.biologicalProfile?.bodyFatPercentage || prev.bodyFat,
+            dob: data.biologicalProfile?.dob ? data.biologicalProfile.dob.split('T')[0] : (data.dob ? data.dob.split('T')[0] : prev.dob),
+            defaultSleepTime: data.biologicalProfile?.defaultSleepTime || prev.defaultSleepTime,
+            conditions: data.conditions || [],
+            allergies: data.allergies || [],
+            injuries: data.injuries || [],
+            medications: data.medications || [],
+            supplements: data.supplements || [],
+            skills: data.skills || [],
+            avoidFoods: data.avoidFoods || [],
+            favoriteFoods: data.favoriteFoods || [],
+            mealSchedule: {
+              ...prev.mealSchedule,
+              ...(data.mealSchedule || {}),
             },
-          },
-
-          labMarkers: {
-            ...prev.labMarkers,
-            ...(data.labMarkers || {}),
-            hemoglobin: { ...prev.labMarkers.hemoglobin, ...(data.labMarkers?.hemoglobin || {}) },
-            ferritin: { ...prev.labMarkers.ferritin, ...(data.labMarkers?.ferritin || {}) },
-            iron: { ...prev.labMarkers.iron, ...(data.labMarkers?.iron || {}) },
-            vitaminB12: { ...prev.labMarkers.vitaminB12, ...(data.labMarkers?.vitaminB12 || {}) },
-            vitaminD: { ...prev.labMarkers.vitaminD, ...(data.labMarkers?.vitaminD || {}) },
-            tsh: { ...prev.labMarkers.tsh, ...(data.labMarkers?.tsh || {}) },
-            crp: { ...prev.labMarkers.crp, ...(data.labMarkers?.crp || {}) },
-            fastingGlucose: { ...prev.labMarkers.fastingGlucose, ...(data.labMarkers?.fastingGlucose || {}) },
-            hba1c: { ...prev.labMarkers.hba1c, ...(data.labMarkers?.hba1c || {}) },
-            lipids: {
-              ...prev.labMarkers.lipids,
-              ...(data.labMarkers?.lipids || {}),
-              totalCholesterol: {
-                ...prev.labMarkers.lipids.totalCholesterol,
-                ...(data.labMarkers?.lipids?.totalCholesterol || {}),
-              },
-              ldl: { ...prev.labMarkers.lipids.ldl, ...(data.labMarkers?.lipids?.ldl || {}) },
-              hdl: { ...prev.labMarkers.lipids.hdl, ...(data.labMarkers?.lipids?.hdl || {}) },
-              triglycerides: {
-                ...prev.labMarkers.lipids.triglycerides,
-                ...(data.labMarkers?.lipids?.triglycerides || {}),
+            preferredWorkouts: data.preferredWorkouts || [],
+            homeEquipment: data.homeEquipment || [],
+            trainingGoals: data.trainingGoals || [],
+            stressTriggers: data.stressTriggers || [],
+            motivators: data.motivators || [],
+            focusChallenges: data.focusChallenges || [],
+            favoriteColors: data.favoriteColors || [],
+            avoidColors: data.avoidColors || [],
+            styleGoals: data.styleGoals || [],
+            bodyMeasurementLogs: Array.isArray(data.bodyMeasurementLogs) && data.bodyMeasurementLogs.length > 0
+              ? data.bodyMeasurementLogs
+              : (data.bodyMeasurements ? [data.bodyMeasurements] : []),
+            personality: {
+              ...prev.personality,
+              ...(data.personality || {}),
+              bigFive: {
+                ...prev.personality.bigFive,
+                ...(data.personality?.bigFive || {}),
               },
             },
-          },
+            labMarkers: {
+              ...prev.labMarkers,
+              ...(data.labMarkers || {}),
+              hemoglobin: { ...prev.labMarkers.hemoglobin, ...(data.labMarkers?.hemoglobin || {}) },
+              ferritin: { ...prev.labMarkers.ferritin, ...(data.labMarkers?.ferritin || {}) },
+              iron: { ...prev.labMarkers.iron, ...(data.labMarkers?.iron || {}) },
+              vitaminB12: { ...prev.labMarkers.vitaminB12, ...(data.labMarkers?.vitaminB12 || {}) },
+              vitaminD: { ...prev.labMarkers.vitaminD, ...(data.labMarkers?.vitaminD || {}) },
+              tsh: { ...prev.labMarkers.tsh, ...(data.labMarkers?.tsh || {}) },
+              crp: { ...prev.labMarkers.crp, ...(data.labMarkers?.crp || {}) },
+              fastingGlucose: { ...prev.labMarkers.fastingGlucose, ...(data.labMarkers?.fastingGlucose || {}) },
+              hba1c: { ...prev.labMarkers.hba1c, ...(data.labMarkers?.hba1c || {}) },
+              lipids: {
+                ...prev.labMarkers.lipids,
+                ...(data.labMarkers?.lipids || {}),
+                totalCholesterol: {
+                  ...prev.labMarkers.lipids.totalCholesterol,
+                  ...(data.labMarkers?.lipids?.totalCholesterol || {}),
+                },
+                ldl: { ...prev.labMarkers.lipids.ldl, ...(data.labMarkers?.lipids?.ldl || {}) },
+                hdl: { ...prev.labMarkers.lipids.hdl, ...(data.labMarkers?.lipids?.hdl || {}) },
+                triglycerides: {
+                  ...prev.labMarkers.lipids.triglycerides,
+                  ...(data.labMarkers?.lipids?.triglycerides || {}),
+                },
+              },
+            },
+            bodyMeasurements: {
+              ...prev.bodyMeasurements,
+              ...(data.bodyMeasurements || {}),
+            },
+            ...mergeCompositionStateFromApi(data),
+          }
 
-          bodyMeasurements: {
-            ...prev.bodyMeasurements,
-            ...(data.bodyMeasurements || {}),
-          },
+          if (merged.bodyMeasurementLogs && merged.bodyMeasurementLogs.length > 0) {
+            setActiveMeasurementLog({ ...merged.bodyMeasurementLogs[0] })
+          } else {
+            setActiveMeasurementLog(null)
+          }
 
-          bodyComposition: {
-            ...prev.bodyComposition,
-            ...(data.bodyComposition || {}),
-            segmentalFatKg: {
-              ...prev.bodyComposition.segmentalFatKg,
-              ...(data.bodyComposition?.segmentalFatKg || {}),
-            },
-            segmentalFatPercent: {
-              ...prev.bodyComposition.segmentalFatPercent,
-              ...(data.bodyComposition?.segmentalFatPercent || {}),
-            },
-            segmentalMuscleKg: {
-              ...prev.bodyComposition.segmentalMuscleKg,
-              ...(data.bodyComposition?.segmentalMuscleKg || {}),
-            },
-          },
-        }))
+          if (merged.bodyCompositionLogs && merged.bodyCompositionLogs.length > 0) {
+            setActiveCompositionLog({ ...merged.bodyCompositionLogs[merged.bodyCompositionLogs.length - 1] })
+            setSelectedCompositionLogIndex(merged.bodyCompositionLogs.length - 1)
+          } else {
+            setActiveCompositionLog(null)
+            setSelectedCompositionLogIndex(0)
+          }
+
+          return merged
+        })
+        setSelectedMeasurementLogIndex(0)
       }
     } catch (err) {
       console.error('Failed to load profile:', err)
@@ -373,107 +623,15 @@ function ProfilePanel() {
       return pruneUndefined(normalized)
     }
 
-    const normalizeMeasurementsForSave = (m) => {
-      const toNum = (v) => {
-        if (v == null || v === '') return undefined
-        const n = Number(v)
-        return Number.isFinite(n) ? n : undefined
-      }
-
-      const numeric = {
-        waistCm: toNum(m?.waistCm),
-        hipCm: toNum(m?.hipCm),
-        chestCm: toNum(m?.chestCm),
-        neckCm: toNum(m?.neckCm),
-        wristCm: toNum(m?.wristCm),
-        bicepCm: toNum(m?.bicepCm),
-        thighCm: toNum(m?.thighCm),
-        bmi: toNum(m?.bmi),
-      }
-
-      const hasAnyNumeric = Object.values(numeric).some((v) => v !== undefined)
-      if (!hasAnyNumeric) return undefined
-
-      const out = {
-        ...numeric,
-        source: m?.source || 'manual',
-        updatedAt: m?.updatedAt ? new Date(m.updatedAt) : new Date(),
-      }
-
-      const pruned = {}
-      for (const [k, v] of Object.entries(out)) {
-        if (v !== undefined) pruned[k] = v
-      }
-      return pruned
-    }
-
-    const normalizeMeasurementLogsForSave = (logs) => {
-      if (!Array.isArray(logs)) return []
-      return logs
-        .map((m) => normalizeMeasurementsForSave(m))
-        .filter(Boolean)
-    }
-
-    const normalizeBodyCompositionForSave = (c) => {
-      const toNum = (v) => {
-        if (v == null || v === '') return undefined
-        const n = Number(v)
-        return Number.isFinite(n) ? n : undefined
-      }
-
-      const seg = (o) => {
-        const out = {
-          rightArm: toNum(o?.rightArm),
-          leftArm: toNum(o?.leftArm),
-          trunk: toNum(o?.trunk),
-          rightLeg: toNum(o?.rightLeg),
-          leftLeg: toNum(o?.leftLeg),
-        }
-        const hasAny = Object.values(out).some((v) => v !== undefined)
-        return hasAny ? out : undefined
-      }
-
-      const numeric = {
-        bmi: toNum(c?.bmi),
-        bodyFatPercent: toNum(c?.bodyFatPercent),
-        fatMassKg: toNum(c?.fatMassKg),
-        smmKg: toNum(c?.smmKg),
-        proteinKg: toNum(c?.proteinKg),
-        mineralKg: toNum(c?.mineralKg),
-        tbwKg: toNum(c?.tbwKg),
-        bmrKcal: toNum(c?.bmrKcal),
-        metabolicAge: toNum(c?.metabolicAge),
-        visceralFatLevel: toNum(c?.visceralFatLevel),
-      }
-
-      const segmentalFatKg = seg(c?.segmentalFatKg)
-      const segmentalFatPercent = seg(c?.segmentalFatPercent)
-      const segmentalMuscleKg = seg(c?.segmentalMuscleKg)
-
-      const hasAnyNumeric = Object.values(numeric).some((v) => v !== undefined)
-      const hasAnySegmental = !!segmentalFatKg || !!segmentalFatPercent || !!segmentalMuscleKg
-      if (!hasAnyNumeric && !hasAnySegmental) return undefined
-
-      const out = {
-        ...numeric,
-        ...(segmentalFatKg ? { segmentalFatKg } : {}),
-        ...(segmentalFatPercent ? { segmentalFatPercent } : {}),
-        ...(segmentalMuscleKg ? { segmentalMuscleKg } : {}),
-        source: c?.source || 'manual',
-        updatedAt: c?.updatedAt ? new Date(c.updatedAt) : new Date(),
-      }
-
-      const pruned = {}
-      for (const [k, v] of Object.entries(out)) {
-        if (v !== undefined) pruned[k] = v
-      }
-      return pruned
-    }
-
     try {
       const bodyMeasurementsPayload = normalizeMeasurementsForSave(profile.bodyMeasurements)
       const bodyMeasurementLogsPayload = normalizeMeasurementLogsForSave(profile.bodyMeasurementLogs)
-      const bodyCompositionPayload = normalizeBodyCompositionForSave(profile.bodyComposition)
+      const bodyCompositionLogsPayload = normalizeBodyCompositionLogsForSave(profile.bodyCompositionLogs)
+      const newestComposition =
+        Array.isArray(profile.bodyCompositionLogs) && profile.bodyCompositionLogs.length > 0
+          ? profile.bodyCompositionLogs[0]
+          : profile.bodyComposition
+      const bodyCompositionPayload = normalizeBodyCompositionForSave(newestComposition)
       const toNumOrUndefined = (v) => {
         if (v == null || v === '') return undefined
         const n = Number(v)
@@ -502,6 +660,7 @@ function ProfilePanel() {
           biologicalProfile: mergedBiologicalProfile,
           labMarkers: normalizeLabMarkersForSave(profile.labMarkers),
           bodyMeasurementLogs: bodyMeasurementLogsPayload,
+          bodyCompositionLogs: bodyCompositionLogsPayload,
           ...(bodyMeasurementsPayload ? { bodyMeasurements: bodyMeasurementsPayload } : {}),
           ...(bodyCompositionPayload ? { bodyComposition: bodyCompositionPayload } : {}),
         }),
@@ -603,7 +762,7 @@ function ProfilePanel() {
   }
 
   const addMeasurementLog = () => {
-    setProfile(prev => {
+    setProfile((prev) => {
       const logs = Array.isArray(prev.bodyMeasurementLogs) ? [...prev.bodyMeasurementLogs] : []
       const newLog = {
         waistCm: '',
@@ -613,16 +772,18 @@ function ProfilePanel() {
         wristCm: '',
         bicepCm: '',
         thighCm: '',
-        bmi: '',
         source: 'manual',
         updatedAt: new Date().toISOString(),
       }
       logs.unshift(newLog)
-      return {
+      const next = {
         ...prev,
         bodyMeasurementLogs: logs,
         bodyMeasurements: newLog,
       }
+      setActiveMeasurementLog({ ...newLog })
+      Promise.resolve().then(() => persistBodyMeasurements(next))
+      return next
     })
     setSelectedMeasurementLogIndex(0)
   }
@@ -633,6 +794,7 @@ function ProfilePanel() {
       const logs = Array.isArray(prev.bodyMeasurementLogs) ? prev.bodyMeasurementLogs : []
       const selected = logs[idx] || null
       if (!selected) return prev
+      setActiveMeasurementLog({ ...selected })
       return {
         ...prev,
         bodyMeasurements: { ...selected },
@@ -641,7 +803,13 @@ function ProfilePanel() {
   }
 
   const updateMeasurementLogField = (field, value) => {
-    setProfile(prev => {
+    setActiveMeasurementLog(prev => ({
+      ...prev,
+      [field]: value,
+      source: 'manual',
+      updatedAt: new Date().toISOString(),
+    }))
+    setProfile((prev) => {
       const logs = Array.isArray(prev.bodyMeasurementLogs) ? [...prev.bodyMeasurementLogs] : []
       if (!logs[selectedMeasurementLogIndex]) {
         logs[selectedMeasurementLogIndex] = {
@@ -661,6 +829,24 @@ function ProfilePanel() {
         bodyMeasurements: { ...logs[selectedMeasurementLogIndex] },
       }
     })
+    schedulePersistMeasurements()
+  }
+
+  const removeMeasurementLog = (index) => {
+    setProfile(prev => {
+      const logs = (prev.bodyMeasurementLogs || []).filter((_, i) => i !== index)
+      const next = { ...prev, bodyMeasurementLogs: logs }
+      if (logs.length > 0) {
+        const nextIdx = Math.max(0, index - 1)
+        setSelectedMeasurementLogIndex(nextIdx)
+        setActiveMeasurementLog({ ...logs[nextIdx] })
+      } else {
+        setSelectedMeasurementLogIndex(0)
+        setActiveMeasurementLog(null)
+      }
+      Promise.resolve().then(() => persistBodyMeasurements(next))
+      return next
+    })
   }
 
   const getMeasurementLogLabel = (entry, idx) => {
@@ -670,31 +856,163 @@ function ProfilePanel() {
     return dt.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
+  const getCompositionLogLabel = (entry, idx) => {
+    const fallback = `Scan ${idx + 1}`
+    if (entry?.date && /^\d{4}-\d{2}-\d{2}$/.test(String(entry.date))) {
+      const [y, mo, d] = String(entry.date).split('-').map(Number)
+      const local = new Date(y, mo - 1, d)
+      if (!Number.isNaN(local.getTime())) {
+        return local.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+      }
+    }
+    // If manual entry and no scan date, show 'New Entry' instead of defaulting to updatedAt (today)
+    if (entry?.source === 'manual' && !entry?.date) {
+      return 'New Entry'
+    }
+    const dt = entry?.updatedAt ? new Date(entry.updatedAt) : null
+    if (!dt || Number.isNaN(dt.getTime())) return fallback
+    return dt.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+  }
+
+  const addCompositionLog = () => {
+    setProfile((prev) => {
+      const logs = Array.isArray(prev.bodyCompositionLogs) ? [...prev.bodyCompositionLogs] : []
+      const newLog = {
+        ...createEmptyBodyComposition(),
+        source: 'manual',
+        updatedAt: new Date().toISOString(),
+      }
+      logs.push(newLog)
+      // Sort ascending
+      logs.sort((a, b) => {
+        const da = a.date ? new Date(a.date) : new Date(a.updatedAt || 0)
+        const db = b.date ? new Date(b.date) : new Date(b.updatedAt || 0)
+        return da - db
+      })
+      const nextIdx = logs.findIndex(l => l === newLog)
+      setSelectedCompositionLogIndex(nextIdx >= 0 ? nextIdx : logs.length - 1)
+      setActiveCompositionLog({ ...newLog })
+      return {
+        ...prev,
+        bodyCompositionLogs: logs,
+        bodyComposition: newLog,
+      }
+    })
+  }
+
+  const selectCompositionLog = (idx) => {
+    setSelectedCompositionLogIndex(idx)
+    setProfile((prev) => {
+      const logs = Array.isArray(prev.bodyCompositionLogs) ? [...prev.bodyCompositionLogs] : []
+      const selected = logs[idx]
+      if (!selected) return prev
+      setActiveCompositionLog({ ...selected })
+      return {
+        ...prev,
+        bodyComposition: { ...selected },
+      }
+    })
+  }
+
   const updateBodyCompositionField = (field, value) => {
-    setProfile(prev => ({
+    setActiveCompositionLog(prev => ({
       ...prev,
-      bodyComposition: {
-        ...(prev.bodyComposition || {}),
+      [field]: value,
+      source: 'manual',
+      updatedAt: new Date().toISOString(),
+    }))
+    setProfile((prev) => {
+      const logs = Array.isArray(prev.bodyCompositionLogs) ? [...prev.bodyCompositionLogs] : []
+      const idx = selectedCompositionLogIndex
+      if (!logs[idx]) {
+        logs[idx] = {
+          ...createEmptyBodyComposition(),
+          source: 'manual',
+          updatedAt: new Date().toISOString(),
+        }
+      }
+      logs[idx] = {
+        ...logs[idx],
         [field]: value,
         source: 'manual',
         updatedAt: new Date().toISOString(),
-      },
-    }))
+      }
+      if (field === 'date') {
+        const currentLog = logs[idx]
+        logs.sort((a, b) => {
+          const da = a.date ? new Date(a.date) : new Date(a.updatedAt || 0)
+          const db = b.date ? new Date(b.date) : new Date(b.updatedAt || 0)
+          return da - db
+        })
+        const nextIdx = logs.findIndex(l => l === currentLog)
+        setSelectedCompositionLogIndex(nextIdx >= 0 ? nextIdx : idx)
+      }
+      return {
+        ...prev,
+        bodyCompositionLogs: logs,
+        bodyComposition: { ...logs[idx] },
+      }
+    })
+    schedulePersistComposition()
   }
 
   const updateBodyCompositionSegmental = (group, key, value) => {
-    setProfile(prev => ({
+    setActiveCompositionLog(prev => ({
       ...prev,
-      bodyComposition: {
-        ...(prev.bodyComposition || {}),
+      [group]: {
+        ...(prev[group] || {}),
+        [key]: value
+      },
+      source: 'manual',
+      updatedAt: new Date().toISOString(),
+    }))
+    setProfile((prev) => {
+      const logs = Array.isArray(prev.bodyCompositionLogs) ? [...prev.bodyCompositionLogs] : []
+      const idx = selectedCompositionLogIndex
+      if (!logs[idx]) {
+        logs[idx] = {
+          ...createEmptyBodyComposition(),
+          source: 'manual',
+          updatedAt: new Date().toISOString(),
+        }
+      }
+      logs[idx] = {
+        ...logs[idx],
         [group]: {
-          ...((prev.bodyComposition || {})[group] || {}),
+          ...((logs[idx][group] || createEmptyBodyComposition()[group]) || {}),
           [key]: value,
         },
         source: 'manual',
         updatedAt: new Date().toISOString(),
-      },
-    }))
+      }
+      return {
+        ...prev,
+        bodyCompositionLogs: logs,
+        bodyComposition: { ...logs[idx] },
+      }
+    })
+    schedulePersistComposition()
+  }
+
+  const removeCompositionLog = (index) => {
+    if (!window.confirm('Are you sure you want to delete this body composition entry? This cannot be undone.')) return
+    
+    setProfile(prev => {
+      const logs = (prev.bodyCompositionLogs || []).filter((_, i) => i !== index)
+      const next = { ...prev, bodyCompositionLogs: logs }
+      if (logs.length > 0) {
+        const nextIdx = Math.max(0, index - 1)
+        setSelectedCompositionLogIndex(nextIdx)
+        setActiveCompositionLog({ ...logs[nextIdx] })
+      } else {
+        setSelectedCompositionLogIndex(0)
+        setActiveCompositionLog(null)
+      }
+      Promise.resolve().then(() => persistBodyComposition(next))
+      toast.success('Log entry deleted')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return next
+    })
   }
 
   const parseBodyCompositionFromOcrText = (rawText) => {
@@ -705,7 +1023,10 @@ function ProfilePanel() {
       .replace(/\n{3,}/g, '\n\n')
       .trim()
 
-    const flat = text.replace(/\s+/g, ' ')
+    // Strip arrow/dagger noise symbols that ACCUNIQ / InBody print after values
+    const flat = text
+      .replace(/[↑↓†‡⇑⇓▲▼]/g, '')
+      .replace(/\s+/g, ' ')
 
     const toNum = (s) => {
       if (s == null) return null
@@ -721,63 +1042,160 @@ function ProfilePanel() {
     const pickAfterLabel = (labelRe) => {
       const m = labelRe.exec(flat)
       if (!m) return null
-      const after = flat.slice(m.index + m[0].length, m.index + m[0].length + 80)
-      const n = after.match(/(-?\d+(?:[\.,]\d+)?)/)
+      const after = flat.slice(m.index + m[0].length, m.index + m[0].length + 100)
+      const n = after.match(/(-?\d+(?:[.,]\d+)?)/)
       return n ? toNum(n[1]) : null
     }
 
+    const extractDate = () => {
+      // Common date labels in body scan reports
+      const dateLabels = /(?:test\s*date|measurement\s*date|scan\s*date|date\s*of\s*test|registration\s*date|result\s*date|date|dated|test\s*d\.)/i;
+      
+      // 1. Try to find a date immediately following a known label
+      const labelMatch = dateLabels.exec(flat);
+      if (labelMatch) {
+        const after = flat.slice(labelMatch.index + labelMatch[0].length, labelMatch.index + labelMatch[0].length + 60);
+        // Look for YYYY.MM.DD, DD.MM.YYYY, DD.MM.YY, etc.
+        const m = after.match(/(\d{4}[\s.\/\-]+\d{1,2}[\s.\/\-]+\d{1,2})/) ||
+                  after.match(/(\d{1,2}[\s.\/\-]+\d{1,2}[\s.\/\-]+\d{2,4})/) ||
+                  after.match(/(\d{1,2}[\s.\/\-]+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s.\/\-]+\d{2,4})/i);
+        if (m) return m[1];
+      }
+
+      // 2. Fallback: Search for any standalone date-like patterns in the text
+      const anyDate = flat.match(/(\d{4}[\s.\/\-]+\d{1,2}[\s.\/\-]+\d{1,2})/) ||
+                      flat.match(/(\d{1,2}[\s.\/\-]+\d{1,2}[\s.\/\-]+\d{4})/) ||
+                      flat.match(/(\d{1,2}[\s.\/\-]+\d{1,2}[\s.\/\-]+\d{2})/) || // standalone DD.MM.YY
+                      flat.match(/(\d{1,2}[\s.\/\-]+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s.\/\-]+\d{2,4})/i);
+      
+      return anyDate ? anyDate[1] : null;
+    };
+
+    const testDateRaw = extractDate();
+
+    let testDate = null;
+    if (testDateRaw) {
+      // Clean up separators and handle common OCR character swaps (O -> 0, I -> 1)
+      const sanitized = testDateRaw
+        .replace(/[OI]/g, (m) => (m === 'O' ? '0' : '1'))
+        .replace(/[\s.\/]/g, '-');
+      
+      const parts = sanitized.split('-').filter(Boolean);
+      
+      let d = new Date(NaN);
+      if (parts.length === 3) {
+        let y = parseInt(parts[0], 10);
+        let m = parts[1];
+        let day = parseInt(parts[2], 10);
+
+        if (parts[0].length === 4) {
+          // YYYY-MM-DD
+          d = new Date(`${y}-${m.padStart(2, '0')}-${String(day).padStart(2, '0')}`);
+        } else if (parts[2].length >= 2) {
+          // DD-MM-YYYY or DD-MM-YY
+          y = parseInt(parts[2], 10);
+          if (y < 100) y += 2000;
+          
+          const p1IsMonth = /^[a-z]{3,9}$/i.test(parts[1]);
+          if (p1IsMonth) {
+            d = new Date(`${parts[0]} ${parts[1]} ${y}`);
+          } else {
+            const p0 = parseInt(parts[0], 10);
+            const p1 = parseInt(parts[1], 10);
+            // Prioritize DD-MM-YYYY as requested by user
+            if (p1 <= 12) {
+              // Assume p1 is month, p0 is day
+              d = new Date(`${y}-${String(p1).padStart(2, '0')}-${String(p0).padStart(2, '0')}`);
+            } else if (p0 <= 12) {
+              // Fallback to MM-DD-YYYY if p1 is not a valid month but p0 is
+              d = new Date(`${y}-${String(p0).padStart(2, '0')}-${String(p1).padStart(2, '0')}`);
+            }
+          }
+        }
+      }
+
+      if (!Number.isNaN(d.getTime())) {
+        // Ensure the date is not in the distant future (OCR error)
+        const now = new Date();
+        const futureLimit = new Date();
+        futureLimit.setFullYear(now.getFullYear() + 1);
+        
+        if (d < futureLimit) {
+          testDate = d.toISOString().split('T')[0];
+        }
+      }
+    }
+
     const heightCm =
-      pick(/\bheight\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*cm\b/i, flat) ||
-      pick(/\bheight\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i, flat)
+      pick(/\bheight\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*cm\b/i) ||
+      pick(/\bheight\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+      pickAfterLabel(/\bheight\b/i)
 
     const weightKg =
-      pick(/\bweight\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i, flat) ||
-      pick(/\bweight\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i, flat)
+      pick(/\bweight\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
+      pick(/\bweight\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+      pickAfterLabel(/\bweight\b/i)
 
-    const bmi = pick(/\bBMI\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i)
+    const bmi =
+      pick(/\bBMI\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,]\d+)?)/i) ||
+      pick(/body\s*mass\s*index\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,]\d+)?)/i) ||
+      pickAfterLabel(/\bBMI\b/i)
+
     const bodyFatPercent =
-      pick(/\bPBF\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*%/i) ||
-      pick(/percent\s*body\s*fat\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*%?/i) ||
-      pick(/body\s*fat\s*(?:%|percentage)\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i)
+      pick(/\bPBF\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,]\d+)?)\s*%/i) ||
+      pick(/percentage\s*of\s*body\s*fat\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,]\d+)?)/i) ||
+      pick(/body\s*fat\s*(?:%|percentage)\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,]\d+)?)/i) ||
+      pick(/percent\s*body\s*fat\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,]\d+)?)/i) ||
+      pickAfterLabel(/percentage\s*of\s*body\s*fat\b/i)
 
     const fatMassKg =
-      pick(/\bbody\s*fat\s*mass\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
-      pick(/\bfat\s*mass\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
-      pick(/\bbody\s*fat\s*mass\b\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i)
+      pick(/\bbody\s*fat\s*mass\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,]\d+)?)\s*(?:kg|kgs)\b/i) ||
+      pick(/\bfat\s*mass\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,]\d+)?)\s*(?:kg|kgs)\b/i) ||
+      pickAfterLabel(/\bfat\s*mass\b/i)
 
     const smmKg =
-      pick(/\bSMM\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
-      pick(/skeletal\s*muscle\s*mass\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i)
+      pick(/\bSMM\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,]\d+)?)\s*(?:kg|kgs)\b/i) ||
+      pick(/skeletal\s*muscle\s*mass\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,]\d+)?)\s*(?:kg|kgs)\b/i) ||
+      pickAfterLabel(/\bSMM\b/i) ||
+      pickAfterLabel(/skeletal\s*muscle\s*mass\b/i)
 
-    const proteinKg = pick(/\bprotein\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i)
+    const proteinKg =
+      pick(/\bproteins?\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
+      pickAfterLabel(/\bproteins?\b/i)
+
     const mineralKg =
-      pick(/\bminerals?\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
-      pick(/\bbone\s*mineral\s*content\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i)
+      pick(/\bminerals?\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
+      pick(/bone\s*mineral\s*content\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
+      pickAfterLabel(/\bminerals?\b/i)
 
     const tbwKg =
-      pick(/\bTBW\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs)\b/i) ||
-      pick(/\bTBW\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:l|liters?)\b/i) ||
-      pick(/total\s*body\s*water\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kg|kgs|l)\b/i)
+      pick(/\bTBW\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs|l)\b/i) ||
+      pick(/total\s*body\s*water\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kg|kgs|l)\b/i) ||
+      pickAfterLabel(/\bTBW\b/i)
 
     const bmrKcal =
-      pick(/\bBMR\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(?:kcal|kcals)?\b/i) ||
-      pick(/basal\s*metabolic\s*rate\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i)
+      pick(/\bBMR\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:kcal|kcals)?\b/i) ||
+      pick(/basal\s*metabolic\s*rate\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+      pickAfterLabel(/\bBMR\b/i)
 
     const metabolicAge =
-      pick(/metabolic\s*age\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i) ||
-      pick(/\bage\b\s*\(\s*metabolic\s*\)\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i)
+      pick(/(?:metabolic|biological)\s*age\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+      pickAfterLabel(/(?:metabolic|biological)\s*age\b/i)
 
     const visceralFatLevel =
-      pick(/visceral\s*fat\s*(?:level|rating)?\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i) ||
-      pick(/\bVFL\b\s*[:\-]?\s*([0-9]+(?:[\.,][0-9]+)?)/i)
+      pick(/visceral\s*fat\s*(?:level|rating)?\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+      pick(/\bVFL\b(?:\s*\(.*?\))?\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?)/i) ||
+      pickAfterLabel(/visceral\s*fat\s*level\b/i)
 
     const segmentalFromBlock = (headerRegex) => {
       const m = text.match(headerRegex)
       if (!m || m.index == null) return null
       const startIdx = m.index
       const slice = text.slice(startIdx, startIdx + 900)
-      const endIdx = slice.search(/\n\s*(TBW\b|Body\s*Composition|InBody\b|Weight\b|BMR\b)\s*/i)
+      // Stop before the next major section
+      const endIdx = slice.search(/\n\s*(?:TBW\b|Proteins?\b|Minerals?\b|Body\s*Composition\b|InBody\b|Weight\b|BMR\b|Body\s*Type\b|Biological\s*Age\b|Basal\s*Metabolic\b|Segmental\s*Fat\b|Segmental\s*Muscle\b)/i)
       const block = (endIdx > 30 ? slice.slice(0, endIdx) : slice)
+        .replace(/[↑↓†‡⇑⇓▲▼]/g, '') // strip noise arrows
 
       const nums = Array.from(block.matchAll(/(-?\d+(?:[\.,]\d+)?)/g))
         .map((mm) => toNum(mm[1]))
@@ -804,11 +1222,11 @@ function ProfilePanel() {
         if (armsSorted.length < 2 || legsSorted.length < 2) return null
 
         return {
-          rightArm: armsSorted[0].v,
-          leftArm: armsSorted[1].v,
+          leftArm: armsSorted[0].v,
+          rightArm: armsSorted[1].v,
           trunk: trunk.v,
-          rightLeg: legsSorted[0].v,
-          leftLeg: legsSorted[1].v,
+          leftLeg: legsSorted[0].v,
+          rightLeg: legsSorted[1].v,
         }
       }
 
@@ -826,6 +1244,7 @@ function ProfilePanel() {
     const hasSegMuscleKg = Object.values(segMuscle?.kg || {}).some((v) => v != null)
 
     const out = {
+      date: testDate,
       heightCm,
       weightKg,
       bmi,
@@ -865,29 +1284,46 @@ function ProfilePanel() {
 
       const extracted = parseBodyCompositionFromOcrText(payload?.text || '')
 
-      setProfile(prev => ({
-        ...prev,
-        height: extracted?.heightCm == null ? prev.height : String(Math.round(extracted.heightCm)),
-        weight: extracted?.weightKg == null ? prev.weight : String(extracted.weightKg),
-        bodyComposition: {
-          ...(prev.bodyComposition || {}),
+      setProfile((prev) => {
+        const logs = [...(prev.bodyCompositionLogs || [])]
+        const idx = selectedCompositionLogIndex
+        
+        // Use the existing log at selected index, or create a fresh one if none exists
+        const baseComp = logs[idx] || {}
+        
+        const updatedComp = {
+          ...baseComp,
           ...(extracted || {}),
-          segmentalFatKg: {
-            ...(prev.bodyComposition?.segmentalFatKg || {}),
-            ...(extracted?.segmentalFatKg || {}),
-          },
-          segmentalFatPercent: {
-            ...(prev.bodyComposition?.segmentalFatPercent || {}),
-            ...(extracted?.segmentalFatPercent || {}),
-          },
-          segmentalMuscleKg: {
-            ...(prev.bodyComposition?.segmentalMuscleKg || {}),
-            ...(extracted?.segmentalMuscleKg || {}),
-          },
           source: 'ocr',
           updatedAt: new Date().toISOString(),
-        },
-      }))
+        }
+
+        if (logs[idx]) {
+          logs[idx] = updatedComp
+        } else {
+          logs.unshift(updatedComp)
+        }
+
+        // Sort ascending
+        logs.sort((a, b) => {
+          const da = a.date ? new Date(a.date) : new Date(a.updatedAt || 0)
+          const db = b.date ? new Date(b.date) : new Date(b.updatedAt || 0)
+          return da - db
+        })
+        const nextIdx = logs.findIndex(l => l === updatedComp)
+        setSelectedCompositionLogIndex(nextIdx >= 0 ? nextIdx : idx)
+        setActiveCompositionLog({ ...updatedComp })
+
+        const next = {
+          ...prev,
+          height: extracted?.heightCm == null ? prev.height : String(Math.round(extracted.heightCm)),
+          weight: extracted?.weightKg == null ? prev.weight : String(extracted.weightKg),
+          bodyComposition: updatedComp,
+          bodyCompositionLogs: logs.slice(0, 100),
+        }
+        Promise.resolve().then(() => persistBodyComposition(next))
+        return next
+      })
     } catch (e) {
       setBodyCompOcrError(e?.message || 'OCR failed')
     } finally {
@@ -1117,7 +1553,7 @@ function ProfilePanel() {
     )
   }
 
-  const tabs = ['Basic', 'Body', 'Health', 'Clinical & Diet', 'Training', 'Mind', 'Measurements', 'Personality']
+  const tabs = ['Basic', 'Body', 'Health', 'Clinical & Diet', 'Training', 'Mind', 'Measurements', 'Composition']
 
   return (
     <Box sx={{ minWidth: 0, overflowX: 'hidden' }}>
@@ -1130,30 +1566,37 @@ function ProfilePanel() {
             The more you share, the smarter your recommendations become
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          onClick={handleSave}
-          disabled={saving}
-          sx={{
-            width: { xs: 'calc(100vw - 32px)', sm: 'auto' },
-            maxWidth: '100%',
-            position: { xs: 'fixed', sm: 'static' },
-            bottom: { xs: 16, sm: 'auto' },
-            left: { xs: 16, sm: 'auto' },
-            zIndex: { xs: 1100, sm: 'auto' },
-            borderRadius: { xs: 8, sm: 1 },
-            py: { xs: 1.5, sm: 1 },
-            fontSize: { xs: '1.1rem', sm: '0.875rem' },
-            bgcolor: 'text.primary',
-            textTransform: 'none',
-            fontWeight: 600,
-            px: 3,
-            boxShadow: { xs: '0 8px 16px rgba(0,0,0,0.2)', sm: 'none' },
-            '&:hover': { bgcolor: 'text.secondary', boxShadow: { xs: '0 8px 16px rgba(0,0,0,0.2)', sm: 'none' } },
-          }}
-        >
-          {saving ? 'Saving...' : 'Save All'}
-        </Button>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          {lastSaved && (
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Last saved: {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Typography>
+          )}
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            disabled={saving}
+            sx={{
+              width: { xs: 'calc(100vw - 32px)', sm: 'auto' },
+              maxWidth: '100%',
+              position: { xs: 'fixed', sm: 'static' },
+              bottom: { xs: 16, sm: 'auto' },
+              left: { xs: 16, sm: 'auto' },
+              zIndex: { xs: 1100, sm: 'auto' },
+              borderRadius: { xs: 8, sm: 1 },
+              py: { xs: 1.5, sm: 1 },
+              fontSize: { xs: '1.1rem', sm: '0.875rem' },
+              bgcolor: 'text.primary',
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 3,
+              boxShadow: { xs: '0 8px 16px rgba(0,0,0,0.2)', sm: 'none' },
+              '&:hover': { bgcolor: 'text.secondary', boxShadow: { xs: '0 8px 16px rgba(0,0,0,0.2)', sm: 'none' } },
+            }}
+          >
+            {saving ? 'Saving...' : 'Save All'}
+          </Button>
+        </Box>
       </Box>
 
       <Box sx={{ mb: { xs: 2, sm: 3 } }}>
@@ -2030,349 +2473,172 @@ function ProfilePanel() {
 
         {/* Tab 6: Measurements */}
         {activeTab === 6 && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              Log measurements by date. Add a new entry, then click any previous date to view or edit all fields.
-            </Typography>
-
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
-              <SectionTitle>Measurement Log</SectionTitle>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={addMeasurementLog}
-                sx={{ textTransform: 'none', borderColor: 'text.primary', color: 'text.primary' }}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {(profile.bodyMeasurementLogs || []).length === 0 ? (
+              <Box
+                sx={{
+                  py: 5,
+                  px: 3,
+                  textAlign: 'center',
+                  border: '1px dashed',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  bgcolor: 'background.default',
+                }}
               >
-                + Add Measurement
-              </Button>
-            </Box>
-
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {(profile.bodyMeasurementLogs || []).map((entry, idx) => (
-                <Chip
-                  key={`${entry?.updatedAt || 'entry'}-${idx}`}
-                  label={getMeasurementLogLabel(entry, idx)}
-                  onClick={() => selectMeasurementLog(idx)}
-                  sx={{
-                    bgcolor: idx === selectedMeasurementLogIndex ? 'text.primary' : 'action.selected',
-                    color: idx === selectedMeasurementLogIndex ? 'background.paper' : 'text.secondary',
-                  }}
-                />
-              ))}
-            </Box>
-
-            {(profile.bodyMeasurementLogs || []).length === 0 && (
-              <Typography variant="body2" sx={{ color: '#9ca3af' }}>
-                No measurements logged yet. Click "Add Measurement" to create your first entry.
-              </Typography>
-            )}
-
-            {(profile.bodyMeasurementLogs || []).length > 0 && (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  No entries yet
+                </Typography>
+                <Button
+                  variant="contained"
+                  size="medium"
+                  onClick={addMeasurementLog}
+                  sx={{ textTransform: 'none', bgcolor: 'text.primary', color: 'background.paper' }}
+                >
+                  Add measurement
+                </Button>
+              </Box>
+            ) : (
               <>
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <TextField
-                    label="Waist (cm)"
-                    type="number"
-                    value={profile.bodyMeasurements?.waistCm ?? ''}
-                    onChange={(e) => updateMeasurementLogField('waistCm', e.target.value)}
-                    sx={{ ...inputSx, flex: 1 }}
-                  />
-                  <TextField
-                    label="Hip (cm)"
-                    type="number"
-                    value={profile.bodyMeasurements?.hipCm ?? ''}
-                    onChange={(e) => updateMeasurementLogField('hipCm', e.target.value)}
-                    sx={{ ...inputSx, flex: 1 }}
-                  />
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Entries save automatically. Expand to edit circumferences; use Composition for scans and BMI.
+                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <SectionTitle sx={{ mb: 0 }}>Measurement log</SectionTitle>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={addMeasurementLog}
+                    sx={{ textTransform: 'none', borderColor: 'text.primary', color: 'text.primary' }}
+                  >
+                    Add measurement
+                  </Button>
                 </Box>
 
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <TextField
-                    label="Chest (cm)"
-                    type="number"
-                    value={profile.bodyMeasurements?.chestCm ?? ''}
-                    onChange={(e) => updateMeasurementLogField('chestCm', e.target.value)}
-                    sx={{ ...inputSx, flex: 1 }}
-                  />
-                  <TextField
-                    label="Neck (cm)"
-                    type="number"
-                    value={profile.bodyMeasurements?.neckCm ?? ''}
-                    onChange={(e) => updateMeasurementLogField('neckCm', e.target.value)}
-                    sx={{ ...inputSx, flex: 1 }}
-                  />
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {(profile.bodyMeasurementLogs || []).map((entry, idx) => (
+                    <Chip
+                      key={`${entry?.updatedAt || 'entry'}-${idx}`}
+                      label={getMeasurementLogLabel(entry, idx)}
+                      onClick={() => selectMeasurementLog(idx)}
+                      sx={{
+                        bgcolor: idx === selectedMeasurementLogIndex ? 'text.primary' : 'action.selected',
+                        color: idx === selectedMeasurementLogIndex ? 'background.paper' : 'text.secondary',
+                      }}
+                    />
+                  ))}
                 </Box>
 
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <TextField
-                    label="Wrist (cm)"
-                    type="number"
-                    value={profile.bodyMeasurements?.wristCm ?? ''}
-                    onChange={(e) => updateMeasurementLogField('wristCm', e.target.value)}
-                    sx={{ ...inputSx, flex: 1 }}
-                  />
-                  <TextField
-                    label="Bicep (cm)"
-                    type="number"
-                    value={profile.bodyMeasurements?.bicepCm ?? ''}
-                    onChange={(e) => updateMeasurementLogField('bicepCm', e.target.value)}
-                    sx={{ ...inputSx, flex: 1 }}
-                  />
-                </Box>
+                <Accordion
+                  defaultExpanded={true}
+                  elevation={0}
+                  sx={{ border: '1px solid #e5e7eb', borderRadius: 1, '&:before': { display: 'none' } }}
+                >
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                      Circumferences
+                    </Typography>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <TextField
+                        label="Waist (cm)"
+                        type="number"
+                        value={activeMeasurementLog?.waistCm ?? ''}
+                        onChange={(e) => updateMeasurementLogField('waistCm', e.target.value)}
+                        sx={{ ...inputSx, flex: 1 }}
+                      />
+                      <TextField
+                        label="Hip (cm)"
+                        type="number"
+                        value={activeMeasurementLog?.hipCm ?? ''}
+                        onChange={(e) => updateMeasurementLogField('hipCm', e.target.value)}
+                        sx={{ ...inputSx, flex: 1 }}
+                      />
+                    </Box>
 
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <TextField
-                    label="Thigh (cm)"
-                    type="number"
-                    value={profile.bodyMeasurements?.thighCm ?? ''}
-                    onChange={(e) => updateMeasurementLogField('thighCm', e.target.value)}
-                    sx={{ ...inputSx, flex: 1 }}
-                  />
-                  <TextField
-                    label="BMI"
-                    type="number"
-                    value={profile.bodyMeasurements?.bmi ?? ''}
-                    onChange={(e) => updateMeasurementLogField('bmi', e.target.value)}
-                    sx={{ ...inputSx, flex: 1 }}
-                  />
-                </Box>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <TextField
+                        label="Chest (cm)"
+                        type="number"
+                        value={activeMeasurementLog?.chestCm ?? ''}
+                        onChange={(e) => updateMeasurementLogField('chestCm', e.target.value)}
+                        sx={{ ...inputSx, flex: 1 }}
+                      />
+                      <TextField
+                        label="Neck (cm)"
+                        type="number"
+                        value={activeMeasurementLog?.neckCm ?? ''}
+                        onChange={(e) => updateMeasurementLogField('neckCm', e.target.value)}
+                        sx={{ ...inputSx, flex: 1 }}
+                      />
+                    </Box>
+
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <TextField
+                        label="Wrist (cm)"
+                        type="number"
+                        value={activeMeasurementLog?.wristCm ?? ''}
+                        onChange={(e) => updateMeasurementLogField('wristCm', e.target.value)}
+                        sx={{ ...inputSx, flex: 1 }}
+                      />
+                      <TextField
+                        label="Bicep (cm)"
+                        type="number"
+                        value={activeMeasurementLog?.bicepCm ?? ''}
+                        onChange={(e) => updateMeasurementLogField('bicepCm', e.target.value)}
+                        sx={{ ...inputSx, flex: 1 }}
+                      />
+                    </Box>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <TextField
+                        label="Thigh (cm)"
+                        type="number"
+                        value={activeMeasurementLog?.thighCm ?? ''}
+                        onChange={(e) => updateMeasurementLogField('thighCm', e.target.value)}
+                        sx={{ ...inputSx, flex: 1, maxWidth: { xs: '100%', sm: 'calc(50% - 8px)' } }}
+                      />
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        onClick={() => removeMeasurementLog(selectedMeasurementLogIndex)}
+                        startIcon={<DeleteOutlineIcon />}
+                        sx={{ textTransform: 'none', ml: 'auto' }}
+                      >
+                        Delete Log
+                      </Button>
+                    </Box>
+                  </AccordionDetails>
+                </Accordion>
               </>
             )}
-
-            <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1, border: '1px solid #e5e7eb' }}>
-              <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 600 }}>
-                Body Composition (OCR)
-              </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
-                Upload an InBody/Tanita/ACCUNIQ-style report (image or PDF). This fills Protein, SMM, Visceral Fat, Segmental Fat, etc.
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
-                <input
-                  type="file"
-                  accept="image/*,application/pdf"
-                  onChange={(e) => setBodyCompOcrFile(e.target.files?.[0] || null)}
-                />
-                <Button
-                  variant="outlined"
-                  disabled={!bodyCompOcrFile || bodyCompOcrLoading}
-                  onClick={importBodyCompositionFromOcr}
-                  sx={{ textTransform: 'none', borderColor: 'text.primary', color: 'text.primary', '&:hover': { borderColor: 'text.secondary' } }}
-                >
-                  {bodyCompOcrLoading ? 'Reading…' : 'Import Body Scan'}
-                </Button>
-                {bodyCompOcrError ? (
-                  <Typography variant="body2" sx={{ color: '#b91c1c' }}>
-                    {bodyCompOcrError}
-                  </Typography>
-                ) : null}
-              </Box>
-
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <TextField
-                  label="Protein (kg)"
-                  type="number"
-                  value={profile.bodyComposition?.proteinKg ?? ''}
-                  onChange={(e) => updateBodyCompositionField('proteinKg', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="SMM (kg)"
-                  type="number"
-                  value={profile.bodyComposition?.smmKg ?? ''}
-                  onChange={(e) => updateBodyCompositionField('smmKg', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Body Fat (%)"
-                  type="number"
-                  value={profile.bodyComposition?.bodyFatPercent ?? ''}
-                  onChange={(e) => updateBodyCompositionField('bodyFatPercent', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Fat Mass (kg)"
-                  type="number"
-                  value={profile.bodyComposition?.fatMassKg ?? ''}
-                  onChange={(e) => updateBodyCompositionField('fatMassKg', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Visceral Fat"
-                  type="number"
-                  value={profile.bodyComposition?.visceralFatLevel ?? ''}
-                  onChange={(e) => updateBodyCompositionField('visceralFatLevel', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="TBW (kg)"
-                  type="number"
-                  value={profile.bodyComposition?.tbwKg ?? ''}
-                  onChange={(e) => updateBodyCompositionField('tbwKg', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Mineral (kg)"
-                  type="number"
-                  value={profile.bodyComposition?.mineralKg ?? ''}
-                  onChange={(e) => updateBodyCompositionField('mineralKg', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="BMR (kcal)"
-                  type="number"
-                  value={profile.bodyComposition?.bmrKcal ?? ''}
-                  onChange={(e) => updateBodyCompositionField('bmrKcal', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Metabolic Age"
-                  type="number"
-                  value={profile.bodyComposition?.metabolicAge ?? ''}
-                  onChange={(e) => updateBodyCompositionField('metabolicAge', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="BMI"
-                  type="number"
-                  value={profile.bodyComposition?.bmi ?? ''}
-                  onChange={(e) => updateBodyCompositionField('bmi', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-              </Box>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 600 }}>
-                Segmental Fat
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <TextField
-                  label="Right Arm (kg)"
-                  type="number"
-                  value={profile.bodyComposition?.segmentalFatKg?.rightArm ?? ''}
-                  onChange={(e) => updateBodyCompositionSegmental('segmentalFatKg', 'rightArm', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Left Arm (kg)"
-                  type="number"
-                  value={profile.bodyComposition?.segmentalFatKg?.leftArm ?? ''}
-                  onChange={(e) => updateBodyCompositionSegmental('segmentalFatKg', 'leftArm', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Trunk (kg)"
-                  type="number"
-                  value={profile.bodyComposition?.segmentalFatKg?.trunk ?? ''}
-                  onChange={(e) => updateBodyCompositionSegmental('segmentalFatKg', 'trunk', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Right Leg (kg)"
-                  type="number"
-                  value={profile.bodyComposition?.segmentalFatKg?.rightLeg ?? ''}
-                  onChange={(e) => updateBodyCompositionSegmental('segmentalFatKg', 'rightLeg', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Left Leg (kg)"
-                  type="number"
-                  value={profile.bodyComposition?.segmentalFatKg?.leftLeg ?? ''}
-                  onChange={(e) => updateBodyCompositionSegmental('segmentalFatKg', 'leftLeg', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-              </Box>
-
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 2 }}>
-                <TextField
-                  label="Right Arm (%)"
-                  type="number"
-                  value={profile.bodyComposition?.segmentalFatPercent?.rightArm ?? ''}
-                  onChange={(e) => updateBodyCompositionSegmental('segmentalFatPercent', 'rightArm', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Left Arm (%)"
-                  type="number"
-                  value={profile.bodyComposition?.segmentalFatPercent?.leftArm ?? ''}
-                  onChange={(e) => updateBodyCompositionSegmental('segmentalFatPercent', 'leftArm', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Trunk (%)"
-                  type="number"
-                  value={profile.bodyComposition?.segmentalFatPercent?.trunk ?? ''}
-                  onChange={(e) => updateBodyCompositionSegmental('segmentalFatPercent', 'trunk', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Right Leg (%)"
-                  type="number"
-                  value={profile.bodyComposition?.segmentalFatPercent?.rightLeg ?? ''}
-                  onChange={(e) => updateBodyCompositionSegmental('segmentalFatPercent', 'rightLeg', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Left Leg (%)"
-                  type="number"
-                  value={profile.bodyComposition?.segmentalFatPercent?.leftLeg ?? ''}
-                  onChange={(e) => updateBodyCompositionSegmental('segmentalFatPercent', 'leftLeg', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-              </Box>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary', fontWeight: 600 }}>
-                Segmental Muscle (kg)
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <TextField
-                  label="Right Arm (kg)"
-                  type="number"
-                  value={profile.bodyComposition?.segmentalMuscleKg?.rightArm ?? ''}
-                  onChange={(e) => updateBodyCompositionSegmental('segmentalMuscleKg', 'rightArm', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Left Arm (kg)"
-                  type="number"
-                  value={profile.bodyComposition?.segmentalMuscleKg?.leftArm ?? ''}
-                  onChange={(e) => updateBodyCompositionSegmental('segmentalMuscleKg', 'leftArm', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Trunk (kg)"
-                  type="number"
-                  value={profile.bodyComposition?.segmentalMuscleKg?.trunk ?? ''}
-                  onChange={(e) => updateBodyCompositionSegmental('segmentalMuscleKg', 'trunk', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Right Leg (kg)"
-                  type="number"
-                  value={profile.bodyComposition?.segmentalMuscleKg?.rightLeg ?? ''}
-                  onChange={(e) => updateBodyCompositionSegmental('segmentalMuscleKg', 'rightLeg', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-                <TextField
-                  label="Left Leg (kg)"
-                  type="number"
-                  value={profile.bodyComposition?.segmentalMuscleKg?.leftLeg ?? ''}
-                  onChange={(e) => updateBodyCompositionSegmental('segmentalMuscleKg', 'leftLeg', e.target.value)}
-                  sx={{ ...inputSx, flex: 1, minWidth: 180 }}
-                />
-              </Box>
-
-              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 2 }}>
-                Click “Save All” to persist.
-              </Typography>
-            </Box>
           </Box>
         )}
 
-        {/* Tab 7: Personality */}
+        {/* Tab 7: Composition */}
         {activeTab === 7 && (
+          <BodyCompositionTab
+            profile={profile}
+            selectedCompositionLogIndex={selectedCompositionLogIndex}
+            activeCompositionLog={activeCompositionLog}
+            addCompositionLog={addCompositionLog}
+            selectCompositionLog={selectCompositionLog}
+            removeCompositionLog={removeCompositionLog}
+            getCompositionLogLabel={getCompositionLogLabel}
+            bodyCompOcrFile={bodyCompOcrFile}
+            setBodyCompOcrFile={setBodyCompOcrFile}
+            bodyCompOcrLoading={bodyCompOcrLoading}
+            importBodyCompositionFromOcr={importBodyCompositionFromOcr}
+            bodyCompOcrError={bodyCompOcrError}
+            updateBodyCompositionField={updateBodyCompositionField}
+            updateBodyCompositionSegmental={updateBodyCompositionSegmental}
+          />
+        )}
+
+        {/* Tab 8: Personality */}
+        {activeTab === 8 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <Box>
               <SectionTitle>Introvert / Extrovert</SectionTitle>
@@ -2429,7 +2695,6 @@ function ProfilePanel() {
           </Box>
         )}
 
-        {/* Tab 8 removed entirely */}
       </Box>
     </Box>
   )

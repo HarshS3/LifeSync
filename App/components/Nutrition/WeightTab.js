@@ -42,7 +42,7 @@ export default function WeightTab({ COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYP
     setIsSubmitting(true);
     try {
       await api.post('/nutrition/weight', { 
-        date: new Date().toISOString(),
+        date: new Date().toISOString().split('T')[0],
         weightKg: parseFloat(weight) 
       });
       Alert.alert('Success', 'Weight logged successfully.');

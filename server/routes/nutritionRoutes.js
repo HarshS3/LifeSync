@@ -66,6 +66,31 @@ const DAILY_TOTAL_FIELDS = [
   'folate',
 ];
 
+
+/** Helper to parse a date string or object consistently into local-time midnight. */
+function parseLocalDate(input) {
+  if (!input) {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  if (input instanceof Date) {
+    const d = new Date(input);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  const s = String(input);
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d, 0, 0, 0, 0);
+  }
+  // Fallback for full ISO strings or other formats
+  const d = new Date(s);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 function createEmptyDailyTotals() {
   const out = {};
   DAILY_TOTAL_FIELDS.forEach((f) => {
@@ -229,9 +254,14 @@ router.get('/logs', authMiddleware, async (req, res) => {
 });
 
 async function getLogForDate(req, res, dateStr) {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   try {
-    const startDate = new Date(dateStr);
-    startDate.setHours(0, 0, 0, 0);
+    const startDate = parseLocalDate(dateStr);
+    
+    if (Number.isNaN(startDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + 1);
 
@@ -425,8 +455,7 @@ async function upsertNutritionLog(req, res) {
 
     console.log('[NutritionRoutes] POST /api/nutrition/logs user', req.userId, 'date', date, 'meals', Array.isArray(meals) ? meals.length : 0, 'supplements', Array.isArray(supplements) ? supplements.length : 0)
 
-    const logDate = new Date(date);
-    logDate.setHours(0, 0, 0, 0);
+    const logDate = parseLocalDate(date);
     const endDate = new Date(logDate);
     endDate.setDate(endDate.getDate() + 1);
 
@@ -493,11 +522,10 @@ async function upsertNutritionLog(req, res) {
 
 async function getWeightForDate(req, res, dateStr) {
   try {
-    const startDate = new Date(dateStr);
+    const startDate = parseLocalDate(dateStr);
     if (Number.isNaN(startDate.getTime())) {
       return res.status(400).json({ error: 'Invalid date' });
     }
-    startDate.setHours(0, 0, 0, 0);
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + 1);
 
@@ -522,8 +550,8 @@ router.get('/weight/date/:date', authMiddleware, async (req, res) => {
 router.post('/weight', authMiddleware, async (req, res) => {
   try {
     const { date, weightKg } = req.body;
-    const d = new Date(date);
-    if (Number.isNaN(d.getTime())) {
+    const logDate = parseLocalDate(date);
+    if (Number.isNaN(logDate.getTime())) {
       return res.status(400).json({ error: 'Invalid date' });
     }
     const w = Number(weightKg);
@@ -531,7 +559,7 @@ router.post('/weight', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Invalid weightKg' });
     }
 
-    const log = await WeightLog.create({ user: req.userId, date: new Date(date), weightKg: w });
+    const log = await WeightLog.create({ user: req.userId, date: logDate, weightKg: w });
 
     // Update user profile with latest weight
     const User = require('../models/User');
@@ -545,7 +573,7 @@ router.post('/weight', authMiddleware, async (req, res) => {
       });
     }
 
-    triggerDailyLifeStateRecompute({ userId: req.userId, date: d, reason: 'nutritionRoutes upsert weight' });
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: logDate, reason: 'nutritionRoutes upsert weight' });
 
     res.status(201).json({ date: log.date, weightKg: log.weightKg });
   } catch (err) {
@@ -587,8 +615,7 @@ router.post('/meals', authMiddleware, async (req, res) => {
   try {
     const { meal, date } = req.body;
     
-    const logDate = new Date(date || new Date());
-    logDate.setHours(0, 0, 0, 0);
+    const logDate = parseLocalDate(date);
     const endDate = new Date(logDate);
     endDate.setDate(endDate.getDate() + 1);
 
@@ -642,8 +669,7 @@ router.patch('/water', authMiddleware, async (req, res) => {
   try {
     const { amount, date } = req.body;
     
-    const logDate = new Date(date || new Date());
-    logDate.setHours(0, 0, 0, 0);
+    const logDate = parseLocalDate(date);
     const endDate = new Date(logDate);
     endDate.setDate(endDate.getDate() + 1);
 
@@ -812,7 +838,7 @@ router.get('/logs/range/:start/:end', authMiddleware, async (req, res) => {
     }).sort({ date: -1 });
 
     // Fetch user profile for dynamic target generation
-    const user = await User.findById(req.userId).select('biologicalProfile');
+    const user = await User.findById(req.userId).select('biologicalProfile bodyComposition');
     const dynamicTargets = {};
     
     if (user?.biologicalProfile) {
@@ -822,10 +848,12 @@ router.get('/logs/range/:start/:end', authMiddleware, async (req, res) => {
         adaptiveMap = await calculateAdaptiveTDEEForRange(req.userId, start, end);
       }
 
+      const bmrOverride = user.bodyComposition?.bmrKcal;
+
       // Generate full targets for each day
       Object.keys(adaptiveMap).forEach(dateKey => {
         const tdee = adaptiveMap[dateKey];
-        dynamicTargets[dateKey] = calculateDailyTargets(user.biologicalProfile, tdee);
+        dynamicTargets[dateKey] = calculateDailyTargets(user.biologicalProfile, tdee, null, bmrOverride);
       });
     }
 
@@ -839,7 +867,7 @@ router.get('/logs/range/:start/:end', authMiddleware, async (req, res) => {
 // Gets the highly precise, scientific personalized clinical baseline targets for the user
 router.get('/clinical-targets', authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('biologicalProfile height weight gender bodyFat age dob clinicalTargets labMarkers');
+    const user = await User.findById(req.userId).select('biologicalProfile height weight gender bodyFat age dob clinicalTargets labMarkers bodyComposition');
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const useAdaptiveTdee = user.biologicalProfile?.useAdaptiveTdee !== false;
@@ -870,6 +898,8 @@ router.get('/clinical-targets', authMiddleware, async (req, res) => {
       dob: profile.dob || user.dob,
     };
 
+    const bmrOverride = toNum(user.bodyComposition?.bmrKcal);
+
     const requiredFieldChecks = [
       { key: 'biologicalSex', ok: !!effectiveProfile.biologicalSex },
       { key: 'heightCm', ok: Number(effectiveProfile.heightCm) > 0 },
@@ -887,7 +917,7 @@ router.get('/clinical-targets', authMiddleware, async (req, res) => {
     }
 
     const labMarkers = user.labMarkers ? user.labMarkers.toObject() : null;
-    const calculatedBase = calculateDailyTargets(effectiveProfile, null, labMarkers);
+    const calculatedBase = calculateDailyTargets(effectiveProfile, null, labMarkers, bmrOverride);
     
     let adaptiveOverride = null;
     if (useAdaptiveTdee) {
@@ -899,7 +929,7 @@ router.get('/clinical-targets', authMiddleware, async (req, res) => {
     }
 
     const calculated = adaptiveOverride 
-      ? calculateDailyTargets(effectiveProfile, adaptiveOverride, labMarkers)
+      ? calculateDailyTargets(effectiveProfile, adaptiveOverride, labMarkers, bmrOverride)
       : calculatedBase;
 
     if (!calculated) {

@@ -47,6 +47,7 @@ const SegmentalSideSchema = new mongoose.Schema(
 
 const BodyCompositionSchema = new mongoose.Schema(
   {
+    date: Date,
     // Common InBody/Tanita-style metrics
     bmi: Number,
     bodyFatPercent: Number,
@@ -98,6 +99,7 @@ const UserSchema = new mongoose.Schema(
 
     // Body composition (manual entry or OCR import)
     bodyComposition: BodyCompositionSchema,
+    bodyCompositionLogs: [BodyCompositionSchema],
     
     // Health
     conditions: [String],

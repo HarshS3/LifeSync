@@ -4,7 +4,7 @@ export const COLORS = {
   light: {
     primary: '#000000',
     secondary: '#666666',
-    background: '#f8f9fa',
+    background: '#f6f1e7',
     surface: '#ffffff',
     error: '#ef4444',
     success: '#10b981',
@@ -136,8 +136,7 @@ export const TYPOGRAPHY = {
 };
 
 export const useTheme = () => {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? 'dark' : 'light';
+  const theme = 'light'; // Force light theme for consistency with cream branding
   
   return {
     COLORS: COLORS[theme],

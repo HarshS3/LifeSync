@@ -203,13 +203,19 @@ router.get('/stats', auth, async (req, res) => {
 
     workouts.forEach((w) => {
       const workoutDate = new Date(w.date);
-      if (workoutDate > weekAgo) weeklyWorkouts++;
+      const isRecent = workoutDate > weekAgo;
+      if (isRecent) weeklyWorkouts++;
       if (workoutDate > monthAgo) monthlyWorkouts++;
 
       w.exercises?.forEach((ex) => {
-        // Count muscle groups
-        const muscle = ex.muscleGroup || 'other';
-        muscleCount[muscle] = (muscleCount[muscle] || 0) + 1;
+        // Normalize muscle group to lowercase
+        const muscle = String(ex.muscleGroup || 'other').toLowerCase().trim();
+        
+        // Count "Hard Sets" for weekly hypertrophy (recent only)
+        if (isRecent) {
+          const setsCount = ex.sets?.filter(s => (s.reps || 0) > 0).length || 0;
+          muscleCount[muscle] = (muscleCount[muscle] || 0) + setsCount;
+        }
 
         // Track exercise history for PRs
         if (!exerciseHistory[ex.name]) {
@@ -222,7 +228,7 @@ router.get('/stats', auth, async (req, res) => {
           totalVolume += (set.reps || 0) * effectiveWeight;
           exerciseHistory[ex.name].push({
             date: w.date,
-            weight: set.weight, // Keep original weight for PRs
+            weight: set.weight, 
             effectiveWeight,
             reps: set.reps,
           });

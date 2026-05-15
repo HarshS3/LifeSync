@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const { groqRecognize } = require('../services/stt/groqStt');
 const { googleRecognize } = require('../services/stt/googleStt');
 
 const router = express.Router();
@@ -42,19 +43,29 @@ router.post('/', authMiddleware, upload.single('audio'), async (req, res) => {
     const isWebm = mime.includes('webm') || name.endsWith('.webm');
     const isOgg = mime.includes('ogg') || name.endsWith('.ogg');
     const isWav = mime.includes('wav') || name.endsWith('.wav');
+    const isM4a = mime.includes('m4a') || mime.includes('mp4') || name.endsWith('.m4a');
 
-    if (!isWebm && !isOgg && !isWav) {
+    if (!isWebm && !isOgg && !isWav && !isM4a) {
       return res.status(400).json({
-        error: 'Unsupported audio type. Upload .webm (opus), .ogg (opus), or .wav',
+        error: 'Unsupported audio type. Upload .webm, .ogg, .wav, or .m4a',
       });
     }
 
     console.log('[STT] transcribe start', { userId: req.userId, mimetype, size });
 
-    const out = await googleRecognize({
-      buffer: req.file.buffer,
-      mimeType: mimetype,
-    });
+    // Use Groq by default if key is present
+    let out;
+    if (process.env.GROQ_API_KEY) {
+      out = await groqRecognize({
+        buffer: req.file.buffer,
+        mimeType: mimetype,
+      });
+    } else {
+      out = await googleRecognize({
+        buffer: req.file.buffer,
+        mimeType: mimetype,
+      });
+    }
 
     console.log('[STT] transcribe done', { userId: req.userId, chars: out?.transcript?.length || 0 });
     return res.json({ transcript: out.transcript || '', provider: out.provider });

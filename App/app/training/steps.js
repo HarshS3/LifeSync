@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView, Dimensions } from 'react-native';
+import { View, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Footprints, Plus, Minus, TrendingUp } from 'lucide-react-native';
+import { Footprints, Plus, Minus, TrendingUp } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import api from '../../services/api';
 import { LineChart } from 'react-native-chart-kit';
 import { useTheme } from '../../constants/Theme';
 
+// UI Components
+import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
+import { Card } from '../../components/ui/Card';
+import { H2, Body, Caption } from '../../components/ui/Typography';
+
 const screenWidth = Dimensions.get('window').width;
 
 export default function StepTrackerScreen() {
   const router = useRouter();
-  const { COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY, isDark } = useTheme();
+  const { COLORS } = useTheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [steps, setSteps] = useState('');
@@ -36,8 +41,8 @@ export default function StepTrackerScreen() {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       
       const [todayRes, historyRes] = await Promise.all([
-        api.get(`/gym/steps/date/${today}`),
-        api.get(`/gym/steps/range/${sevenDaysAgo}/${today}`)
+        api.get(`/gym/steps/date/${today}`).catch(() => ({ data: null })),
+        api.get(`/gym/steps/range/${sevenDaysAgo}/${today}`).catch(() => ({ data: [] }))
       ]);
 
       if (todayRes.data?.stepsCount) {
@@ -68,7 +73,7 @@ export default function StepTrackerScreen() {
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('Success', 'Steps logged successfully!');
-      fetchSteps(); // Refresh both today and history
+      fetchSteps();
     } catch (err) {
       console.error('Failed to save steps', err);
       Alert.alert('Error', 'Failed to log steps');
@@ -87,46 +92,25 @@ export default function StepTrackerScreen() {
     }]
   };
 
-  const themedStyles = styles(COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY, isDark);
-
-  if (loading) {
-    return (
-      <View style={themedStyles.centered}>
-        <ActivityIndicator size="large" color={COLORS.success} />
-        <TouchableOpacity style={{ marginTop: 20 }} onPress={fetchSteps}>
-          <Text style={{ color: COLORS.success, fontWeight: '600' }}>Retry Loading</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   return (
-    <View style={themedStyles.container}>
-      <View style={themedStyles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={themedStyles.backButton}>
-          <ChevronLeft size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={themedStyles.headerTitle}>Step Tracker</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <ScrollView style={themedStyles.content}>
+    <ScreenWrapper title="Step Tracker">
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {history.length > 1 && (
-          <View style={themedStyles.chartCard}>
-            <View style={themedStyles.chartHeader}>
+          <Card style={styles.chartCard} padding={16}>
+            <View style={styles.chartHeader}>
               <TrendingUp size={18} color={COLORS.success} />
-              <Text style={themedStyles.chartTitle}>7-Day Trend</Text>
+              <Body style={{ fontWeight: '700' }}>7-Day Trend</Body>
             </View>
             <LineChart
               data={chartData}
-              width={screenWidth - 72}
+              width={screenWidth - 64}
               height={180}
               chartConfig={{
                 backgroundColor: COLORS.surface,
                 backgroundGradientFrom: COLORS.surface,
                 backgroundGradientTo: COLORS.surface,
                 decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(${isDark ? '52, 211, 153' : '16, 185, 129'}, ${opacity})`,
+                color: (opacity = 1) => COLORS.success,
                 labelColor: (opacity = 1) => COLORS.textSecondary,
                 style: { borderRadius: 16 },
                 propsForDots: { r: "4", strokeWidth: "2", stroke: COLORS.success }
@@ -134,25 +118,25 @@ export default function StepTrackerScreen() {
               bezier
               style={{ marginVertical: 8, borderRadius: 16 }}
             />
-          </View>
+          </Card>
         )}
 
-        <View style={themedStyles.inputCard}>
-          <View style={themedStyles.iconContainer}>
+        <Card style={styles.inputCard} padding={24}>
+          <View style={[styles.iconContainer, { backgroundColor: COLORS.success + '15' }]}>
             <Footprints size={32} color={COLORS.success} />
           </View>
-          <Text style={themedStyles.label}>Today's Steps</Text>
+          <Body secondary style={{ marginBottom: 16, fontWeight: '600' }}>Today's Steps</Body>
           
-          <View style={themedStyles.inputWrapper}>
+          <View style={styles.inputWrapper}>
             <TouchableOpacity 
-              style={themedStyles.stepButton} 
+              style={[styles.stepButton, { backgroundColor: COLORS.gray100 }]} 
               onPress={() => adjustSteps(-500)}
             >
               <Minus size={24} color={COLORS.success} />
             </TouchableOpacity>
 
             <TextInput
-              style={themedStyles.input}
+              style={[styles.input, { color: COLORS.text }]}
               value={steps}
               onChangeText={setSteps}
               keyboardType="numeric"
@@ -161,7 +145,7 @@ export default function StepTrackerScreen() {
             />
 
             <TouchableOpacity 
-              style={themedStyles.stepButton} 
+              style={[styles.stepButton, { backgroundColor: COLORS.gray100 }]} 
               onPress={() => adjustSteps(500)}
             >
               <Plus size={24} color={COLORS.success} />
@@ -169,51 +153,41 @@ export default function StepTrackerScreen() {
           </View>
 
           <TouchableOpacity 
-            style={[themedStyles.saveButton, saving && themedStyles.saveButtonDisabled]}
+            style={[styles.saveButton, { backgroundColor: COLORS.primary }, saving && { opacity: 0.7 }]}
             onPress={saveSteps}
             disabled={saving}
           >
             {saving ? (
               <ActivityIndicator color={COLORS.surface} size="small" />
             ) : (
-              <Text style={themedStyles.saveButtonText}>Confirm Steps</Text>
+              <Body style={{ color: COLORS.surface, fontWeight: '700' }}>Confirm Steps</Body>
             )}
           </TouchableOpacity>
-        </View>
+        </Card>
 
-        <View style={themedStyles.infoCard}>
-          <Text style={themedStyles.infoTitle}>Why Track Steps?</Text>
-          <Text style={themedStyles.infoText}>
+        <Card style={{ backgroundColor: COLORS.gray100 }} padding={20}>
+          <H2 style={{ fontSize: 16, marginBottom: 8 }}>Why Track Steps?</H2>
+          <Body secondary style={{ lineHeight: 22 }}>
             Walking is the foundation of Non-Exercise Activity Thermogenesis (NEAT). 
             A baseline of 8,000 to 10,000 steps per day significantly improves metabolic 
             health and cardiovascular endurance without adding systemic fatigue to your workouts.
-          </Text>
-        </View>
+          </Body>
+        </Card>
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 }
 
-const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY, isDark) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
-  header: {
-    paddingTop: 60, paddingBottom: 20, paddingHorizontal: 20, backgroundColor: COLORS.surface,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
-  },
-  backButton: { padding: 4 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: COLORS.text },
-  content: { padding: 20 },
+const styles = StyleSheet.create({
+  content: { padding: 16 },
   inputCard: {
-    backgroundColor: COLORS.surface, borderRadius: 20, padding: 24, alignItems: 'center',
-    marginBottom: 24, ...SHADOWS,
+    alignItems: 'center',
+    marginBottom: 24,
   },
   iconContainer: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: COLORS.success + '15',
+    width: 64, height: 64, borderRadius: 32,
     justifyContent: 'center', alignItems: 'center', marginBottom: 16,
   },
-  label: { fontSize: 16, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 16 },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -225,24 +199,22 @@ const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY, isDark) => 
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: COLORS.gray100,
     justifyContent: 'center',
     alignItems: 'center',
   },
   input: {
-    flex: 1, fontSize: 56, fontWeight: '800', color: COLORS.text, textAlign: 'center',
+    flex: 1, fontSize: 56, fontWeight: '800', textAlign: 'center',
     paddingHorizontal: 10,
   },
-  saveButton: { backgroundColor: COLORS.primary, paddingVertical: 18, paddingHorizontal: 32, borderRadius: 30, width: '100%', alignItems: 'center' },
-  saveButtonDisabled: { opacity: 0.7 },
-  saveButtonText: { color: COLORS.surface, fontSize: 16, fontWeight: '700' },
-  infoCard: { backgroundColor: COLORS.gray100, padding: 20, borderRadius: 16 },
+  saveButton: { 
+    paddingVertical: 18, 
+    paddingHorizontal: 32, 
+    borderRadius: 30, 
+    width: '100%', 
+    alignItems: 'center' 
+  },
   chartCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 20,
-    padding: 16,
     marginBottom: 20,
-    ...SHADOWS,
   },
   chartHeader: {
     flexDirection: 'row',
@@ -250,11 +222,4 @@ const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY, isDark) => 
     gap: 8,
     marginBottom: 12,
   },
-  chartTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  infoTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
-  infoText: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 22 }
 });

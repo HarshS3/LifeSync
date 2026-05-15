@@ -63,6 +63,9 @@ app.use((req, res, next) => {
 });
 
 // Health check
+app.get('/api/v-check', (req, res) => {
+  res.json({ status: 'ok', version: 'v1.1-nutrition-fixed', time: new Date().toISOString() });
+});
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'LifeSync API' });
 });

@@ -1,18 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from 'react-native';
+import { View, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { Send, Mic, Square, Camera, Image as ImageIcon, X } from 'lucide-react-native';
+import { Send, Mic, Square, Camera, Image as ImageIcon } from 'lucide-react-native';
 import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../constants/Theme';
 
+// UI Components
+import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
+import { Body, Caption } from '../../components/ui/Typography';
+
 export default function ChatScreen() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY } = useTheme();
+  const { COLORS, SHADOWS } = useTheme();
+  
   const [messages, setMessages] = useState([
     {
       id: '1',
@@ -24,14 +29,18 @@ export default function ChatScreen() {
   const [isSending, setIsSending] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState(null);
+  
   const flatListRef = useRef(null);
   const inputRef = useRef(null);
   const handledWidgetActionRef = useRef(null);
+  const isRecordingRequestedRef = useRef(false); 
+  const isStartingRecordingRef = useRef(false);
 
+  // --- CLEANUP ---
   useEffect(() => {
     return () => {
       if (recording) {
-        recording.stopAndUnloadAsync();
+        recording.stopAndUnloadAsync().catch(() => {});
       }
     };
   }, [recording]);
@@ -60,7 +69,11 @@ export default function ChatScreen() {
       const res = await api.post('/ai/chat', { message: trimmed, history });
       addMessage({ from: 'ai', text: res.data.reply || 'Got it.' });
     } catch (err) {
-      addMessage({ from: 'system', text: 'Connection error.' });
+      console.error('Chat error', err);
+      const errorMsg = err.response?.status === 401 
+        ? 'Session expired. Please log out and in again.' 
+        : 'Connection error.';
+      addMessage({ from: 'system', text: errorMsg });
     } finally {
       setIsSending(false);
     }
@@ -68,10 +81,22 @@ export default function ChatScreen() {
 
   // --- VOICE RECORDING ---
   const startRecording = async () => {
+    if (isStartingRecordingRef.current) return;
+    
     try {
+      isStartingRecordingRef.current = true;
+      isRecordingRequestedRef.current = true; 
+      
+      if (recording) {
+        try { await recording.stopAndUnloadAsync(); } catch (e) {}
+        setRecording(null);
+      }
+
       const permission = await Audio.requestPermissionsAsync();
       if (permission.status !== 'granted') {
         alert('Microphone permission is required.');
+        isRecordingRequestedRef.current = false;
+        isStartingRecordingRef.current = false;
         return;
       }
 
@@ -83,17 +108,17 @@ export default function ChatScreen() {
       const customOptions = {
         isMeteringEnabled: true,
         android: {
-          extension: '.webm',
-          outputFormat: Audio.AndroidOutputFormat.WEBM_OPUS,
-          audioEncoder: Audio.AndroidAudioEncoder.OPUS,
-          sampleRate: 16000,
+          extension: '.m4a',
+          outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+          audioEncoder: Audio.AndroidAudioEncoder.AAC,
+          sampleRate: 44100,
           numberOfChannels: 1,
           bitRate: 128000,
         },
         ios: {
-          extension: '.wav',
+          extension: '.m4a',
           audioQuality: Audio.IOSAudioQuality.HIGH,
-          sampleRate: 16000,
+          sampleRate: 44100,
           numberOfChannels: 1,
           bitRate: 128000,
           linearPCMBitDepth: 16,
@@ -103,57 +128,78 @@ export default function ChatScreen() {
       };
 
       const { recording: newRec } = await Audio.Recording.createAsync(customOptions);
+      
+      if (!isRecordingRequestedRef.current) {
+        try { await newRec.stopAndUnloadAsync(); } catch (e) {}
+        isStartingRecordingRef.current = false;
+        return;
+      }
+
       setRecording(newRec);
       setIsRecording(true);
     } catch (err) {
-      console.error('Failed to start recording', err);
+      if (!err.message?.includes('no valid audio data')) {
+        console.error('Failed to start recording', err);
+      }
       setIsRecording(false);
+      setRecording(null);
+      isRecordingRequestedRef.current = false;
+    } finally {
+      isStartingRecordingRef.current = false;
     }
   };
 
   const stopRecording = async () => {
-    setIsRecording(false);
-    if (!recording) return;
+    isRecordingRequestedRef.current = false;
+    await new Promise(resolve => setTimeout(resolve, 300));
 
+    setIsRecording(false);
     const currentRec = recording;
     setRecording(null);
 
+    if (!currentRec) return;
+
     try {
       try {
-        await currentRec.stopAndUnloadAsync();
+        const status = await currentRec.getStatusAsync();
+        if (status.canRecord || status.isRecording) {
+          await currentRec.stopAndUnloadAsync();
+        }
       } catch (e) {
-        // ignore if already unloaded
+        if (!e.message?.includes('no valid audio data')) {
+          console.log('Recorder stop error', e.message);
+        }
+        return;
       }
       
       const uri = currentRec.getURI();
       if (!uri) return;
 
       setIsSending(true);
-      addMessage({ from: 'system', text: 'Processing voice...' });
-
-      const ext = Platform.OS === 'android' ? 'webm' : 'wav';
-      const mime = Platform.OS === 'android' ? 'audio/webm' : 'audio/wav';
-      const fileUri = Platform.OS === 'android' && !uri.startsWith('file://') ? `file://${uri}` : uri;
+      addMessage({ from: 'system', text: 'Transcribing...' });
 
       const formData = new FormData();
       formData.append('audio', {
-        uri: fileUri,
-        type: mime,
-        name: `voice.${ext}`,
+        uri: Platform.OS === 'android' && !uri.startsWith('file://') ? `file://${uri}` : uri,
+        type: 'audio/mp4',
+        name: 'voice.m4a',
       });
 
       const res = await api.post('/stt', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      setInput(res.data.transcript);
-      addMessage({ from: 'system', text: `Heard: "${res.data.transcript}"` });
+      if (res.data.transcript) {
+        setInput(res.data.transcript);
+        addMessage({ from: 'system', text: 'Text ready in your input box.' });
+      }
       
     } catch (err) {
       console.error('STT error', err);
       addMessage({ from: 'system', text: 'Failed to transcribe audio.' });
     } finally {
       setIsSending(false);
+      setIsRecording(false);
     }
   };
 
@@ -210,7 +256,6 @@ export default function ChatScreen() {
 
     try {
       const fileUri = Platform.OS === 'android' && !uri.startsWith('file://') ? `file://${uri}` : uri;
-      
       const formData = new FormData();
       formData.append('image', {
         uri: fileUri,
@@ -246,45 +291,44 @@ export default function ChatScreen() {
 
     if (isSystem) {
       return (
-        <View style={themedStyles.systemMessage}>
-          <Text style={themedStyles.systemText}>{item.text}</Text>
+        <View style={[styles.systemMessage, { backgroundColor: COLORS.gray100 }]}>
+          <Caption secondary style={{ fontWeight: '600' }}>{item.text}</Caption>
         </View>
       );
     }
 
     return (
-      <View style={[themedStyles.messageRow, isAi ? themedStyles.aiRow : themedStyles.userRow]}>
-        <View style={[themedStyles.messageBubble, isAi ? themedStyles.aiBubble : themedStyles.userBubble]}>
+      <View style={[styles.messageRow, isAi ? styles.aiRow : styles.userRow]}>
+        <View style={[
+          styles.messageBubble, 
+          isAi ? { backgroundColor: COLORS.gray100, borderBottomLeftRadius: 4 } : { backgroundColor: COLORS.primary, borderBottomRightRadius: 4 }
+        ]}>
           {item.image && (
-            <Image source={{ uri: item.image }} style={themedStyles.messageImage} />
+            <Image source={{ uri: item.image }} style={styles.messageImage} />
           )}
           {item.text && (
-             <Text style={[themedStyles.messageText, isAi ? themedStyles.aiText : themedStyles.userText]}>
+             <Body style={isAi ? { color: COLORS.text } : { color: COLORS.surface }}>
                {item.text}
-             </Text>
+             </Body>
           )}
         </View>
       </View>
     );
   };
 
-  const themedStyles = styles(COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY);
-
   return (
-    <View style={themedStyles.container}>
-      <View style={themedStyles.header}>
-        <View>
-          <Text style={themedStyles.headerTitle}>Assistant</Text>
-          <Text style={themedStyles.headerSubtitle}>AI-powered health intelligence</Text>
-        </View>
-        <TouchableOpacity onPress={() => router.push('/profile')} style={themedStyles.avatarMini}>
-           <Text style={themedStyles.avatarTextMini}>{user?.name?.charAt(0)}</Text>
+    <ScreenWrapper 
+      title="Assistant" 
+      showBack={false}
+      headerRight={
+        <TouchableOpacity onPress={() => router.push('/profile')} style={[styles.avatarMini, { backgroundColor: COLORS.primary }]}>
+           <Caption style={{ color: COLORS.surface, fontWeight: 'bold' }}>{user?.name?.charAt(0)}</Caption>
         </TouchableOpacity>
-      </View>
-
+      }
+    >
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={themedStyles.keyboardView}
+        style={styles.keyboardView}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <FlatList
@@ -292,25 +336,30 @@ export default function ChatScreen() {
           data={messages}
           renderItem={renderMessage}
           keyExtractor={item => item.id}
-          contentContainerStyle={themedStyles.messageList}
+          contentContainerStyle={styles.messageList}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+          showsVerticalScrollIndicator={false}
         />
 
-        <View style={themedStyles.inputArea}>
+        <View style={[styles.inputArea, { backgroundColor: COLORS.surface, borderTopColor: COLORS.gray100, ...SHADOWS }]}>
           {!input && !isRecording && (
-            <View style={themedStyles.hardwareButtons}>
-              <TouchableOpacity style={themedStyles.iconButton} onPress={takePhoto}>
-                <Camera size={24} color={COLORS.textSecondary} />
+            <View style={styles.hardwareButtons}>
+              <TouchableOpacity style={styles.iconButton} onPress={takePhoto}>
+                <Camera size={22} color={COLORS.textSecondary} />
               </TouchableOpacity>
-              <TouchableOpacity style={themedStyles.iconButton} onPress={pickImage}>
-                <ImageIcon size={24} color={COLORS.textSecondary} />
+              <TouchableOpacity style={styles.iconButton} onPress={pickImage}>
+                <ImageIcon size={22} color={COLORS.textSecondary} />
               </TouchableOpacity>
             </View>
           )}
 
           <TextInput
             ref={inputRef}
-            style={[themedStyles.input, isRecording && themedStyles.inputHidden]}
+            style={[
+              styles.input, 
+              { backgroundColor: COLORS.gray100, color: COLORS.text },
+              isRecording && styles.inputHidden
+            ]}
             placeholder="Message or log food..."
             value={input}
             onChangeText={setInput}
@@ -319,89 +368,56 @@ export default function ChatScreen() {
           />
 
           {isRecording && (
-            <View style={themedStyles.recordingIndicator}>
-              <View style={themedStyles.redDot} />
-              <Text style={themedStyles.recordingText}>Listening...</Text>
+            <View style={[styles.recordingIndicator, { backgroundColor: COLORS.error + '15' }]}>
+              <View style={[styles.redDot, { backgroundColor: COLORS.error }]} />
+              <Body style={{ color: COLORS.error, fontWeight: '700' }}>Listening...</Body>
             </View>
           )}
 
-          {input.trim() ? (
-            <TouchableOpacity 
-              style={[themedStyles.sendButton, themedStyles.primaryButton]} 
-              onPress={sendMessage}
-              disabled={isSending}
-            >
-              {isSending ? <ActivityIndicator size="small" color="#fff" /> : <Send size={20} color="#fff" />}
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity 
-              style={[themedStyles.sendButton, isRecording ? themedStyles.stopButton : themedStyles.primaryButton]} 
-              onPressIn={startRecording}
-              onPressOut={stopRecording}
-              disabled={isSending}
-            >
-              {isSending ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : isRecording ? (
-                <Square size={20} color="#fff" />
-              ) : (
-                <Mic size={20} color="#fff" />
-              )}
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity 
+            style={[
+              styles.sendButton, 
+              { backgroundColor: isRecording ? COLORS.error : COLORS.primary },
+              isSending && { opacity: 0.6 }
+            ]} 
+            onPress={input.trim() ? sendMessage : (isRecording ? stopRecording : startRecording)}
+            disabled={isSending}
+          >
+            {isSending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : input.trim() ? (
+              <Send size={18} color="#fff" />
+            ) : isRecording ? (
+              <Square size={18} color="#fff" />
+            ) : (
+              <Mic size={18} color="#fff" />
+            )}
+          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </View>
+    </ScreenWrapper>
   );
 }
 
-const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    padding: SPACING.lg,
-    paddingTop: 60,
-    backgroundColor: COLORS.surface,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.gray100,
-    ...SHADOWS,
-  },
-  headerTitle: {
-    ...TYPOGRAPHY.h2,
-    color: COLORS.text,
-  },
-  headerSubtitle: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textSecondary,
-  },
+const styles = StyleSheet.create({
   avatarMini: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.primary,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  avatarTextMini: {
-    color: COLORS.surface,
-    fontWeight: 'bold',
   },
   keyboardView: {
     flex: 1,
   },
   messageList: {
-    padding: SPACING.md,
+    padding: 16,
     paddingBottom: 32,
   },
   messageRow: {
     flexDirection: 'row',
     marginBottom: 16,
-    maxWidth: '80%',
+    maxWidth: '85%',
   },
   aiRow: {
     alignSelf: 'flex-start',
@@ -414,69 +430,40 @@ const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleShe
     borderRadius: 20,
     overflow: 'hidden',
   },
-  aiBubble: {
-    backgroundColor: COLORS.gray100,
-    borderBottomLeftRadius: 4,
-  },
-  userBubble: {
-    backgroundColor: COLORS.primary,
-    borderBottomRightRadius: 4,
-  },
   messageImage: {
-    width: 200,
-    height: 200,
+    width: 220,
+    height: 220,
     borderRadius: 12,
     marginBottom: 8,
-  },
-  messageText: {
-    ...TYPOGRAPHY.body,
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  aiText: {
-    color: COLORS.text,
-  },
-  userText: {
-    color: COLORS.surface,
   },
   systemMessage: {
     alignSelf: 'center',
     marginVertical: 12,
     paddingHorizontal: 16,
     paddingVertical: 6,
-    backgroundColor: COLORS.gray100,
     borderRadius: 12,
-  },
-  systemText: {
-    ...TYPOGRAPHY.caption,
-    color: COLORS.textSecondary,
-    fontWeight: '600',
   },
   inputArea: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.md,
+    padding: 12,
     borderTopWidth: 1,
-    borderTopColor: COLORS.gray100,
-    backgroundColor: COLORS.surface,
   },
   hardwareButtons: {
     flexDirection: 'row',
-    marginRight: 8,
+    marginRight: 4,
   },
   iconButton: {
     padding: 8,
   },
   input: {
     flex: 1,
-    backgroundColor: COLORS.gray100,
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    marginRight: 12,
-    fontSize: 16,
-    color: COLORS.text,
-    maxHeight: 100,
+    marginRight: 10,
+    fontSize: 15,
+    maxHeight: 120,
   },
   inputHidden: {
     display: 'none',
@@ -486,33 +473,21 @@ const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleShe
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.error + '25',
     borderRadius: 24,
     height: 44,
-    marginRight: 12,
+    marginRight: 10,
   },
   redDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: COLORS.error,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     marginRight: 8,
   },
-  recordingText: {
-    color: COLORS.error,
-    fontWeight: '600',
-  },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  primaryButton: {
-    backgroundColor: COLORS.primary,
-  },
-  stopButton: {
-    backgroundColor: COLORS.error,
   },
 });

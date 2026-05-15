@@ -1,20 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
 import api from '../../services/api';
-import { LogOut, User, Settings, Shield, HelpCircle, Target, Activity, Heart, Scale } from 'lucide-react-native';
+import { LogOut, User, Settings, Shield, HelpCircle, Activity, Heart, Scale } from 'lucide-react-native';
+import { useTheme } from '../../constants/Theme';
+
+// UI Components
+import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
+import { Card } from '../../components/ui/Card';
+import { H2, Body, Caption } from '../../components/ui/Typography';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const { COLORS } = useTheme();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        const res = await api.get('/users/profile');
+        const res = await api.get('/users/profile').catch(() => ({ data: null }));
         setStats(res.data);
       } catch (err) {
         console.error('Failed to fetch profile stats', err);
@@ -28,168 +35,133 @@ export default function ProfileScreen() {
   const bio = stats?.biologicalProfile || {};
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.avatarPlaceholder}>
-          <Text style={styles.avatarText}>{user?.name?.charAt(0) || 'U'}</Text>
+    <ScreenWrapper title="Profile" showBack={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Header Section */}
+        <View style={styles.header}>
+          <View style={[styles.avatarLarge, { backgroundColor: COLORS.primary }]}>
+            <H2 style={{ color: COLORS.surface }}>{user?.name?.charAt(0) || 'U'}</H2>
+          </View>
+          <H2 style={{ marginTop: 16 }}>{user?.name || 'User'}</H2>
+          <Body secondary>{user?.email || 'email@example.com'}</Body>
         </View>
-        <Text style={styles.name}>{user?.name || 'User'}</Text>
-        <Text style={styles.email}>{user?.email || 'email@example.com'}</Text>
-      </View>
 
-      {/* Bio Stats Grid */}
-      <View style={styles.bioGrid}>
-        <View style={styles.bioItem}>
-          <Scale size={18} color="#666" />
-          <Text style={styles.bioValue}>{bio.weight || '--'} kg</Text>
-          <Text style={styles.bioLabel}>Weight</Text>
+        {/* Bio Stats Grid */}
+        <View style={styles.bioGrid}>
+          <Card style={styles.bioItem} padding={12}>
+            <Scale size={20} color={COLORS.primary} />
+            <Body style={{ fontWeight: '700', marginTop: 8 }}>{bio.weight || '--'} kg</Body>
+            <Caption secondary>Weight</Caption>
+          </Card>
+          <Card style={styles.bioItem} padding={12}>
+            <Activity size={20} color={COLORS.primary} />
+            <Body style={{ fontWeight: '700', marginTop: 8 }}>{bio.height || '--'} cm</Body>
+            <Caption secondary>Height</Caption>
+          </Card>
+          <Card style={styles.bioItem} padding={12}>
+            <Heart size={20} color={COLORS.primary} />
+            <Body style={{ fontWeight: '700', marginTop: 8 }}>{bio.age || '--'}</Body>
+            <Caption secondary>Age</Caption>
+          </Card>
         </View>
-        <View style={styles.bioItem}>
-          <Activity size={18} color="#666" />
-          <Text style={styles.bioValue}>{bio.height || '--'} cm</Text>
-          <Text style={styles.bioLabel}>Height</Text>
+
+        {/* Menu Section */}
+        <View style={styles.section}>
+          <Caption secondary style={styles.sectionTitle}>Preferences</Caption>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/profile/edit')}>
+            <User size={22} color={COLORS.text} />
+            <Body style={styles.menuText}>Biological Profile</Body>
+          </TouchableOpacity>
+          
+          <Caption secondary style={[styles.sectionTitle, { marginTop: 24 }]}>Settings</Caption>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/profile/settings')}>
+            <Settings size={22} color={COLORS.text} />
+            <Body style={styles.menuText}>App Settings</Body>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem}>
+            <Shield size={22} color={COLORS.text} />
+            <Body style={styles.menuText}>Privacy & Security</Body>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem}>
+            <HelpCircle size={22} color={COLORS.text} />
+            <Body style={styles.menuText}>Help & Support</Body>
+          </TouchableOpacity>
         </View>
-        <View style={styles.bioItem}>
-          <Heart size={18} color="#666" />
-          <Text style={styles.bioValue}>{bio.age || '--'}</Text>
-          <Text style={styles.bioLabel}>Age</Text>
+
+        {/* Logout */}
+        <TouchableOpacity 
+          style={[styles.logoutButton, { backgroundColor: COLORS.error + '10' }]} 
+          onPress={logout}
+        >
+          <LogOut size={22} color={COLORS.error} />
+          <Body style={[styles.logoutText, { color: COLORS.error }]}>Sign Out</Body>
+        </TouchableOpacity>
+
+        <View style={styles.footer}>
+          <Caption secondary>LifeSync v1.0.0 (Mobile Alpha)</Caption>
         </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Preferences</Text>
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/profile/edit')}>
-          <User size={20} color="#333" />
-          <Text style={styles.menuText}>Biological Profile</Text>
-        </TouchableOpacity>
-        
-        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Settings</Text>
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/profile/settings')}>
-          <Settings size={20} color="#333" />
-          <Text style={styles.menuText}>App Settings</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem}>
-          <Shield size={20} color="#333" />
-          <Text style={styles.menuText}>Privacy & Security</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem}>
-          <HelpCircle size={20} color="#333" />
-          <Text style={styles.menuText}>Help & Support</Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-        <LogOut size={20} color="#ff3b30" />
-        <Text style={styles.logoutText}>Sign Out</Text>
-      </TouchableOpacity>
-
-      <View style={styles.footer}>
-        <Text style={styles.version}>LifeSync v1.0.0 (Mobile Alpha)</Text>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
+  content: { paddingBottom: 40 },
   header: {
     alignItems: 'center',
-    padding: 32,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    paddingVertical: 32,
   },
-  avatarPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#000',
+  avatarLarge: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  avatarText: {
-    color: '#fff',
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  name: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  email: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
   },
   bioGrid: {
     flexDirection: 'row',
-    padding: 24,
-    justifyContent: 'space-between',
-    backgroundColor: '#f9fafb',
+    paddingHorizontal: 16,
+    gap: 12,
+    marginBottom: 24,
   },
   bioItem: {
-    alignItems: 'center',
     flex: 1,
-  },
-  bioValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 8,
-    color: '#333',
-  },
-  bioLabel: {
-    fontSize: 11,
-    color: '#999',
-    marginTop: 2,
-    textTransform: 'uppercase',
+    alignItems: 'center',
   },
   section: {
-    padding: 16,
+    paddingHorizontal: 16,
   },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#999',
+    marginLeft: 8,
+    marginBottom: 12,
     textTransform: 'uppercase',
-    marginLeft: 16,
-    marginBottom: 8,
+    fontWeight: '700',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
   },
   menuText: {
-    fontSize: 16,
     marginLeft: 16,
-    color: '#333',
+    fontWeight: '600',
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     marginHorizontal: 16,
-    marginTop: 24,
-    borderRadius: 12,
-    backgroundColor: '#fff1f0',
+    marginTop: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
   },
   logoutText: {
-    fontSize: 16,
-    marginLeft: 16,
-    color: '#ff3b30',
-    fontWeight: '600',
+    marginLeft: 12,
+    fontWeight: '700',
   },
   footer: {
     padding: 32,
     alignItems: 'center',
-  },
-  version: {
-    fontSize: 12,
-    color: '#ccc',
   },
 });

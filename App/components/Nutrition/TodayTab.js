@@ -357,7 +357,7 @@ const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleShe
   mealRight: { alignItems: 'flex-end' },
   mealActionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   webMealCals: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  webMealActionBtn: { padding: 2 },
+  webMealActionBtn: { padding: 12 },
   webMealMacros: { fontSize: 11, color: '#6b7280', marginTop: 4 },
   
   foodList: { marginTop: 4 },

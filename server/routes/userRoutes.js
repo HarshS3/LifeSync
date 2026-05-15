@@ -20,10 +20,16 @@ router.put('/profile', auth, async (req, res) => {
     }
 
     if (updateData.biologicalProfile) {
-      const calculated = calculateDailyTargets({
-        ...(user.biologicalProfile?.toObject?.() || user.biologicalProfile),
-        ...updateData.biologicalProfile
-      });
+      const bmrOverride = user.bodyComposition?.bmrKcal;
+      const calculated = calculateDailyTargets(
+        {
+          ...(user.biologicalProfile?.toObject?.() || user.biologicalProfile),
+          ...updateData.biologicalProfile,
+        },
+        null,
+        user.labMarkers,
+        bmrOverride
+      );
       if (calculated) {
         updateData.dailyCalorieTarget = calculated.targets.calories;
         updateData.dailyProteinTarget = calculated.targets.protein;
@@ -75,7 +81,8 @@ router.patch('/profile', auth, async (req, res) => {
         ...(user.biologicalProfile?.toObject?.() || user.biologicalProfile),
         ...updateData.biologicalProfile
       };
-      const calculated = calculateDailyTargets(updatePayload.biologicalProfile);
+      const bmrOverride = user.bodyComposition?.bmrKcal;
+      const calculated = calculateDailyTargets(updatePayload.biologicalProfile, null, user.labMarkers, bmrOverride);
       if (calculated) {
         updatePayload.dailyCalorieTarget = calculated.targets.calories;
         updatePayload.dailyProteinTarget = calculated.targets.protein;

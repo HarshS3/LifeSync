@@ -146,15 +146,23 @@ function GymTracker() {
   const [stats, setStats] = useState({
     weeklyWorkouts: 0,
     currentStreak: 0,
-    hardSetsPerMuscle: {}, // New: weekly sets per muscle
+    hardSetsPerMuscle: {},
     muscleDistribution: {},
   })
 
-  const [restTimerSeconds, setRestTimerSeconds] = useState(0)
-  const [showRestTimer, setShowRestTimer] = useState(false)
-  const [recentPRs, setRecentPRs] = useState({}) // exercise -> best 1RM
-
-  const muscleHeatmap = useMemo(() => computeMuscleHeatmap(workouts, { days: 30 }), [workouts])
+  // Standard Muscle Groups matching EXERCISE_LIBRARY keys
+  const MUSCLE_GROUPS = [
+    { key: 'chest',     label: 'Chest' },
+    { key: 'back',      label: 'Back' },
+    { key: 'shoulders', label: 'Shoulders' },
+    { key: 'biceps',    label: 'Biceps' },
+    { key: 'triceps',   label: 'Triceps' },
+    { key: 'quads',     label: 'Quads' },
+    { key: 'hamstrings',label: 'Hamstrings' },
+    { key: 'glutes',    label: 'Glutes' },
+    { key: 'calves',    label: 'Calves' },
+    { key: 'core',      label: 'Core' },
+  ];
 
   const trainingInsights = useMemo(() => computeTrainingInsights(workouts), [workouts])
 

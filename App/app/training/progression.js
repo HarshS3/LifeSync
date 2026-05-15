@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, TextInput } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, TrendingUp, Search, Info, Play } from 'lucide-react-native';
+import { TrendingUp, Search, Info, Play } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import api from '../../services/api';
 import { LineChart } from 'react-native-chart-kit';
+import { useTheme } from '../../constants/Theme';
+
+// UI Components
+import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
+import { Card } from '../../components/ui/Card';
+import { H2, Body, Caption, H3 } from '../../components/ui/Typography';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -15,6 +21,7 @@ const COMMON_EXERCISES = [
 
 export default function ProgressionScreen() {
   const router = useRouter();
+  const { COLORS } = useTheme();
   const [exercise, setExercise] = useState('Bench Press');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,8 +35,8 @@ export default function ProgressionScreen() {
   const fetchProgression = async (exName) => {
     setLoading(true);
     try {
-      const res = await api.get(`/gym/exercise-history/${encodeURIComponent(exName)}`);
-      if (res.data) {
+      const res = await api.get(`/gym/exercise-history/${encodeURIComponent(exName)}`).catch(() => ({ data: null }));
+      if (res?.data) {
         setHistory(res.data.history || []);
         setStats({
           maxWeight: res.data.maxWeight,
@@ -52,28 +59,21 @@ export default function ProgressionScreen() {
     datasets: [
       {
         data: history.length > 0 ? history.slice(-5).map(h => h.maxWeight || 0) : [0],
-        color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
+        color: (opacity = 1) => COLORS.primary,
         strokeWidth: 3
       }
     ]
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ChevronLeft size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Progression</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <ScrollView style={styles.content}>
-        <View style={styles.searchContainer}>
-          <Search size={18} color="#999" style={styles.searchIcon} />
+    <ScreenWrapper title="Progression">
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={[styles.searchContainer, { backgroundColor: COLORS.surface, borderColor: COLORS.border }]}>
+          <Search size={18} color={COLORS.gray400} style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: COLORS.text }]}
             placeholder="Search an exercise..."
+            placeholderTextColor={COLORS.gray400}
             value={searchQuery}
             onChangeText={(text) => {
               setSearchQuery(text);
@@ -93,60 +93,67 @@ export default function ProgressionScreen() {
             {COMMON_EXERCISES.map(ex => (
               <TouchableOpacity
                 key={ex}
-                style={[styles.chip, exercise === ex && styles.chipActive]}
+                style={[
+                  styles.chip, 
+                  { backgroundColor: COLORS.surface, borderColor: COLORS.border },
+                  exercise === ex && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }
+                ]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setExercise(ex);
                 }}
               >
-                <Text style={[styles.chipText, exercise === ex && styles.chipTextActive]}>{ex}</Text>
+                <Body style={[
+                  { color: COLORS.textSecondary, fontWeight: '600' },
+                  exercise === ex && { color: COLORS.surface }
+                ]}>{ex}</Body>
               </TouchableOpacity>
             ))}
           </ScrollView>
         )}
 
-        <View style={styles.chartCard}>
+        <Card style={styles.chartCard} padding={20}>
           <View style={styles.chartHeader}>
-            <TrendingUp size={24} color="#8b5cf6" />
-            <Text style={styles.chartTitle}>{exercise}</Text>
+            <TrendingUp size={24} color={COLORS.primary} />
+            <H2>{exercise}</H2>
           </View>
           
           {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#8b5cf6" />
+              <ActivityIndicator size="large" color={COLORS.primary} />
             </View>
           ) : history.length > 0 ? (
             <View>
-              <View style={styles.statsRow}>
+              <View style={[styles.statsRow, { borderBottomColor: COLORS.gray100 }]}>
                 <View style={styles.statBox}>
-                  <Text style={styles.statValue}>{stats?.maxWeight}kg</Text>
-                  <Text style={styles.statLabel}>Max Weight</Text>
+                  <H2>{stats?.maxWeight}kg</H2>
+                  <Caption secondary>Max Weight</Caption>
                 </View>
                 <View style={styles.statBox}>
-                  <Text style={styles.statValue}>{stats?.estimated1RM}kg</Text>
-                  <Text style={styles.statLabel}>Est. 1RM</Text>
+                  <H2>{stats?.estimated1RM}kg</H2>
+                  <Caption secondary>Est. 1RM</Caption>
                 </View>
               </View>
               
-              <Text style={styles.chartSubtitle}>Recent Progression (Weight)</Text>
+              <Body style={{ fontWeight: '600', marginBottom: 12 }}>Recent Progression (Weight)</Body>
               <LineChart
                 data={chartData}
-                width={screenWidth - 80}
+                width={screenWidth - 72}
                 height={220}
                 yAxisLabel=""
                 yAxisSuffix="kg"
                 chartConfig={{
-                  backgroundColor: '#ffffff',
-                  backgroundGradientFrom: '#ffffff',
-                  backgroundGradientTo: '#ffffff',
+                  backgroundColor: COLORS.surface,
+                  backgroundGradientFrom: COLORS.surface,
+                  backgroundGradientTo: COLORS.surface,
                   decimalPlaces: 0,
-                  color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
-                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                  color: (opacity = 1) => COLORS.primary,
+                  labelColor: (opacity = 1) => COLORS.textSecondary,
                   style: { borderRadius: 16 },
                   propsForDots: {
                     r: "4",
                     strokeWidth: "2",
-                    stroke: "#8b5cf6"
+                    stroke: COLORS.primary
                   }
                 }}
                 bezier
@@ -155,65 +162,68 @@ export default function ProgressionScreen() {
             </View>
           ) : (
             <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconCircle}>
-                <Info size={32} color="#94a3b8" />
+              <View style={[styles.emptyIconCircle, { backgroundColor: COLORS.gray100 }]}>
+                <Info size={32} color={COLORS.gray400} />
               </View>
-              <Text style={styles.emptyTitle}>No History Yet</Text>
-              <Text style={styles.emptyDesc}>
+              <H3 style={{ marginBottom: 8 }}>No History Yet</H3>
+              <Body secondary style={{ textAlign: 'center', marginBottom: 24 }}>
                 You haven't logged any sets for {exercise} yet. 
                 Complete a workout to see your progress here!
-              </Text>
+              </Body>
               <TouchableOpacity 
-                style={styles.emptyAction}
+                style={[styles.emptyAction, { backgroundColor: COLORS.primary }]}
                 onPress={() => router.push('/training/active')}
               >
-                <Play size={16} color="#fff" />
-                <Text style={styles.emptyActionText}>Start Workout</Text>
+                <Play size={16} color={COLORS.surface} />
+                <Body style={{ color: COLORS.surface, fontWeight: '700' }}>Start Workout</Body>
               </TouchableOpacity>
             </View>
           )}
-        </View>
+        </Card>
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  header: {
-    paddingTop: 60, paddingBottom: 20, paddingHorizontal: 20, backgroundColor: '#fff',
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
-  },
-  backButton: { padding: 4 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#000' },
-  content: { padding: 20 },
+  content: { padding: 16 },
   searchContainer: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 10, marginBottom: 16, borderWidth: 1, borderColor: '#eee'
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    borderRadius: 16,
+    paddingHorizontal: 12, 
+    paddingVertical: 10, 
+    marginBottom: 16, 
+    borderWidth: 1,
   },
   searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 16, color: '#000' },
+  searchInput: { flex: 1, fontSize: 16 },
   chipsScroll: { marginBottom: 24 },
   chip: {
-    backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
-    marginRight: 8, borderWidth: 1, borderColor: '#eee',
+    paddingHorizontal: 16, 
+    paddingVertical: 8, 
+    borderRadius: 20,
+    marginRight: 8, 
+    borderWidth: 1,
   },
-  chipActive: { backgroundColor: '#8b5cf6', borderColor: '#8b5cf6' },
-  chipText: { color: '#666', fontWeight: '600' },
-  chipTextActive: { color: '#fff' },
   chartCard: {
-    backgroundColor: '#fff', borderRadius: 20, padding: 20, elevation: 2,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10,
+    marginBottom: 40,
   },
-  chartHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 8 },
-  chartTitle: { fontSize: 20, fontWeight: '800', color: '#000' },
+  chartHeader: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 20, 
+    gap: 12 
+  },
   loadingContainer: { height: 200, justifyContent: 'center', alignItems: 'center' },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 24, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  statsRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-around', 
+    marginBottom: 24, 
+    paddingBottom: 24, 
+    borderBottomWidth: 1, 
+  },
   statBox: { alignItems: 'center' },
-  statValue: { fontSize: 24, fontWeight: '800', color: '#000' },
-  statLabel: { fontSize: 12, color: '#999', marginTop: 4 },
-  chartSubtitle: { fontSize: 14, fontWeight: '600', color: '#666', marginBottom: 12 },
   chart: { marginVertical: 8, borderRadius: 16 },
   emptyContainer: { 
     paddingVertical: 40,
@@ -224,37 +234,16 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#334155',
-    marginBottom: 8,
-  },
-  emptyDesc: {
-    fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
   emptyAction: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#8b5cf6',
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: 16,
     gap: 8,
-  },
-  emptyActionText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
   },
 });

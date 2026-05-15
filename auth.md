@@ -20,10 +20,10 @@ export function AuthProvider({ children }) {
   const loadStorageData = async () => {
     try {
       const savedToken = await SecureStore.getItemAsync(TOKEN_KEY);
-
+      
       // Try to get user from AsyncStorage (new way)
       let savedUser = await AsyncStorage.getItem(USER_KEY);
-
+      
       // Migration: If not in AsyncStorage, check SecureStore (old way)
       if (!savedUser) {
         savedUser = await SecureStore.getItemAsync(USER_KEY);

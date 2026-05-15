@@ -81,6 +81,7 @@ const MEDICAL_DOCUMENT_PROMPT = `You are a medical document OCR assistant.
 Extract all readable text from this document. 
 Preserve the structure as much as possible, especially labels and their corresponding values (e.g., "BMI: 33.8").
 If it is a Body Composition report (like InBody or ACCUNIQ), ensure you capture:
+- Date of the test
 - Height, Weight
 - BMI, Body Fat %, Muscle Mass (SMM)
 - BMR, Biological/Metabolic Age

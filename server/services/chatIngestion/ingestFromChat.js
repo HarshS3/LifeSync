@@ -101,28 +101,33 @@ function detectFoodLogIntent(message) {
   const s = String(message || '').toLowerCase().trim();
   if (!s) return false;
 
-  // Exclude clear questions
-  if (/^(why|what|how|when|where|who|do|does|did|am|are|is|can|could|would|should|will|have|has)\b/.test(s)) return false;
-  if (s.endsWith('?')) return false;
+  // Exclude clear questions (unless they contain food words)
+  const hasQuestionStart = /^(why|what|how|when|where|who|do|does|did|am|are|is|can|could|would|should|will|have|has)\b/.test(s);
+  const endsWithQuestion = s.endsWith('?');
+  
+  // Food/ingredient words (Indian + common)
+  const hasFoodWord = /\b(roti|chapati|rice|dal|daal|sabzi|curry|paratha|idli|dosa|upma|poha|egg|eggs|chicken|paneer|tofu|salad|bread|oats|yogurt|curd|milk|protein|shake|smoothie|soup|fruit|banana|apple|mango|sandwich|toast|pasta|noodles|pizza|burger|coffee|tea|chai|juice|water|glass|bowl|cup|plate|serving|spoon|grams|kg)\b/i.test(s);
+  
+  // If it's a question but has a food word, it might be "Can I log idli?" -> let the agent handle it
+  if ((hasQuestionStart || endsWithQuestion) && !hasFoodWord) return false;
 
   // Must NOT be a pure wellness / mood statement
   const wellnessOnly = /^(feeling|i feel|my stress|my energy|my mood|slept|woke up|tired|stressed|anxious|happy|sad|energy level)/i.test(s);
   if (wellnessOnly && !/(ate|had|eat|breakfast|lunch|dinner|snack|drank|cup|bowl|plate|roti|rice|dal|protein)/i.test(s)) return false;
 
   // Food verb signals — strong indicator
-  const hasFoodVerb = /\b(ate|had|eat|eaten|drinking|drank|having|finished|consumed|ordered|made)\b/i.test(s);
+  const hasFoodVerb = /\b(ate|had|eat|eaten|drinking|drank|having|finished|consumed|ordered|made|log|logging|logged)\b/i.test(s);
 
   // Meal context signals
   const hasMealContext = /\b(breakfast|lunch|dinner|snack|meal|brunch)\b/i.test(s);
 
-  // Food/ingredient words (Indian + common)
-  const hasFoodWord = /\b(roti|chapati|rice|dal|daal|sabzi|curry|paratha|idli|dosa|upma|poha|egg|eggs|chicken|paneer|tofu|salad|bread|oats|yogurt|curd|milk|protein|shake|smoothie|soup|fruit|banana|apple|mango|sandwich|toast|pasta|noodles|pizza|burger|coffee|tea|chai|juice|water|glass|bowl|cup|plate|serving|spoon|grams|kg)\b/i.test(s);
-
   // Quantity signals
   const hasQuantity = /\b(\d+\s*(g|kg|ml|l|cup|cups|bowl|bowls|plate|plates|roti|chapati|piece|pieces|slice|slices|serving|scoop)|\d+\s+\w+)\b/i.test(s);
 
-  // At least: (food verb OR meal context) AND (food word OR quantity)
-  return (hasFoodVerb || hasMealContext) && (hasFoodWord || hasQuantity);
+  // Lenient check: (Verb OR Context OR Quantity OR just a food name alone) 
+  // We'll allow (Verb OR Context OR Quantity) AND (Food Word)
+  // OR just (Verb AND Quantity)
+  return (hasFoodVerb || hasMealContext || hasQuantity) && hasFoodWord || (hasFoodVerb && hasQuantity);
 }
 
 // ── DB helpers ────────────────────────────────────────────────────────────────
@@ -177,15 +182,31 @@ async function upsertTodayWeightLog({ userId, now, weightKg }) {
 async function tryLogFoodViaAgent({ userId, message }) {
   try {
     const { NutritionAgentSession } = require('../nutritionAI/nutritionAgent');
-    const agent = new NutritionAgentSession(userId);
     
-    // Fetch user to pass meal schedule defaults
-    const user = await User.findById(userId).select('mealSchedule').lean();
-    if (user && user.mealSchedule) {
-      agent.userMealSchedule = user.mealSchedule;
+    // Use a persistent session ID based on userId for chat-based logging
+    const sessionId = `chat_session_${userId}`;
+    if (!global.agentSessions) global.agentSessions = {};
+    
+    let agent = global.agentSessions[sessionId];
+    if (!agent) {
+      agent = new NutritionAgentSession(userId);
+      global.agentSessions[sessionId] = agent;
+    }
+    
+    // Fetch user to pass meal schedule defaults (only once or update if needed)
+    if (!agent.userMealSchedule) {
+      const user = await User.findById(userId).select('mealSchedule').lean();
+      if (user && user.mealSchedule) {
+        agent.userMealSchedule = user.mealSchedule;
+      }
     }
 
     const result = await agent.handleVoiceInput(message);
+    
+    // If the agent is complete (logged or failed), we could clear it, 
+    // but better to keep it for a few turns in case of follow-ups.
+    // We'll let it persist for now.
+
     return {
       handled: true,
       foodLogged: result.foodLogged || false,
@@ -254,8 +275,11 @@ async function ingestFromChat({ userId, message, now = new Date() }) {
 
   // ── 2. Food intent detection → Nutrition Agent ────────────────────────────
   let foodIngestion = null;
-  if (detectFoodLogIntent(message)) {
-    console.log('[ingestFromChat] Food intent detected — routing to NutritionAgentSession');
+  const sessionId = `chat_session_${userId}`;
+  const hasActiveSession = global.agentSessions && global.agentSessions[sessionId];
+  
+  if (detectFoodLogIntent(message) || hasActiveSession) {
+    console.log(`[ingestFromChat] Routing to NutritionAgentSession: intent=${detectFoodLogIntent(message)}, active=${!!hasActiveSession}`);
     foodIngestion = await tryLogFoodViaAgent({ userId, message });
     if (foodIngestion.foodLogged) {
       updates.push({ model: 'NutritionLog', patch: { mealLogged: true, committedMealId: foodIngestion.committedMealId } });

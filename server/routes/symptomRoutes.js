@@ -60,17 +60,43 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Create symptom log
-// POST /api/symptoms { date?, symptomName, severity?, notes?, tags? }
+// POST /api/symptoms { date?, symptomName, severity?, notes?, tags? } OR { date?, symptoms: [{ name, severity, notes, tags }] }
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { date, symptomName, severity, notes, tags } = req.body;
+    const { date, symptoms, symptomName, severity, notes, tags } = req.body;
+    const logDate = date ? new Date(date) : new Date();
+
+    // Handle batch logging (Mobile format)
+    if (Array.isArray(symptoms) && symptoms.length > 0) {
+      const createdLogs = [];
+      for (const s of symptoms) {
+        if (!s.name) continue;
+        const log = await SymptomLog.create({
+          user: req.userId,
+          date: logDate,
+          symptomName: String(s.name).trim(),
+          severity: s.severity == null || s.severity === '' ? null : Number(s.severity),
+          notes: s.notes ? String(s.notes) : '',
+          tags: Array.isArray(s.tags) ? s.tags.map(t => String(t).trim()).filter(Boolean) : [],
+        });
+        createdLogs.push(log);
+      }
+      
+      if (createdLogs.length > 0) {
+        triggerDailyLifeStateRecompute({ userId: req.userId, date: logDate, reason: 'symptomRoutes batch create' });
+      }
+      
+      return res.status(201).json(createdLogs);
+    }
+
+    // Fallback to legacy single symptom logic
     if (!symptomName || !String(symptomName).trim()) {
-      return res.status(400).json({ error: 'symptomName is required' });
+      return res.status(400).json({ error: 'symptomName or symptoms array is required' });
     }
 
     const doc = await SymptomLog.create({
       user: req.userId,
-      date: date ? new Date(date) : new Date(),
+      date: logDate,
       symptomName: String(symptomName).trim(),
       severity: severity == null || severity === '' ? null : Number(severity),
       notes: notes ? String(notes) : '',

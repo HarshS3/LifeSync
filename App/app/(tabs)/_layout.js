@@ -1,10 +1,13 @@
 import { Tabs } from 'expo-router';
 import { Home, MessageSquare, Dumbbell, Utensils, User, BarChart, Calendar } from 'lucide-react-native';
+import { useTheme } from '../../constants/Theme';
 
 export default function TabLayout() {
+  const { COLORS } = useTheme();
+
   return (
     <Tabs screenOptions={{ 
-      tabBarActiveTintColor: '#000',
+      tabBarActiveTintColor: COLORS.primary,
       headerShown: false 
     }}>
       <Tabs.Screen

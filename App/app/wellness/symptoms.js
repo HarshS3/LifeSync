@@ -1,24 +1,32 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import api from '../../services/api';
-import { ChevronLeft, Check, ShieldAlert, Thermometer, Wind, Zap } from 'lucide-react-native';
+import { Check, ShieldAlert, Thermometer, Wind, Zap } from 'lucide-react-native';
+import { useTheme } from '../../constants/Theme';
+import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
+import { Card } from '../../components/ui/Card';
+import { MetricSlider } from '../../components/ui/MetricSlider';
+import { H1, H2, H3, Body, Caption } from '../../components/ui/Typography';
 
 const COMMON_SYMPTOMS = [
-  { name: 'Bloating', icon: ShieldAlert, color: '#f59e0b' },
-  { name: 'Headache', icon: Zap, color: '#ef4444' },
-  { name: 'Brain Fog', icon: Wind, color: '#3b82f6' },
-  { name: 'Fatigue', icon: Thermometer, color: '#8b5cf6' },
+  { name: 'Bloating', icon: ShieldAlert, feature: 'wellness' },
+  { name: 'Headache', icon: Zap, feature: 'load' },
+  { name: 'Brain Fog', icon: Wind, feature: 'training' },
+  { name: 'Fatigue', icon: Thermometer, feature: 'wellness' },
 ];
 
 export default function LogSymptomsScreen() {
   const router = useRouter();
+  const { COLORS, SPACING } = useTheme();
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState([]);
   const [severity, setSeverity] = useState(5);
   const [notes, setNotes] = useState('');
 
   const toggleSymptom = (name) => {
+    Haptics.selectionAsync();
     setSelected(prev => 
       prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
     );
@@ -26,7 +34,7 @@ export default function LogSymptomsScreen() {
 
   const handleSave = async () => {
     if (selected.length === 0) {
-      alert('Select at least one symptom');
+      Alert.alert('Selection Required', 'Please select at least one symptom');
       return;
     }
     setLoading(true);
@@ -40,171 +48,126 @@ export default function LogSymptomsScreen() {
           notes: notes
         }))
       });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (err) {
       console.error('Failed to log symptoms', err);
-      alert('Error saving symptoms.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Error', 'Failed to save symptoms. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={24} color="#000" />
+    <ScreenWrapper 
+      title="Symptom Log"
+      headerRight={
+        <TouchableOpacity onPress={handleSave} disabled={loading}>
+          {loading ? (
+            <ActivityIndicator size="small" color={COLORS.primary} />
+          ) : (
+            <Check size={24} color={COLORS.primary} />
+          )}
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Symptom Log</Text>
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={loading}>
-          {loading ? <ActivityIndicator size="small" color="#000" /> : <Check size={24} color="#000" />}
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.introText}>What's bothering you?</Text>
+      }
+    >
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <H2 style={styles.introText}>What's bothering you?</H2>
 
         <View style={styles.symptomsGrid}>
-          {COMMON_SYMPTOMS.map((s) => (
-            <TouchableOpacity 
-              key={s.name}
-              style={[
-                styles.symptomCard,
-                selected.includes(s.name) && { borderColor: s.color, backgroundColor: s.color + '08' }
-              ]}
-              onPress={() => toggleSymptom(s.name)}
-            >
-              <s.icon size={24} color={selected.includes(s.name) ? s.color : '#999'} />
-              <Text style={[
-                styles.symptomName,
-                selected.includes(s.name) && { color: s.color, fontWeight: '700' }
-              ]}>{s.name}</Text>
-            </TouchableOpacity>
-          ))}
+          {COMMON_SYMPTOMS.map((s) => {
+            const isSelected = selected.includes(s.name);
+            const activeColor = COLORS[s.feature] || COLORS.primary;
+            return (
+              <TouchableOpacity 
+                key={s.name}
+                style={[
+                  styles.symptomCard,
+                  { 
+                    borderColor: isSelected ? activeColor : COLORS.border,
+                    backgroundColor: isSelected ? COLORS[`${s.feature}Bg`] || COLORS.gray100 : COLORS.surface
+                  }
+                ]}
+                onPress={() => toggleSymptom(s.name)}
+              >
+                <s.icon size={24} color={isSelected ? activeColor : COLORS.gray400} />
+                <Body style={[
+                  styles.symptomName,
+                  isSelected && { color: activeColor, fontWeight: '700' }
+                ]}>{s.name}</Body>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {selected.length > 0 && (
-          <View style={styles.severitySection}>
-            <Text style={styles.sectionLabel}>Average Severity: {severity}/10</Text>
-            <View style={styles.severityRow}>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                <TouchableOpacity
-                  key={num}
-                  style={[
-                    styles.numBox,
-                    severity === num && styles.numBoxActive
-                  ]}
-                  onPress={() => setSeverity(num)}
-                >
-                  <Text style={[styles.numText, severity === num && styles.numTextActive]}>{num}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+          <Card style={styles.severityCard}>
+            <MetricSlider 
+              label="Overall Severity"
+              value={severity}
+              onChange={setSeverity}
+              color={COLORS.wellness}
+              icon="🌡️"
+            />
+            
+            <H3 style={styles.sectionLabel}>Notes</H3>
+            <TextInput
+              style={[styles.notesInput, { 
+                backgroundColor: COLORS.gray100, 
+                color: COLORS.text,
+                borderRadius: 12
+              }]}
+              placeholder="Any specific details?"
+              placeholderTextColor={COLORS.gray400}
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              numberOfLines={4}
+            />
+          </Card>
         )}
-
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Notes</Text>
-          <TextInput
-            style={styles.textArea}
-            multiline
-            numberOfLines={4}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Describe any patterns (e.g., 'started 30 mins after eating lentils')"
-            textAlignVertical="top"
-          />
-        </View>
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
   content: {
-    padding: 24,
+    padding: 16,
   },
   introText: {
-    fontSize: 24,
-    fontWeight: 'bold',
     marginBottom: 24,
   },
   symptomsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 32,
+    justifyContent: 'space-between',
+    marginBottom: 24,
   },
   symptomCard: {
     width: '48%',
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#eee',
-    alignItems: 'center',
-  },
-  symptomName: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#666',
-  },
-  severitySection: {
-    marginBottom: 32,
-  },
-  sectionLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 16,
-    color: '#333',
-  },
-  severityRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  numBox: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    backgroundColor: '#f3f4f6',
+    aspectRatio: 1,
+    borderWidth: 2,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 16,
   },
-  numBoxActive: {
-    backgroundColor: '#000',
+  symptomName: {
+    marginTop: 12,
   },
-  numText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
+  severityCard: {
+    marginTop: 8,
   },
-  numTextActive: {
-    color: '#fff',
+  sectionLabel: {
+    marginTop: 16,
+    marginBottom: 12,
   },
-  textArea: {
-    height: 100,
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    padding: 16,
+  notesInput: {
+    padding: 12,
+    minHeight: 100,
+    textAlignVertical: 'top',
     fontSize: 15,
-    borderWidth: 1,
-    borderColor: '#eee',
   },
 });

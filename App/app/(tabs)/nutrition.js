@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight, Calendar, Search } from 'lucide-react-native';
 import api from '../../services/api';
 import { useTheme } from '../../constants/Theme';
+import { useAuth } from '../../context/AuthContext';
+
+// UI Components
+import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
+import { H2, Body, Caption } from '../../components/ui/Typography';
 
 // Tab Components
 import TodayTab from '../../components/Nutrition/TodayTab';
@@ -15,19 +20,18 @@ const TABS = ['Today', 'Log Meal', 'Weight', 'Details'];
 
 export default function NutritionScreen() {
   const router = useRouter();
-  const { COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY } = useTheme();
+  const { user } = useAuth();
+  const { COLORS, SPACING, BORDER_RADIUS, TYPOGRAPHY } = useTheme();
   
   const [activeTab, setActiveTab] = useState(0);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
-  // Data State
   const [log, setLog] = useState({ meals: [], dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0 } });
   const [targets, setTargets] = useState({ calories: 2500, protein: 150, carbs: 300, fat: 80 });
   const [templates, setTemplates] = useState([]);
   
-  // Interaction State
   const [reloggingId, setReloggingId] = useState(null);
   const [deletingIdx, setDeletingIdx] = useState(null);
 
@@ -98,55 +102,68 @@ export default function NutritionScreen() {
     }
   };
 
-  const themedStyles = styles(COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY);
-
   return (
-    <SafeAreaView style={themedStyles.container}>
-      {/* Header with Date Picker */}
-      <View style={themedStyles.header}>
-        <View style={themedStyles.headerTop}>
-          <Text style={themedStyles.headerTitle}>Nutrition</Text>
-          <TouchableOpacity onPress={() => router.push('/nutrition/search')} style={themedStyles.searchButton}>
-            <Search size={24} color={COLORS.text} />
+    <ScreenWrapper 
+      title="Nutrition" 
+      showBack={false}
+      headerRight={
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <TouchableOpacity onPress={() => router.push('/nutrition/search')} style={styles.searchButton}>
+            <Search size={22} color={COLORS.text} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => router.push('/profile')} 
+            style={[styles.avatarMini, { backgroundColor: COLORS.primary }]}
+          >
+            <Caption style={{ color: COLORS.surface, fontWeight: 'bold' }}>{user?.name ? user.name.charAt(0) : 'U'}</Caption>
           </TouchableOpacity>
         </View>
-
-        <View style={themedStyles.datePicker}>
-          <TouchableOpacity onPress={() => changeDate(-1)} style={themedStyles.dateNav}>
+      }
+    >
+      {/* Date Picker (Sub-header) */}
+      <View style={[styles.datePickerContainer, { backgroundColor: COLORS.surface, borderBottomColor: COLORS.border }]}>
+        <View style={styles.datePicker}>
+          <TouchableOpacity onPress={() => changeDate(-1)} style={styles.dateNav}>
             <ChevronLeft size={20} color={COLORS.text} />
           </TouchableOpacity>
-          <View style={themedStyles.dateInfo}>
-            <Calendar size={16} color={COLORS.primary} style={{ marginRight: 8 }} />
-            <Text style={themedStyles.dateText}>
+          <View style={[styles.dateInfo, { backgroundColor: COLORS.gray100 }]}>
+            <Calendar size={14} color={COLORS.nutrition} style={{ marginRight: 6 }} />
+            <Caption style={{ fontWeight: '700' }}>
               {new Date(selectedDate + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-            </Text>
+            </Caption>
           </View>
-          <TouchableOpacity onPress={() => changeDate(1)} style={themedStyles.dateNav}>
+          <TouchableOpacity onPress={() => changeDate(1)} style={styles.dateNav}>
             <ChevronRight size={20} color={COLORS.text} />
           </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Top Tab Bar */}
-      <View style={themedStyles.tabContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={themedStyles.tabScroll}>
-          {TABS.map((tab, i) => (
-            <TouchableOpacity 
-              key={i} 
-              onPress={() => setActiveTab(i)}
-              style={[themedStyles.tabItem, activeTab === i && themedStyles.activeTabItem]}
-            >
-              <Text style={[themedStyles.tabText, activeTab === i && themedStyles.activeTabText]}>{tab}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {/* Tab Bar */}
+        <View style={styles.tabContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
+            {TABS.map((tab, i) => (
+              <TouchableOpacity 
+                key={i} 
+                onPress={() => setActiveTab(i)}
+                style={[
+                  styles.tabItem, 
+                  activeTab === i && { backgroundColor: COLORS.nutrition + '15' }
+                ]}
+              >
+                <Caption style={[
+                  styles.tabText, 
+                  activeTab === i && { color: COLORS.nutrition, fontWeight: 'bold' }
+                ]}>{tab}</Caption>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
       </View>
 
       {/* Main Content */}
       <View style={{ flex: 1 }}>
         {loading ? (
-          <View style={themedStyles.centered}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color={COLORS.nutrition} />
           </View>
         ) : (
           <>
@@ -163,49 +180,51 @@ export default function NutritionScreen() {
                 handleDeleteMeal={handleDeleteMeal}
                 reloggingId={reloggingId}
                 deletingIdx={deletingIdx}
-                COLORS={COLORS} SPACING={SPACING} BORDER_RADIUS={BORDER_RADIUS} SHADOWS={SHADOWS} TYPOGRAPHY={TYPOGRAPHY}
+                COLORS={COLORS} SPACING={SPACING} BORDER_RADIUS={BORDER_RADIUS} SHADOWS={{}} TYPOGRAPHY={TYPOGRAPHY}
               />
             )}
             {activeTab === 1 && (
               <LogMealTab 
                 onMealLogged={() => fetchData(true)}
-                COLORS={COLORS} SPACING={SPACING} BORDER_RADIUS={BORDER_RADIUS} SHADOWS={SHADOWS} TYPOGRAPHY={TYPOGRAPHY}
+                currentMeals={log.meals}
+                COLORS={COLORS} SPACING={SPACING} BORDER_RADIUS={BORDER_RADIUS} SHADOWS={{}} TYPOGRAPHY={TYPOGRAPHY}
               />
             )}
             {activeTab === 2 && (
               <WeightTab 
-                COLORS={COLORS} SPACING={SPACING} BORDER_RADIUS={BORDER_RADIUS} SHADOWS={SHADOWS} TYPOGRAPHY={TYPOGRAPHY}
+                COLORS={COLORS} SPACING={SPACING} BORDER_RADIUS={BORDER_RADIUS} SHADOWS={{}} TYPOGRAPHY={TYPOGRAPHY}
               />
             )}
             {activeTab === 3 && (
               <DetailsTab 
                 log={log} 
                 targets={targets}
-                COLORS={COLORS} SPACING={SPACING} BORDER_RADIUS={BORDER_RADIUS} SHADOWS={SHADOWS} TYPOGRAPHY={TYPOGRAPHY}
+                COLORS={COLORS} SPACING={SPACING} BORDER_RADIUS={BORDER_RADIUS} SHADOWS={{}} TYPOGRAPHY={TYPOGRAPHY}
               />
             )}
           </>
         )}
       </View>
-    </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 
-const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { backgroundColor: COLORS.surface, paddingBottom: SPACING.sm, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING.md, paddingTop: SPACING.sm },
-  headerTitle: { ...TYPOGRAPHY.h2, color: COLORS.text },
-  searchButton: { padding: 8 },
-  datePicker: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: SPACING.sm },
-  dateNav: { padding: 10 },
-  dateInfo: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.gray100, paddingHorizontal: 16, paddingVertical: 6, borderRadius: BORDER_RADIUS.full },
-  dateText: { ...TYPOGRAPHY.label, color: COLORS.text, fontSize: 14 },
-  tabContainer: { backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  tabScroll: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm },
-  tabItem: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: BORDER_RADIUS.full, marginRight: 8 },
-  activeTabItem: { backgroundColor: COLORS.primary + '15' },
-  tabText: { ...TYPOGRAPHY.label, color: COLORS.textSecondary, fontSize: 14 },
-  activeTabText: { color: COLORS.primary, fontWeight: 'bold' },
+  searchButton: { padding: 4 },
+  datePickerContainer: { borderBottomWidth: 1 },
+  datePicker: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
+  dateNav: { padding: 8 },
+  dateInfo: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
+  tabContainer: { paddingBottom: 8 },
+  tabScroll: { paddingHorizontal: 16 },
+  tabItem: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20, marginRight: 8 },
+  tabText: { fontSize: 13 },
+  avatarMini: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

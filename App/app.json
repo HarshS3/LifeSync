@@ -1,13 +1,12 @@
 {
   "expo": {
-    "name": "app",
-    "slug": "app",
+    "name": "lifesync",
+    "slug": "lifesync",
     "version": "1.0.0",
     "scheme": "lifesync",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
     "plugins": [
       "expo-router"
     ],
@@ -35,7 +34,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "ce274d88-0793-406e-9b14-5db549aa0e8c"
+        "projectId": "ac2093f9-7742-477a-be3b-27bec3095918"
       }
     }
   }

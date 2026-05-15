@@ -11,7 +11,7 @@ let MfpFood;
 try { MfpFood = require('../../models/MfpFood'); } catch { MfpFood = null; }
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const NUTRITION_AGENT_MODEL = process.env.GROQ_TOOL_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
+const NUTRITION_AGENT_MODEL = process.env.GROQ_TOOL_MODEL || 'llama-3.3-70b-versatile';
 
 // ── Session-level embedding cache (avoids re-embedding same query) ────────────
 const _embeddingCache = new Map();
@@ -119,13 +119,8 @@ const nutritionTools = [
                 protein:       { type: 'number' },
                 carbs:         { type: 'number' },
                 fat:           { type: 'number' },
-                fiber:         { type: 'number' },
-                sugar:         { type: 'number' },
-                sodium:        { type: 'number' },
-                iron:          { type: 'number' },
-                calcium:       { type: 'number' },
               },
-              required: ['name', 'user_quantity', 'user_unit'],
+              required: ['name', 'user_quantity', 'user_unit', 'db_item_id', 'db_collection'],
             },
           },
         },
@@ -544,9 +539,9 @@ Full unit-ID map (internal, DO NOT speak aloud): ${unitSummary}`,
                 }
                 // else: ratio stays null — unit mismatch with no bridge
 
-                if (ratio === null) {
+                if (ratio === null || !Number.isFinite(ratio)) {
                   // ❌ Hard reject: cannot resolve units without estimation
-                  console.warn(`[NutritionAgent] Unit mismatch for ${item.name}: user=${userUnit}, db=${dbUnit}, no servingWeightG. Rejecting.`);
+                  console.warn(`[NutritionAgent] Unit mismatch or invalid ratio for ${item.name}: user=${userUnit}, db=${dbUnit}, ratio=${ratio}. Rejecting.`);
                   return {
                     ...baseObj, // keep LLM estimates only
                     _unitError: true,
@@ -574,9 +569,12 @@ Full unit-ID map (internal, DO NOT speak aloud): ${unitSummary}`,
                   'vitaminE', 'vitaminD', 'folate'
                 ];
                 FOOD_NUTRIENT_FIELDS.forEach(field => {
-                  if (mapped[field] !== undefined && mapped[field] !== null) {
-                    baseObj[`${field}_base`] = mapped[field];
-                    baseObj[field] = Math.round(mapped[field] * ratio * 100) / 100;
+                  const baseVal = Number(mapped[field] || 0);
+                  if (Number.isFinite(baseVal)) {
+                    baseObj[`${field}_base`] = baseVal;
+                    baseObj[field] = Math.round(baseVal * ratio * 100) / 100;
+                  } else {
+                    baseObj[field] = 0;
                   }
                 });
               }
@@ -611,21 +609,25 @@ Full unit-ID map (internal, DO NOT speak aloud): ${unitSummary}`,
       foods: foodsArray,
     };
 
-    // Compute per-meal totals
-    newMeal.totalCalories = newMeal.foods.reduce((s, f) => s + f.calories, 0);
-    newMeal.totalProtein  = newMeal.foods.reduce((s, f) => s + f.protein, 0);
-    newMeal.totalCarbs    = newMeal.foods.reduce((s, f) => s + f.carbs, 0);
-    newMeal.totalFat      = newMeal.foods.reduce((s, f) => s + f.fat, 0);
+    // Compute per-meal totals with NaN safety
+    const sumSafe = (arr, field) => arr.reduce((s, f) => s + (Number(f[field]) || 0), 0);
+    newMeal.totalCalories = sumSafe(newMeal.foods, 'calories');
+    newMeal.totalProtein  = sumSafe(newMeal.foods, 'protein');
+    newMeal.totalCarbs    = sumSafe(newMeal.foods, 'carbs');
+    newMeal.totalFat      = sumSafe(newMeal.foods, 'fat');
 
     log.meals.push(newMeal);
-
-    // BUG 2 FIX: recompute dailyTotals after adding meal
     log.dailyTotals = recalcDailyTotals(log);
 
-    await log.save();
-
-    // Track the meal index for potential undo
-    this.committedMealId = { logId: log._id.toString(), mealIndex: log.meals.length - 1 };
+    const mongoose = require('mongoose');
+    try {
+      await log.save();
+      console.log(`[NutritionAgent] DATABASE SAVE SUCCESSFUL for user ${this.userId} on ${start.toISOString()}`);
+      this.committedMealId = { logId: log._id.toString(), mealIndex: log.meals.length - 1 };
+    } catch (saveErr) {
+      console.error('[NutritionAgent] DATABASE SAVE FAILED:', saveErr);
+      throw new Error(`Database save failed: ${saveErr.message}`);
+    }
 
     // BUG 3 FIX: correct signature { userId, date, reason }
     try {

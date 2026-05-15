@@ -1,72 +1,41 @@
-/**
- * Training Screen — translation of:
- *   client/src/components/Gym/OverviewTab.jsx
- *   client/src/components/GymTracker.jsx (tabs + data)
- *
- * MUI → RN tokens (Paper theme):
- *   background.paper → #ffffff
- *   text.primary     → #161310
- *   text.secondary   → rgba(22,19,16,0.62)
- *   divider          → rgba(22,19,16,0.10)
- *   p:3 = 24, p:2 = 16, gap:2 = 16, borderRadius:2 = 16
- */
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  View, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useScrollToTop } from '@react-navigation/native';
 import api from '../../services/api';
 import * as Haptics from 'expo-haptics';
+import { useTheme } from '../../constants/Theme';
 
-// ── colours ─────────────────────────────────────────────────────────────────
-const C = {
-  bg:      '#f6f1e7',
-  surface: '#ffffff',
-  text:    '#161310',
-  muted:   'rgba(22,19,16,0.62)',
-  border:  'rgba(22,19,16,0.10)',
-  dark:    '#0f172a',
-};
+// UI Components
+import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
+import { Card } from '../../components/ui/Card';
+import { ProgressBar } from '../../components/ui/ProgressBar';
+import { H1, H2, H3, Body, Caption } from '../../components/ui/Typography';
 
-const scoreColor = (v) => v >= 7 ? '#22c55e' : v >= 5 ? '#f59e0b' : '#ef4444';
-
-// ── ProgressBar (LinearProgress) ─────────────────────────────────────────────
-function ProgressBar({ value, color }) {
+// ── StatCard ──────────────────────────────────────────
+function TrainingStatCard({ emoji, label, value, sublabel, color }) {
+  const { COLORS } = useTheme();
   return (
-    <View style={s.trackBg}>
-      <View style={[s.trackFill, { width: `${Math.min(100, value)}%`, backgroundColor: color }]} />
-    </View>
-  );
-}
-
-// ── StatCard (matches web StatCard) ──────────────────────────────────────────
-function StatCard({ emoji, label, value, sublabel, color }) {
-  return (
-    <View style={[s.statCard, { borderTopColor: color, borderTopWidth: 3 }]}>
-      <Text style={{ fontSize: 20, marginBottom: 4 }}>{emoji}</Text>
-      <Text style={[s.statValue, { color }]}>{value ?? '—'}</Text>
-      {sublabel && <Text style={s.statSublabel}>{sublabel}</Text>}
-      <Text style={s.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-// ── Insight Card ──────────────────────────────────────────────────────────────
-function InsightCard({ title, detail }) {
-  return (
-    <View style={s.insightCard}>
-      <Text style={s.insightTitle}>{title}</Text>
-      <Text style={s.insightDetail}>{detail}</Text>
-    </View>
+    <Card style={[styles.statCard, { borderTopColor: color, borderTopWidth: 3 }]} padding={12}>
+      <Body style={{ fontSize: 24, marginBottom: 4 }}>{emoji}</Body>
+      <H2 style={{ color, fontSize: 24 }}>{value ?? '—'}</H2>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+        <Caption secondary style={{ fontWeight: '600' }}>{label}</Caption>
+        {sublabel && <Caption secondary style={{ marginLeft: 2 }}>{sublabel}</Caption>}
+      </View>
+    </Card>
   );
 }
 
 // ── Readiness ring ────────────────────────────────────────────────────────────
 function ReadinessRing({ readiness }) {
+  const { COLORS, BORDER_RADIUS } = useTheme();
   if (!readiness) return null;
-  const color = readiness.color || '#f59e0b';
+  
+  const color = readiness.color || COLORS.primary;
   const statusLabel =
     readiness.status === 'push_hard'     ? '🔥 Push Hard'
     : readiness.status === 'train_normal' ? '💪 Train Normal'
@@ -80,78 +49,74 @@ function ReadinessRing({ readiness }) {
     { emoji: '🏋️', label: 'Load',  score: readiness.components?.trainingLoad?.score, detail: `${Math.round((readiness.components?.trainingLoad?.volumeRatio || 0) * 100)}%` },
   ];
 
-  return (
-    <View style={[s.card, { borderColor: color + '40' }]}>
-      {/* glow tint */}
-      <View style={[s.readinessGlow, { backgroundColor: color }]} />
+  const scoreColor = (v) => v >= 7 ? COLORS.success : v >= 5 ? COLORS.warning : COLORS.error;
 
-      <View style={s.cardHeader}>
-        <Text style={s.cardHeaderIcon}>🔥</Text>
-        <Text style={s.cardTitle}>Today's Training Readiness</Text>
+  return (
+    <Card style={{ borderColor: color + '40' }}>
+      <View style={[styles.readinessGlow, { backgroundColor: color }]} pointerEvents="none" />
+
+      <View style={styles.cardHeader}>
+        <H3>🔥 Today's Readiness</H3>
       </View>
 
-      <View style={s.readinessRow}>
-        {/* Score ring */}
-        <View style={[s.ring, { borderColor: color }]}>
-          <Text style={[s.ringScore, { color }]}>{readiness.readinessScore}</Text>
-          <Text style={s.ringUnit}>/10</Text>
+      <View style={styles.readinessRow}>
+        <View style={[styles.ring, { borderColor: color }]}>
+          <H2 style={{ fontSize: 32 }}>{readiness.readinessScore}</H2>
+          <Caption secondary style={{ fontWeight: '700' }}>/10</Caption>
         </View>
 
-        <View style={{ flex: 1, marginLeft: 16 }}>
-          <Text style={s.readinessRec}>{readiness.recommendation}</Text>
-          <View style={[s.statusBadge, { backgroundColor: color }]}>
-            <Text style={s.statusBadgeText}>{statusLabel}</Text>
+        <View style={{ flex: 1, marginLeft: 20 }}>
+          <Body style={{ marginBottom: 8 }}>{readiness.recommendation}</Body>
+          <View style={[styles.statusBadge, { backgroundColor: color }]}>
+            <Caption style={styles.statusBadgeText}>{statusLabel}</Caption>
           </View>
         </View>
       </View>
 
-      {/* Component scores */}
-      <View style={s.componentsGrid}>
+      <View style={styles.componentsGrid}>
         {components.map((c) => {
           const sc = c.score ?? 5;
           const cc = scoreColor(sc);
           return (
-            <View key={c.label} style={s.compCard}>
-              <View style={s.compRow}>
-                <Text style={s.compEmoji}>{c.emoji} {c.label}</Text>
-                <Text style={[s.compScore, { color: cc }]}>{sc}/10</Text>
+            <View key={c.label} style={[styles.compCard, { backgroundColor: COLORS.gray100, borderColor: COLORS.border, borderRadius: BORDER_RADIUS.md }]}>
+              <View style={styles.compRow}>
+                <Caption style={{ fontWeight: '700' }}>{c.emoji} {c.label}</Caption>
+                <Caption style={{ fontWeight: '800', color: cc }}>{sc}/10</Caption>
               </View>
               <ProgressBar value={(sc / 10) * 100} color={cc} />
-              <Text style={s.compDetail}>{c.detail}</Text>
+              <Caption secondary style={{ fontSize: 10, marginTop: 4 }}>{c.detail}</Caption>
             </View>
           );
         })}
       </View>
 
-      {/* Overtraining warning */}
       {readiness.overtraining?.risk !== 'low' && (
-        <View style={[s.overtrain, { backgroundColor: readiness.overtraining.risk === 'high' ? '#fef2f2' : '#fffbeb', borderColor: readiness.overtraining.risk === 'high' ? '#fca5a5' : '#fde68a' }]}>
-          <Text style={{ fontSize: 13, fontWeight: '700', color: readiness.overtraining.risk === 'high' ? '#991b1b' : '#92400e', marginBottom: 4 }}>
+        <View style={[styles.overtrain, { backgroundColor: readiness.overtraining.risk === 'high' ? COLORS.error + '10' : COLORS.warning + '10', borderColor: readiness.overtraining.risk === 'high' ? COLORS.error + '40' : COLORS.warning + '40' }]}>
+          <Caption style={{ fontWeight: '800', color: readiness.overtraining.risk === 'high' ? COLORS.error : COLORS.warning, marginBottom: 4 }}>
             ⚠️ Overtraining Risk: {readiness.overtraining.risk === 'high' ? 'HIGH' : 'Moderate'}
-          </Text>
-          <Text style={{ fontSize: 12, color: C.muted }}>{readiness.overtraining.detail}</Text>
+          </Caption>
+          <Caption secondary style={{ fontSize: 12 }}>{readiness.overtraining.detail}</Caption>
         </View>
       )}
 
-      {/* Stagnation alerts */}
       {readiness.stagnationAlerts?.length > 0 && (
-        <View style={{ marginTop: 16, borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12 }}>
-          <Text style={s.stagnationHeader}>📈 Stagnation Detected — {readiness.stagnationAlerts.length} exercise{readiness.stagnationAlerts.length > 1 ? 's' : ''} plateaued</Text>
+        <View style={{ marginTop: 16, borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 12 }}>
+          <Caption style={{ color: COLORS.load, marginBottom: 8, fontWeight: '700' }}>📈 Stagnation Detected</Caption>
           {readiness.stagnationAlerts.map((alert, i) => (
-            <View key={i} style={s.stagnationItem}>
-              <Text style={s.stagnationExercise}>{alert.exercise}</Text>
-              <Text style={s.stagnationDetail}>No progress in {alert.sessionsStagnated} sessions — best: {alert.currentBest}kg</Text>
-              <Text style={s.stagnationSuggestion}>💡 {alert.suggestion}</Text>
+            <View key={i} style={[styles.stagnationItem, { backgroundColor: COLORS.gray100, borderLeftColor: COLORS.load }]}>
+              <Body style={{ fontWeight: '800', fontSize: 13 }}>{alert.exercise}</Body>
+              <Caption secondary>No progress in {alert.sessionsStagnated} sessions</Caption>
+              <Caption secondary style={{ marginTop: 4, fontStyle: 'italic' }}>💡 {alert.suggestion}</Caption>
             </View>
           ))}
         </View>
       )}
-    </View>
+    </Card>
   );
 }
 
-// ── Main ─────────────────────────────────────────────────────────────────────
 export default function TrainingScreen() {
+  const { COLORS, TYPOGRAPHY } = useTheme();
   const router = useRouter();
   const scrollRef = useRef(null);
   useScrollToTop(scrollRef);
@@ -165,20 +130,21 @@ export default function TrainingScreen() {
   const [insights, setInsights]   = useState([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // AI suggestions
   const [aiWorkout, setAiWorkout]     = useState('');
   const [aiRecovery, setAiRecovery]   = useState('');
   const [aiWLoading, setAiWLoading]   = useState(false);
   const [aiRLoading, setAiRLoading]   = useState(false);
 
-  // Hypertrophy sets per muscle
   const MUSCLE_GROUPS = [
     { key: 'chest',     label: 'Chest' },
     { key: 'back',      label: 'Back' },
     { key: 'shoulders', label: 'Shoulders' },
     { key: 'biceps',    label: 'Biceps' },
     { key: 'triceps',   label: 'Triceps' },
-    { key: 'legs',      label: 'Legs' },
+    { key: 'quads',     label: 'Quads' },
+    { key: 'hamstrings',label: 'Hamstrings' },
+    { key: 'glutes',    label: 'Glutes' },
+    { key: 'calves',    label: 'Calves' },
     { key: 'core',      label: 'Core' },
   ];
 
@@ -193,13 +159,11 @@ export default function TrainingScreen() {
       setStats(sRes.data || {});
       setTemplates(tRes.data || []);
 
-      // readiness
       try {
         const rRes = await api.get('/gym/readiness');
         setReadiness(rRes.data);
       } catch { /* optional */ }
 
-      // training insights
       try {
         const iRes = await api.get('/gym/insights');
         setInsights(Array.isArray(iRes.data) ? iRes.data : []);
@@ -215,9 +179,14 @@ export default function TrainingScreen() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const onRefresh = () => { setRefreshing(true); fetchData(); };
+  const onRefresh = () => { 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setRefreshing(true); 
+    fetchData(); 
+  };
 
   const generateAiWorkout = async () => {
+    Haptics.selectionAsync();
     setAiWLoading(true);
     try {
       const res = await api.post('/gym/ai-suggestion', { type: 'workout' });
@@ -227,6 +196,7 @@ export default function TrainingScreen() {
   };
 
   const generateAiRecovery = async () => {
+    Haptics.selectionAsync();
     setAiRLoading(true);
     try {
       const res = await api.post('/gym/ai-suggestion', { type: 'recovery' });
@@ -241,266 +211,219 @@ export default function TrainingScreen() {
   };
 
   if (loading && !refreshing) {
-    return <View style={s.centered}><ActivityIndicator color={C.text} size="large" /></View>;
+    return (
+      <View style={[styles.centered, { backgroundColor: COLORS.background }]}>
+        <ActivityIndicator color={COLORS.primary} size="large" />
+      </View>
+    );
   }
 
   const muscleDistribution = stats.muscleDistribution || {};
 
   return (
-    <View style={s.root}>
+    <ScreenWrapper title="Training">
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={s.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+        showsVerticalScrollIndicator={false}
       >
-        {/* ── 4 Stat Cards (matches web StatCard grid) ──────────────── */}
-        <View style={s.statGrid}>
-          <StatCard emoji="🏋️" label="Total Workouts" value={stats.totalWorkouts ?? workouts.length} color="#2563eb" />
-          <StatCard emoji="🔥" label="This Week"      value={stats.weeklyWorkouts}                  color="#f59e0b" />
-          <StatCard emoji="📈" label="Total Volume"   value={stats.totalVolume ? `${(stats.totalVolume / 1000).toFixed(1)}k` : '—'} sublabel="kg" color="#15803d" />
-          <StatCard emoji="🎯" label="Streak"         value={stats.currentStreak}                   sublabel="days" color="#9333ea" />
+        <View style={styles.statGrid}>
+          <TrainingStatCard emoji="🏋️" label="Workouts" value={stats.totalWorkouts ?? workouts.length} color={COLORS.training} />
+          <TrainingStatCard emoji="🔥" label="This Week" value={stats.weeklyWorkouts} color={COLORS.warning} />
+          <TrainingStatCard emoji="📈" label="Volume" value={stats.totalVolume ? `${(stats.totalVolume / 1000).toFixed(1)}k` : '—'} sublabel="kg" color={COLORS.success} />
+          <TrainingStatCard emoji="🎯" label="Streak" value={stats.currentStreak} sublabel="days" color={COLORS.load} />
         </View>
 
-        {/* ── Start Workout button ───────────────────────────────────── */}
-        <TouchableOpacity style={s.startBtn} onPress={() => nav('/training/active')} activeOpacity={0.85}>
-          <Text style={s.startBtnText}>▶  Start Empty Workout</Text>
+        <TouchableOpacity 
+          style={[styles.startBtn, { backgroundColor: COLORS.primary }]} 
+          onPress={() => nav('/training/active')} 
+          activeOpacity={0.85}
+        >
+          <Body style={{ color: COLORS.surface, fontWeight: '800' }}>▶  Start Empty Workout</Body>
         </TouchableOpacity>
 
-        {/* ── Templates row ──────────────────────────────────────────── */}
         {templates.length > 0 && (
-          <View style={s.section}>
-            <Text style={s.sectionTitle}>Templates</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.section}>
+            <Caption secondary style={styles.sectionLabel}>TEMPLATES</Caption>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
               {templates.map((t, i) => (
-                <TouchableOpacity
+                <Card
                   key={t._id || i}
-                  style={s.templateCard}
                   onPress={() => nav('/training/active', { template: JSON.stringify(t) })}
+                  style={styles.templateCard}
+                  padding={12}
                 >
-                  <Text style={s.templateName} numberOfLines={1}>{t.name}</Text>
-                  <Text style={s.templateSub}>{t.exercises?.length || 0} exercises</Text>
-                </TouchableOpacity>
+                  <Body style={{ fontWeight: '700' }} numberOfLines={1}>{t.name}</Body>
+                  <Caption secondary style={{ marginTop: 2 }}>{t.exercises?.length || 0} exercises</Caption>
+                </Card>
               ))}
             </ScrollView>
           </View>
         )}
 
-        {/* ── Quick nav ──────────────────────────────────────────────── */}
-        <View style={s.quickRow}>
+        <View style={styles.quickRow}>
           {[
             { icon: '📅',  label: 'Calendar',    path: '/workout-calendar', params: { returnTo: '/(tabs)/training' } },
             { icon: '🗺️',  label: 'Heatmap',     path: '/training/heatmap' },
             { icon: '👣',  label: 'Steps',        path: '/training/steps' },
-            { icon: '📊',  label: 'Progression',  path: '/training/progression' },
+            { icon: '📊',  label: 'Progress',  path: '/training/progression' },
           ].map((item) => (
-            <TouchableOpacity key={item.label} style={s.quickBtn} onPress={() => nav(item.path, item.params)}>
-              <Text style={s.quickIcon}>{item.icon}</Text>
-              <Text style={s.quickLabel}>{item.label}</Text>
-            </TouchableOpacity>
+            <Card key={item.label} onPress={() => nav(item.path, item.params)} style={styles.quickBtn} padding={6}>
+              <Body style={{ fontSize: 24, marginBottom: 4 }}>{item.icon}</Body>
+              <Caption style={{ fontWeight: '700', fontSize: 10 }} numberOfLines={1} adjustsFontSizeToFit>{item.label}</Caption>
+            </Card>
           ))}
         </View>
 
-        {/* ── Readiness card ─────────────────────────────────────────── */}
         {readiness
           ? <ReadinessRing readiness={readiness} />
           : (
-            <View style={s.card}>
-              <View style={s.cardHeader}>
-                <Text style={s.cardHeaderIcon}>🔥</Text>
-                <Text style={s.cardTitle}>Today's Training Readiness</Text>
+            <Card style={{ marginBottom: 24 }}>
+              <View style={styles.cardHeader}>
+                <H3>🔥 Training Readiness</H3>
               </View>
-              <Text style={s.mutedBody}>Log your daily wellness check-in (sleep, energy, stress) for 3+ days to unlock your readiness score.</Text>
-            </View>
+              <Body secondary>Log your daily wellness check-in for 3+ days to unlock your readiness score.</Body>
+            </Card>
           )
         }
 
-        {/* ── Advanced toggle ────────────────────────────────────────── */}
-        <TouchableOpacity style={s.advancedToggle} onPress={() => setShowAdvanced(v => !v)}>
-          <Text style={s.advancedToggleText}>{showAdvanced ? 'Hide Advanced ▲' : 'Show Advanced ▼'}</Text>
+        <View style={styles.section}>
+          <Caption secondary style={styles.sectionLabel}>WORKOUT HISTORY</Caption>
+          {workouts.length > 0 ? (
+            workouts.slice(0, 10).map((w, i) => (
+              <Card key={w._id || i} padding={16} style={styles.historyCard}>
+                <View style={styles.historyHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Body style={{ fontWeight: '700' }}>{w.name}</Body>
+                    <Caption secondary>{new Date(w.date).toLocaleDateString()} • {w.duration} min</Caption>
+                  </View>
+                  <View style={[styles.volumeBadge, { backgroundColor: COLORS.success + '10' }]}>
+                    <Caption style={{ color: COLORS.success, fontWeight: '800' }}>
+                      {Math.round(w.exercises?.reduce((acc, ex) => acc + ex.sets?.reduce((sAcc, s) => sAcc + (s.weight * s.reps), 0), 0) || 0)} kg
+                    </Caption>
+                  </View>
+                </View>
+              </Card>
+            ))
+          ) : (
+            <Card padding={24} style={{ alignItems: 'center' }}>
+              <Caption secondary>No workouts logged yet. Start your first session!</Caption>
+            </Card>
+          )}
+        </View>
+
+
+        <TouchableOpacity 
+          style={[styles.advancedToggle, { borderColor: COLORS.border }]} 
+          onPress={() => { Haptics.selectionAsync(); setShowAdvanced(v => !v); }}
+        >
+          <Caption secondary style={{ fontWeight: '700' }}>{showAdvanced ? 'Hide Advanced ▲' : 'Show Advanced ▼'}</Caption>
         </TouchableOpacity>
 
         {showAdvanced && (
           <>
-            {/* ── Performance Analysis & Insights ────────────────────── */}
-            <View style={s.card}>
-              <View style={s.cardHeader}>
-                <Text style={s.cardHeaderIcon}>📈</Text>
-                <Text style={s.cardTitle}>Performance Analysis & Insights</Text>
+            <Card>
+              <View style={styles.cardHeader}>
+                <H3>📈 Performance Insights</H3>
               </View>
               {insights.length > 0
-                ? insights.map((ins, i) => <InsightCard key={i} title={ins.title} detail={ins.detail} />)
-                : <Text style={s.mutedBody}>Log a few more workouts to unlock performance analysis.</Text>
+                ? insights.map((ins, i) => (
+                  <View key={i} style={[styles.insightRow, { borderBottomColor: COLORS.border }]}>
+                    <Body style={{ fontWeight: '700' }}>{ins.title}</Body>
+                    <Caption secondary style={{ marginTop: 4, lineHeight: 18 }}>{ins.detail}</Caption>
+                  </View>
+                ))
+                : <Body secondary>Log more workouts to unlock analysis.</Body>
               }
-            </View>
+            </Card>
 
-            {/* ── AI Suggestions ─────────────────────────────────────── */}
-            <View style={s.card}>
-              <Text style={s.cardTitle}>AI Suggestions</Text>
-              <Text style={s.mutedBody}>Generated only when you ask.</Text>
-              <View style={s.aiButtonRow}>
-                <TouchableOpacity style={[s.outlinedBtn, aiWLoading && { opacity: 0.6 }]} onPress={generateAiWorkout} disabled={aiWLoading}>
-                  <Text style={s.outlinedBtnText}>{aiWLoading ? 'Thinking…' : "Today's Workout"}</Text>
+            <Card>
+              <H3 style={{ marginBottom: 4 }}>AI Suggestions</H3>
+              <Caption secondary style={{ marginBottom: 16 }}>Personalized training advice on demand.</Caption>
+              <View style={styles.aiButtonRow}>
+                <TouchableOpacity style={[styles.outlinedBtn, { borderColor: COLORS.primary }, aiWLoading && { opacity: 0.6 }]} onPress={generateAiWorkout} disabled={aiWLoading}>
+                  <Caption style={{ fontWeight: '800' }}>{aiWLoading ? 'Thinking…' : "Workout Idea"}</Caption>
                 </TouchableOpacity>
-                <TouchableOpacity style={[s.outlinedBtn, aiRLoading && { opacity: 0.6 }]} onPress={generateAiRecovery} disabled={aiRLoading}>
-                  <Text style={s.outlinedBtnText}>{aiRLoading ? 'Thinking…' : 'Recovery Plan'}</Text>
+                <TouchableOpacity style={[styles.outlinedBtn, { borderColor: COLORS.primary }, aiRLoading && { opacity: 0.6 }]} onPress={generateAiRecovery} disabled={aiRLoading}>
+                  <Caption style={{ fontWeight: '800' }}>{aiRLoading ? 'Thinking…' : 'Recovery Plan'}</Caption>
                 </TouchableOpacity>
               </View>
               {!!aiWorkout && (
-                <View style={s.aiResult}>
-                  <Text style={s.aiResultLabel}>Today's Workout</Text>
-                  <Text style={s.aiResultText}>{aiWorkout}</Text>
+                <View style={[styles.aiResult, { backgroundColor: COLORS.gray100, borderRadius: 12 }]}>
+                  <Caption secondary style={{ marginBottom: 6 }}>Today's Workout</Caption>
+                  <Body style={{ fontSize: 13, lineHeight: 20 }}>{aiWorkout}</Body>
                 </View>
               )}
-              {!!aiRecovery && (
-                <View style={s.aiResult}>
-                  <Text style={s.aiResultLabel}>Recovery + Adjustment</Text>
-                  <Text style={s.aiResultText}>{aiRecovery}</Text>
-                </View>
-              )}
-            </View>
+            </Card>
 
-            {/* ── Weekly Hypertrophy Volume ───────────────────────────── */}
-            <View style={s.card}>
-              <View style={s.cardHeader}>
-                <Text style={s.cardTitle}>Weekly Hypertrophy Volume</Text>
-                <View style={s.chip}><Text style={s.chipText}>Target: 10 sets</Text></View>
+            <Card>
+              <View style={styles.cardHeader}>
+                <H3>Weekly Hypertrophy</H3>
+                <View style={[styles.targetBadge, { backgroundColor: COLORS.gray100 }]}>
+                  <Caption style={{ fontWeight: '800', fontSize: 10 }}>Target: 10 sets</Caption>
+                </View>
               </View>
               {MUSCLE_GROUPS.map(({ key, label }) => {
                 const count = muscleDistribution[key] || 0;
                 const pct = Math.min((count / 10) * 100, 100);
-                const cc  = count >= 10 ? '#10b981' : count >= 5 ? '#f59e0b' : C.muted;
+                const cc  = count >= 10 ? COLORS.success : count >= 5 ? COLORS.warning : COLORS.gray400;
                 return (
-                  <View key={key} style={{ marginBottom: 12 }}>
-                    <View style={s.hypertrophyRow}>
-                      <Text style={s.hypertrophyLabel}>{label}</Text>
-                      <Text style={[s.hypertrophyCount, { color: cc }]}>{count}/10</Text>
+                  <View key={key} style={{ marginBottom: 14 }}>
+                    <View style={styles.hypertrophyRow}>
+                      <Body style={{ fontWeight: '600', fontSize: 14 }}>{label}</Body>
+                      <Caption style={{ fontWeight: '800', color: cc }}>{count}/10</Caption>
                     </View>
                     <ProgressBar value={pct} color={cc} />
                   </View>
                 );
               })}
-              <Text style={s.hypertrophyNote}>* 10–20 hard sets/muscle/week is optimal for growth.</Text>
-            </View>
-
-            {/* ── Recent Workouts ─────────────────────────────────────── */}
-            <View style={s.card}>
-              <Text style={s.cardTitle}>Recent Workouts</Text>
-              {workouts.length > 0
-                ? workouts.slice(0, 5).map((w, i) => (
-                  <TouchableOpacity key={w._id || i} style={s.workoutRow} onPress={() => nav(`/training/${w._id}`)}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.workoutName}>{w.name || 'Workout'}</Text>
-                      <Text style={s.workoutMeta}>
-                        {new Date(w.date).toLocaleDateString()} · {w.exercises?.length || 0} exercises
-                        {w.duration ? ` · ${w.duration} min` : ''}
-                      </Text>
-                    </View>
-                    <Text style={s.chevron}>›</Text>
-                  </TouchableOpacity>
-                ))
-                : <Text style={s.mutedBody}>No workouts logged yet.</Text>
-              }
-            </View>
+            </Card>
           </>
         )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-const s = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: C.bg },
-  content: { padding: 16, paddingTop: 60, paddingBottom: 40 },
-  centered:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
+const styles = StyleSheet.create({
+  content: { padding: 16 },
+  centered:{ flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  // stat grid (2×2)
-  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
-  statCard: { width: '47%', backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 16, alignItems: 'center' },
-  statValue:   { fontSize: 28, fontWeight: '800', color: C.text },
-  statSublabel:{ fontSize: 12, color: C.muted },
-  statLabel:   { fontSize: 12, color: C.muted, marginTop: 2 },
+  statGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 16 },
+  statCard: { width: '48%', marginBottom: 12 },
 
-  // start button
-  startBtn:     { backgroundColor: C.text, borderRadius: 16, paddingVertical: 14, alignItems: 'center', marginBottom: 16 },
-  startBtnText: { color: C.surface, fontSize: 16, fontWeight: '700' },
+  startBtn:     { borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginBottom: 24 },
+  section:      { marginBottom: 24 },
+  sectionLabel: { marginBottom: 12, fontWeight: '700', marginLeft: 4 },
+  templateCard: { width: 140, marginBottom: 0 },
+  historyCard:  { marginBottom: 12 },
+  historyHeader: { flexDirection: 'row', alignItems: 'center' },
+  volumeBadge:  { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
 
-  // templates
-  section:      { marginBottom: 16 },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: C.muted, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
-  templateCard: { backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 14, marginRight: 12, width: 140 },
-  templateName: { fontSize: 14, fontWeight: '700', color: C.text, marginBottom: 4 },
-  templateSub:  { fontSize: 12, color: C.muted },
+  quickRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+  quickBtn: { flex: 1, alignItems: 'center', marginBottom: 0 },
 
-  // quick nav
-  quickRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  quickBtn: { flex: 1, backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 12, alignItems: 'center' },
-  quickIcon:  { fontSize: 22, marginBottom: 4 },
-  quickLabel: { fontSize: 11, color: C.text, fontWeight: '600', textAlign: 'center' },
-
-  // generic card
-  card: { backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 20, marginBottom: 16, overflow: 'hidden' },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  cardHeaderIcon: { fontSize: 18, marginRight: 8 },
-  cardTitle:      { fontSize: 15, fontWeight: '700', color: C.text, flex: 1 },
-  mutedBody:      { fontSize: 13, color: C.muted, lineHeight: 20 },
-
-  // readiness
-  readinessGlow: { position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70, opacity: 0.06 },
-  readinessRow:  { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  ring:          { width: 100, height: 100, borderRadius: 50, borderWidth: 8, justifyContent: 'center', alignItems: 'center' },
-  ringScore:     { fontSize: 30, fontWeight: '900', lineHeight: 32 },
-  ringUnit:      { fontSize: 12, color: C.muted, fontWeight: '600' },
-  readinessRec:  { fontSize: 13, color: C.text, lineHeight: 20, marginBottom: 8 },
-  statusBadge:   { alignSelf: 'flex-start', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
-  statusBadgeText:{ fontSize: 11, fontWeight: '800', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  
+  readinessGlow: { position: 'absolute', top: -60, right: -60, width: 160, height: 160, borderRadius: 80, opacity: 0.08 },
+  readinessRow:  { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  ring:          { width: 90, height: 90, borderRadius: 45, borderWidth: 8, justifyContent: 'center', alignItems: 'center' },
+  statusBadge:   { alignSelf: 'flex-start', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  statusBadgeText:{ fontSize: 11, fontWeight: '800', color: '#fff', textTransform: 'uppercase' },
   componentsGrid:{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  compCard:      { width: '47%', backgroundColor: 'rgba(22,19,16,0.04)', borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 10 },
-  compRow:       { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  compEmoji:     { fontSize: 11, fontWeight: '700', color: C.text },
-  compScore:     { fontSize: 11, fontWeight: '800' },
-  compDetail:    { fontSize: 10, color: C.muted, marginTop: 4 },
-  overtrain:     { marginTop: 12, padding: 12, borderRadius: 10, borderWidth: 1 },
-  stagnationHeader: { fontSize: 12, fontWeight: '800', color: '#4c1d95', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  stagnationItem:   { padding: 10, backgroundColor: 'rgba(22,19,16,0.04)', borderRadius: 10, borderLeftWidth: 4, borderLeftColor: '#7c3aed', marginBottom: 8 },
-  stagnationExercise: { fontSize: 13, fontWeight: '800', color: C.text, marginBottom: 2 },
-  stagnationDetail:   { fontSize: 12, color: C.muted },
-  stagnationSuggestion:{ fontSize: 12, color: C.muted, marginTop: 4 },
+  compCard:      { width: '48.5%', borderWidth: 1, padding: 12 },
+  compRow:       { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  overtrain:     { marginTop: 16, padding: 12, borderRadius: 12, borderWidth: 1 },
+  stagnationItem:   { padding: 12, borderRadius: 12, borderLeftWidth: 4, marginBottom: 10 },
 
-  // advanced toggle
-  advancedToggle:     { borderWidth: 1, borderColor: C.border, borderRadius: 16, padding: 12, alignItems: 'center', marginBottom: 16 },
-  advancedToggleText: { fontSize: 14, fontWeight: '600', color: C.muted },
-
-  // insight cards
-  insightCard: { borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 14, marginBottom: 10 },
-  insightTitle: { fontSize: 14, fontWeight: '700', color: C.text, marginBottom: 4 },
-  insightDetail:{ fontSize: 13, color: C.muted, lineHeight: 20 },
-
-  // AI suggestions
-  aiButtonRow: { flexDirection: 'row', gap: 10, marginTop: 12, marginBottom: 8, flexWrap: 'wrap' },
-  outlinedBtn:     { borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 },
-  outlinedBtnText: { fontSize: 13, fontWeight: '600', color: C.text },
-  aiResult:        { backgroundColor: 'rgba(22,19,16,0.04)', borderRadius: 10, padding: 12, marginTop: 8 },
-  aiResultLabel:   { fontSize: 11, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  aiResultText:    { fontSize: 13, color: C.text, lineHeight: 20 },
-
-  // hypertrophy
-  hypertrophyRow:  { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  hypertrophyLabel:{ fontSize: 13, fontWeight: '600', color: C.muted },
-  hypertrophyCount:{ fontSize: 13, fontWeight: '700' },
-  hypertrophyNote: { fontSize: 11, color: C.muted, fontStyle: 'italic', marginTop: 4 },
-  chip:            { backgroundColor: 'rgba(22,19,16,0.06)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
-  chipText:        { fontSize: 11, fontWeight: '700', color: C.muted },
-
-  // progress bar
-  trackBg:   { height: 6, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
-  trackFill:  { height: 6, borderRadius: 3 },
-
-  // recent workouts
-  workoutRow:  { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: 'rgba(22,19,16,0.03)', borderRadius: 10, marginBottom: 8 },
-  workoutName: { fontSize: 14, fontWeight: '600', color: C.text, marginBottom: 2 },
-  workoutMeta: { fontSize: 12, color: C.muted },
-  chevron:     { fontSize: 22, color: C.muted, marginLeft: 8 },
+  advancedToggle:     { borderWidth: 1, borderRadius: 16, padding: 14, alignItems: 'center', marginBottom: 20 },
+  insightRow: { paddingVertical: 12, borderBottomWidth: 1 },
+  aiButtonRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  outlinedBtn:     { borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10 },
+  aiResult:        { padding: 16, marginTop: 8 },
+  hypertrophyRow:  { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  targetBadge:     { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
 });

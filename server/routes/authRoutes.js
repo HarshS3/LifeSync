@@ -8,7 +8,20 @@ const auth = require('../middleware/authMiddleware');
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
 
-function getClientBaseUrl() {
+function getClientBaseUrl(req) {
+  // 1. Check if the request body explicitly provides an origin
+  // Useful for mobile apps where headers might be restricted or unreliable
+  if (req.body && req.body.origin) {
+    return req.body.origin.replace(/\/$/, '');
+  }
+
+  // 2. If the request header provides an origin (common for web apps)
+  const origin = req.get('origin');
+  if (origin && origin !== 'null') {
+    return origin.replace(/\/$/, '');
+  }
+
+  // Fallback to environment variables
   return (
     String(process.env.CLIENT_URL || '').trim() ||
     String(process.env.FRONTEND_URL || '').trim() ||
@@ -175,7 +188,7 @@ router.post('/forgot-password', async (req, res) => {
     user.resetPasswordExpiresAt = expiresAt;
     await user.save();
 
-    const resetLink = `${getClientBaseUrl()}/reset-password?token=${token}`;
+    const resetLink = `${getClientBaseUrl(req)}/reset-password?token=${token}`;
 
     // Dev fallback: log the link for local testing.
     if (String(process.env.NODE_ENV || '').trim() !== 'production') {

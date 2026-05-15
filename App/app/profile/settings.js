@@ -6,39 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const [themeMode, setThemeMode] = useState('paper'); // 'paper' or 'noir'
   const [pushEnabled, setPushEnabled] = useState(false);
-
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      const savedTheme = await SecureStore.getItemAsync('lifesync_theme');
-      if (savedTheme) {
-        setThemeMode(savedTheme);
-      }
-      
-      const savedPush = await SecureStore.getItemAsync('lifesync_push');
-      if (savedPush !== null) {
-        setPushEnabled(JSON.parse(savedPush));
-      }
-    } catch (err) {
-      console.error('Failed to load settings', err);
-    }
-  };
-
-  const toggleTheme = async () => {
-    const newTheme = themeMode === 'paper' ? 'noir' : 'paper';
-    setThemeMode(newTheme);
-    try {
-      await SecureStore.setItemAsync('lifesync_theme', newTheme);
-      Alert.alert('Theme Changed', `App theme set to ${newTheme === 'noir' ? 'Noir (Dark)' : 'Paper (Light)'}.\n\nNote: Full dark mode implementation requires app restart or context provider.`);
-    } catch (err) {
-      console.error('Failed to save theme', err);
-    }
-  };
 
   const togglePush = async (value) => {
     setPushEnabled(value);
@@ -61,28 +29,6 @@ export default function SettingsScreen() {
 
       <ScrollView style={styles.content}>
         
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Appearance</Text>
-          <View style={styles.settingCard}>
-            <View style={styles.settingRow}>
-              <View style={styles.settingLeft}>
-                <View style={[styles.iconBox, { backgroundColor: '#f3f4f6' }]}>
-                  {themeMode === 'noir' ? <Moon size={20} color="#000" /> : <Sun size={20} color="#000" />}
-                </View>
-                <View>
-                  <Text style={styles.settingTitle}>Color Theme</Text>
-                  <Text style={styles.settingDesc}>Current: {themeMode === 'noir' ? 'Noir' : 'Paper'}</Text>
-                </View>
-              </View>
-              <Switch 
-                value={themeMode === 'noir'}
-                onValueChange={toggleTheme}
-                trackColor={{ false: '#e5e7eb', true: '#000' }}
-                thumbColor="#fff"
-              />
-            </View>
-          </View>
-        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notifications</Text>

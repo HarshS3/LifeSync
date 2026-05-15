@@ -94,10 +94,13 @@ function ForgotPasswordScreen({ onBack }) {
     if (!email) { setError('Please enter your email'); return; }
     setLoading(true);
     try {
+      // Determine origin for the reset link
+      const origin = __DEV__ ? 'http://192.168.1.9:5173' : 'https://lifesync-app.vercel.app';
+
       const res  = await fetch(`${API_BASE}/auth/forgot-password`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ email }),
+        body:    JSON.stringify({ email, origin }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {

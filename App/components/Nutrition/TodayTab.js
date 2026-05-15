@@ -161,7 +161,7 @@ export default function TodayTab({
 
   return (
     <ScrollView 
-      style={{ flex: 1, backgroundColor: '#f9fafb' }}
+      style={{ flex: 1, backgroundColor: COLORS.background }}
       contentContainerStyle={themedStyles.scrollContent}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
@@ -170,7 +170,7 @@ export default function TodayTab({
         <View style={themedStyles.webSectionHeader}>
           <Text style={themedStyles.webSectionTitle}>Meals</Text>
           <View style={themedStyles.webCalChip}>
-            <Utensils size={12} color="#166534" />
+            <Utensils size={12} color={COLORS.success} />
             <Text style={themedStyles.webCalChipText}>{fmt(totals.calories, 0)} kcal</Text>
           </View>
         </View>
@@ -194,10 +194,10 @@ export default function TodayTab({
       {/* 2. Macro Summary Strip (Grid of 4) */}
       <View style={themedStyles.macroGrid}>
         {[
-          { label: 'Calories', val: fmt(totals.calories, 0), unit: 'kcal', pct: percent(totals.calories, targets.calories), color: '#16a34a' },
-          { label: 'Protein',  val: fmt(totals.protein),     unit: 'g',    pct: percent(totals.protein, targets.protein),   color: '#2563eb' },
-          { label: 'Carbs',    val: fmt(totals.carbs),       unit: 'g',    pct: null, color: '#d97706' },
-          { label: 'Fat',      val: fmt(totals.fat),         unit: 'g',    pct: null, color: '#dc2626' },
+          { label: 'Calories', val: fmt(totals.calories, 0), unit: 'kcal', pct: percent(totals.calories, targets.calories), color: COLORS.success },
+          { label: 'Protein',  val: fmt(totals.protein),     unit: 'g',    pct: percent(totals.protein, targets.protein),   color: COLORS.training },
+          { label: 'Carbs',    val: fmt(totals.carbs),       unit: 'g',    pct: null, color: COLORS.warning },
+          { label: 'Fat',      val: fmt(totals.fat),         unit: 'g',    pct: null, color: COLORS.error },
         ].map((m) => (
           <View key={m.label} style={themedStyles.macroCard}>
             <Text style={themedStyles.macroLabel}>{m.label}</Text>
@@ -219,9 +219,12 @@ export default function TodayTab({
           <Text style={themedStyles.webSectionTitleSmall}>Daily Medical Alerts & Insights</Text>
           <View style={{ gap: 8, marginTop: 12 }}>
             {medicalAlerts.map((alert, i) => (
-              <View key={i} style={[themedStyles.webAlertBox, { backgroundColor: alert.type === 'warning' ? '#fef2f2' : '#eff6ff', borderColor: alert.type === 'warning' ? '#fecaca' : '#bfdbfe' }]}>
+              <View key={i} style={[themedStyles.webAlertBox, { 
+                backgroundColor: alert.type === 'warning' ? (COLORS.error + '10') : (COLORS.info + '10'), 
+                borderColor: alert.type === 'warning' ? (COLORS.error + '30') : (COLORS.info + '30') 
+              }]}>
                 <Text style={{ fontSize: 18 }}>{alert.type === 'warning' ? '🚨' : '💡'}</Text>
-                <Text style={[themedStyles.webAlertText, { color: alert.type === 'warning' ? '#991b1b' : '#1e3a8a' }]}>{alert.text}</Text>
+                <Text style={[themedStyles.webAlertText, { color: alert.type === 'warning' ? COLORS.error : COLORS.info }]}>{alert.text}</Text>
               </View>
             ))}
           </View>
@@ -235,7 +238,7 @@ export default function TodayTab({
            <View style={themedStyles.absorptionGrid}>
               {Object.entries(log.effectiveNutrientTotals).slice(0, 10).map(([nutrient, data]) => {
                 const pctVal = Math.round((data.multiplier || 1) * 100);
-                const color = pctVal < 50 ? '#ef4444' : pctVal < 80 ? '#f59e0b' : '#10b981';
+                const color = pctVal < 50 ? COLORS.error : pctVal < 80 ? COLORS.warning : COLORS.success;
                 return (
                   <View key={nutrient} style={themedStyles.webAbsItem}>
                     <Text style={themedStyles.webAbsLabel}>{nutrient.replace(/([A-Z])/g, ' $1').toUpperCase()}</Text>
@@ -258,8 +261,8 @@ export default function TodayTab({
             <Text style={themedStyles.webSectionTitleSmall}>Simulated Glucose Response</Text>
             <Text style={themedStyles.webSectionSub}>Based on meal Glycemic Pressure & macro buffering.</Text>
           </View>
-          <View style={themedStyles.simulationBadge}>
-            <Text style={themedStyles.simulationText}>Simulation</Text>
+          <View style={[themedStyles.simulationBadge, { backgroundColor: COLORS.warning + '20' }]}>
+            <Text style={[themedStyles.simulationText, { color: COLORS.warning }]}>Simulation</Text>
           </View>
         </View>
         <LineChart
@@ -267,12 +270,12 @@ export default function TodayTab({
           width={width - 48}
           height={200}
           chartConfig={{
-            backgroundColor: '#ffffff',
-            backgroundGradientFrom: '#ffffff',
-            backgroundGradientTo: '#ffffff',
+            backgroundColor: COLORS.surface,
+            backgroundGradientFrom: COLORS.surface,
+            backgroundGradientTo: COLORS.surface,
             decimalPlaces: 0,
             color: (opacity = 1) => `rgba(245, 158, 11, ${opacity})`,
-            labelColor: (opacity = 1) => '#6b7280',
+            labelColor: (opacity = 1) => COLORS.textSecondary,
             style: { borderRadius: 16 },
             propsForDots: { r: "0" },
             fillShadowGradient: "#f59e0b",
@@ -290,20 +293,20 @@ export default function TodayTab({
          <View style={[themedStyles.webSectionBox, { flex: 1, marginBottom: 0 }]}>
             <Text style={themedStyles.webSectionTitleSmall}>AI Insight</Text>
             <Text style={themedStyles.webEmptyTextSmall}>Log more meals to unlock daily AI-powered nutritional trends and fixes.</Text>
-            <TouchableOpacity style={themedStyles.webOutlineBtn}>
-               <Text style={themedStyles.webOutlineBtnText}>Generate Insight</Text>
+            <TouchableOpacity style={[themedStyles.webOutlineBtn, { borderColor: COLORS.border }]}>
+               <Text style={[themedStyles.webOutlineBtnText, { color: COLORS.textSecondary }]}>Generate Insight</Text>
             </TouchableOpacity>
          </View>
       </View>
 
       {/* 7. CTA Button */}
-      <View style={themedStyles.webCtaBox}>
+      <View style={[themedStyles.webCtaBox, { backgroundColor: COLORS.success + '10', borderColor: COLORS.success + '30' }]}>
          <View>
-            <Text style={themedStyles.webCtaTitle}>Ready to log a meal?</Text>
-            <Text style={themedStyles.webCtaSub}>Search the database or use a template.</Text>
+            <Text style={[themedStyles.webCtaTitle, { color: COLORS.success }]}>Ready to log a meal?</Text>
+            <Text style={[themedStyles.webCtaSub, { color: COLORS.success }]}>Search the database or use a template.</Text>
          </View>
          <TouchableOpacity 
-           style={themedStyles.webCtaBtn}
+           style={[themedStyles.webCtaBtn, { backgroundColor: COLORS.success }]}
            onPress={() => handleActionPress('/nutrition/search')}
          >
             <Text style={themedStyles.webCtaBtnText}>+ Log Meal</Text>
@@ -319,67 +322,67 @@ const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleShe
   scrollContent: { padding: 16, gap: 24 },
   
   webSectionBox: { 
-    backgroundColor: '#ffffff', 
+    backgroundColor: COLORS.surface, 
     borderRadius: 8, 
     borderWidth: 1, 
-    borderColor: '#e5e7eb', 
+    borderColor: COLORS.border, 
     padding: 16,
     marginBottom: 0
   },
   webSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
-  webSectionTitle: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  webSectionTitleSmall: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  webSectionSub: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  webSectionTitle: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  webSectionTitleSmall: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  webSectionSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
   
-  webCalChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0fdf4', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, gap: 4 },
-  webCalChipText: { fontSize: 12, fontWeight: '600', color: '#166534' },
+  webCalChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.success + '10', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, gap: 4 },
+  webCalChipText: { fontSize: 12, fontWeight: '600', color: COLORS.success },
   
-  webEmptyText: { fontSize: 14, color: '#9ca3af', textAlign: 'left' },
-  webEmptyTextSmall: { fontSize: 12, color: '#6b7280', marginTop: 8, lineHeight: 18 },
+  webEmptyText: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'left' },
+  webEmptyTextSmall: { fontSize: 12, color: COLORS.textSecondary, marginTop: 8, lineHeight: 18 },
 
   // Meals
   webMealBox: { 
     padding: 12, 
     borderRadius: 6, 
     borderWidth: 1, 
-    borderColor: '#e5e7eb', 
-    backgroundColor: '#f9fafb',
+    borderColor: COLORS.border, 
+    backgroundColor: COLORS.background,
     marginBottom: 12
   },
   mealMainRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   mealLeft: { flex: 1 },
-  webMealName: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  webMealName: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   mealBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-  webMealTypeBadge: { backgroundColor: '#e5e7eb', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 2 },
-  webMealTypeText: { fontSize: 10, color: '#374151', textTransform: 'lowercase' },
-  webMealTime: { fontSize: 11, color: '#6b7280' },
+  webMealTypeBadge: { backgroundColor: COLORS.gray100, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 2 },
+  webMealTypeText: { fontSize: 10, color: COLORS.textSecondary, textTransform: 'lowercase' },
+  webMealTime: { fontSize: 11, color: COLORS.textSecondary },
   
   mealRight: { alignItems: 'flex-end' },
   mealActionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  webMealCals: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  webMealCals: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   webMealActionBtn: { padding: 12 },
-  webMealMacros: { fontSize: 11, color: '#6b7280', marginTop: 4 },
+  webMealMacros: { fontSize: 11, color: COLORS.textSecondary, marginTop: 4 },
   
   foodList: { marginTop: 4 },
-  webFoodItem: { fontSize: 11, color: '#6b7280', marginBottom: 2 },
+  webFoodItem: { fontSize: 11, color: COLORS.textSecondary, marginBottom: 2 },
 
   webInteractionSection: { marginTop: 12 },
   expandToggle: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  expandToggleText: { fontSize: 11, fontWeight: '600', color: '#4b5563' },
-  webInteractionContent: { marginTop: 8, padding: 12, borderRadius: 6, borderStyle: 'dashed', borderWidth: 1, borderColor: '#d1d5db', backgroundColor: '#ffffff' },
+  expandToggleText: { fontSize: 11, fontWeight: '600', color: COLORS.textSecondary },
+  webInteractionContent: { marginTop: 8, padding: 12, borderRadius: 6, borderStyle: 'dashed', borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface },
   webInsightRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   dot: { width: 6, height: 6, borderRadius: 3, marginTop: 6 },
-  webInsightTitle: { fontSize: 11, fontWeight: '700', color: '#111827' },
-  webInsightDesc: { fontSize: 11, color: '#4b5563', lineHeight: 14 },
-  webInsightFix: { fontSize: 11, fontWeight: '600', color: '#111827', marginTop: 2 },
+  webInsightTitle: { fontSize: 11, fontWeight: '700', color: COLORS.text },
+  webInsightDesc: { fontSize: 11, color: COLORS.textSecondary, lineHeight: 14 },
+  webInsightFix: { fontSize: 11, fontWeight: '600', color: COLORS.text, marginTop: 2 },
 
   // Macro Grid
   macroGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  macroCard: { width: '48%', backgroundColor: '#ffffff', borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', padding: 12 },
-  macroLabel: { fontSize: 12, color: '#6b7280', marginBottom: 4 },
-  macroValText: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  macroUnitText: { fontSize: 12, fontWeight: '400', color: '#9ca3af' },
-  macroTrack: { height: 4, backgroundColor: '#f3f4f6', borderRadius: 2, marginTop: 8, overflow: 'hidden' },
+  macroCard: { width: '48%', backgroundColor: COLORS.surface, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, padding: 12 },
+  macroLabel: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 4 },
+  macroValText: { fontSize: 16, fontWeight: '700', color: COLORS.text },
+  macroUnitText: { fontSize: 12, fontWeight: '400', color: COLORS.textSecondary },
+  macroTrack: { height: 4, backgroundColor: COLORS.gray100, borderRadius: 2, marginTop: 8, overflow: 'hidden' },
   macroFill: { height: '100%', borderRadius: 2 },
 
   // Alerts
@@ -388,26 +391,26 @@ const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleShe
 
   // Absorption
   absorptionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  webAbsItem: { width: '31%', backgroundColor: '#f9fafb', padding: 8, borderRadius: 6, borderWidth: 1, borderColor: '#f3f4f6' },
-  webAbsLabel: { fontSize: 8, color: '#6b7280', letterSpacing: 0.5, marginBottom: 4 },
+  webAbsItem: { width: '31%', backgroundColor: COLORS.background, padding: 8, borderRadius: 6, borderWidth: 1, borderColor: COLORS.border },
+  webAbsLabel: { fontSize: 8, color: COLORS.textSecondary, letterSpacing: 0.5, marginBottom: 4 },
   webAbsValue: { fontSize: 11, fontWeight: '700', marginBottom: 2 },
-  webAbsSub: { fontSize: 9, color: '#9ca3af', marginBottom: 6 },
-  miniTrack: { height: 4, backgroundColor: '#e5e7eb', borderRadius: 2, overflow: 'hidden' },
+  webAbsSub: { fontSize: 9, color: COLORS.textSecondary, marginBottom: 6 },
+  miniTrack: { height: 4, backgroundColor: COLORS.gray100, borderRadius: 2, overflow: 'hidden' },
   miniFill: { height: '100%', borderRadius: 2 },
 
   // CGM
-  simulationBadge: { backgroundColor: '#fef3c7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  simulationText: { fontSize: 10, fontWeight: '600', color: '#92400e' },
+  simulationBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  simulationText: { fontSize: 10, fontWeight: '600' },
 
   // AI Box
   webGridRow: { flexDirection: 'row', gap: 16 },
-  webOutlineBtn: { marginTop: 16, borderWidth: 1, borderColor: '#d1d5db', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6, alignSelf: 'flex-start' },
-  webOutlineBtnText: { fontSize: 12, color: '#4b5563', fontWeight: '500' },
+  webOutlineBtn: { marginTop: 16, borderWidth: 1, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6, alignSelf: 'flex-start' },
+  webOutlineBtnText: { fontSize: 12, fontWeight: '500' },
 
   // CTA
-  webCtaBox: { backgroundColor: '#f0fdf4', borderRadius: 8, borderWidth: 1, borderColor: '#bbf7d0', padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  webCtaTitle: { fontSize: 13, fontWeight: '600', color: '#166534' },
-  webCtaSub: { fontSize: 11, color: '#15803d', marginTop: 2 },
-  webCtaBtn: { backgroundColor: '#16a34a', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
+  webCtaBox: { borderRadius: 8, borderWidth: 1, padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  webCtaTitle: { fontSize: 13, fontWeight: '600' },
+  webCtaSub: { fontSize: 11, marginTop: 2 },
+  webCtaBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
   webCtaBtnText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
 });

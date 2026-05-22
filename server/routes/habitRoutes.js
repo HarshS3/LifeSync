@@ -30,6 +30,96 @@ function normalizeDate(date) {
   return d;
 }
 
+// Get consolidated summary (definitions, week, stats, analytics)
+router.get('/summary', async (req, res) => {
+  try {
+    const { date } = req.query;
+    const targetDate = date ? new Date(date) : new Date();
+    
+    // 1. Get all active habits
+    const habits = await Habit.find({ user: req.userId, isActive: true }).sort({ createdAt: -1 });
+
+    // 2. Get week summary data
+    const startOfWeek = new Date(targetDate);
+    const day = startOfWeek.getDay();
+    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+    startOfWeek.setDate(diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(endOfWeek.getDate() + 7);
+
+    // 3. Get logs from last 30 days for stats/analytics
+    const thirtyDaysAgo = new Date(targetDate);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+    const [weekLogs, allLogs] = await Promise.all([
+      HabitLog.find({
+        user: req.userId,
+        date: { $gte: startOfWeek, $lt: endOfWeek },
+      }),
+      HabitLog.find({
+        user: req.userId,
+        date: { $gte: thirtyDaysAgo, $lt: endOfWeek },
+      }).populate('habit', 'name color category')
+    ]);
+
+    // Build week data (simplified version for UI)
+    const weekDays = [];
+    for (let i = 0; i < 7; i++) {
+      const dayDate = new Date(startOfWeek);
+      dayDate.setDate(dayDate.getDate() + i);
+      const dayLogs = weekLogs.filter(l => new Date(l.date).toDateString() === dayDate.toDateString());
+      weekDays.push({
+        date: dayDate.toISOString(),
+        isToday: dayDate.toDateString() === new Date().toDateString(),
+        completedCount: dayLogs.filter(l => l.completed).length,
+        logIds: dayLogs.map(l => ({ habitId: l.habit, logId: l._id, completed: l.completed })),
+      });
+    }
+
+    // Analytics (simplified)
+    const habitStats = habits.map(habit => {
+      const hLogs = allLogs.filter(l => l.habit && l.habit._id.toString() === habit._id.toString());
+      const completed = hLogs.filter(l => l.completed).length;
+      return {
+        id: habit._id,
+        name: habit.name,
+        color: habit.color,
+        category: habit.category,
+        completed,
+        rate: Math.round((completed / 30) * 100),
+        streak: habit.streak,
+      };
+    });
+
+    const totalCompletions = allLogs.filter(l => l.completed).length;
+
+    res.json({
+      habits, // definitions
+      week: {
+        days: weekDays,
+        stats: {
+          totalCompleted: weekLogs.filter(l => l.completed).length,
+          completionRate: habits.length > 0 ? Math.round((weekLogs.filter(l => l.completed).length / (habits.length * 7)) * 100) : 0,
+        }
+      },
+      stats: {
+        totalHabits: habits.length,
+        currentTotalStreak: habits.reduce((sum, h) => sum + h.streak, 0),
+        longestStreak: Math.max(...habits.map(h => h.longestStreak), 0),
+      },
+      analytics: {
+        habitStats,
+        overallRate: habits.length > 0 ? Math.round((totalCompletions / (habits.length * 30)) * 100) : 0,
+      }
+    });
+  } catch (err) {
+    console.error('[HabitSummary] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get all habits for user
 router.get('/', async (req, res) => {
   try {

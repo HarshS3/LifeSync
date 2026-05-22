@@ -93,30 +93,6 @@ function Dashboard() {
     return null
   }
 
-  const dayKeyFromDate = (d) => {
-    const date = new Date(d)
-    if (Number.isNaN(date.getTime())) return null
-    const y = date.getFullYear()
-    const m = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${y}-${m}-${day}`
-  }
-
-  const fetchDailyLifeState = async (dayKey) => {
-    if (!token || !dayKey) return null
-    try {
-      const res = await fetch(`${API_BASE}/api/daily-life-state/${dayKey}?refresh=1`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) return null
-      const reflectionHeader = res.headers.get('X-LifeSync-State-Reflection')
-      const data = await res.json()
-      return { data: data || null, reflection: reflectionHeader || null }
-    } catch {
-      return null
-    }
-  }
-
   const loadData = async () => {
     if (!dashboardCache.data) {
       setLoading(true)
@@ -124,82 +100,25 @@ function Dashboard() {
     
     try {
       if (!user || !user._id) return
-      const todayKey = dayKeyFromDate(new Date())
-
-      const [fitness, mental, nutrition, gymWorkouts, dlsResult] = await Promise.all([
-        fetchJson(`${API_BASE}/api/logs/fitness`),
-        fetchJson(`${API_BASE}/api/logs/mental`),
-        fetchJson(`${API_BASE}/api/logs/nutrition`),
-        fetchJson(`${API_BASE}/api/gym/workouts`),
-        fetchDailyLifeState(todayKey),
-      ])
       
-
-      setDailyLifeState(dlsResult?.data || null)
-      setStateReflection(dlsResult?.reflection || null)
+      const res = await fetch(`${API_BASE}/api/dashboard/summary`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       
-      const weekAgo = new Date()
-      weekAgo.setDate(weekAgo.getDate() - 7)
+      if (!res.ok) throw new Error('Failed to fetch dashboard summary')
+      const summary = await res.json()
+
+      setDailyLifeState(summary.dailyLifeState)
+      setStateReflection(summary.stateReflection)
+      setWeeklyStats(summary.stats)
+      setHasCheckedIn(summary.hasCheckedIn)
       
-      const recentMental = mental.filter(m => new Date(m.date) > weekAgo)
-      const recentFitness = fitness.filter(f => new Date(f.date) > weekAgo)
-      const recentGym = gymWorkouts.filter(w => new Date(w.date) > weekAgo)
-
-      const avgFrom = (arr) => {
-        const nums = (arr || []).filter((n) => Number.isFinite(n))
-        if (!nums.length) return null
-        return nums.reduce((a, b) => a + b, 0) / nums.length
-      }
-
-      const avgEnergy = avgFrom(recentMental.map((m) => m.energyLevel).filter(e => e != null))
-      const avgMood = avgFrom(
-        recentMental.map((m) => {
-          if (m.moodScore != null) return m.moodScore
-          if (m.mood != null) return moodEnumToScore10(m.mood)
-          return null
-        }).filter(v => v != null)
-      )
-      const avgSleep = avgFrom(recentMental.map((m) => m.sleepHours).filter(s => s != null))
-      
-      const newWeeklyStats = {
-        avgEnergy: avgEnergy == null ? '—' : String(Math.round(avgEnergy)),
-        avgMood: avgMood == null ? '—' : String(Math.round(avgMood)),
-        avgSleep: avgSleep == null ? '—' : String(avgSleep.toFixed(1)),
-        workouts: recentGym.length + recentFitness.length,
-        streak: calculateStreak(mental),
-      }
-      setWeeklyStats(newWeeklyStats)
-
-
-
-      const todayStr = new Date().toDateString()
-      const todayLog = mental.find(m => new Date(m.date).toDateString() === todayStr)
-      let currentTodayState = todayState
-      let currentHasCheckedIn = hasCheckedIn
-
-      if (todayLog) {
-        currentHasCheckedIn = true
-        currentTodayState = {
-          energy: todayLog.energyLevel || 5,
-          mood: todayLog.moodScore || 5,
-          bodyFeel: todayLog.bodyFeel || 5,
-          hunger: todayLog.hungerLevel || 5,
-          sleep: todayLog.sleepHours || 7,
-        }
-        setHasCheckedIn(true)
-        setTodayState(currentTodayState)
+      if (summary.today) {
+        setTodayState(summary.today)
       }
 
       // Update cache
-      dashboardCache.data = {
-        dailyLifeState: dlsResult?.data || null,
-        stateReflection: dlsResult?.reflection || null,
-        todayState: currentTodayState,
-        hasCheckedIn: currentHasCheckedIn,
-
-        weeklyStats: newWeeklyStats,
-
-      }
+      dashboardCache.data = summary
       dashboardCache.token = token
     } catch (err) {
       console.error('Failed to load dashboard data:', err)
@@ -724,3 +643,4 @@ function Dashboard() {
 }
 
 export default Dashboard
+efault Dashboard

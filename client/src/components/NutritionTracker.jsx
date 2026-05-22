@@ -428,7 +428,7 @@ function NutritionTracker() {
 
   useEffect(() => {
     if (!token) return
-    loadDay()
+    loadAllNutritionData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, selectedDate])
 
@@ -786,6 +786,54 @@ function NutritionTracker() {
       }
     } catch (err) {
       console.error('Failed to fetch timing analysis:', err)
+    }
+  }
+
+  const loadAllNutritionData = async () => {
+    setLoading(true)
+    try {
+      const dateStr = toDateKey(selectedDate)
+      fetchTimingAnalysis(selectedDate)
+      
+      const res = await fetch(`${API_BASE}/api/nutrition/daily-summary/${encodeURIComponent(dateStr)}`, {
+        headers: getAuthHeaders()
+      })
+      if (res.ok) {
+        const data = await res.json()
+        
+        // 1. Handle Log
+        if (data.log) {
+          setLog({
+            meals: data.log.meals || [],
+            supplements: data.log.supplements || [],
+            waterIntake: data.log.waterIntake || 0,
+            totalWaterOverride: data.log.totalWaterOverride || null,
+            dailyTotals: data.log.dailyTotals || { ...EMPTY_TOTALS },
+            notes: data.log.notes || '',
+            _id: data.log._id,
+          })
+        } else {
+          setLog({ meals: [], supplements: [], waterIntake: 0, totalWaterOverride: null, dailyTotals: { ...EMPTY_TOTALS }, notes: '' })
+        }
+
+        // 2. Handle Clinical Targets
+        if (data.targets) {
+          setClinicalTargets(data.targets)
+          setClinicalTargetsRequiresSetup(false)
+        }
+
+        // 3. Handle Meal Templates
+        setSavedTemplates(data.templates || [])
+
+        // 4. Handle Stats
+        if (data.stats) {
+          setNutritionStats(data.stats)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load nutrition summary data:', err)
+    } finally {
+      setLoading(false)
     }
   }
 

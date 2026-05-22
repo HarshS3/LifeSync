@@ -38,15 +38,14 @@ export default function NutritionScreen() {
   const fetchData = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
     try {
-      const [logRes, targetRes, templateRes] = await Promise.all([
-        api.get(`/nutrition/logs/date/${selectedDate}`).catch(() => ({ data: null })),
-        api.get('/nutrition/clinical-targets').catch(() => ({ data: null })),
-        api.get('/nutrition/meal-templates').catch(() => ({ data: { templates: [] } }))
-      ]);
+      const res = await api.get(`/nutrition/daily-summary/${selectedDate}`);
+      const data = res.data;
 
-      if (logRes.data) setLog(logRes.data);
-      if (targetRes.data?.targets) setTargets(targetRes.data.targets);
-      if (templateRes.data?.templates) setTemplates(templateRes.data.templates);
+      if (data.log) setLog(data.log);
+      else setLog({ meals: [], dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0 } });
+
+      if (data.targets?.targets) setTargets(data.targets.targets);
+      if (data.templates) setTemplates(data.templates);
     } catch (err) {
       console.error('Failed to fetch nutrition data', err);
     } finally {

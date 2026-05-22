@@ -40,7 +40,6 @@ function GlobalCalendar() {
       const year = date.getFullYear()
       const month = date.getMonth()
       
-      // Fetch 1 month before and after to handle edge days in the grid
       const start = new Date(year, month - 1, 1)
       const end = new Date(year, month + 2, 0)
       
@@ -53,73 +52,86 @@ function GlobalCalendar() {
         return
       }
 
-      const [mentalRaw, nutritionRaw, habitsRaw] = await Promise.all([
-        fetchJson(`${API_BASE}/api/logs/mental/range/${encodeURIComponent(startStr)}/${encodeURIComponent(endStr)}`),
-        fetchJson(`${API_BASE}/api/nutrition/logs/range/${encodeURIComponent(startStr)}/${encodeURIComponent(endStr)}`),
-        fetchJson(`${API_BASE}/api/habits/logs/range?start=${startStr}&end=${endStr}`),
-      ])
-
-      const mental = Array.isArray(mentalRaw) ? mentalRaw : [];
-      const nutrition = Array.isArray(nutritionRaw) ? nutritionRaw : (Array.isArray(nutritionRaw?.logs) ? nutritionRaw.logs : []);
-      const habits = Array.isArray(habitsRaw) ? habitsRaw : [];
+      const res = await fetch(`${API_BASE}/api/logs/calendar-summary?start=${startStr}&end=${endStr}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (!res.ok) throw new Error('Failed to fetch calendar summary')
+      const summaryMap = await res.json()
 
       const allEvents = []
 
-      // Mental/Wellness events
-      mental.forEach(m => {
-        const hasMeds = m.medsTaken?.length > 0
-        allEvents.push({
-          date: m.date,
-          type: 'mental',
-          title: 'Wellness Log',
-          icon: <SpaIcon sx={{ fontSize: 16 }} />,
-          color: '#9333ea',
-          bgColor: 'rgba(147, 51, 234, 0.08)',
-          details: `Mood ${m.moodScore || 5}/10 • Energy ${m.energyLevel || 5}/10`,
-          data: m,
-          summary: [
-            `Sleep: ${m.sleepHours || 0}h`,
-            hasMeds ? `Meds: ${m.medsTaken.join(', ')}` : null,
-          ].filter(Boolean).join(' • '),
-        })
-      })
-
-      // Nutrition events
-      nutrition.forEach(n => {
-        const calories =
-          n.totalCalories ||
-          n.dailyTotals?.calories ||
-          n.meals?.reduce((s, m) => s + (m.totalCalories || 0), 0) ||
-          0
-        allEvents.push({
-          date: n.date,
-          type: 'nutrition',
-          title: 'Nutrition Log',
-          icon: <RestaurantIcon sx={{ fontSize: 16 }} />,
-          color: '#15803d',
-          bgColor: 'rgba(21, 128, 61, 0.08)',
-          details: calories ? `${Math.round(calories)} kcal` : 'Meals logged',
-          data: n,
-          summary: n.meals?.map(m => m.name).join(', ') || n.notes || '',
-        })
-      })
-
-      // Habit completion events
-      habits.forEach(h => {
-        if (h.habit && h.completed) {
+      Object.entries(summaryMap).forEach(([dateKey, dayData]) => {
+        // Mental/Wellness events
+        dayData.mental?.forEach(m => {
+          const hasMeds = m.medsTaken?.length > 0
           allEvents.push({
-            date: h.date,
-            type: 'habit',
-            title: h.habit.name || 'Habit',
-            icon: <CheckCircleIcon sx={{ fontSize: 16 }} />,
-            color: h.habit.color || '#6366f1',
-            bgColor: `${h.habit.color || '#6366f1'}15`,
-            details: 'Completed',
-            data: h,
-            summary: h.habit.category || '',
-            habitIcon: h.habit.icon,
+            date: m.date,
+            type: 'mental',
+            title: 'Wellness Log',
+            icon: <SpaIcon sx={{ fontSize: 16 }} />,
+            color: '#9333ea',
+            bgColor: 'rgba(147, 51, 234, 0.08)',
+            details: `Mood ${m.moodScore || 5}/10 • Energy ${m.energyLevel || 5}/10`,
+            data: m,
+            summary: [
+              `Sleep: ${m.sleepHours || 0}h`,
+              hasMeds ? `Meds: ${m.medsTaken.join(', ')}` : null,
+            ].filter(Boolean).join(' • '),
           })
-        }
+        })
+
+        // Nutrition events
+        dayData.nutrition?.forEach(n => {
+          const calories =
+            n.totalCalories ||
+            n.dailyTotals?.calories ||
+            n.meals?.reduce((s, m) => s + (m.totalCalories || 0), 0) ||
+            0
+          allEvents.push({
+            date: n.date,
+            type: 'nutrition',
+            title: 'Nutrition Log',
+            icon: <RestaurantIcon sx={{ fontSize: 16 }} />,
+            color: '#15803d',
+            bgColor: 'rgba(21, 128, 61, 0.08)',
+            details: calories ? `${Math.round(calories)} kcal` : 'Meals logged',
+            data: n,
+            summary: n.meals?.map(m => m.name).join(', ') || n.notes || '',
+          })
+        })
+
+        // Workout events
+        dayData.workouts?.forEach(w => {
+          allEvents.push({
+            date: w.date,
+            type: 'workout',
+            title: w.name || 'Workout',
+            icon: <TimelineIcon sx={{ fontSize: 16 }} />,
+            color: '#ef4444',
+            bgColor: 'rgba(239, 68, 68, 0.08)',
+            details: `${w.exercises?.length || 0} exercises`,
+            data: w,
+            summary: w.exercises?.map(ex => ex.name).join(', ') || '',
+          })
+        })
+
+        // Habit completion events
+        dayData.habits?.forEach(h => {
+          if (h.habit && h.completed) {
+            allEvents.push({
+              date: h.date,
+              type: 'habit',
+              title: h.habit.name || 'Habit',
+              icon: <CheckCircleIcon sx={{ fontSize: 16 }} />,
+              color: h.habit.color || '#6366f1',
+              bgColor: `${h.habit.color || '#6366f1'}15`,
+              details: 'Completed',
+              data: h,
+              summary: h.habit.category || '',
+              habitIcon: h.habit.icon,
+            })
+          }
+        })
       })
 
       setEvents(allEvents.sort((a, b) => new Date(b.date) - new Date(a.date)))

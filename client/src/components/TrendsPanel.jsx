@@ -140,33 +140,43 @@ function TrendsPanel() {
     const fetchData = async () => {
       if (!token) return
       try {
-        const [fitRes, nutRes, menRes, gymRes] = await Promise.all([
-          fetch(`${API_BASE}/api/fitness`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_BASE}/api/nutrition/daily-summaries?days=7`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_BASE}/api/mental`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_BASE}/api/gym/workouts?limit=50`, { headers: { Authorization: `Bearer ${token}` } }),
-        ])
+        const end = new Date()
+        const start = new Date()
+        start.setDate(start.getDate() - 30)
+        
+        const res = await fetch(`${API_BASE}/api/logs/calendar-summary?start=${start.toISOString()}&end=${end.toISOString()}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (!res.ok) throw new Error('Failed to fetch trends summary')
+        const summaryMap = await res.json()
 
-        const fit = await fitRes.json().catch(() => [])
-        const nut = await nutRes.json().catch(() => [])
-        const men = await menRes.json().catch(() => [])
-        const workouts = await gymRes.json().catch(() => [])
+        const fit = []
+        const nut = []
+        const men = []
+        const workouts = []
 
-        const normalizedNutrition = Array.isArray(nut) 
-          ? nut.map(n => ({
-              date: n.date,
-              totalCalories: n.calories || 0,
-              totalProtein: n.protein || 0,
-              totalCarbs: n.carbs || 0,
-              totalFat: n.fat || 0
-            }))
-          : []
+        Object.values(summaryMap).forEach(day => {
+          if (day.fitness) fit.push(...day.fitness)
+          if (day.nutrition) {
+            day.nutrition.forEach(n => {
+              nut.push({
+                date: n.date,
+                totalCalories: n.totalCalories || n.dailyTotals?.calories || 0,
+                totalProtein: n.totalProtein || n.dailyTotals?.protein || 0,
+                totalCarbs: n.totalCarbs || n.dailyTotals?.carbs || 0,
+                totalFat: n.totalFat || n.dailyTotals?.fat || 0
+              })
+            })
+          }
+          if (day.mental) men.push(...day.mental)
+          if (day.workouts) workouts.push(...day.workouts)
+        })
 
         const newData = {
-          fitness: Array.isArray(fit) ? fit.slice(0, 7) : [],
-          nutrition: normalizedNutrition.slice(0, 7),
-          mental: Array.isArray(men) ? men.slice(0, 7) : [],
-          workouts: Array.isArray(workouts) ? workouts.slice(0, 50) : [],
+          fitness: fit.slice(0, 7),
+          nutrition: nut.slice(0, 7),
+          mental: men.slice(0, 7),
+          workouts: workouts.slice(0, 50),
         }
         setData(newData)
         trendsCache.data = newData

@@ -7,6 +7,46 @@ const router = express.Router();
 
 const auth = require('../middleware/authMiddleware');
 
+// Get consolidated logs for calendar view
+router.get('/calendar-summary', auth, async (req, res) => {
+  try {
+    const { start, end } = req.query;
+    if (!start || !end) {
+      return res.status(400).json({ error: 'Start and end dates are required' });
+    }
+
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    const [fitness, mental, nutrition, workouts] = await Promise.all([
+      FitnessLog.find({ user: req.userId, date: { $gte: startDate, $lte: endDate } }).lean(),
+      MentalLog.find({ user: req.userId, date: { $gte: startDate, $lte: endDate } }).lean(),
+      NutritionLog.find({ user: req.userId, date: { $gte: startDate, $lte: endDate } }).lean(),
+      Workout.find({ user: req.userId, date: { $gte: startDate, $lte: endDate } }).lean(),
+    ]);
+
+    // Return as a map keyed by date string for easier frontend lookup
+    const summary = {};
+    const process = (logs, type) => {
+      logs.forEach(log => {
+        const d = new Date(log.date).toDateString();
+        if (!summary[d]) summary[d] = { fitness: [], mental: [], nutrition: [], workouts: [], habits: [] };
+        summary[d][type].push(log);
+      });
+    };
+
+    process(fitness, 'fitness');
+    process(mental, 'mental');
+    process(nutrition, 'nutrition');
+    process(workouts, 'workouts');
+
+    res.json(summary);
+  } catch (err) {
+    console.error('[CalendarSummary] Error:', err);
+    res.status(500).json({ error: 'Failed to fetch calendar summary' });
+  }
+});
+
 // GET all logs for authenticated user
 router.get('/fitness', auth, async (req, res) => {
   try {

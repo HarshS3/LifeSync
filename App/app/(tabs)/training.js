@@ -150,24 +150,14 @@ export default function TrainingScreen() {
 
   const fetchData = async () => {
     try {
-      const [wRes, sRes, tRes] = await Promise.all([
-        api.get('/gym/workouts').catch(() => ({ data: [] })),
-        api.get('/gym/stats').catch(() => ({ data: {} })),
-        api.get('/gym/templates').catch(() => ({ data: [] })),
-      ]);
-      setWorkouts(wRes.data || []);
-      setStats(sRes.data || {});
-      setTemplates(tRes.data || []);
+      const res = await api.get('/gym/summary');
+      const data = res.data;
 
-      try {
-        const rRes = await api.get('/gym/readiness');
-        setReadiness(rRes.data);
-      } catch { /* optional */ }
-
-      try {
-        const iRes = await api.get('/gym/insights');
-        setInsights(Array.isArray(iRes.data) ? iRes.data : []);
-      } catch { /* optional */ }
+      setWorkouts(data.recentWorkouts || []);
+      setStats(data.stats || {});
+      setTemplates(data.templates || []);
+      setReadiness(data.readiness || null);
+      setInsights(Array.isArray(data.correlations) ? data.correlations : []);
 
     } catch (err) {
       console.error('Training fetch error', err);

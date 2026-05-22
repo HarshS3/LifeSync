@@ -26,6 +26,41 @@ const { computeWeeklyDiversity } = require('../services/nutritionPipeline/source
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
 
+const auth = require('../middleware/authMiddleware');
+
+// Get consolidated daily nutrition summary
+router.get('/daily-summary/:date', auth, async (req, res) => {
+  try {
+    const { date } = req.params;
+    const dateStr = decodeURIComponent(date);
+    const start = new Date(dateStr);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+
+    const [log, targets, stats] = await Promise.all([
+      NutritionLog.findOne({ user: req.userId, date: { $gte: start, $lt: end } }).lean(),
+      calculateDailyTargets(req.userId).catch(() => null),
+      NutritionLog.find({ user: req.userId, date: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } }).limit(30).lean()
+    ]);
+    
+    const mealTemplates = await MealTemplate.find({ user: req.userId }).limit(20).lean();
+
+    res.json({
+      log,
+      targets,
+      templates: mealTemplates,
+      stats: {
+        count: stats.length,
+        avgCalories: stats.length ? stats.reduce((sum, s) => sum + (s.totalCalories || 0), 0) / stats.length : 0
+      }
+    });
+  } catch (err) {
+    console.error('[NutritionSummary] Error:', err);
+    res.status(500).json({ error: 'Failed to fetch nutrition summary' });
+  }
+});
+
 const DAILY_TOTAL_FIELDS = [
   'calories',
   'protein',

@@ -36,72 +36,64 @@ export default function CalendarScreen() {
       const startStr = start.toISOString();
       const endStr = end.toISOString();
 
-      const [workoutsRes, mentalRes, nutritionRes, habitsRes] = await Promise.all([
-        api.get('/gym/workouts').catch(() => ({ data: [] })),
-        api.get(`/logs/mental/range/${encodeURIComponent(startStr)}/${encodeURIComponent(endStr)}`).catch(() => ({ data: [] })),
-        api.get(`/nutrition/logs/range/${encodeURIComponent(startStr)}/${encodeURIComponent(endStr)}`).catch(() => ({ data: [] })),
-        api.get(`/habits/logs/range?start=${startStr}&end=${endStr}`).catch(() => ({ data: [] })),
-      ]);
+      const res = await api.get(`/logs/calendar-summary?start=${startStr}&end=${endStr}`);
+      const summaryMap = res.data;
 
       const allEvents = [];
 
-      // Workouts
-      const workouts = Array.isArray(workoutsRes.data) ? workoutsRes.data : [];
-      workouts.forEach(w => {
-        const d = new Date(w.date).toISOString().split('T')[0];
-        allEvents.push({
-          date: d,
-          type: 'training',
-          title: w.name || 'Workout',
-          icon: <Activity size={16} color={COLORS.training} />,
-          details: `${w.exercises?.length || 0} exercises`,
-          original: w
-        });
-      });
+      Object.entries(summaryMap).forEach(([dateKey, dayData]) => {
+        const d = new Date(dateKey).toISOString().split('T')[0];
 
-      // Mental
-      const mental = Array.isArray(mentalRes.data) ? mentalRes.data : [];
-      mental.forEach(m => {
-        const d = new Date(m.date).toISOString().split('T')[0];
-        allEvents.push({
-          date: d,
-          type: 'wellness',
-          title: 'Wellness Log',
-          icon: <Zap size={16} color={COLORS.wellness} />,
-          details: `Mood ${m.moodScore || 5}/10 • Energy ${m.energyLevel || 5}/10`,
-          original: m
-        });
-      });
-
-      // Nutrition
-      const nutrition = Array.isArray(nutritionRes.data) ? nutritionRes.data : (Array.isArray(nutritionRes.data?.logs) ? nutritionRes.data.logs : []);
-      nutrition.forEach(n => {
-        const d = new Date(n.date).toISOString().split('T')[0];
-        const calories = n.totalCalories || n.dailyTotals?.calories || 0;
-        allEvents.push({
-          date: d,
-          type: 'nutrition',
-          title: 'Nutrition Log',
-          icon: <Utensils size={16} color={COLORS.nutrition} />,
-          details: calories ? `${Math.round(calories)} kcal` : 'Meals logged',
-          original: n
-        });
-      });
-
-      // Habits
-      const habits = Array.isArray(habitsRes.data) ? habitsRes.data : [];
-      habits.forEach(h => {
-        if (h.completed) {
-          const d = new Date(h.date).toISOString().split('T')[0];
+        // Training (workouts)
+        dayData.workouts?.forEach(w => {
           allEvents.push({
             date: d,
-            type: 'insight',
-            title: h.habit?.name || 'Habit',
-            icon: <CheckCircle size={16} color={h.habit?.color || COLORS.insight} />,
-            details: 'Completed',
-            original: h
+            type: 'training',
+            title: w.name || 'Workout',
+            icon: <Activity size={16} color={COLORS.training} />,
+            details: `${w.exercises?.length || 0} exercises`,
+            original: w
           });
-        }
+        });
+
+        // Wellness (mental)
+        dayData.mental?.forEach(m => {
+          allEvents.push({
+            date: d,
+            type: 'wellness',
+            title: 'Wellness Log',
+            icon: <Zap size={16} color={COLORS.wellness} />,
+            details: `Mood ${m.moodScore || 5}/10 • Energy ${m.energyLevel || 5}/10`,
+            original: m
+          });
+        });
+
+        // Nutrition
+        dayData.nutrition?.forEach(n => {
+          const calories = n.totalCalories || n.dailyTotals?.calories || 0;
+          allEvents.push({
+            date: d,
+            type: 'nutrition',
+            title: 'Nutrition Log',
+            icon: <Utensils size={16} color={COLORS.nutrition} />,
+            details: calories ? `${Math.round(calories)} kcal` : 'Meals logged',
+            original: n
+          });
+        });
+
+        // Habits
+        dayData.habits?.forEach(h => {
+          if (h.completed) {
+            allEvents.push({
+              date: d,
+              type: 'insight',
+              title: h.habit?.name || 'Habit',
+              icon: <CheckCircle size={16} color={h.habit?.color || COLORS.insight} />,
+              details: 'Completed',
+              original: h
+            });
+          }
+        });
       });
 
       setEvents(allEvents);

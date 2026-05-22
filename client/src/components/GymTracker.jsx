@@ -324,10 +324,7 @@ function GymTracker() {
   }, [workouts, nutritionHistory])
 
   useEffect(() => {
-    loadWorkouts()
-    loadTemplates()
-    loadCorrelationData()
-    loadReadiness()
+    loadData()
   }, [token])
 
   useEffect(() => {
@@ -654,6 +651,32 @@ function GymTracker() {
       setStepsError(e?.message || 'Failed to save steps')
     } finally {
       setStepsSaving(false)
+    }
+  }
+
+  const loadData = async () => {
+    if (!token) return
+    setLoading(true)
+    setReadinessLoading(true)
+    setCorrelationLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/gym/summary`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setReadiness(data.readiness || null)
+        setCorrelatedInsights(data.correlations || [])
+        setTemplates(data.templates || [])
+        setWorkouts(data.recentWorkouts || [])
+        setStats(data.stats || {})
+      }
+    } catch (err) {
+      console.error('Failed to load gym summary:', err)
+    } finally {
+      setLoading(false)
+      setReadinessLoading(false)
+      setCorrelationLoading(false)
     }
   }
 

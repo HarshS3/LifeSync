@@ -38,6 +38,51 @@ async function getStepsForDate(req, res, dateStr) {
   }
 }
 
+// Get consolidated gym summary
+router.get('/summary', auth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [workouts, templates, readiness, correlations] = await Promise.all([
+      Workout.find({ user: userId }).sort({ date: -1 }).limit(10), // Limit to recent 10
+      WorkoutTemplate.find({ userId }).sort({ lastUsed: -1, createdAt: -1 }),
+      calculateReadiness(userId),
+      analyzeCorrelations(userId).catch(() => null)
+    ]);
+
+    // Calculate stats locally from recent workouts to save a DB call or redundant logic
+    // But since stats usually covers ALL time or a larger range, we'll fetch just what's needed for the home tab
+    const weeklyWorkouts = workouts.filter(w => new Date(w.date) > weekAgo).length;
+    
+    // Get total volume and PRs (minimal version)
+    let totalVolume = 0;
+    workouts.forEach(w => {
+      w.exercises?.forEach(ex => {
+        ex.sets?.forEach(s => {
+          totalVolume += (s.weight || 0) * (s.reps || 0);
+        });
+      });
+    });
+
+    res.json({
+      readiness,
+      correlations,
+      templates,
+      recentWorkouts: workouts.slice(0, 5),
+      stats: {
+        totalWorkouts: workouts.length, // approximation if they have > 10, but good enough for home
+        weeklyWorkouts,
+        totalVolume,
+      }
+    });
+  } catch (err) {
+    console.error('[GymSummary] Error:', err);
+    res.status(500).json({ error: 'Failed to fetch gym summary' });
+  }
+});
+
 // Get steps for a specific date
 router.get('/steps/date/:date', auth, async (req, res) => {
   return getStepsForDate(req, res, req.params.date);

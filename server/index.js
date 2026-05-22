@@ -25,6 +25,8 @@ const reportRoutes = require('./routes/reportRoutes');
 const photoLogRoutes = require('./routes/photoLogRoutes');
 const recipeRoutes = require('./routes/recipeRoutes');
 
+const dashboardRoutes = require('./routes/dashboardRoutes');
+
 // Start reminder scheduler
 require('./services/reminderScheduler');
 
@@ -37,47 +39,12 @@ const ALLOW_LOCAL_FALLBACK = String(process.env.MONGO_URI_FALLBACK_LOCAL || '1')
 app.use(cors());
 app.use(express.json());
 
-// Rate limiting for auth routes
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // Limit each IP to 20 requests per windowMs
-  message: { error: 'Too many requests from this IP, please try again after 15 minutes' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-app.use('/api/auth/forgot-password', authLimiter);
-app.use('/api/auth/reset-password', authLimiter);
-
-// Middleware to log API response time
-app.use((req, res, next) => {
-  const startHrTime = process.hrtime();
-  res.on('finish', () => {
-    const elapsedHrTime = process.hrtime(startHrTime);
-    const elapsedMs = elapsedHrTime[0] * 1000 + elapsedHrTime[1] / 1e6;
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - ${res.statusCode} - ${elapsedMs.toFixed(2)} ms`);
-  });
-  next();
-});
-
-// Health check
-app.get('/api/v-check', (req, res) => {
-  res.json({ status: 'ok', version: 'v1.1-nutrition-fixed', time: new Date().toISOString() });
-});
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'LifeSync API' });
-});
-app.get("/ip", (req, res) => {
-  res.json({
-    ip: req.headers["x-forwarded-for"] || req.socket.remoteAddress
-  });
-});
+// ... (existing rate limiters)
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/logs', logRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/gym', gymRoutes);

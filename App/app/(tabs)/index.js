@@ -81,53 +81,24 @@ export default function DashboardScreen() {
 
   const loadData = async () => {
     try {
-      const [fitness, mental, nutrition, gymWorkouts] = await Promise.all([
-        api.get('/logs/fitness').then(r => r.data).catch(() => []),
-        api.get('/logs/mental').then(r => r.data).catch(() => []),
-        api.get('/logs/nutrition').then(r => r.data).catch(() => []),
-        api.get('/gym/workouts').then(r => r.data).catch(() => []),
-      ]);
-
-      const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-      const recentMental  = (mental  || []).filter(m => new Date(m.date) > weekAgo);
-      const recentFitness = (fitness || []).filter(f => new Date(f.date) > weekAgo);
-      const recentGym     = (gymWorkouts || []).filter(w => new Date(w.date) > weekAgo);
-
-      const avgOf = (arr) => {
-        const nums = arr.filter(Number.isFinite);
-        return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
-      };
-
-      const avgEnergy = avgOf(recentMental.map(m => m.energyLevel).filter(v => v != null));
-      const avgMood   = avgOf(recentMental.map(m => (m.moodScore || 5)).filter(v => v != null));
-      const avgSleep  = avgOf(recentMental.map(m => m.sleepHours).filter(v => v != null));
+      const res = await api.get('/dashboard/summary');
+      const summary = res.data;
 
       setWeeklyStats({
-        avgEnergy: avgEnergy == null ? '—' : String(Math.round(avgEnergy)),
-        avgMood:   avgMood   == null ? '—' : String(Math.round(avgMood)),
-        avgSleep:  avgSleep  == null ? '—' : avgSleep.toFixed(1),
-        workouts:  recentGym.length + recentFitness.length,
-        streak:    recentMental.length, // Simplified streak logic
-        weight:    user?.biologicalProfile?.weightKg || user?.weight || '—',
+        avgEnergy: summary.stats.avgEnergy,
+        avgMood:   summary.stats.avgMood,
+        avgSleep:  summary.stats.avgSleep,
+        workouts:  summary.stats.workouts,
+        streak:    summary.stats.streak,
+        weight:    summary.stats.weight,
       });
 
-      const todayStr = new Date().toDateString();
-      const todayLog = (mental || []).find(m => new Date(m.date).toDateString() === todayStr);
-      if (todayLog) {
-        setHasCheckedIn(true);
-        setTodayState({
-          energy:   todayLog.energyLevel || 5,
-          mood:     todayLog.moodScore   || 5,
-          bodyFeel: todayLog.bodyFeel    || 5,
-          hunger:   todayLog.hungerLevel || 5,
-          sleep:    todayLog.sleepHours  || 7,
-        });
+      setHasCheckedIn(summary.hasCheckedIn);
+      if (summary.today) {
+        setTodayState(summary.today);
       }
 
-      try {
-        const dlsRes = await api.get(`/daily-life-state/${selectedDate}?refresh=1`);
-        setStateReflection(dlsRes.headers?.['x-lifesync-state-reflection'] || null);
-      } catch { /* no-op */ }
+      setStateReflection(summary.stateReflection);
 
     } catch (err) {
       console.error('Dashboard load error', err);

@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, TextInput, FlatList } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, TextInput, FlatList, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
-import { TrendingUp, Search, Info, Play, ChevronRight, BarChart2, Activity } from 'lucide-react-native';
+import { TrendingUp, Search, Info, Play, ChevronRight, BarChart2, Activity, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import api from '../../services/api';
 import { LineChart } from 'react-native-chart-kit';
 import { useTheme } from '../../constants/Theme';
+import { EXERCISE_LIBRARY } from '../../constants/ExerciseLibrary';
 
 // UI Components
 import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
@@ -24,6 +25,8 @@ export default function ProgressionScreen() {
   const [allNames, setAllNames] = useState([]);
   const [history, setHistory] = useState([]);
   const [stats, setStats] = useState(null);
+  const [showPicker, setShowPicker] = useState(false);
+  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('all');
 
   useEffect(() => {
     fetchExerciseNames();
@@ -67,13 +70,24 @@ export default function ProgressionScreen() {
   };
 
   const filteredNames = useMemo(() => {
-    if (!searchQuery.trim()) return allNames;
-    return allNames.filter(n => n.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [allNames, searchQuery]);
+    // 1. Get all unique names from history and library
+    const libraryNames = Object.values(EXERCISE_LIBRARY).flatMap(g => g.exercises);
+    const allKnown = Array.from(new Set([...libraryNames, ...allNames])).sort();
+
+    // 2. Filter by search
+    if (searchQuery.trim()) {
+      return allKnown.filter(n => n.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+
+    // 3. Filter by muscle group
+    if (selectedMuscleGroup === 'all') return allKnown;
+    const groupExs = EXERCISE_LIBRARY[selectedMuscleGroup]?.exercises || [];
+    return allKnown.filter(ex => groupExs.includes(ex));
+  }, [allNames, searchQuery, selectedMuscleGroup]);
 
   const chartData = useMemo(() => {
     if (history.length === 0) return null;
-    const recent = history.slice(-7).reverse(); // Order from oldest to newest for chart
+    const recent = [...history].slice(-7); // Correctly ordered chronological
     return {
       labels: recent.map(h => {
         const d = new Date(h.date);
@@ -94,12 +108,13 @@ export default function ProgressionScreen() {
       style={[
         styles.exerciseItem,
         { borderBottomColor: COLORS.gray100 },
-        exercise === item && { backgroundColor: COLORS.primary + '10', borderLeftColor: COLORS.primary, borderLeftWidth: 4 }
+        exercise === item && { backgroundColor: COLORS.primary + '10' }
       ]}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setExercise(item);
         setSearchQuery('');
+        setShowPicker(false);
       }}
     >
       <View style={styles.exerciseItemContent}>
@@ -110,7 +125,7 @@ export default function ProgressionScreen() {
           exercise === item && { color: COLORS.primary, fontWeight: '700' }
         ]}>{item}</Body>
       </View>
-      <ChevronRight size={16} color={COLORS.gray300} />
+      {exercise === item && <TrendingUp size={16} color={COLORS.primary} />}
     </TouchableOpacity>
   );
 
@@ -118,71 +133,26 @@ export default function ProgressionScreen() {
     <ScreenWrapper title="Progression">
       <View style={styles.container}>
         <View style={styles.header}>
-          <View style={[styles.searchContainer, { backgroundColor: COLORS.gray100, borderColor: COLORS.border }]}>
-            <Search size={18} color={COLORS.gray400} style={styles.searchIcon} />
-            <TextInput
-              style={[styles.searchInput, { color: COLORS.text }]}
-              placeholder="Search all exercises..."
-              placeholderTextColor={COLORS.gray400}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
+          <TouchableOpacity 
+            style={[styles.selectorBtn, { backgroundColor: COLORS.surface, borderColor: COLORS.border }]}
+            onPress={() => setShowPicker(true)}
+          >
+            <View style={{ flex: 1 }}>
+              <Caption secondary>SELECT EXERCISE</Caption>
+              <H3 style={{ marginTop: 2 }}>{exercise || 'No exercise selected'}</H3>
+            </View>
+            <View style={[styles.changeBadge, { backgroundColor: COLORS.primary + '15' }]}>
+              <Search size={16} color={COLORS.primary} />
+              <Body style={{ color: COLORS.primary, fontWeight: '700', marginLeft: 6, fontSize: 12 }}>Change</Body>
+            </View>
+          </TouchableOpacity>
         </View>
 
-        {searchQuery.length > 0 ? (
-          <View style={[styles.dropdown, { backgroundColor: COLORS.surface, borderColor: COLORS.border }]}>
-            <FlatList
-              data={filteredNames}
-              keyExtractor={item => item}
-              renderItem={renderExerciseItem}
-              ListEmptyComponent={
-                <View style={styles.emptySearch}>
-                  <Caption secondary>No exercises found matching "{searchQuery}"</Caption>
-                </View>
-              }
-              keyboardShouldPersistTaps="handled"
-            />
-          </View>
-        ) : (
-          <ScrollView style={styles.mainContent} showsVerticalScrollIndicator={false}>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false} 
-              style={styles.chipsScroll}
-              contentContainerStyle={{ paddingHorizontal: 16 }}
-            >
-              {allNames.slice(0, 8).map(name => (
-                <TouchableOpacity
-                  key={name}
-                  style={[
-                    styles.chip, 
-                    { backgroundColor: COLORS.gray100, borderColor: COLORS.border },
-                    exercise === name && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setExercise(name);
-                  }}
-                >
-                  <Body style={[
-                    { color: COLORS.text, fontSize: 13 },
-                    exercise === name && { color: COLORS.surface, fontWeight: '700' }
-                  ]}>{name}</Body>
-                </TouchableOpacity>
-              ))}
-              <TouchableOpacity 
-                style={[styles.chip, { backgroundColor: COLORS.gray100, borderColor: COLORS.border }]}
-                onPress={() => setSearchQuery(' ')} 
-              >
-                <Body style={{ color: COLORS.primary, fontSize: 13, fontWeight: '700' }}>See All</Body>
-              </TouchableOpacity>
-            </ScrollView>
-
-            <View style={{ paddingHorizontal: 16 }}>
-              {exercise ? (
-                <Card style={styles.chartCard} padding={20}>
-                  <View style={styles.chartHeader}>
+        <ScrollView style={styles.mainContent} showsVerticalScrollIndicator={false}>
+          <View style={{ paddingHorizontal: 16 }}>
+            {exercise ? (
+              <Card style={styles.chartCard} padding={20}>
+                <View style={styles.chartHeader}>
                     <View style={[styles.iconBox, { backgroundColor: COLORS.primary + '15' }]}>
                       <TrendingUp size={20} color={COLORS.primary} />
                     </View>
@@ -278,45 +248,120 @@ export default function ProgressionScreen() {
                   <Body secondary style={{ textAlign: 'center' }}>
                     You need to log at least one workout session to see exercise progression.
                   </Body>
-                </View>
-              )}
-            </View>
-          </ScrollView>
-        )}
+              </View>
+            )}
+          </View>
+        </ScrollView>
       </View>
+
+      <Modal visible={showPicker} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBody, { backgroundColor: COLORS.surface }]}>
+            <View style={styles.modalHeader}>
+              <H2>Select Exercise</H2>
+              <TouchableOpacity onPress={() => { setShowPicker(false); setSearchQuery(''); }}>
+                <X size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.searchBox, { backgroundColor: COLORS.gray100 }]}>
+              <Search size={18} color={COLORS.gray400} />
+              <TextInput 
+                style={[styles.modalSearchInput, { color: COLORS.text }]} 
+                placeholder="Search exercises..." 
+                placeholderTextColor={COLORS.gray400}
+                value={searchQuery} 
+                onChangeText={setSearchQuery}
+                autoFocus
+              />
+            </View>
+
+            {!searchQuery.trim() && (
+              <View style={{ marginBottom: 16 }}>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  contentContainerStyle={{ gap: 8, paddingHorizontal: 4 }}
+                >
+                  <TouchableOpacity 
+                    style={[
+                      styles.muscleTab, 
+                      { backgroundColor: COLORS.gray100 },
+                      selectedMuscleGroup === 'all' && { backgroundColor: COLORS.primary }
+                    ]}
+                    onPress={() => setSelectedMuscleGroup('all')}
+                  >
+                    <Body style={[
+                      { fontSize: 13 },
+                      selectedMuscleGroup === 'all' && { color: COLORS.surface, fontWeight: '700' }
+                    ]}>All</Body>
+                  </TouchableOpacity>
+                  {Object.entries(EXERCISE_LIBRARY).map(([key, group]) => (
+                    <TouchableOpacity 
+                      key={key}
+                      style={[
+                        styles.muscleTab, 
+                        { backgroundColor: COLORS.gray100 },
+                        selectedMuscleGroup === key && { backgroundColor: COLORS.primary }
+                      ]}
+                      onPress={() => setSelectedMuscleGroup(key)}
+                    >
+                      <Body style={[
+                        { fontSize: 13 },
+                        selectedMuscleGroup === key && { color: COLORS.surface, fontWeight: '700' }
+                      ]}>{group.label}</Body>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            <FlatList
+              data={filteredNames}
+              keyExtractor={item => item}
+              renderItem={renderExerciseItem}
+              contentContainerStyle={{ paddingBottom: 40 }}
+              ListEmptyComponent={
+                <View style={styles.emptySearch}>
+                  <Caption secondary>No exercises found matching "{searchQuery}"</Caption>
+                </View>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
     </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { padding: 16, paddingBottom: 8 },
-  searchContainer: {
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    borderRadius: 12,
-    paddingHorizontal: 12, 
-    paddingVertical: 8, 
+  header: { padding: 16 },
+  selectorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
-  },
-  searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, fontSize: 15, paddingVertical: 4 },
-  dropdown: {
-    flex: 1,
-    borderTopWidth: 1,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    elevation: 4,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
+  changeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  mainContent: { flex: 1 },
   exerciseItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 18,
     borderBottomWidth: 1,
   },
   exerciseItemContent: {
@@ -327,19 +372,16 @@ const styles = StyleSheet.create({
   exerciseName: {
     fontSize: 16,
   },
+  muscleTab: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   emptySearch: {
     padding: 32,
     alignItems: 'center',
-  },
-  mainContent: { flex: 1 },
-  chipsScroll: { marginBottom: 16, maxHeight: 40 },
-  chip: {
-    paddingHorizontal: 14, 
-    paddingVertical: 6, 
-    borderRadius: 18,
-    marginRight: 8, 
-    borderWidth: 1,
-    justifyContent: 'center',
   },
   chartCard: {
     marginBottom: 40,
@@ -410,5 +452,35 @@ const styles = StyleSheet.create({
     paddingTop: 100,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalBody: {
+    height: '80%',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    padding: 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    height: 48,
+  },
+  modalSearchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 16,
   }
 });

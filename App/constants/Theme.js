@@ -36,6 +36,7 @@ export const COLORS = {
     border: '#eeeeee',
     text: '#000000',
     textSecondary: '#666666',
+    primaryContrast: '#ffffff',
   },
   dark: {
     primary: '#ffffff',
@@ -72,6 +73,7 @@ export const COLORS = {
     border: '#27272a',
     text: '#ffffff',
     textSecondary: '#a1a1aa',
+    primaryContrast: '#000000',
   }
 };
 

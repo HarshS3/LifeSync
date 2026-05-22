@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { FitnessLog, NutritionLog, MentalLog } = require('../models/Logs');
+const Workout = require('../models/Workout');
 const { triggerDailyLifeStateRecompute } = require('../services/dailyLifeState/triggerDailyLifeStateRecompute');
 
 const router = express.Router();

@@ -358,11 +358,13 @@ router.get('/stats', auth, async (req, res) => {
 // Get unique exercise names for the user
 router.get('/exercise-names', auth, async (req, res) => {
   try {
-    const workouts = await Workout.find({ user: req.userId }).select('exercises.name');
+    const workouts = await Workout.find({ user: req.userId }).select('exercises.name').lean();
     const names = new Set();
     workouts.forEach(w => {
       w.exercises?.forEach(ex => {
-        if (ex.name) names.add(ex.name);
+        if (ex.name) {
+          names.add(ex.name.trim());
+        }
       });
     });
     res.json(Array.from(names).sort());

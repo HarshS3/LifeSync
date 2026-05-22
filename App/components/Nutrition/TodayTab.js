@@ -420,5 +420,5 @@ const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleShe
   webCtaTitle: { fontSize: 13, fontWeight: '600' },
   webCtaSub: { fontSize: 11, marginTop: 2 },
   webCtaBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
-  webCtaBtnText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
+  webCtaBtnText: { color: COLORS.primaryContrast, fontSize: 12, fontWeight: '700' },
 });

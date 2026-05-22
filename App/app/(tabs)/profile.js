@@ -345,7 +345,7 @@ export default function ProfileScreen() {
         <View style={{ flexDirection: 'row', gap: 12 }}>
            {hasChanges && (
              <TouchableOpacity style={[styles.saveBtn, { backgroundColor: COLORS.primary }]} onPress={handleSave} disabled={saving}>
-               {saving ? <ActivityIndicator size="small" color="#fff" /> : <Body style={{ color: '#fff', fontWeight: 'bold' }}>Save</Body>}
+               {saving ? <ActivityIndicator size="small" color={COLORS.primaryContrast} /> : <Body style={{ color: COLORS.primaryContrast, fontWeight: 'bold' }}>Save</Body>}
              </TouchableOpacity>
            )}
            <TouchableOpacity onPress={() => router.push('/profile/settings')}><Settings size={22} color={COLORS.text} /></TouchableOpacity>
@@ -354,7 +354,7 @@ export default function ProfileScreen() {
     >
       <View style={styles.topCard}>
         <View style={[styles.avatarLarge, { backgroundColor: COLORS.primary }]}>
-          <H2 style={{ color: '#fff' }}>{user?.name?.charAt(0).toUpperCase() || 'U'}</H2>
+          <H2 style={{ color: COLORS.primaryContrast }}>{user?.name?.charAt(0).toUpperCase() || 'U'}</H2>
         </View>
         <H2 style={{ marginTop: 12 }}>{user?.name}</H2>
         <Body secondary>{user?.email}</Body>

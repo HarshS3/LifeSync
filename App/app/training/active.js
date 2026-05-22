@@ -4,6 +4,10 @@ import {
   ActivityIndicator, KeyboardAvoidingView, Platform, Modal, 
   FlatList, Alert, Animated, Dimensions 
 } from 'react-native';
+import { 
+  GestureHandlerRootView, 
+  Swipeable 
+} from 'react-native-gesture-handler';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import api from '../../services/api';
 import { 
@@ -13,6 +17,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../constants/Theme';
+import { EXERCISE_LIBRARY } from '../../constants/ExerciseLibrary';
 
 // UI Components
 import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
@@ -22,12 +27,7 @@ import { H2, H3, Body, Caption } from '../../components/ui/Typography';
 const { width } = Dimensions.get('window');
 const STORAGE_KEY = '@active_workout_draft';
 
-const COMMON_EXERCISES = [
-  'Bench Press', 'Squat', 'Deadlift', 'Overhead Press', 'Barbell Row',
-  'Dumbbell Press', 'Lateral Raise', 'Bicep Curl', 'Tricep Extension',
-  'Lat Pulldown', 'Leg Press', 'Leg Extension', 'Leg Curl', 'Calf Raise',
-  'Pull Up', 'Push Up', 'Dip', 'Plank', 'Lunges', 'Face Pull'
-];
+const generateId = () => Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
 
 // ── Rest Timer Component ──────────────────────────────────────────
 function RestTimer({ onReset }) {
@@ -54,17 +54,70 @@ function RestTimer({ onReset }) {
   return (
     <View style={[styles.restTimer, { backgroundColor: COLORS.primary }]}>
       <View style={styles.restTimerContent}>
-        <Timer size={16} color="#fff" />
-        <Body style={{ color: '#fff', fontWeight: 'bold', marginLeft: 8 }}>
+        <Timer size={16} color={COLORS.primaryContrast} />
+        <Body style={{ color: COLORS.primaryContrast, fontWeight: 'bold', marginLeft: 8 }}>
           REST: {formatTime(seconds)}
         </Body>
       </View>
       <TouchableOpacity onPress={onReset} style={styles.restReset}>
-        <RotateCcw size={16} color="#fff" />
+        <RotateCcw size={16} color={COLORS.primaryContrast} />
       </TouchableOpacity>
     </View>
   );
 }
+
+// ── Swipeable Row Component ────────────────────────────────────────
+function SwipeableRow({ children, onDelete }) {
+  const { COLORS } = useTheme();
+  const renderRightActions = (progress, dragX) => {
+    const trans = dragX.interpolate({
+      inputRange: [-80, 0],
+      outputRange: [0, 80],
+    });
+    return (
+      <TouchableOpacity 
+        style={[styles.swipeDelete, { backgroundColor: COLORS.error }]} 
+        onPress={onDelete}
+        activeOpacity={0.7}
+      >
+        <Animated.View style={{ transform: [{ translateX: trans }] }}>
+          <Trash2 size={24} color="#fff" />
+        </Animated.View>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <Swipeable 
+      renderRightActions={renderRightActions} 
+      friction={2} 
+      rightThreshold={40}
+    >
+      {children}
+    </Swipeable>
+  );
+}
+
+// ── Set Input Component (Fixes RN view recycling bug) ─────────────
+const SetInput = React.memo(({ value, onChange, placeholder, style, textColor, placeholderColor }) => {
+  const [text, setText] = useState(value);
+
+  useEffect(() => {
+    setText(value);
+  }, [value]);
+
+  return (
+    <TextInput
+      style={style}
+      keyboardType="numeric"
+      value={text}
+      onChangeText={setText}
+      onEndEditing={() => onChange(text)}
+      placeholder={placeholder}
+      placeholderTextColor={placeholderColor}
+    />
+  );
+});
 
 export default function ActiveWorkoutScreen() {
   const { COLORS, BORDER_RADIUS } = useTheme();
@@ -81,10 +134,47 @@ export default function ActiveWorkoutScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedToBatch, setSelectedToBatch] = useState([]);
+  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('all');
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [restTimerKey, setRestTimerKey] = useState(0);
+  const [allNames, setAllNames] = useState([]);
 
   const timerRef = useRef(null);
+  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('all');
+
+  const filteredExercises = useMemo(() => {
+    // 1. Combine library and history unique names
+    const libraryNames = Object.values(EXERCISE_LIBRARY).flatMap(g => g.exercises);
+    const allKnown = Array.from(new Set([...libraryNames, ...allNames])).sort();
+
+    // 2. Filter by search
+    if (search.trim()) {
+      return allKnown.filter(ex => ex.toLowerCase().includes(search.toLowerCase()));
+    }
+
+    // 3. Filter by muscle group
+    if (selectedMuscleGroup === 'all') return allKnown;
+    const groupExs = EXERCISE_LIBRARY[selectedMuscleGroup]?.exercises || [];
+    return allKnown.filter(ex => groupExs.includes(ex));
+  }, [allNames, search, selectedMuscleGroup]);
+
+  const initRunRef = useRef(false);
+
+  useEffect(() => {
+    fetchExerciseNames();
+  }, []);
+
+  const fetchExerciseNames = async () => {
+    try {
+      const res = await api.get('/gym/exercise-names');
+      const historyNames = Array.isArray(res.data) ? res.data : [];
+      // Merge with COMMON_EXERCISES and remove duplicates
+      const merged = Array.from(new Set([...COMMON_EXERCISES, ...historyNames])).sort();
+      setAllNames(merged);
+    } catch (err) {
+      console.error('Failed to fetch names', err);
+    }
+  };
 
   // Save progress logic
   const saveProgress = useCallback(async (currentName, currentExercises, currentStartTime) => {
@@ -111,17 +201,40 @@ export default function ActiveWorkoutScreen() {
 
   useEffect(() => {
     const initWorkout = async () => {
+      if (initRunRef.current) return;
+      initRunRef.current = true;
+
       if (params.template) {
         try {
           const t = JSON.parse(params.template);
           if (t.name) setName(t.name);
           if (t.exercises && Array.isArray(t.exercises)) {
-            const loadedEx = t.exercises.map((ex, i) => ({
-              id: (Date.now() + i).toString(),
-              name: ex.name || '',
-              sets: (ex.sets && ex.sets.length > 0) 
-                ? ex.sets.map(s => ({ weight: s.weight?.toString() || '', reps: s.reps?.toString() || '', completed: false }))
-                : [{ weight: '', reps: '', completed: false }]
+            const loadedEx = await Promise.all(t.exercises.map(async (ex, i) => {
+              let historySets = [];
+              try {
+                const res = await api.get(`/gym/exercise-history/${encodeURIComponent(ex.name)}`);
+                const history = res.data?.history;
+                if (history && history.length > 0) {
+                  const lastSession = history[0];
+                  historySets = lastSession.sets || [];
+                }
+              } catch (e) { console.error(e); }
+
+              const cleanValue = (v) => (v === 0 || v === '0' || !v) ? '' : v.toString();
+
+              return {
+                id: generateId(),
+                name: ex.name || '',
+                historySets,
+                sets: (ex.sets && ex.sets.length > 0) 
+                  ? ex.sets.map((s, si) => ({ 
+                      id: generateId(),
+                      weight: cleanValue(s.weight), 
+                      reps: cleanValue(s.reps), 
+                      completed: false 
+                    }))
+                  : [{ id: generateId(), weight: '', reps: '', completed: false }]
+              };
             }));
             setExercises(loadedEx);
           }
@@ -153,11 +266,14 @@ export default function ActiveWorkoutScreen() {
     };
 
     initWorkout();
+  }, [params.template]);
+
+  useEffect(() => {
     timerRef.current = setInterval(() => {
       setElapsed(Math.floor((Date.now() - startTime) / 1000));
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [params.template, startTime]);
+  }, [startTime]);
 
   useEffect(() => {
     if (isReady && !isSaving) {
@@ -171,72 +287,141 @@ export default function ActiveWorkoutScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const addBatchExercises = () => {
-    const newExs = selectedToBatch.map((name, i) => ({
-      id: (Date.now() + i).toString(),
-      name: name,
-      sets: [{ weight: '', reps: '', completed: false }]
-    }));
-    setExercises([...exercises, ...newExs]);
-    setSelectedToBatch([]);
-    setShowPicker(false);
-    setSearch('');
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const addBatchExercises = async () => {
+    setIsSaving(true); 
+    try {
+      const newExs = await Promise.all(selectedToBatch.map(async (name, i) => {
+        let historySets = [];
+        try {
+          const res = await api.get(`/gym/exercise-history/${encodeURIComponent(name)}`);
+          const history = res.data?.history;
+          if (history && history.length > 0) {
+            const lastSession = history[0];
+            historySets = lastSession.sets || [];
+          }
+        } catch (e) {
+          console.error(`Failed to fetch history for ${name}`, e);
+        }
+
+        return {
+          id: generateId(),
+          name: name,
+          historySets,
+          sets: [{ id: generateId(), weight: '', reps: '', completed: false }]
+        };
+      }));
+      setExercises([...exercises, ...newExs]);
+    } catch (err) {
+      console.error('Failed to add batch exercises', err);
+    } finally {
+      setIsSaving(false);
+      setSelectedToBatch([]);
+      setShowPicker(false);
+      setSearch('');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
   };
 
   const addSet = (exId) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setExercises(exercises.map(ex => {
+    setExercises(prev => prev.map(ex => {
       if (ex.id === exId) {
-        const lastSet = ex.sets[ex.sets.length - 1];
         return {
           ...ex,
-          sets: [...ex.sets, { weight: lastSet.weight, reps: lastSet.reps, completed: false }]
+          sets: [...ex.sets, { id: generateId(), weight: '', reps: '', completed: false }]
         };
       }
       return ex;
     }));
   };
 
-  const updateSet = (exId, setIdx, field, value) => {
-    setExercises(exercises.map(ex => {
+  const updateSet = (exId, setId, field, value) => {
+    setExercises(prev => prev.map(ex => {
       if (ex.id === exId) {
-        const newSets = [...ex.sets];
-        newSets[setIdx] = { ...newSets[setIdx], [field]: value };
-        return { ...ex, sets: newSets };
+        return {
+          ...ex,
+          [field === 'weight' ? 'lastUsedWeight' : 'lastUsedReps']: value,
+          sets: ex.sets.map(s => s.id === setId ? { ...s, [field]: value } : s)
+        };
       }
       return ex;
     }));
   };
 
-  const toggleSetComplete = (exId, setIdx) => {
-    const ex = exercises.find(e => e.id === exId);
-    const set = ex.sets[setIdx];
-    const isNowComplete = !set.completed;
+  const getSetPlaceholder = (ex, sIdx, field) => {
+    const cleanValue = (v) => (v === 0 || v === '0' || !v) ? '' : v.toString();
+    
+    // 1. Priority: Historical match at same index
+    const histMatch = ex.historySets?.[sIdx]?.[field];
+    if (cleanValue(histMatch) !== '') return cleanValue(histMatch);
 
-    if (isNowComplete) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setRestTimerKey(prev => prev + 1);
-      setShowRestTimer(true);
-    } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+    // 2. Priority: Last entered value in CURRENT session
+    const lastSessionValue = ex.sets.slice(0, sIdx).reverse().find(ls => cleanValue(ls[field]) !== '')?.[field];
+    if (cleanValue(lastSessionValue) !== '') return cleanValue(lastSessionValue);
 
-    setExercises(exercises.map(e => {
-      if (e.id === exId) {
-        const newSets = [...e.sets];
-        newSets[setIdx] = { ...newSets[setIdx], completed: isNowComplete };
-        return { ...e, sets: newSets };
-      }
-      return e;
-    }));
+    // 3. Priority: Last used value anywhere in this session
+    const storedLastUsed = ex[field === 'weight' ? 'lastUsedWeight' : 'lastUsedReps'];
+    if (cleanValue(storedLastUsed) !== '') return cleanValue(storedLastUsed);
+
+    // 4. Priority: Very last known performance from history
+    const finalHist = ex.historySets?.[ex.historySets.length - 1]?.[field];
+    if (cleanValue(finalHist) !== '') return cleanValue(finalHist);
+
+    // 5. Absolute Fallback
+    return "";
   };
 
-  const removeSet = (exId, setIdx) => {
-    setExercises(exercises.map(ex => {
+  const toggleSetComplete = (exId, setId) => {
+    setExercises(prevExercises => {
+      const targetEx = prevExercises.find(e => e.id === exId);
+      if (targetEx) {
+        const targetSet = targetEx.sets.find(s => s.id === setId);
+        if (targetSet && !targetSet.completed) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          setRestTimerKey(prev => prev + 1);
+          setShowRestTimer(true);
+        } else {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+      }
+
+      return prevExercises.map(ex => {
+        if (ex.id === exId) {
+          let lastUsedW = ex.lastUsedWeight;
+          let lastUsedR = ex.lastUsedReps;
+
+          const newSets = ex.sets.map((s, i) => {
+            if (s.id === setId) {
+              const isNowComplete = !s.completed;
+              let newWeight = s.weight;
+              let newReps = s.reps;
+
+              if (isNowComplete) {
+                if (!newWeight || newWeight.trim() === "") {
+                  newWeight = getSetPlaceholder(ex, i, 'weight');
+                }
+                if (!newReps || newReps.trim() === "") {
+                  newReps = getSetPlaceholder(ex, i, 'reps');
+                }
+                lastUsedW = newWeight;
+                lastUsedR = newReps;
+              }
+              return { ...s, weight: newWeight, reps: newReps, completed: isNowComplete };
+            }
+            return s;
+          });
+          return { ...ex, sets: newSets, lastUsedWeight: lastUsedW, lastUsedReps: lastUsedR };
+        }
+        return ex;
+      });
+    });
+  };
+
+  const removeSet = (exId, setId) => {
+    setExercises(prev => prev.map(ex => {
       if (ex.id === exId) {
-        const newSets = ex.sets.filter((_, i) => i !== setIdx);
-        return { ...ex, sets: newSets.length > 0 ? newSets : [{ weight: '', reps: '', completed: false }] };
+        const newSets = ex.sets.filter(s => s.id !== setId);
+        return { ...ex, sets: newSets.length > 0 ? newSets : [{ id: generateId(), weight: '', reps: '', completed: false }] };
       }
       return ex;
     }));
@@ -273,9 +458,10 @@ export default function ActiveWorkoutScreen() {
   };
 
   return (
-    <ScreenWrapper 
-      title={name} 
-      onBack={() => {
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ScreenWrapper 
+        title={name} 
+        onBack={() => {
         if (exercises.length > 0) {
           Alert.alert("Discard Workout?", "Progress will be lost.", [
             { text: "Keep Working", style: "cancel" },
@@ -289,7 +475,7 @@ export default function ActiveWorkoutScreen() {
           onPress={handleFinish}
           disabled={isSaving}
         >
-          {isSaving ? <ActivityIndicator size="small" color="#fff" /> : <Body style={{ color: '#fff', fontWeight: 'bold' }}>Finish</Body>}
+          {isSaving ? <ActivityIndicator size="small" color={COLORS.primaryContrast} /> : <Body style={{ color: COLORS.primaryContrast, fontWeight: 'bold' }}>Finish</Body>}
         </TouchableOpacity>
       }
     >
@@ -326,45 +512,55 @@ export default function ActiveWorkoutScreen() {
                   <View style={styles.col4} />
                 </View>
 
-                {ex.sets.map((set, sIdx) => (
-                  <View 
-                    key={sIdx} 
-                    style={[
-                      styles.setRow, 
-                      set.completed && { backgroundColor: COLORS.success + '10' }
-                    ]}
-                  >
-                    <View style={styles.col1}>
-                      <Body style={{ fontWeight: 'bold', color: COLORS.gray400 }}>{sIdx + 1}</Body>
+                {ex.sets.map((set, sIdx) => {
+                  const weightPlaceholder = getSetPlaceholder(ex, sIdx, 'weight');
+                  const repsPlaceholder = getSetPlaceholder(ex, sIdx, 'reps');
+
+                  return (
+                    <SwipeableRow key={`${set.id}-${sIdx}`} onDelete={() => removeSet(ex.id, set.id)}>
+                      <View 
+                        style={[
+                          styles.setRow, 
+                          set.completed && { backgroundColor: COLORS.success + '10' }
+                        ]}
+                      >
+                        <View style={styles.col1}>
+                          <Body style={{ fontWeight: 'bold', color: COLORS.gray400 }}>{sIdx + 1}</Body>
+                        </View>
+                        
+                        <SetInput
+                          key={`kg-${set.id}-${weightPlaceholder}`}
+                          value={set.weight || ''}
+                          onChange={(v) => updateSet(ex.id, set.id, 'weight', v)}
+                          placeholder={weightPlaceholder}
+                          style={[styles.setInput, styles.col2, { color: COLORS.text }]}
+                          textColor={COLORS.text}
+                          placeholderColor={COLORS.gray400}
+                        />
+
+                        <SetInput
+                          key={`reps-${set.id}-${repsPlaceholder}`}
+                          value={set.reps || ''}
+                          onChange={(v) => updateSet(ex.id, set.id, 'reps', v)}
+                          placeholder={repsPlaceholder}
+                          style={[styles.setInput, styles.col3, { color: COLORS.text }]}
+                          textColor={COLORS.text}
+                          placeholderColor={COLORS.gray400}
+                        />
+
+                      <TouchableOpacity 
+                        style={[
+                          styles.checkBtn, 
+                          { backgroundColor: set.completed ? COLORS.success : COLORS.gray100 }
+                        ]}
+                        onPress={() => toggleSetComplete(ex.id, set.id)}
+                      >
+                        <Check size={18} color={set.completed ? '#fff' : COLORS.gray400} />
+                      </TouchableOpacity>
                     </View>
-                    
-                    <TextInput
-                      style={[styles.setInput, styles.col2, { color: COLORS.text }]}
-                      keyboardType="numeric"
-                      value={set.weight}
-                      onChangeText={(v) => updateSet(ex.id, sIdx, 'weight', v)}
-                      placeholder="0"
-                    />
-
-                    <TextInput
-                      style={[styles.setInput, styles.col3, { color: COLORS.text }]}
-                      keyboardType="numeric"
-                      value={set.reps}
-                      onChangeText={(v) => updateSet(ex.id, sIdx, 'reps', v)}
-                      placeholder="0"
-                    />
-
-                    <TouchableOpacity 
-                      style={[
-                        styles.checkBtn, 
-                        { backgroundColor: set.completed ? COLORS.success : COLORS.gray100 }
-                      ]}
-                      onPress={() => toggleSetComplete(ex.id, sIdx)}
-                    >
-                      <Check size={18} color={set.completed ? '#fff' : COLORS.gray400} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
+                  </SwipeableRow>
+                  );
+                })}
               </View>
 
               <TouchableOpacity style={styles.addSetBtn} onPress={() => addSet(ex.id)}>
@@ -410,8 +606,48 @@ export default function ActiveWorkoutScreen() {
               />
             </View>
 
+            {!search.trim() && (
+              <View style={{ marginBottom: 12 }}>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  contentContainerStyle={{ gap: 8, paddingHorizontal: 4 }}
+                >
+                  <TouchableOpacity 
+                    style={[
+                      styles.muscleTab, 
+                      { backgroundColor: COLORS.gray100 },
+                      selectedMuscleGroup === 'all' && { backgroundColor: COLORS.primary }
+                    ]}
+                    onPress={() => setSelectedMuscleGroup('all')}
+                  >
+                    <Body style={[
+                      { fontSize: 13 },
+                      selectedMuscleGroup === 'all' && { color: COLORS.surface, fontWeight: '700' }
+                    ]}>All</Body>
+                  </TouchableOpacity>
+                  {Object.entries(EXERCISE_LIBRARY).map(([key, group]) => (
+                    <TouchableOpacity 
+                      key={key}
+                      style={[
+                        styles.muscleTab, 
+                        { backgroundColor: COLORS.gray100 },
+                        selectedMuscleGroup === key && { backgroundColor: COLORS.primary }
+                      ]}
+                      onPress={() => setSelectedMuscleGroup(key)}
+                    >
+                      <Body style={[
+                        { fontSize: 13 },
+                        selectedMuscleGroup === key && { color: COLORS.surface, fontWeight: '700' }
+                      ]}>{group.label}</Body>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
             <FlatList
-              data={COMMON_EXERCISES.filter(e => e.toLowerCase().includes(search.toLowerCase()))}
+              data={filteredExercises}
               keyExtractor={item => item}
               renderItem={({ item }) => (
                 <TouchableOpacity 
@@ -425,28 +661,56 @@ export default function ActiveWorkoutScreen() {
                   {selectedToBatch.includes(item) && <Check size={18} color={COLORS.primary} />}
                 </TouchableOpacity>
               )}
-              ListFooterComponent={search.trim() && (
+              ListFooterComponent={search.trim() && !allNames.some(n => n.toLowerCase() === search.toLowerCase().trim()) && (
                 <TouchableOpacity 
                   style={styles.pickerItem} 
-                  onPress={() => {
-                    handleToggleBatchExercise(search.trim());
+                  onPress={async () => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    const customName = search.trim();
+                    let historySets = [];
+                    try {
+                      const res = await api.get(`/gym/exercise-history/${encodeURIComponent(customName)}`);
+                      const history = res.data?.history;
+                      if (history && history.length > 0) {
+                        const lastSession = history[0];
+                        historySets = lastSession.sets || [];
+                      }
+                    } catch (e) { console.error(e); }
+
+                    const newEx = {
+                      id: generateId(),
+                      name: customName,
+                      historySets,
+                      sets: [{ id: generateId(), weight: '', reps: '', completed: false }]
+                    };
+                    setExercises([...exercises, newEx]);
+                    setShowPicker(false);
                     setSearch('');
                   }}
                 >
                   <Body>Add custom: "{search}"</Body>
+                  <Plus size={18} color={COLORS.primary} />
                 </TouchableOpacity>
               )}
             />
 
             {selectedToBatch.length > 0 && (
-              <TouchableOpacity style={[styles.modalDoneBtn, { backgroundColor: COLORS.primary }]} onPress={addBatchExercises}>
-                <Body style={{ color: '#fff', fontWeight: 'bold' }}>Add {selectedToBatch.length} Exercises</Body>
+              <TouchableOpacity 
+                style={[styles.modalDoneBtn, { backgroundColor: COLORS.primary }]} 
+                onPress={addBatchExercises}
+                disabled={isSaving}
+              >
+                {isSaving 
+                  ? <ActivityIndicator color={COLORS.primaryContrast} />
+                  : <Body style={{ color: COLORS.primaryContrast, fontWeight: 'bold' }}>Add {selectedToBatch.length} Exercises</Body>
+                }
               </TouchableOpacity>
             )}
           </View>
         </View>
       </Modal>
     </ScreenWrapper>
+    </GestureHandlerRootView>
   );
 }
 
@@ -468,8 +732,9 @@ const styles = StyleSheet.create({
   col3: { flex: 1, textAlign: 'center' },
   col4: { width: 50 },
 
-  setRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.03)' },
-  setInput: { height: 36, textAlign: 'center', fontSize: 16, fontWeight: '600' },
+  setRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.03)' },
+  setInput: { height: 44, textAlign: 'center', fontSize: 16, fontWeight: '600' },
+  swipeDelete: { width: 80, justifyContent: 'center', alignItems: 'center', height: '100%' },
   checkBtn: { width: 36, height: 36, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   
   addSetBtn: { padding: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
@@ -485,5 +750,12 @@ const styles = StyleSheet.create({
   searchBox: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, borderRadius: 12, marginBottom: 16, height: 44 },
   searchInput: { flex: 1, marginLeft: 10, fontSize: 16 },
   pickerItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 16, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
+  muscleTab: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   modalDoneBtn: { padding: 16, borderRadius: 16, alignItems: 'center', marginTop: 10 }
 });

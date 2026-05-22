@@ -23,19 +23,22 @@ export default function InsightsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState([]);
   const [learning, setLearning] = useState(null);
+  const [metabolic, setMetabolic] = useState(null);
 
   const fetchData = async () => {
     try {
       const end = new Date().toISOString().split('T')[0];
       const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       
-      const [rangeRes, learningRes] = await Promise.all([
+      const [rangeRes, learningRes, metabolicRes] = await Promise.all([
         api.get(`/daily-life-state/range?start=${start}&end=${end}`).catch(() => ({ data: [] })),
-        api.get('/insights/learning/overall?days=7').catch(() => ({ data: null }))
+        api.get('/insights/learning/overall?days=7').catch(() => ({ data: null })),
+        api.get('/nutrition/metabolic-map?daysBack=30').catch(() => ({ data: null }))
       ]);
       
       setData(rangeRes.data);
       setLearning(learningRes.data);
+      setMetabolic(metabolicRes.data);
     } catch (err) {
       console.error('Failed to fetch insights data', err);
     } finally {
@@ -146,6 +149,70 @@ export default function InsightsScreen() {
             </Card>
 
             <View style={styles.section}>
+              <H3 style={styles.sectionTitle}>Metabolic Analysis</H3>
+              {metabolic?.status === 'success' ? (
+                <Card style={styles.metabolicCard} padding={20}>
+                  <View style={styles.tdeeRow}>
+                    <View>
+                      <Caption secondary>ADAPTIVE TDEE</Caption>
+                      <H2 style={{ color: COLORS.primary, fontSize: 32 }}>{metabolic.dynamicTDEE}<Body secondary> cal</Body></H2>
+                    </View>
+                    <View style={[styles.phaseBadge, { backgroundColor: COLORS.nutrition + '15' }]}>
+                      <Caption style={{ color: COLORS.nutrition, fontWeight: '800' }}>{metabolic.dietPhase.replace('_', ' ').toUpperCase()}</Caption>
+                    </View>
+                  </View>
+                  
+                  <Body secondary style={{ marginBottom: 16, fontStyle: 'italic', fontSize: 13 }}>
+                    "{metabolic.insight}"
+                  </Body>
+
+                  <View style={styles.modifierList}>
+                    <View style={styles.modifierItem}>
+                      <View style={{ flex: 1 }}>
+                        <Body style={{ fontWeight: '700', fontSize: 14 }}>Stress Impact</Body>
+                        <Caption secondary numberOfLines={1}>{metabolic.modifiers.stress.label}</Caption>
+                      </View>
+                      <Body style={{ color: metabolic.modifiers.stress.value < 0 ? COLORS.error : COLORS.success, fontWeight: 'bold' }}>
+                        {metabolic.modifiers.stress.value > 0 ? '+' : ''}{metabolic.modifiers.stress.value}
+                      </Body>
+                    </View>
+                    
+                    <View style={styles.modifierItem}>
+                      <View style={{ flex: 1 }}>
+                        <Body style={{ fontWeight: '700', fontSize: 14 }}>Training EPOC</Body>
+                        <Caption secondary numberOfLines={1}>{metabolic.modifiers.training.label}</Caption>
+                      </View>
+                      <Body style={{ color: metabolic.modifiers.training.value < 0 ? COLORS.error : COLORS.success, fontWeight: 'bold' }}>
+                        {metabolic.modifiers.training.value > 0 ? '+' : ''}{metabolic.modifiers.training.value}
+                      </Body>
+                    </View>
+
+                    {metabolic.modifiers.adaptation.value !== 0 && (
+                      <View style={styles.modifierItem}>
+                        <View style={{ flex: 1 }}>
+                          <Body style={{ fontWeight: '700', fontSize: 14 }}>Metabolic Adaptation</Body>
+                          <Caption secondary numberOfLines={1}>{metabolic.modifiers.adaptation.label}</Caption>
+                        </View>
+                        <Body style={{ color: COLORS.error, fontWeight: 'bold' }}>
+                          {metabolic.modifiers.adaptation.value}
+                        </Body>
+                      </View>
+                    )}
+                  </View>
+                </Card>
+              ) : (
+                <Card style={styles.emptyCard} padding={20}>
+                  <View style={{ alignItems: 'center' }}>
+                    <Info size={24} color={COLORS.gray400} />
+                    <Body secondary style={{ textAlign: 'center', marginTop: 8 }}>
+                      {metabolic?.message || "Log weight and nutrition for 14+ days to unlock your Adaptive TDEE analysis."}
+                    </Body>
+                  </View>
+                </Card>
+              )}
+            </View>
+
+            <View style={styles.section}>
               <H3 style={styles.sectionTitle}>Patterns Identified</H3>
               {learning?.patterns?.length > 0 ? (
                 learning.patterns.map((p, i) => (
@@ -240,4 +307,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  metabolicCard: {
+    marginBottom: 12,
+  },
+  tdeeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  phaseBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  modifierList: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+    paddingTop: 12,
+  },
+  modifierItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  }
 });

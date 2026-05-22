@@ -1,10 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal } from 'react-native';
-import { Search, Zap, Camera, Mic, ChevronRight, Utensils, Plus, X } from 'lucide-react-native';
+import { Search, Zap, Camera, Mic, ChevronRight, Utensils, Plus, X, Clock } from 'lucide-react-native';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY }) {
+  const { user } = useAuth();
   const [aiInput, setAiInput] = useState('');
+  
+  const changeMealType = (type) => {
+    setSelectedMealType(type);
+    const scheduled = user?.mealSchedule?.[type];
+    if (scheduled) {
+      setCustomTime(scheduled);
+    } else {
+      // Sensible defaults if no user schedule is set
+      const defaults = { breakfast: '08:30', lunch: '13:00', dinner: '19:30', snack: '' };
+      const d = defaults[type];
+      if (d) {
+        setCustomTime(d);
+      } else {
+        setCustomTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
+      }
+    }
+  };
+
+  const handleTimeChange = (val) => {
+    setCustomTime(val);
+    // Auto-detect meal type if time looks like HH:mm
+    if (/^\d{1,2}:\d{2}$/.test(val)) {
+       const hour = parseInt(val.split(':')[0]);
+       if (hour >= 5 && hour < 11) setSelectedMealType('breakfast');
+       else if (hour >= 11 && hour < 17) setSelectedMealType('lunch');
+       else if (hour >= 17 && hour < 23) setSelectedMealType('dinner');
+       else setSelectedMealType('snack');
+    }
+  };
+
+  const detectMealType = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 11) return 'breakfast';
+    if (hour >= 11 && hour < 17) return 'lunch';
+    if (hour >= 17 && hour < 23) return 'dinner';
+    return 'snack';
+  };
+
+  const [selectedMealType, setSelectedMealType] = useState(detectMealType());
+  const [customTime, setCustomTime] = useState('');
+
+  const getEffectiveTime = () => {
+    if (customTime) return customTime;
+    const scheduled = user?.mealSchedule?.[selectedMealType];
+    if (scheduled) return scheduled;
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -57,15 +106,24 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
       const fiber = inputs.fiber || dish.fiber_g || 0;
       const sugar = inputs.sugar || dish.sugar_g || 0;
 
+      if (calories === 0 && protein === 0 && carbs === 0 && fat === 0) {
+        Alert.alert('Analysis Limited', "AI couldn't find specific nutrition data for that description. Try being more specific (e.g. 'One large apple' instead of just 'apple').");
+        setIsAiLoading(false);
+        return;
+      }
+
       const foodItem = {
         name: resolver.normalized || resolver.input || aiInput,
         displayName: resolver.normalized || resolver.input || aiInput,
-        calories: calories,
-        protein: protein,
-        carbs: carbs,
-        fat: fat,
-        fiber: fiber,
-        sugar: sugar,
+        calories, protein, carbs, fat, fiber, sugar,
+        sodium: inputs.sodium || dish.sodium_mg || 0,
+        potassium: inputs.potassium || dish.potassium_mg || 0,
+        iron: inputs.iron || dish.iron_mg || 0,
+        calcium: inputs.calcium || dish.calcium_mg || 0,
+        magnesium: inputs.magnesium || dish.magnesium_mg || 0,
+        zinc: inputs.zinc || dish.zinc_mg || 0,
+        vitaminC: inputs.vitaminC || dish.vitaminC_mg || 0,
+        omega3: inputs.omega3 || dish.omega3_g || 0,
         brand: 'AI Estimated',
         isAiResult: true,
         servingUnit: 'g',
@@ -134,6 +192,12 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
   const handleLogFood = (item) => {
     setSelectedItem(item);
     setQuantity('1');
+    
+    // Initialize customTime with the best default so it's stable for editing
+    const scheduled = user?.mealSchedule?.[selectedMealType];
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    setCustomTime(scheduled || now);
+    
     setShowQtyModal(true);
   };
 
@@ -145,10 +209,11 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
 
     setIsSubmitting(true);
     try {
+      const finalTime = customTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
       const newMeal = {
         name: manualFood.name,
-        mealType: 'snack',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+        mealType: selectedMealType,
+        time: finalTime,
         foods: [{
           name: manualFood.name,
           calories: parseFloat(manualFood.calories) || 0,
@@ -187,20 +252,33 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
 
     setIsSubmitting(true);
     try {
+      const NUTRIENT_FIELDS = [
+        'calories', 'protein', 'carbs', 'fat', 'fiber', 'sugar',
+        'sodium', 'potassium', 'iron', 'calcium', 'vitaminB', 'magnesium', 'zinc', 'vitaminC',
+        'omega3', 'saturatedFat', 'monounsaturatedFat', 'polyunsaturatedFat', 'cholesterol',
+        'phosphorus', 'copper', 'selenium', 'manganese', 'vitaminA', 'vitaminE',
+        'vitaminD', 'vitaminB1', 'vitaminB2', 'vitaminB3', 'vitaminB5', 'vitaminB6',
+        'vitaminB7', 'vitaminB9', 'vitaminB12', 'folate'
+      ];
+
+      const scaledFood = {
+        name: selectedItem.displayName || selectedItem.name,
+        quantity: qty,
+        unit: selectedItem.servingUnit || 'serving',
+        brand: selectedItem.brand,
+      };
+
+      NUTRIENT_FIELDS.forEach(field => {
+        if (selectedItem[field] !== undefined) {
+          scaledFood[field] = (Number(selectedItem[field]) || 0) * qty;
+        }
+      });
+
       const newMeal = {
         name: selectedItem.displayName || selectedItem.name,
-        mealType: 'snack',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-        foods: [{
-          name: selectedItem.displayName || selectedItem.name,
-          calories: (selectedItem.calories || 0) * qty,
-          protein: (selectedItem.protein || 0) * qty,
-          carbs: (selectedItem.carbs || 0) * qty,
-          fat: (selectedItem.fat || 0) * qty,
-          quantity: qty,
-          unit: selectedItem.servingUnit || 'serving',
-          brand: selectedItem.brand
-        }]
+        mealType: selectedMealType,
+        time: getEffectiveTime(),
+        foods: [scaledFood]
       };
 
       const updatedMeals = [...currentMeals, newMeal];
@@ -319,7 +397,7 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
                 onPress={handleAiLog}
                 disabled={isAiLoading || !aiInput.trim()}
               >
-                {isAiLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={themedStyles.logBtnText}>Log with AI</Text>}
+                {isAiLoading ? <ActivityIndicator size="small" color={COLORS.primaryContrast} /> : <Text style={themedStyles.logBtnText}>Log with AI</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -343,6 +421,36 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Smart Meal Type Selector */}
+              <View style={{ marginBottom: 20 }}>
+                <Text style={themedStyles.formLabel}>Meal Type</Text>
+                <View style={themedStyles.typeRow}>
+                  {['breakfast', 'lunch', 'dinner', 'snack'].map(type => (
+                    <TouchableOpacity 
+                      key={type} 
+                      onPress={() => changeMealType(type)}
+                      style={[themedStyles.typeBtn, selectedMealType === type && { backgroundColor: COLORS.primary }]}
+                    >
+                      <Text style={[themedStyles.typeBtnText, selectedMealType === type && { color: COLORS.primaryContrast }]}>{type.charAt(0).toUpperCase()}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Time Selector */}
+              <View style={[themedStyles.formGroup, { marginBottom: 20 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <Clock size={14} color={COLORS.textSecondary} />
+                  <Text style={themedStyles.formLabel}>Time</Text>
+                </View>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={customTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  onChangeText={handleTimeChange}
+                  placeholder="08:00"
+                />
+              </View>
+
               <View style={themedStyles.formGroup}>
                 <Text style={themedStyles.formLabel}>Food Name</Text>
                 <TextInput
@@ -426,6 +534,36 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
             <Text style={themedStyles.modalFoodName}>{selectedItem?.displayName || selectedItem?.name}</Text>
             <Text style={themedStyles.modalFoodMeta}>{selectedItem?.brand || 'Standard'}</Text>
 
+            {/* Smart Meal Type Selector */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={themedStyles.formLabel}>Meal Type</Text>
+              <View style={themedStyles.typeRow}>
+                {['breakfast', 'lunch', 'dinner', 'snack'].map(type => (
+                    <TouchableOpacity 
+                      key={type} 
+                      onPress={() => changeMealType(type)}
+                      style={[themedStyles.typeBtn, selectedMealType === type && { backgroundColor: COLORS.primary }]}
+                    >
+                      <Text style={[themedStyles.typeBtnText, selectedMealType === type && { color: COLORS.primaryContrast }]}>{type.charAt(0).toUpperCase()}</Text>
+                    </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Time Selector */}
+            <View style={[themedStyles.formGroup, { marginBottom: 20 }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <Clock size={14} color={COLORS.textSecondary} />
+                <Text style={themedStyles.formLabel}>Time</Text>
+              </View>
+              <TextInput
+                style={themedStyles.formInput}
+                value={customTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                onChangeText={handleTimeChange}
+                placeholder="08:00"
+              />
+            </View>
+
             <View style={themedStyles.qtyInputRow}>
               <TextInput
                 style={themedStyles.qtyInput}
@@ -491,7 +629,7 @@ const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleShe
   aiActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 },
   iconBtn: { padding: 8 },
   logBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: BORDER_RADIUS.md, minWidth: 100, alignItems: 'center' },
-  logBtnText: { color: '#fff', fontWeight: 'bold' },
+  logBtnText: { color: COLORS.primaryContrast, fontWeight: 'bold' },
   
   // Form Styles
   formGroup: { marginBottom: 16 },
@@ -513,5 +651,8 @@ const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleShe
   modalStatValue: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
   modalStatLabel: { fontSize: 12, color: COLORS.textSecondary },
   modalSubmitBtn: { backgroundColor: COLORS.primary, paddingVertical: 16, borderRadius: BORDER_RADIUS.lg, alignItems: 'center' },
-  modalSubmitText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-});
+  modalSubmitText: { color: COLORS.primaryContrast, fontSize: 18, fontWeight: 'bold' },
+  typeRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  typeBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.gray100 },
+  typeBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.textSecondary },
+  });

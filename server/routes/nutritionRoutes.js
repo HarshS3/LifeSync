@@ -1131,9 +1131,21 @@ router.get('/external/search', auth, async (req, res) => {
         carbs: nutrients.carb_g || 0,
         fat: nutrients.fat_g || 0,
         fiber: nutrients.fibre_g || 0,
+        sugar: nutrients.freesugar_g || 0,
+        sodium: nutrients.sodium_mg || 0,
+        potassium: nutrients.potassium_mg || 0,
+        iron: nutrients.iron_mg || 0,
+        calcium: nutrients.calcium_mg || 0,
+        magnesium: nutrients.magnesium_mg || 0,
+        zinc: nutrients.zinc_mg || 0,
+        vitaminC: nutrients.vitc_mg || 0,
+        vitaminA: nutrients.vita_ug || 0,
+        vitaminD: nutrients.vitd_ug || 0,
+        vitaminB12: nutrients.vitb12_ug || 0,
+        saturatedFat: nutrients.sfa_mg || 0,
+        cholesterol: nutrients.cholesterol_mg || 0,
         servingQty: '100',
         servingUnit: 'g',
-        nutrients: nutrients,
         source: 'Gemini API'
       };
     }).catch(e => {
@@ -1146,9 +1158,35 @@ router.get('/external/search', auth, async (req, res) => {
     const finalResults = [];
     if (geminiResult) finalResults.push(geminiResult);
     
+    const mappedOff = offResults.map(r => {
+      const n = r.nutrients || {};
+      return {
+        ...r,
+        calories: n.energy_kcal || r.calories || 0,
+        protein: n.protein_g || r.protein || 0,
+        carbs: n.carb_g || r.carbs || 0,
+        fat: n.fat_g || r.fat || 0,
+        fiber: n.fibre_g || r.fiber || 0,
+        sugar: n.freesugar_g || 0,
+        sodium: n.sodium_mg || 0,
+        potassium: n.potassium_mg || 0,
+        iron: n.iron_mg || 0,
+        calcium: n.calcium_mg || 0,
+        magnesium: n.magnesium_mg || 0,
+        zinc: n.zinc_mg || 0,
+        vitaminC: n.vitc_mg || 0,
+        vitaminA: n.vita_ug || 0,
+        vitaminD: n.vitd_ug || 0,
+        vitaminB12: n.vitb12_ug || 0,
+        saturatedFat: n.sfa_mg || 0,
+        cholesterol: n.cholesterol_mg || 0,
+        source: 'OpenFoodFacts'
+      };
+    });
+
     res.json([
       ...finalResults,
-      ...offResults.map(r => ({ ...r, source: 'OpenFoodFacts' }))
+      ...mappedOff
     ]);
   } catch (err) {
     console.error('[NutritionRoutes] External search error:', err);

@@ -29,7 +29,7 @@ export function ScreenWrapper({
       onPress={() => router.push('/profile')} 
       style={[styles.avatarMini, { backgroundColor: COLORS.primary }]}
     >
-      <Text style={[styles.avatarText, { color: COLORS.surface }]}>
+      <Text style={[styles.avatarText, { color: COLORS.primaryContrast }]}>
         {user?.name?.charAt(0) || 'U'}
       </Text>
     </TouchableOpacity>

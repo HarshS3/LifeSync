@@ -38,7 +38,7 @@ const MealItem = ({
   const themedStyles = styles(COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY);
 
   return (
-    <View style={themedStyles.webMealBox}>
+    <View style={[themedStyles.webMealBox, deleting && { opacity: 0.5 }]}>
       <View style={themedStyles.mealMainRow}>
         <View style={themedStyles.mealLeft}>
           <Text style={themedStyles.webMealName}>{meal.name || meal.mealType}</Text>
@@ -52,8 +52,16 @@ const MealItem = ({
         <View style={themedStyles.mealRight}>
           <View style={themedStyles.mealActionRow}>
              <Text style={themedStyles.webMealCals}>{fmt(mealTotals.calories, 0)} kcal</Text>
-             <TouchableOpacity onPress={() => onDelete(index)} style={themedStyles.webMealActionBtn}>
-               <X size={14} color="#ef4444" />
+             <TouchableOpacity 
+               onPress={() => !deleting && onDelete(index)} 
+               style={themedStyles.webMealActionBtn}
+               disabled={deleting}
+             >
+               {deleting ? (
+                 <ActivityIndicator size="small" color="#ef4444" />
+               ) : (
+                 <X size={14} color="#ef4444" />
+               )}
              </TouchableOpacity>
           </View>
           <Text style={themedStyles.webMealMacros}>

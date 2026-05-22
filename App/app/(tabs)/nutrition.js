@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollVie
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight, Calendar, Search } from 'lucide-react-native';
 import api from '../../services/api';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../constants/Theme';
 import { useAuth } from '../../context/AuthContext';
 
@@ -89,6 +90,7 @@ export default function NutritionScreen() {
   };
 
   const handleDeleteMeal = async (index) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setDeletingIdx(index);
     try {
       const updatedMeals = log.meals.filter((_, i) => i !== index);

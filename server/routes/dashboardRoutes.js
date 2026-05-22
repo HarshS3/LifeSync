@@ -1,7 +1,7 @@
 const express = require('express');
 const { FitnessLog, NutritionLog, MentalLog } = require('../models/Logs');
 const Workout = require('../models/Workout');
-const { DailyLifeState } = require('../models/DailyLifeState');
+const DailyLifeState = require('../models/DailyLifeState');
 const User = require('../models/User');
 const auth = require('../middleware/authMiddleware');
 
@@ -18,11 +18,12 @@ router.get('/summary', auth, async (req, res) => {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     // Fetch all needed data in parallel
-    const [fitness, mental, nutrition, gymWorkouts, dls, user] = await Promise.all([
+    const [fitness, mental, nutrition, gymWorkouts, totalWorkouts, dls, user] = await Promise.all([
       FitnessLog.find({ user: userId, date: { $gte: thirtyDaysAgo } }).sort({ date: -1 }).lean(),
       MentalLog.find({ user: userId, date: { $gte: thirtyDaysAgo } }).sort({ date: -1 }).lean(),
       NutritionLog.find({ user: userId, date: { $gte: thirtyDaysAgo } }).sort({ date: -1 }).lean(),
       Workout.find({ user: userId, date: { $gte: thirtyDaysAgo } }).sort({ date: -1 }).lean(),
+      Workout.countDocuments({ user: userId }),
       DailyLifeState.findOne({ user: userId, dayKey: dayKeyFromDate(today) }).lean(),
       User.findById(userId).select('weight biologicalProfile').lean()
     ]);
@@ -78,7 +79,8 @@ router.get('/summary', auth, async (req, res) => {
         avgEnergy: avgEnergy == null ? '—' : String(Math.round(avgEnergy)),
         avgMood: avgMood == null ? '—' : String(Math.round(avgMood)),
         avgSleep: avgSleep == null ? '—' : avgSleep.toFixed(1),
-        workouts: recentGym.length + recentFitness.length,
+        workouts: recentGym.length + recentFitness.length, // Weekly count
+        totalWorkouts, // Absolute total
         streak,
         weight: user?.biologicalProfile?.weightKg || user?.weight || '—',
       },

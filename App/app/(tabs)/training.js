@@ -254,7 +254,7 @@ export default function TrainingScreen() {
 
         <View style={styles.quickRow}>
           {[
-            { icon: '📅',  label: 'Calendar',    path: '/workout-calendar', params: { returnTo: '/(tabs)/training' } },
+            { icon: '📅',  label: 'Calendar',    path: '/training/workout-calendar', params: { returnTo: '/(tabs)/training' } },
             { icon: '🗺️',  label: 'Heatmap',     path: '/training/heatmap' },
             { icon: '👣',  label: 'Steps',        path: '/training/steps' },
             { icon: '📊',  label: 'Progress',  path: '/training/progression' },

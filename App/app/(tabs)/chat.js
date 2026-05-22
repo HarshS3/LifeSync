@@ -329,7 +329,7 @@ export default function ChatScreen() {
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
       >
         <FlatList
           ref={flatListRef}
@@ -363,8 +363,9 @@ export default function ChatScreen() {
             placeholder="Message or log food..."
             value={input}
             onChangeText={setInput}
-            multiline
             placeholderTextColor={COLORS.gray400}
+            onSubmitEditing={sendMessage}
+            returnKeyType="send"
           />
 
           {isRecording && (

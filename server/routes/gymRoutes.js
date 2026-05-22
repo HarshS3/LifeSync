@@ -45,24 +45,51 @@ router.get('/summary', auth, async (req, res) => {
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const [workouts, templates, readiness, correlations] = await Promise.all([
-      Workout.find({ user: userId }).sort({ date: -1 }).limit(10), // Limit to recent 10
+    const [workouts, totalWorkouts, templates, readiness, correlations, volumeResult, allWorkouts] = await Promise.all([
+      Workout.find({ user: userId }).sort({ date: -1 }).limit(10), 
+      Workout.countDocuments({ user: userId }),
       WorkoutTemplate.find({ userId }).sort({ lastUsed: -1, createdAt: -1 }),
       calculateReadiness(userId),
-      analyzeCorrelations(userId).catch(() => null)
+      analyzeCorrelations(userId).catch(() => null),
+      Workout.aggregate([
+        { $match: { user: new mongoose.Types.ObjectId(userId) } },
+        { $unwind: "$exercises" },
+        { $unwind: "$exercises.sets" },
+        { 
+          $group: { 
+            _id: null, 
+            totalVolume: { 
+              $sum: { $multiply: [{ $ifNull: ["$exercises.sets.weight", 0] }, { $ifNull: ["$exercises.sets.reps", 0] }] } 
+            } 
+          } 
+        }
+      ]),
+      Workout.find({ user: userId }).sort({ date: -1 }).select('date exercises.muscleGroup exercises.sets')
     ]);
 
-    // Calculate stats locally from recent workouts to save a DB call or redundant logic
-    // But since stats usually covers ALL time or a larger range, we'll fetch just what's needed for the home tab
+    const totalVolume = volumeResult[0]?.totalVolume || 0;
     const weeklyWorkouts = workouts.filter(w => new Date(w.date) > weekAgo).length;
+
+    // Calculate Streak
+    let currentStreak = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    // Get total volume and PRs (minimal version)
-    let totalVolume = 0;
-    workouts.forEach(w => {
+    for (let i = 0; i < 30; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(checkDate.getDate() - i);
+      const hasWorkout = allWorkouts.some(w => new Date(w.date).toDateString() === checkDate.toDateString());
+      if (hasWorkout) currentStreak++;
+      else if (i > 0) break;
+    }
+
+    // Calculate Weekly Hypertrophy (Muscle Distribution)
+    const muscleDistribution = {};
+    allWorkouts.filter(w => new Date(w.date) > weekAgo).forEach(w => {
       w.exercises?.forEach(ex => {
-        ex.sets?.forEach(s => {
-          totalVolume += (s.weight || 0) * (s.reps || 0);
-        });
+        const muscle = String(ex.muscleGroup || 'other').toLowerCase().trim();
+        const setsCount = ex.sets?.filter(s => (s.reps || 0) > 0).length || 0;
+        muscleDistribution[muscle] = (muscleDistribution[muscle] || 0) + setsCount;
       });
     });
 
@@ -72,9 +99,11 @@ router.get('/summary', auth, async (req, res) => {
       templates,
       recentWorkouts: workouts.slice(0, 5),
       stats: {
-        totalWorkouts: workouts.length, // approximation if they have > 10, but good enough for home
+        totalWorkouts,
         weeklyWorkouts,
         totalVolume,
+        currentStreak,
+        muscleDistribution
       }
     });
   } catch (err) {
@@ -323,6 +352,23 @@ router.get('/stats', auth, async (req, res) => {
   } catch (err) {
     console.error('Failed to fetch stats:', err);
     res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
+// Get unique exercise names for the user
+router.get('/exercise-names', auth, async (req, res) => {
+  try {
+    const workouts = await Workout.find({ user: req.userId }).select('exercises.name');
+    const names = new Set();
+    workouts.forEach(w => {
+      w.exercises?.forEach(ex => {
+        if (ex.name) names.add(ex.name);
+      });
+    });
+    res.json(Array.from(names).sort());
+  } catch (err) {
+    console.error('Failed to fetch exercise names:', err);
+    res.status(500).json({ error: 'Failed to fetch exercise names' });
   }
 });
 

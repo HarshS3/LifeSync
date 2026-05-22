@@ -38,11 +38,17 @@ router.get('/daily-summary/:date', auth, async (req, res) => {
     const end = new Date(start);
     end.setDate(end.getDate() + 1);
 
-    const [log, targets, stats] = await Promise.all([
+    const [log, user, stats] = await Promise.all([
       NutritionLog.findOne({ user: req.userId, date: { $gte: start, $lt: end } }).lean(),
-      calculateDailyTargets(req.userId).catch(() => null),
+      User.findById(req.userId).select('clinicalTargets biologicalProfile height weight gender dob bodyComposition').lean(),
       NutritionLog.find({ user: req.userId, date: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } }).limit(30).lean()
     ]);
+    
+    // Get targets: prefer stored clinicalTargets, otherwise fallback to calculation
+    let targets = user?.clinicalTargets;
+    if (!targets && user?.biologicalProfile) {
+      targets = calculateDailyTargets(user.biologicalProfile);
+    }
     
     const mealTemplates = await MealTemplate.find({ user: req.userId }).limit(20).lean();
 
@@ -272,11 +278,8 @@ function _aggregateEffectiveTotals(meals) {
   return totals;
 }
 
-const auth = require('../middleware/authMiddleware');
-const authMiddleware = auth; // Alias for minimal changes in this file
-
 // Get all nutrition logs for user
-router.get('/logs', authMiddleware, async (req, res) => {
+router.get('/logs', auth, async (req, res) => {
   try {
     const logs = await NutritionLog.find({ user: req.userId })
       .sort({ date: -1 })
@@ -360,17 +363,17 @@ async function getLogForDate(req, res, dateStr) {
 }
 
 // Get nutrition log for specific date (canonical)
-router.get('/logs/date/:date', authMiddleware, async (req, res) => {
+router.get('/logs/date/:date', auth, async (req, res) => {
   return getLogForDate(req, res, req.params.date);
 });
 
 // Back-compat: client previously called /logs/date/:userId/:date
-router.get('/logs/date/:userId/:date', authMiddleware, async (req, res) => {
+router.get('/logs/date/:userId/:date', auth, async (req, res) => {
   return getLogForDate(req, res, req.params.date);
 });
 
 // Advanced pipeline: resolve canonical food
-router.get('/food/resolve', authMiddleware, async (req, res) => {
+router.get('/food/resolve', auth, async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
     if (!q) return res.status(400).json({ error: 'q is required' });
@@ -383,7 +386,7 @@ router.get('/food/resolve', authMiddleware, async (req, res) => {
 });
 
 // Advanced pipeline: analyze food (resolver + nutrient graph + metrics + interactions + uncertainty + optional LLM)
-router.get('/food/analyze', authMiddleware, async (req, res) => {
+router.get('/food/analyze', auth, async (req, res) => {
   try {
     const q = String(req.query.q || '').trim();
     const includeLLM = String(req.query.includeLLM || '0') === '1';
@@ -397,7 +400,7 @@ router.get('/food/analyze', authMiddleware, async (req, res) => {
   }
 });
 
-router.post('/food/analyze', authMiddleware, async (req, res) => {
+router.post('/food/analyze', auth, async (req, res) => {
   try {
     const foodName = String(req.body.foodName || '').trim();
     const includeLLM = Boolean(req.body.includeLLM);
@@ -412,7 +415,7 @@ router.post('/food/analyze', authMiddleware, async (req, res) => {
 });
 
 // Knowledge graph: outgoing edges from a food node
-router.get('/food/graph', authMiddleware, async (req, res) => {
+router.get('/food/graph', auth, async (req, res) => {
   try {
     const canonicalId = String(req.query.canonical_id || '').trim();
     if (!canonicalId) return res.status(400).json({ error: 'canonical_id is required' });
@@ -424,7 +427,7 @@ router.get('/food/graph', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/food/causal', authMiddleware, async (req, res) => {
+router.get('/food/causal', auth, async (req, res) => {
   try {
     const canonicalId = String(req.query.canonical_id || '').trim();
     if (!canonicalId) return res.status(400).json({ error: 'canonical_id is required' });
@@ -437,7 +440,7 @@ router.get('/food/causal', authMiddleware, async (req, res) => {
 });
 
 // Hypothesis lifecycle
-router.get('/hypotheses', authMiddleware, async (req, res) => {
+router.get('/hypotheses', auth, async (req, res) => {
   try {
     const docs = await Hypothesis.find({ user: req.userId }).sort({ createdAt: -1 }).limit(50);
     res.json(docs);
@@ -447,7 +450,7 @@ router.get('/hypotheses', authMiddleware, async (req, res) => {
   }
 });
 
-router.post('/hypotheses/generate', authMiddleware, async (req, res) => {
+router.post('/hypotheses/generate', auth, async (req, res) => {
   try {
     const foodName = String(req.body.foodName || '').trim();
     const includeLLM = Boolean(req.body.includeLLM);
@@ -462,7 +465,7 @@ router.post('/hypotheses/generate', authMiddleware, async (req, res) => {
   }
 });
 
-router.patch('/hypotheses/:id/feedback', authMiddleware, async (req, res) => {
+router.patch('/hypotheses/:id/feedback', auth, async (req, res) => {
   try {
     const outcome = String(req.body.outcome || '').trim();
     const note = req.body.note;
@@ -577,12 +580,12 @@ async function getWeightForDate(req, res, dateStr) {
 }
 
 // Get weight for a specific date
-router.get('/weight/date/:date', authMiddleware, async (req, res) => {
+router.get('/weight/date/:date', auth, async (req, res) => {
   return getWeightForDate(req, res, req.params.date);
 });
 
 // Upsert weight for a date
-router.post('/weight', authMiddleware, async (req, res) => {
+router.post('/weight', auth, async (req, res) => {
   try {
     const { date, weightKg } = req.body;
     const logDate = parseLocalDate(date);
@@ -618,7 +621,7 @@ router.post('/weight', authMiddleware, async (req, res) => {
 });
 
 // Range fetch for charting
-router.get('/weight/range/:start/:end', authMiddleware, async (req, res) => {
+router.get('/weight/range/:start/:end', auth, async (req, res) => {
   try {
     const start = new Date(req.params.start);
     const end = new Date(req.params.end);
@@ -640,13 +643,13 @@ router.get('/weight/range/:start/:end', authMiddleware, async (req, res) => {
 });
 
 // Canonical
-router.post('/logs', authMiddleware, upsertNutritionLog);
+router.post('/logs', auth, upsertNutritionLog);
 
 // Back-compat: older client called /logs/:userId
-router.post('/logs/:userId', authMiddleware, upsertNutritionLog);
+router.post('/logs/:userId', auth, upsertNutritionLog);
 
 // Add a meal to today's log
-router.post('/meals', authMiddleware, async (req, res) => {
+router.post('/meals', auth, async (req, res) => {
   try {
     const { meal, date } = req.body;
     
@@ -700,7 +703,7 @@ router.post('/meals', authMiddleware, async (req, res) => {
 });
 
 // Update water intake
-router.patch('/water', authMiddleware, async (req, res) => {
+router.patch('/water', auth, async (req, res) => {
   try {
     const { amount, date } = req.body;
     
@@ -743,7 +746,7 @@ router.patch('/water', authMiddleware, async (req, res) => {
 });
 
 // Delete a meal
-router.delete('/meals/:logId/:mealIndex', authMiddleware, async (req, res) => {
+router.delete('/meals/:logId/:mealIndex', auth, async (req, res) => {
   try {
     const { logId, mealIndex } = req.params;
     
@@ -777,7 +780,7 @@ router.delete('/meals/:logId/:mealIndex', authMiddleware, async (req, res) => {
 });
 
 // Get nutrition stats (weekly/monthly averages)
-router.get('/stats', authMiddleware, async (req, res) => {
+router.get('/stats', auth, async (req, res) => {
   try {
     const now = new Date();
     const weekAgo = new Date(now);
@@ -862,7 +865,7 @@ router.get('/stats', authMiddleware, async (req, res) => {
 });
 
 // Get logs for date range (for calendar)
-router.get('/logs/range/:start/:end', authMiddleware, async (req, res) => {
+router.get('/logs/range/:start/:end', auth, async (req, res) => {
   try {
     const start = new Date(req.params.start);
     const end = new Date(req.params.end);
@@ -900,7 +903,7 @@ router.get('/logs/range/:start/:end', authMiddleware, async (req, res) => {
 });
 
 // Gets the highly precise, scientific personalized clinical baseline targets for the user
-router.get('/clinical-targets', authMiddleware, async (req, res) => {
+router.get('/clinical-targets', auth, async (req, res) => {
   try {
     const user = await User.findById(req.userId).select('biologicalProfile height weight gender bodyFat age dob clinicalTargets labMarkers bodyComposition');
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -1014,7 +1017,7 @@ router.get('/clinical-targets', authMiddleware, async (req, res) => {
 });
 
 // Update the scientific metabolic parameters for the user
-router.put('/clinical-profile', authMiddleware, async (req, res) => {
+router.put('/clinical-profile', auth, async (req, res) => {
   try {
     const { biologicalSex, dob, heightCm, weightKg, bodyFatPercentage, activityLevel, metabolicGoal, pregnancyStatus, dietaryPreference, hypertension, defaultSleepTime } = req.body;
     
@@ -1067,7 +1070,7 @@ router.put('/clinical-profile', authMiddleware, async (req, res) => {
 });
 
 // Search foods using local DB only (external APIs disabled as requested)
-router.get('/search', authMiddleware, async (req, res) => {
+router.get('/search', auth, async (req, res) => {
   try {
     const { q } = req.query;
     const query = q || '';
@@ -1102,7 +1105,7 @@ router.get('/search', authMiddleware, async (req, res) => {
 
 // --- External Food Search & Ingest (OpenFoodFacts + Gemini AI) ---
 
-router.get('/external/search', authMiddleware, async (req, res) => {
+router.get('/external/search', auth, async (req, res) => {
   try {
     const { q } = req.query;
     if (!q) return res.status(400).json({ error: 'Query is required' });
@@ -1153,7 +1156,7 @@ router.get('/external/search', authMiddleware, async (req, res) => {
   }
 });
 
-router.post('/external/add', authMiddleware, async (req, res) => {
+router.post('/external/add', auth, async (req, res) => {
   try {
     let { food } = req.body;
     if (!food) return res.status(400).json({ error: 'Food data is required' });
@@ -1214,7 +1217,7 @@ router.post('/external/add', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/barcode/:code', authMiddleware, async (req, res) => {
+router.get('/barcode/:code', auth, async (req, res) => {
   try {
     const code = String(req.params.code || '').trim();
     if (!code) return res.status(400).json({ error: 'Barcode is required' });
@@ -1310,7 +1313,7 @@ router.get('/barcode/:code', authMiddleware, async (req, res) => {
 // ==================== AGGREGATION ROUTES (for Insights tab) ====================
 
 // Get Adaptive TDEE
-router.get('/adaptive-tdee', authMiddleware, async (req, res) => {
+router.get('/adaptive-tdee', auth, async (req, res) => {
   try {
     const daysBack = parseInt(req.query.daysBack) || 30;
     const result = await calculateAdaptiveTDEE(req.userId, daysBack);
@@ -1322,7 +1325,7 @@ router.get('/adaptive-tdee', authMiddleware, async (req, res) => {
 });
 
 // Get Personal Metabolic Map (Dynamic TDEE with stress/training/adaptation modifiers)
-router.get('/metabolic-map', authMiddleware, async (req, res) => {
+router.get('/metabolic-map', auth, async (req, res) => {
   try {
     const daysBack = parseInt(req.query.daysBack) || 60;
     const result = await calculateMetabolicMap(req.userId, daysBack);
@@ -1334,7 +1337,7 @@ router.get('/metabolic-map', authMiddleware, async (req, res) => {
 });
 
 // Get Meal Timing Analysis
-router.get('/timing-analysis/:date', authMiddleware, async (req, res) => {
+router.get('/timing-analysis/:date', auth, async (req, res) => {
   try {
     const date = new Date(req.params.date);
     if (isNaN(date.getTime())) return res.status(400).json({ error: 'Invalid date' });
@@ -1347,7 +1350,7 @@ router.get('/timing-analysis/:date', authMiddleware, async (req, res) => {
 });
 
 // Get weekly macro aggregation
-router.get('/aggregation/weekly-macros/:weekKey', authMiddleware, async (req, res) => {
+router.get('/aggregation/weekly-macros/:weekKey', auth, async (req, res) => {
   try {
     const weekKey = String(req.params.weekKey || '').trim();
     if (!/^\d{4}-W\d{2}$/.test(weekKey)) {
@@ -1363,7 +1366,7 @@ router.get('/aggregation/weekly-macros/:weekKey', authMiddleware, async (req, re
 });
 
 // Get weekly micro aggregation
-router.get('/aggregation/weekly-micros/:weekKey', authMiddleware, async (req, res) => {
+router.get('/aggregation/weekly-micros/:weekKey', auth, async (req, res) => {
   try {
     const weekKey = String(req.params.weekKey || '').trim();
     if (!/^\d{4}-W\d{2}$/.test(weekKey)) {
@@ -1379,7 +1382,7 @@ router.get('/aggregation/weekly-micros/:weekKey', authMiddleware, async (req, re
 });
 
 // Get current week key
-router.get('/aggregation/current-week', authMiddleware, async (req, res) => {
+router.get('/aggregation/current-week', auth, async (req, res) => {
   try {
     const week = getISOWeek(new Date());
     const weekKey = `${week.year}-W${String(week.week).padStart(2, '0')}`;
@@ -1394,7 +1397,7 @@ router.get('/aggregation/current-week', authMiddleware, async (req, res) => {
 //  Body (optional): { logId, mealIndex }
 //  If logId + mealIndex are provided, removes that specific meal.
 //  If not, removes the last meal from today's log.
-router.delete('/logs/last-meal', authMiddleware, async (req, res) => {
+router.delete('/logs/last-meal', auth, async (req, res) => {
   try {
     const now = new Date();
     const start = new Date(now); start.setHours(0, 0, 0, 0);
@@ -1436,7 +1439,7 @@ router.delete('/logs/last-meal', authMiddleware, async (req, res) => {
 });
 
 // GET /api/nutrition/meal-templates — Fetch top 15 frequent meals from last 60 days
-router.get('/meal-templates', authMiddleware, async (req, res) => {
+router.get('/meal-templates', auth, async (req, res) => {
   try {
     const sixtyDaysAgo = new Date();
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
@@ -1486,7 +1489,7 @@ router.get('/meal-templates', authMiddleware, async (req, res) => {
 });
 
 // POST /api/nutrition/meal-templates/relog — Relog a template to today
-router.post('/meal-templates/relog', authMiddleware, async (req, res) => {
+router.post('/meal-templates/relog', auth, async (req, res) => {
   try {
     const { mealName, mealType, foods } = req.body;
     if (!mealName || !foods || !foods.length) {
@@ -1552,7 +1555,7 @@ router.post('/meal-templates/relog', authMiddleware, async (req, res) => {
 });
 
 // GET /api/nutrition/saved-templates — Fetch user-defined templates
-router.get('/saved-templates', authMiddleware, async (req, res) => {
+router.get('/saved-templates', auth, async (req, res) => {
   try {
     const templates = await MealTemplate.find({ user: req.userId }).sort({ createdAt: -1 });
     res.json(templates);
@@ -1563,7 +1566,7 @@ router.get('/saved-templates', authMiddleware, async (req, res) => {
 });
 
 // POST /api/nutrition/saved-templates — Create a new template from current meal
-router.post('/saved-templates', authMiddleware, async (req, res) => {
+router.post('/saved-templates', auth, async (req, res) => {
   try {
     const { name, mealType, foods, notes } = req.body;
     if (!name || !foods || foods.length === 0) {
@@ -1587,7 +1590,7 @@ router.post('/saved-templates', authMiddleware, async (req, res) => {
 });
 
 // DELETE /api/nutrition/saved-templates/:id — Delete a template
-router.delete('/saved-templates/:id', authMiddleware, async (req, res) => {
+router.delete('/saved-templates/:id', auth, async (req, res) => {
   try {
     const result = await MealTemplate.deleteOne({ _id: req.params.id, user: req.userId });
     if (result.deletedCount === 0) {
@@ -1601,7 +1604,7 @@ router.delete('/saved-templates/:id', authMiddleware, async (req, res) => {
 });
 
 // ── Dietary Diversity & Inflammation ───────────────────────────────────────
-router.get('/insights/diversity', authMiddleware, async (req, res) => {
+router.get('/insights/diversity', auth, async (req, res) => {
   try {
     const data = await computeWeeklyDiversity(req.userId);
     res.json(data);
@@ -1615,7 +1618,7 @@ router.get('/insights/diversity', authMiddleware, async (req, res) => {
 // GET  /api/nutrition/kitchen-inventory   → returns { items: [...] }
 // PUT  /api/nutrition/kitchen-inventory   → body { items: [...] } replaces list
 
-router.get('/kitchen-inventory', authMiddleware, async (req, res) => {
+router.get('/kitchen-inventory', auth, async (req, res) => {
   try {
     const inv = await KitchenInventory.findOne({ user: req.userId }).lean();
     res.json({ items: inv?.items || [] });
@@ -1625,7 +1628,7 @@ router.get('/kitchen-inventory', authMiddleware, async (req, res) => {
   }
 });
 
-router.put('/kitchen-inventory', authMiddleware, async (req, res) => {
+router.put('/kitchen-inventory', auth, async (req, res) => {
   try {
     const { items } = req.body;
     if (!Array.isArray(items)) return res.status(400).json({ error: 'items must be an array' });

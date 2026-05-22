@@ -51,12 +51,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="workout-calendar"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
         name="insights"
         options={{
           title: 'Insights',

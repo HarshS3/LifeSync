@@ -141,6 +141,8 @@ function GymTracker() {
   const [selectedMuscle, setSelectedMuscle] = useState('')
   const [selectedExercise, setSelectedExercise] = useState('')
   const [customExercise, setCustomExercise] = useState('')
+  const [showRestTimer, setShowRestTimer] = useState(false)
+  const [restTimerSeconds, setRestTimerSeconds] = useState(60)
 
   // Stats
   const [stats, setStats] = useState({
@@ -165,6 +167,7 @@ function GymTracker() {
   ];
 
   const trainingInsights = useMemo(() => computeTrainingInsights(workouts), [workouts])
+  const muscleHeatmap = useMemo(() => computeMuscleHeatmap(workouts), [workouts])
 
   const [selectedAnalysisExercise, setSelectedAnalysisExercise] = useState('')
   const [analysisChartMode, setAnalysisChartMode] = useState('1rm') // '1rm' or 'weight'
@@ -1353,12 +1356,11 @@ function GymTracker() {
       )}
 
       {/* Floating Rest Timer */}
-      {showRestTimer && (
-        <RestTimer
-          initialSeconds={restTimerSeconds}
-          onClose={() => setShowRestTimer(false)}
-        />
-      )}
+      <RestTimer
+        open={showRestTimer}
+        initialSeconds={restTimerSeconds}
+        onClose={() => setShowRestTimer(false)}
+      />
     </Box>
   )
 }

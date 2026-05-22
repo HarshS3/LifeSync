@@ -49,6 +49,8 @@ export default function EditProfileScreen() {
     chronotype: 'neutral',
     averageSleep: 7,
     defaultSleepTime: '22:30',
+    activityLevel: 'moderately_active',
+    metabolicGoal: 'maintenance',
   });
 
   const [newCondition, setNewCondition] = useState('');
@@ -83,6 +85,8 @@ export default function EditProfileScreen() {
         avoidFoods: data.avoidFoods || [],
         favoriteFoods: data.favoriteFoods || [],
         dietType: data.biologicalProfile?.dietaryPreference || data.dietType || 'omnivore',
+        activityLevel: data.biologicalProfile?.activityLevel || prev.activityLevel || 'moderately_active',
+        metabolicGoal: data.biologicalProfile?.metabolicGoal || prev.metabolicGoal || 'maintenance',
       }));
     } catch (err) {
       console.error('Failed to load profile', err);
@@ -108,8 +112,8 @@ export default function EditProfileScreen() {
           bodyFatPercentage: profile.bodyFat ? Number(profile.bodyFat) : undefined,
           dob: profile.dob,
           dietaryPreference: profile.dietType,
-          activityLevel: profile.activityLevel || 'moderately_active',
-          metabolicGoal: profile.metabolicGoal || 'maintenance',
+          activityLevel: profile.activityLevel,
+          metabolicGoal: profile.metabolicGoal,
         }
       };
 
@@ -401,6 +405,27 @@ export default function EditProfileScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+
+            <InputLabel text="Metabolic Goal" />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24, marginTop: 8 }}>
+              {[
+                { key: 'aggressive_loss', label: 'Aggressive Cut' },
+                { key: 'mild_loss', label: 'Mild Cut' },
+                { key: 'maintenance', label: 'Maintenance' },
+                { key: 'lean_gain', label: 'Lean Bulk' },
+                { key: 'aggressive_gain', label: 'Aggressive Bulk' }
+              ].map(g => (
+                <TouchableOpacity 
+                  key={g.key}
+                  style={[styles.outlineChip, profile.metabolicGoal === g.key && styles.activeOutlineChip]}
+                  onPress={() => setProfile(p => ({ ...p, metabolicGoal: g.key }))}
+                >
+                  <Text style={[styles.outlineChipText, profile.metabolicGoal === g.key && styles.activeOutlineChipText]}>
+                    {g.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
             
             <View style={styles.inputGroup}>
               <InputLabel text={`Meals Per Day: ${profile.mealsPerDay}`} />
@@ -466,6 +491,27 @@ export default function EditProfileScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+
+            <InputLabel text="Physical Activity Level (PAL)" />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24, marginTop: 8 }}>
+              {[
+                { key: 'sedentary', label: 'Sedentary' },
+                { key: 'lightly_active', label: 'Lightly Active' },
+                { key: 'moderately_active', label: 'Moderately Active' },
+                { key: 'very_active', label: 'Very Active' },
+                { key: 'extra_active', label: 'Extra Active' }
+              ].map(act => (
+                <TouchableOpacity 
+                  key={act.key}
+                  style={[styles.outlineChip, profile.activityLevel === act.key && { backgroundColor: '#8b5cf6', borderColor: '#8b5cf6' }]}
+                  onPress={() => setProfile(p => ({ ...p, activityLevel: act.key }))}
+                >
+                  <Text style={[styles.outlineChipText, profile.activityLevel === act.key && { color: '#fff' }]}>
+                    {act.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
 
             <View style={styles.inputGroup}>
               <InputLabel text={`Weekly Frequency: ${profile.workoutFrequency} sessions`} />

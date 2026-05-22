@@ -5,8 +5,10 @@ import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import LinearProgress from '@mui/material/LinearProgress';
 import { useTheme } from '@mui/material/styles';
+import { computeMuscleHeatmap } from '../../lib/muscleHeatmap';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line
 } from 'recharts';
@@ -54,6 +56,29 @@ const OverviewTab = ({
   EXERCISE_LIBRARY
 }) => {
   const theme = useTheme();
+
+  const [heatmapRange, setHeatmapRange] = React.useState('30'); // '7' | '15' | '30' | 'custom'
+  const [customStart, setCustomStart] = React.useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split('T')[0];
+  });
+  const [customEnd, setCustomEnd] = React.useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+
+  const localHeatmap = React.useMemo(() => {
+    if (heatmapRange === 'custom') {
+      return computeMuscleHeatmap(workouts, {
+        startDate: customStart,
+        endDate: customEnd
+      });
+    } else {
+      return computeMuscleHeatmap(workouts, {
+        days: Number(heatmapRange)
+      });
+    }
+  }, [workouts, heatmapRange, customStart, customEnd]);
 
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
@@ -689,28 +714,67 @@ const OverviewTab = ({
         </Box>
       )}
 
-      {/* Monthly Muscle Heatmap */}
+      {/* Muscle Heatmap */}
       {(!isMobile || showAdvancedOverview) && (
         <Box sx={{ gridColumn: { md: '1 / -1' } }}>
           <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-            <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 2, mb: 1.5 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                Muscle Heatmap (30 days)
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                Based on logged sets
-              </Typography>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', gap: 2, mb: 2 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                  Muscle Heatmap
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Based on sets logged in selected period
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center' }}>
+                <Select
+                  value={heatmapRange}
+                  onChange={(e) => setHeatmapRange(e.target.value)}
+                  size="small"
+                  sx={{ minWidth: 120, height: 40 }}
+                >
+                  <MenuItem value="7">Last Week</MenuItem>
+                  <MenuItem value="15">Last 15 Days</MenuItem>
+                  <MenuItem value="30">Last Month</MenuItem>
+                  <MenuItem value="custom">Custom Range</MenuItem>
+                </Select>
+
+                {heatmapRange === 'custom' && (
+                  <>
+                    <TextField
+                      type="date"
+                      label="Start"
+                      size="small"
+                      value={customStart}
+                      onChange={(e) => setCustomStart(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      sx={{ width: 140, '& .MuiInputBase-root': { height: 40 } }}
+                    />
+                    <TextField
+                      type="date"
+                      label="End"
+                      size="small"
+                      value={customEnd}
+                      onChange={(e) => setCustomEnd(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      sx={{ width: 140, '& .MuiInputBase-root': { height: 40 } }}
+                    />
+                  </>
+                )}
+              </Box>
             </Box>
 
-            {muscleHeatmap && muscleHeatmap.scoredSets > 0 ? (
+            {localHeatmap && localHeatmap.scoredSets > 0 ? (
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr' }, gap: 2 }}>
                 <Box>
-                  <MuscleHeatmapFigure intensityByRegion={muscleHeatmap.normalized} />
+                  <MuscleHeatmapFigure intensityByRegion={localHeatmap.normalized} />
                 </Box>
               </Box>
             ) : (
-              <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-                Log a few workouts with named exercises to see this.
+              <Typography variant="body2" sx={{ color: 'text.disabled', py: 4, textAlign: 'center' }}>
+                Log a few workouts with named exercises in this date range to see this.
               </Typography>
             )}
           </Box>

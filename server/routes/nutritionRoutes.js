@@ -904,15 +904,26 @@ router.get('/clinical-targets', authMiddleware, async (req, res) => {
       { key: 'biologicalSex', ok: !!effectiveProfile.biologicalSex },
       { key: 'heightCm', ok: Number(effectiveProfile.heightCm) > 0 },
       { key: 'weightKg', ok: Number(effectiveProfile.weightKg) > 0 },
+      { key: 'dob', ok: !!effectiveProfile.dob },
+      { key: 'activityLevel', ok: !!effectiveProfile.activityLevel },
+      { key: 'metabolicGoal', ok: !!effectiveProfile.metabolicGoal },
     ];
     const missingRequiredFields = requiredFieldChecks.filter((f) => !f.ok).map((f) => f.key);
-    
+
+    // Optional but recommended for precision
+    const recommendedFields = [
+      { key: 'hypertension', ok: effectiveProfile.hypertension !== undefined },
+      { key: 'insulinSensitivity', ok: !!effectiveProfile.insulinSensitivity },
+    ];
+    const missingRecommendedFields = recommendedFields.filter(f => !f.ok).map(f => f.key);
+
     if (missingRequiredFields.length > 0) {
-      console.log('[ClinicalTargets] Validation failed. Missing:', missingRequiredFields);
+      console.log('[ClinicalTargets] Validation failed. Missing required:', missingRequiredFields);
       return res.status(200).json({
         requiresSetup: true,
         targets: null,
         missingRequiredFields,
+        missingRecommendedFields
       });
     }
 

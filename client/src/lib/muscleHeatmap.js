@@ -13,7 +13,7 @@ function clamp01(n) {
 function inWindow(dateValue, start, end) {
   const d = new Date(dateValue)
   if (!isValidDate(d)) return false
-  return d >= start && d < end
+  return d >= start && d <= end
 }
 
 function emptyTotals() {
@@ -22,15 +22,29 @@ function emptyTotals() {
   return totals
 }
 
-// Computes a 30-day "where you trained" intensity map.
+// Computes a 30-day (or custom range) "where you trained" intensity map.
 // This is deterministic and uses workout set volume as a proxy.
 export function computeMuscleHeatmap(workouts, options = {}) {
-  const days = Number(options.days) || 30
-  const now = new Date(options.now || new Date())
-  if (!isValidDate(now)) return null
+  let start, end
+  let days = options.days
 
-  const start = new Date(now)
-  start.setDate(start.getDate() - Math.max(1, days))
+  if (options.startDate && options.endDate) {
+    start = new Date(options.startDate)
+    end = new Date(options.endDate)
+    if (!isValidDate(start) || !isValidDate(end)) return null
+    start.setHours(0, 0, 0, 0)
+    end.setHours(23, 59, 59, 999)
+    
+    const diffTime = Math.abs(end - start)
+    days = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  } else {
+    days = Number(options.days) || 30
+    const now = new Date(options.now || new Date())
+    if (!isValidDate(now)) return null
+    end = now
+    start = new Date(now)
+    start.setDate(start.getDate() - Math.max(1, days))
+  }
 
   const all = Array.isArray(workouts) ? workouts : []
   const totals = emptyTotals()
@@ -40,7 +54,7 @@ export function computeMuscleHeatmap(workouts, options = {}) {
   let ignoredSets = 0
 
   for (const w of all) {
-    if (!inWindow(w?.date, start, now)) continue
+    if (!inWindow(w?.date, start, end)) continue
     workoutCount += 1
 
     for (const ex of w?.exercises || []) {
@@ -89,7 +103,7 @@ export function computeMuscleHeatmap(workouts, options = {}) {
   return {
     days,
     start: start.toISOString(),
-    end: now.toISOString(),
+    end: end.toISOString(),
     workoutCount,
     scoredSets,
     ignoredSets,

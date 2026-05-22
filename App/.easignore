@@ -8,3 +8,4 @@ android/build/
 android/app/build/
 android/**/.cxx/
 android/**/local.properties
+android_backup/

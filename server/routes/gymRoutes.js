@@ -195,6 +195,27 @@ router.get('/stats', auth, async (req, res) => {
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
+    // Determine distribution date range
+    let distStart = weekAgo;
+    let distEnd = now;
+
+    if (req.query.startDate && req.query.endDate) {
+      const qs = new Date(req.query.startDate);
+      const qe = new Date(req.query.endDate);
+      if (!Number.isNaN(qs.getTime()) && !Number.isNaN(qe.getTime())) {
+        distStart = qs;
+        distStart.setHours(0, 0, 0, 0);
+        distEnd = qe;
+        distEnd.setHours(23, 59, 59, 999);
+      }
+    } else if (req.query.days) {
+      const d = Number(req.query.days);
+      if (!Number.isNaN(d) && d > 0) {
+        distStart = new Date(now.getTime() - d * 24 * 60 * 60 * 1000);
+        distEnd = now;
+      }
+    }
+
     let totalVolume = 0;
     let weeklyWorkouts = 0;
     let monthlyWorkouts = 0;
@@ -207,12 +228,14 @@ router.get('/stats', auth, async (req, res) => {
       if (isRecent) weeklyWorkouts++;
       if (workoutDate > monthAgo) monthlyWorkouts++;
 
+      const inDistributionRange = workoutDate >= distStart && workoutDate <= distEnd;
+
       w.exercises?.forEach((ex) => {
         // Normalize muscle group to lowercase
         const muscle = String(ex.muscleGroup || 'other').toLowerCase().trim();
         
-        // Count "Hard Sets" for weekly hypertrophy (recent only)
-        if (isRecent) {
+        // Count "Hard Sets" for weekly hypertrophy (recent only or range)
+        if (inDistributionRange) {
           const setsCount = ex.sets?.filter(s => (s.reps || 0) > 0).length || 0;
           muscleCount[muscle] = (muscleCount[muscle] || 0) + setsCount;
         }

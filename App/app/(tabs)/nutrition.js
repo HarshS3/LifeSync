@@ -90,7 +90,9 @@ export default function NutritionScreen() {
   };
 
   const handleDeleteMeal = async (index) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Haptics && Haptics.impactAsync) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     setDeletingIdx(index);
     try {
       const updatedMeals = log.meals.filter((_, i) => i !== index);

@@ -221,6 +221,36 @@ export default function TodayTab({
         ))}
       </View>
 
+      {/* Hydration Progress Section */}
+      <View style={themedStyles.webSectionBox}>
+        <View style={themedStyles.webSectionHeader}>
+          <View>
+            <Text style={themedStyles.webSectionTitleSmall}>Hydration</Text>
+            <Text style={themedStyles.webSectionSub}>Daily water intake vs goal.</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Droplets size={16} color={COLORS.nutrition} />
+            <Text style={{ fontSize: 16, fontWeight: '800', color: COLORS.text }}>
+              {log?.waterIntake || 0}<Text style={{ fontSize: 12, color: COLORS.textSecondary }}>ml</Text>
+            </Text>
+          </View>
+        </View>
+
+        <View style={[themedStyles.macroTrack, { height: 8, marginTop: 4 }]}>
+           <View style={[
+             themedStyles.macroFill, 
+             { 
+               width: `${Math.min(100, ((log?.waterIntake || 0) / (targets?.hydrationGoal || 2000)) * 100)}%`, 
+               backgroundColor: COLORS.nutrition 
+             }
+           ]} />
+        </View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+          <Text style={{ fontSize: 10, color: COLORS.textSecondary }}>Daily Progress</Text>
+          <Text style={{ fontSize: 10, color: COLORS.textSecondary }}>Goal: {targets?.hydrationGoal || 2000}ml</Text>
+        </View>
+      </View>
+
       {/* 3. Daily Medical Alerts & Insights */}
       {medicalAlerts.length > 0 && (
         <View style={themedStyles.webSectionBox}>

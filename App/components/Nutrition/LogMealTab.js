@@ -69,6 +69,7 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
   const [externalResults, setExternalResults] = useState([]);
   const [isExternalLoading, setIsExternalLoading] = useState(false);
   const [addingToDbId, setAddingToDbId] = useState(null);
+  const [isWaterLoading, setIsWaterLoading] = useState(false);
 
   // Manual Entry State
   const [showManualModal, setShowManualModal] = useState(false);
@@ -186,6 +187,25 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
       Alert.alert('Error', 'Failed to add food to database.');
     } finally {
       setAddingToDbId(null);
+    }
+  };
+
+  const handleWaterChange = async (increment) => {
+    setIsWaterLoading(true);
+    try {
+      await api.patch('/nutrition/water', { 
+        date: new Date().toISOString().split('T')[0],
+        increment 
+      });
+      if (onMealLogged) onMealLogged();
+      if (Haptics && Haptics.notificationAsync) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (err) {
+      console.error('Water log error', err);
+      Alert.alert('Error', 'Failed to log water.');
+    } finally {
+      setIsWaterLoading(false);
     }
   };
 
@@ -631,6 +651,10 @@ const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleShe
   logBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: BORDER_RADIUS.md, minWidth: 100, alignItems: 'center' },
   logBtnText: { color: COLORS.primaryContrast, fontWeight: 'bold' },
   
+  waterSection: { marginBottom: 40, marginTop: 8, padding: SPACING.md, backgroundColor: COLORS.surface, borderRadius: BORDER_RADIUS.lg, borderWidth: 1, borderColor: COLORS.border, ...SHADOWS },
+  waterActions: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  waterBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: BORDER_RADIUS.md, borderWidth: 1, justifyContent: 'center' },
+
   // Form Styles
   formGroup: { marginBottom: 16 },
   formLabel: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 6 },
@@ -655,4 +679,4 @@ const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleShe
   typeRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
   typeBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.gray100 },
   typeBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.textSecondary },
-  });
+});

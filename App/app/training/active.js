@@ -140,7 +140,6 @@ export default function ActiveWorkoutScreen() {
   const [allNames, setAllNames] = useState([]);
 
   const timerRef = useRef(null);
-  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('all');
 
   const filteredExercises = useMemo(() => {
     // 1. Combine library and history unique names
@@ -168,8 +167,8 @@ export default function ActiveWorkoutScreen() {
     try {
       const res = await api.get('/gym/exercise-names');
       const historyNames = Array.isArray(res.data) ? res.data : [];
-      // Merge with COMMON_EXERCISES and remove duplicates
-      const merged = Array.from(new Set([...COMMON_EXERCISES, ...historyNames])).sort();
+      const libraryNames = Object.values(EXERCISE_LIBRARY).flatMap(g => g.exercises);
+      const merged = Array.from(new Set([...libraryNames, ...historyNames])).sort();
       setAllNames(merged);
     } catch (err) {
       console.error('Failed to fetch names', err);

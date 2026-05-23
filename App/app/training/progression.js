@@ -44,9 +44,7 @@ export default function ProgressionScreen() {
       const res = await api.get('/gym/exercise-names');
       const names = Array.isArray(res.data) ? res.data : [];
       setAllNames(names);
-      if (names.length > 0 && !exercise) {
-        setExercise(names[0]);
-      }
+      // Don't auto-select — let user choose
     } catch (err) {
       console.error('Failed to fetch exercise names', err);
     } finally {
@@ -132,25 +130,48 @@ export default function ProgressionScreen() {
   return (
     <ScreenWrapper title="Progression">
       <View style={styles.container}>
+        {/* Exercise Selector Bar */}
         <View style={styles.header}>
           <TouchableOpacity 
-            style={[styles.selectorBtn, { backgroundColor: COLORS.surface, borderColor: COLORS.border }]}
+            style={[styles.selectorBtn, { backgroundColor: COLORS.surface, borderColor: exercise ? COLORS.border : COLORS.primary }]}
             onPress={() => setShowPicker(true)}
           >
             <View style={{ flex: 1 }}>
-              <Caption secondary>SELECT EXERCISE</Caption>
-              <H3 style={{ marginTop: 2 }}>{exercise || 'No exercise selected'}</H3>
+              <Caption secondary>EXERCISE</Caption>
+              <H3 style={{ marginTop: 2, color: exercise ? COLORS.text : COLORS.primary }}>
+                {namesLoading ? 'Loading...' : exercise || 'Tap to select an exercise'}
+              </H3>
             </View>
             <View style={[styles.changeBadge, { backgroundColor: COLORS.primary + '15' }]}>
               <Search size={16} color={COLORS.primary} />
-              <Body style={{ color: COLORS.primary, fontWeight: '700', marginLeft: 6, fontSize: 12 }}>Change</Body>
+              <Body style={{ color: COLORS.primary, fontWeight: '700', marginLeft: 6, fontSize: 12 }}>
+                {exercise ? 'Change' : 'Select'}
+              </Body>
             </View>
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.mainContent} showsVerticalScrollIndicator={false}>
           <View style={{ paddingHorizontal: 16 }}>
-            {exercise ? (
+            {!exercise ? (
+              // Prompt state — no exercise selected yet
+              <View style={styles.promptContainer}>
+                <View style={[styles.promptIconCircle, { backgroundColor: COLORS.primary + '15' }]}>
+                  <TrendingUp size={36} color={COLORS.primary} />
+                </View>
+                <H3 style={{ marginBottom: 8, textAlign: 'center' }}>Track Your Progress</H3>
+                <Body secondary style={{ textAlign: 'center', marginBottom: 28, lineHeight: 22 }}>
+                  Select an exercise from your workout history to see how your strength has improved over time.
+                </Body>
+                <TouchableOpacity
+                  style={[styles.promptBtn, { backgroundColor: COLORS.primary }]}
+                  onPress={() => setShowPicker(true)}
+                >
+                  <Search size={18} color={COLORS.surface} />
+                  <Body style={{ color: COLORS.surface, fontWeight: '700', marginLeft: 8 }}>Choose Exercise</Body>
+                </TouchableOpacity>
+              </View>
+            ) : (
               <Card style={styles.chartCard} padding={20}>
                 <View style={styles.chartHeader}>
                     <View style={[styles.iconBox, { backgroundColor: COLORS.primary + '15' }]}>
@@ -229,7 +250,7 @@ export default function ProgressionScreen() {
                       </View>
                       <H3 style={{ marginBottom: 8 }}>No History Yet</H3>
                       <Body secondary style={{ textAlign: 'center', marginBottom: 24 }}>
-                        You haven't logged any sets for {exercise} yet. 
+                        You haven't logged any sets for {exercise} yet.
                       </Body>
                       <TouchableOpacity 
                         style={[styles.emptyAction, { backgroundColor: COLORS.primary }]}
@@ -241,14 +262,6 @@ export default function ProgressionScreen() {
                     </View>
                   )}
                 </Card>
-              ) : !namesLoading && (
-                <View style={styles.noExercises}>
-                  <Activity size={48} color={COLORS.gray300} />
-                  <H3 style={{ marginTop: 16, marginBottom: 8 }}>No Data Found</H3>
-                  <Body secondary style={{ textAlign: 'center' }}>
-                    You need to log at least one workout session to see exercise progression.
-                  </Body>
-              </View>
             )}
           </View>
         </ScrollView>
@@ -452,6 +465,27 @@ const styles = StyleSheet.create({
     paddingTop: 100,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  promptContainer: {
+    paddingTop: 60,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promptIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  promptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 16,
   },
   modalOverlay: {
     flex: 1,

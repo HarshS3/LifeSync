@@ -36,6 +36,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import Constants from 'expo-constants';
 import { API_BASE } from '../../services/api';
 
 // ─── Colours (Paper theme tokens) ────────────────────────────────────────────
@@ -95,7 +96,11 @@ function ForgotPasswordScreen({ onBack }) {
     setLoading(true);
     try {
       // Determine origin for the reset link
-      const origin = __DEV__ ? 'http://192.168.1.9:5173' : 'https://lifesync-app.vercel.app';
+      const getDevIp = () => {
+        const hostUri = Constants.expoConfig?.hostUri;
+        return hostUri ? hostUri.split(':')[0] : 'localhost';
+      };
+      const origin = __DEV__ ? `http://${getDevIp()}:5173` : 'https://lifesync-app.vercel.app';
 
       const res  = await fetch(`${API_BASE}/auth/forgot-password`, {
         method:  'POST',

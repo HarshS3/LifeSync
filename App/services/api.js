@@ -1,7 +1,16 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 
-const DEV_API_ORIGIN = 'http://192.168.1.9:5000';
+// Dynamically get the host IP during development to support switching between networks
+const getDevIp = () => {
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (!hostUri) return 'localhost';
+  // hostUri looks like "192.168.1.9:8081"
+  return hostUri.split(':')[0];
+};
+
+const DEV_API_ORIGIN = `http://${getDevIp()}:5000`;
 const PROD_API_ORIGIN = 'https://lifesync-5ahi.onrender.com';
 
 // Note: localhost works for simulators/emulators and desktop-hosted local testing.

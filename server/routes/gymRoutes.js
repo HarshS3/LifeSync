@@ -68,7 +68,7 @@ router.get('/summary', auth, async (req, res) => {
     ]);
 
     const totalVolume = volumeResult[0]?.totalVolume || 0;
-    const weeklyWorkouts = workouts.filter(w => new Date(w.date) > weekAgo).length;
+    const weeklyWorkouts = allWorkouts.filter(w => new Date(w.date) > weekAgo).length;
 
     // Calculate Streak
     let currentStreak = 0;

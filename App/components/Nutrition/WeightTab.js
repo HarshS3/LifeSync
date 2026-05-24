@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Dimensions } from 'react-native';
 import { Scale, TrendingUp, History, Plus } from 'lucide-react-native';
 import api from '../../services/api';
@@ -56,6 +56,16 @@ export default function WeightTab({ COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYP
     }
   };
 
+  const avg7d = useMemo(() => {
+    if (history.length === 0) return '--';
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const recent = history.filter(h => new Date(h.date) >= sevenDaysAgo);
+    if (recent.length === 0) return history[0].weightKg.toFixed(1);
+    const sum = recent.reduce((acc, h) => acc + h.weightKg, 0);
+    return (sum / recent.length).toFixed(1);
+  }, [history]);
+
   const themedStyles = styles(COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY);
 
   return (
@@ -94,7 +104,7 @@ export default function WeightTab({ COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYP
         </View>
         <View style={themedStyles.statBox}>
           <Text style={themedStyles.statLabel}>Avg (7d)</Text>
-          <Text style={themedStyles.statValue}>-- <Text style={themedStyles.statUnit}>kg</Text></Text>
+          <Text style={themedStyles.statValue}>{avg7d} <Text style={themedStyles.statUnit}>kg</Text></Text>
         </View>
       </View>
 

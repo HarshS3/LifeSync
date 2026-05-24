@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   View, StyleSheet, ScrollView, TextInput, TouchableOpacity, 
   ActivityIndicator, KeyboardAvoidingView, Platform, Modal, 
@@ -437,14 +437,26 @@ export default function ActiveWorkoutScreen() {
         name,
         duration: Math.floor(elapsed / 60),
         date: new Date(),
-        exercises: exercises.map(ex => ({
-          name: ex.name,
-          sets: ex.sets.map(s => ({
-            weight: parseFloat(s.weight) || 0,
-            reps: parseInt(s.reps) || 0,
-            completed: s.completed
-          }))
-        }))
+        exercises: exercises.map(ex => {
+          // Find muscle group for this exercise
+          let muscleGroup = 'other';
+          for (const [group, data] of Object.entries(EXERCISE_LIBRARY)) {
+            if (data.exercises.includes(ex.name)) {
+              muscleGroup = group;
+              break;
+            }
+          }
+
+          return {
+            name: ex.name,
+            muscleGroup,
+            sets: ex.sets.map(s => ({
+              weight: parseFloat(s.weight) || 0,
+              reps: parseInt(s.reps) || 0,
+              completed: s.completed
+            }))
+          };
+        })
       };
       await api.post('/gym/workouts', payload);
       await clearProgress();

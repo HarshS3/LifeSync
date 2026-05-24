@@ -135,7 +135,7 @@ const StepsTab = ({
             )
           }
 
-          const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          const fmt = (d) => d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
           const fmtSteps = (v) => (typeof v === 'number' ? `${Math.round(v).toLocaleString()} steps` : '')
 
           const d = chart.dims

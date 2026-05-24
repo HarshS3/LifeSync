@@ -21,7 +21,7 @@ async function analyzeRecoveryCapacity(userId) {
   const muscleHistory = {}; // { 'Chest': [{ date, volume, intensity, performanceScore }] }
 
   workouts.forEach(w => {
-    const date = new Date(w.date).toISOString().split('T')[0];
+    const date = new Date(w.date).toLocaleDateString('en-CA');
     
     w.exercises?.forEach(ex => {
       const mg = ex.muscleGroup || 'Other';

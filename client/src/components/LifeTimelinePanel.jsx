@@ -41,9 +41,9 @@ function buildEvents(fitness, mental, nutrition) {
 }
 
 const kindStyles = {
-  training: { bg: '#eff6ff', color: '#2563eb', icon: <FitnessCenterIcon sx={{ fontSize: 14 }} /> },
-  wellness: { bg: '#faf5ff', color: '#9333ea', icon: <SpaIcon sx={{ fontSize: 14 }} /> },
-  nutrition: { bg: '#ecfdf5', color: '#059669', icon: <RestaurantIcon sx={{ fontSize: 14 }} /> },
+  training: { bg: 'rgba(37, 99, 235, 0.12)', color: '#3b82f6', icon: <FitnessCenterIcon sx={{ fontSize: 14 }} /> },
+  wellness: { bg: 'rgba(147, 51, 234, 0.12)', color: '#a78bfa', icon: <SpaIcon sx={{ fontSize: 14 }} /> },
+  nutrition: { bg: 'rgba(16, 185, 129, 0.12)', color: '#10b981', icon: <RestaurantIcon sx={{ fontSize: 14 }} /> },
 }
 
 function LifeTimelinePanel() {
@@ -72,7 +72,7 @@ function LifeTimelinePanel() {
     ]).then(([f, m, n]) => setEvents(buildEvents(f || [], m || [], n || [])))
   }, [])
 
-  const formatDate = (d) => d?.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) || ''
+  const formatDate = (d) => d?.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) || ''
 
   return (
     <Box>
@@ -99,10 +99,11 @@ function LifeTimelinePanel() {
                   gap: 2,
                   p: 2,
                   borderRadius: 1.5,
-                  border: '1px solid #e5e7eb',
+                  border: '1px solid',
+                  borderColor: 'divider',
                   bgcolor: 'background.paper',
                   transition: 'border-color 0.15s',
-                  '&:hover': { borderColor: '#d1d5db' },
+                  '&:hover': { borderColor: 'text.secondary' },
                 }}
               >
                 <Box
@@ -140,7 +141,7 @@ function LifeTimelinePanel() {
                     {e.summary}
                   </Typography>
                 </Box>
-                <Typography variant="caption" sx={{ color: '#9ca3af', whiteSpace: 'nowrap' }}>
+                <Typography variant="caption" sx={{ color: 'text.disabled', whiteSpace: 'nowrap' }}>
                   {formatDate(e.date)}
                 </Typography>
               </Box>

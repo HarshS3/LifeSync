@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
 import { LineChart } from 'react-native-chart-kit';
 import api from '../../services/api';
-import { TrendingUp, Info } from 'lucide-react-native';
+import { TrendingUp, Info, ChevronRight, FileText, Calendar as CalendarIcon } from 'lucide-react-native';
 import { useTheme } from '../../constants/Theme';
 
 // UI Components
@@ -27,8 +27,8 @@ export default function InsightsScreen() {
 
   const fetchData = async () => {
     try {
-      const end = new Date().toISOString().split('T')[0];
-      const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const end = new Date().toLocaleDateString('en-CA');
+      const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA');
       
       const [rangeRes, learningRes, metabolicRes] = await Promise.all([
         api.get(`/daily-life-state/range?start=${start}&end=${end}`).catch(() => ({ data: [] })),
@@ -79,15 +79,15 @@ export default function InsightsScreen() {
       {
         data: readinessData.length > 0 ? readinessData : [0],
         color: (opacity = 1) => COLORS.training,
-        strokeWidth: 2
+        strokeWidth: 3
       },
       {
         data: trainingLoadData.length > 0 ? trainingLoadData : [0],
-        color: (opacity = 1) => COLORS.wellness,
+        color: (opacity = 1) => COLORS.load,
         strokeWidth: 2
       }
     ],
-    legend: ['Readiness', 'Load']
+    legend: ['Readiness', 'Workload']
   };
 
   const moodChartData = {
@@ -95,8 +95,8 @@ export default function InsightsScreen() {
     datasets: [
       {
         data: moodData.length > 0 ? moodData : [0],
-        color: (opacity = 1) => COLORS.insight,
-        strokeWidth: 2
+        color: (opacity = 1) => COLORS.wellness,
+        strokeWidth: 3
       }
     ]
   };
@@ -107,16 +107,50 @@ export default function InsightsScreen() {
       showBack={false}
       headerRight={
         <TouchableOpacity onPress={() => router.push('/profile')} style={[styles.avatarMini, { backgroundColor: COLORS.primary }]}>
-           <Caption style={{ color: COLORS.surface, fontWeight: 'bold' }}>{user?.name?.charAt(0)}</Caption>
+           <Caption style={{ color: COLORS.primaryContrast, fontWeight: 'bold' }}>{user?.name?.charAt(0)}</Caption>
         </TouchableOpacity>
       }
     >
       <ScrollView 
-        contentContainerStyle={styles.content}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         showsVerticalScrollIndicator={false}
       >
-        <Caption secondary style={styles.subtitle}>Last 7 Days Analysis</Caption>
+        {/* Intelligence Reports Section */}
+        <View style={styles.section}>
+          <Caption secondary style={styles.sectionLabel}>INTELLIGENCE REPORTS</Caption>
+          <View style={styles.reportRow}>
+            <TouchableOpacity 
+              style={[styles.reportCardSmall, { backgroundColor: COLORS.surface }]} 
+              onPress={() => router.push('/insights/weekly')}
+            >
+              <View style={[styles.reportIcon, { backgroundColor: COLORS.training + '15' }]}>
+                <TrendingUp size={20} color={COLORS.training} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Body style={{ fontWeight: '700', fontSize: 13 }}>Weekly Review</Body>
+                <Caption secondary style={{ fontSize: 10 }}>AI Coaching</Caption>
+              </View>
+              <ChevronRight size={14} color={COLORS.gray300} />
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.reportCardSmall, { backgroundColor: COLORS.surface }]} 
+              onPress={() => router.push('/insights/monthly')}
+            >
+              <View style={[styles.reportIcon, { backgroundColor: COLORS.success + '15' }]}>
+                <FileText size={20} color={COLORS.success} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Body style={{ fontWeight: '700', fontSize: 13 }}>Monthly Data</Body>
+                <Caption secondary style={{ fontSize: 10 }}>History Archive</Caption>
+              </View>
+              <ChevronRight size={14} color={COLORS.gray300} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <Caption secondary style={styles.sectionLabel}>LAST 7 DAYS TRENDS</Caption>
 
         {loading && !refreshing ? (
           <View style={styles.centered}>
@@ -124,27 +158,46 @@ export default function InsightsScreen() {
           </View>
         ) : (
           <>
-            <Card style={styles.chartCard}>
-              <Body style={styles.chartTitle}>Readiness vs. Training Load</Body>
+            <Card style={styles.chartCard} padding={12}>
+              <Body style={styles.chartTitle}>Readiness vs. Workload</Body>
               <LineChart
                 data={readinessChartData}
-                width={screenWidth - 64}
+                width={screenWidth - 32}
                 height={200}
-                chartConfig={chartConfig}
+                chartConfig={{
+                  ...chartConfig,
+                  backgroundGradientFrom: COLORS.surface,
+                  backgroundGradientTo: COLORS.surface,
+                  fillShadowGradientFrom: COLORS.training,
+                  fillShadowGradientTo: COLORS.surface,
+                  propsForLabels: { fontSize: 10 }
+                }}
                 bezier
-                style={styles.chart}
+                style={{ marginLeft: -20, marginTop: 8 }}
+                withInnerLines={false}
+                withOuterLines={false}
               />
             </Card>
 
-            <Card style={styles.chartCard}>
-              <Body style={styles.chartTitle}>Mood Stability</Body>
+            <Card style={styles.chartCard} padding={12}>
+              <Body style={styles.chartTitle}>Mood & Mental Stability</Body>
               <LineChart
                 data={moodChartData}
-                width={screenWidth - 64}
+                width={screenWidth - 32}
                 height={180}
-                chartConfig={{...chartConfig, color: (opacity = 1) => COLORS.insight }}
+                chartConfig={{
+                   ...chartConfig, 
+                   color: (opacity = 1) => COLORS.wellness,
+                   backgroundGradientFrom: COLORS.surface,
+                   backgroundGradientTo: COLORS.surface,
+                   fillShadowGradientFrom: COLORS.wellness,
+                   fillShadowGradientTo: COLORS.surface,
+                   propsForLabels: { fontSize: 10 }
+                }}
                 bezier
-                style={styles.chart}
+                style={{ marginLeft: -20, marginTop: 8 }}
+                withInnerLines={false}
+                withOuterLines={false}
               />
             </Card>
 
@@ -236,24 +289,43 @@ export default function InsightsScreen() {
               <H3 style={styles.sectionTitle}>State Summary</H3>
               <View style={styles.summaryGrid}>
                 {Object.entries(learning?.stateSummary?.counts || {}).map(([label, count]) => (
-                  <Card key={label} style={styles.summaryItem} padding={12}>
+                  <Card key={label} style={styles.summaryItem} padding={16}>
                     <H2 style={{ color: COLORS.primary }}>{count}</H2>
-                    <Caption secondary style={{ textTransform: 'capitalize', textAlign: 'center' }}>{label}</Caption>
+                    <Caption secondary style={{ textTransform: 'uppercase', textAlign: 'center', fontWeight: '800', fontSize: 10, marginTop: 4 }}>{label}</Caption>
                   </Card>
                 ))}
               </View>
             </View>
           </>
         )}
+        <View style={{ height: 100 }} />
       </ScrollView>
     </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16 },
+  scrollContent: { padding: 16 },
   centered: { padding: 40, alignItems: 'center' },
-  subtitle: { marginBottom: 16, textAlign: 'center' },
+  sectionLabel: { marginBottom: 12, fontWeight: '800', marginLeft: 4, letterSpacing: 1 },
+  reportRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  reportCardSmall: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  reportIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
   avatarMini: {
     width: 32,
     height: 32,
@@ -263,17 +335,12 @@ const styles = StyleSheet.create({
   },
   chartCard: {
     marginBottom: 20,
-    padding: 12,
   },
   chartTitle: {
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 12,
     textAlign: 'center',
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
   },
   section: {
     marginBottom: 24,
@@ -299,11 +366,10 @@ const styles = StyleSheet.create({
   summaryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 12,
   },
   summaryItem: {
-    flex: 1,
-    minWidth: '30%',
+    width: '48%',
     alignItems: 'center',
     justifyContent: 'center',
   },

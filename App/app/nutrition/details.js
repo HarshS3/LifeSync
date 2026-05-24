@@ -154,7 +154,7 @@ export default function DailyNutrientDetailsScreen() {
       <ScrollView contentContainerStyle={themedStyles.scrollContent}>
         <View style={themedStyles.dateHeader}>
           <Text style={themedStyles.dateText}>
-            {displayDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+            {displayDate.toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
           </Text>
         </View>
 

@@ -62,7 +62,7 @@ export default function NutritionInsightsScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.dateCard}>
           <Text style={styles.dateText}>
-            {new Date(selectedDate + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
           </Text>
         </View>
 

@@ -164,7 +164,7 @@ const WorkoutDialogs = ({
               {selectedWorkout?.name}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {selectedWorkout?.date && new Date(selectedWorkout.date).toLocaleDateString(undefined, {
+              {selectedWorkout?.date && new Date(selectedWorkout.date).toLocaleDateString('en-IN', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',

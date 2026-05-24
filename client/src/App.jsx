@@ -684,7 +684,7 @@ function AppContent() {
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="body2" sx={{ color: ui.muted, display: { xs: 'none', sm: 'block' } }}>
-                {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                {new Date().toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}
               </Typography>
             </Box>
           </Box>

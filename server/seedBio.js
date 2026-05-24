@@ -146,7 +146,7 @@ async function run() {
     log.dailyTotals = dailyTotals;
     log.effectiveNutrientTotals = effectiveNutrientTotals;
     await log.save();
-    console.log(`Seeded day -${i}: ${d.toISOString().split('T')[0]}`);
+    console.log(`Seeded day -${i}: ${d.toLocaleDateString('en-CA')}`);
   }
   
   console.log('Seeded 60 days of historical data successfully.');

@@ -141,7 +141,7 @@ export default function ActiveWorkoutScreen() {
 
   const timerRef = useRef(null);
 
-  const filteredExercises = useMemo(() => {
+  const filteredExercises = React.useMemo(() => {
     // 1. Combine library and history unique names
     const libraryNames = Object.values(EXERCISE_LIBRARY).flatMap(g => g.exercises);
     const allKnown = Array.from(new Set([...libraryNames, ...allNames])).sort();
@@ -219,7 +219,7 @@ export default function ActiveWorkoutScreen() {
                 }
               } catch (e) { console.error(e); }
 
-              const cleanValue = (v) => (v === 0 || v === '0' || !v) ? '' : v.toString();
+              const cleanValue = (v) => (v === undefined || v === null || v === '') ? '' : v.toString();
 
               return {
                 id: generateId(),
@@ -348,7 +348,7 @@ export default function ActiveWorkoutScreen() {
   };
 
   const getSetPlaceholder = (ex, sIdx, field) => {
-    const cleanValue = (v) => (v === 0 || v === '0' || !v) ? '' : v.toString();
+    const cleanValue = (v) => (v === undefined || v === null || v === '') ? '' : v.toString();
     
     // 1. Priority: Historical match at same index
     const histMatch = ex.historySets?.[sIdx]?.[field];
@@ -367,7 +367,7 @@ export default function ActiveWorkoutScreen() {
     if (cleanValue(finalHist) !== '') return cleanValue(finalHist);
 
     // 5. Absolute Fallback
-    return "";
+    return "0";
   };
 
   const toggleSetComplete = (exId, setId) => {
@@ -503,6 +503,7 @@ export default function ActiveWorkoutScreen() {
               value={name}
               onChangeText={setName}
               placeholder="Workout Name"
+              placeholderTextColor={COLORS.gray400}
             />
           </View>
 
@@ -609,8 +610,9 @@ export default function ActiveWorkoutScreen() {
             <View style={[styles.searchBox, { backgroundColor: COLORS.gray100 }]}>
               <Search size={18} color={COLORS.gray400} />
               <TextInput 
-                style={styles.searchInput} 
+                style={[styles.searchInput, { color: COLORS.text }]} 
                 placeholder="Search exercises..." 
+                placeholderTextColor={COLORS.gray400}
                 value={search} 
                 onChangeText={setSearch}
                 autoFocus

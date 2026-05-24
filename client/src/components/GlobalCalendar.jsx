@@ -290,7 +290,7 @@ function GlobalCalendar() {
                       {event.title}
                     </Typography>
                     <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                      {new Date(event.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                      {new Date(event.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                     </Typography>
                   </Box>
                   <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5, fontWeight: 500 }}>
@@ -328,7 +328,7 @@ function GlobalCalendar() {
         <DialogTitle sx={{ p: 3, pb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 800 }}>
-              {selectedDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {selectedDate?.toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Daily Retrospective

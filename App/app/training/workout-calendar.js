@@ -1,27 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  View, StyleSheet, TouchableOpacity, Text, SafeAreaView, 
+  View, StyleSheet, TouchableOpacity, SafeAreaView, 
   ScrollView, ActivityIndicator, Dimensions 
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, ChevronRight, Activity, Dumbbell } from 'lucide-react-native';
 import api from '../../services/api';
+import { useTheme } from '../../constants/Theme';
+
+// UI Components
 import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
+import { Card } from '../../components/ui/Card';
+import { H3, Body, Caption } from '../../components/ui/Typography';
 
 const { width } = Dimensions.get('window');
 
-const COLORS = {
-  workout: '#3b82f6', // Blue for workouts
-  bg: '#f6f1e7',
-  surface: '#ffffff',
-  text: '#161310',
-  muted: 'rgba(22,19,16,0.62)',
-  border: 'rgba(22,19,16,0.10)',
-};
-
 export default function WorkoutCalendarScreen() {
   const router = useRouter();
+  const { COLORS, SHADOWS } = useTheme();
   const params = useLocalSearchParams();
   const today = new Date().toISOString().split('T')[0];
 
@@ -52,7 +49,7 @@ export default function WorkoutCalendarScreen() {
       const d = new Date(w.date).toISOString().split('T')[0];
       marks[d] = {
         selected: true,
-        selectedColor: COLORS.workout + '30',
+        selectedColor: COLORS.training + '30',
         selectedTextColor: COLORS.text,
       };
     });
@@ -63,8 +60,8 @@ export default function WorkoutCalendarScreen() {
     marks[selected] = {
         ...marks[selected],
         selected: true,
-        selectedColor: COLORS.workout,
-        selectedTextColor: '#ffffff',
+        selectedColor: COLORS.training,
+        selectedTextColor: COLORS.primaryContrast,
     };
 
     setMarkedDates(marks);
@@ -87,49 +84,49 @@ export default function WorkoutCalendarScreen() {
   return (
     <ScreenWrapper title="Workout History">
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.calendarCard}>
+        <Card padding={10} style={styles.calendarCard}>
           <Calendar
             current={selectedDate}
             onDayPress={handleDayPress}
             onMonthChange={(month) => setVisibleMonth(new Date(month.dateString))}
             markedDates={markedDates}
             theme={{
-              backgroundColor: '#ffffff',
-              calendarBackground: '#ffffff',
-              textSectionTitleColor: COLORS.muted,
-              selectedDayBackgroundColor: COLORS.workout,
-              selectedDayTextColor: '#ffffff',
-              todayTextColor: COLORS.workout,
+              backgroundColor: 'transparent',
+              calendarBackground: 'transparent',
+              textSectionTitleColor: COLORS.textSecondary,
+              selectedDayBackgroundColor: COLORS.training,
+              selectedDayTextColor: COLORS.primaryContrast,
+              todayTextColor: COLORS.info,
               dayTextColor: COLORS.text,
-              textDisabledColor: '#d1d5db',
-              arrowColor: COLORS.workout,
-              disabledArrowColor: '#d1d5db',
+              textDisabledColor: COLORS.gray400,
+              arrowColor: COLORS.training,
+              disabledArrowColor: COLORS.gray300,
               monthTextColor: COLORS.text,
-              textDayFontWeight: '400',
+              textDayFontWeight: '500',
               textMonthFontWeight: 'bold',
-              textDayHeaderFontWeight: '600',
+              textDayHeaderFontWeight: '700',
               textDayFontSize: 14,
-              textMonthFontSize: 16,
+              textMonthFontSize: 18,
               textDayHeaderFontSize: 12
             }}
           />
           {loading && (
             <View style={styles.loaderOverlay}>
-              <ActivityIndicator color={COLORS.workout} />
+              <ActivityIndicator color={COLORS.training} />
             </View>
           )}
-        </View>
+        </Card>
 
         <View style={styles.eventsSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { 
+            <H3>
+              {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-IN', { 
                 weekday: 'long', month: 'long', day: 'numeric' 
               })}
-            </Text>
+            </H3>
             {selectedDate === today && (
-              <View style={styles.todayBadge}>
-                <Text style={styles.todayBadgeText}>TODAY</Text>
+              <View style={[styles.todayBadge, { backgroundColor: COLORS.training + '15' }]}>
+                <Caption style={{ color: COLORS.training, fontWeight: '800' }}>TODAY</Caption>
               </View>
             )}
           </View>
@@ -138,29 +135,29 @@ export default function WorkoutCalendarScreen() {
             selectedDayWorkouts.map((w, idx) => (
               <TouchableOpacity 
                 key={idx} 
-                style={styles.workoutCard}
+                style={[styles.workoutCard, { backgroundColor: COLORS.surface, borderLeftColor: COLORS.training }]}
                 onPress={() => router.push(`/training/${w._id}`)}
               >
-                <View style={styles.iconContainer}>
-                  <Dumbbell size={20} color={COLORS.workout} />
+                <View style={[styles.iconContainer, { backgroundColor: COLORS.training + '15' }]}>
+                  <Dumbbell size={20} color={COLORS.training} />
                 </View>
                 <View style={styles.info}>
-                  <Text style={styles.workoutName}>{w.name || 'Workout'}</Text>
-                  <Text style={styles.workoutDetails}>
+                  <Body style={{ fontWeight: '700' }}>{w.name || 'Workout'}</Body>
+                  <Caption secondary>
                     {w.exercises?.length || 0} exercises · {w.duration || 0} min
-                  </Text>
+                  </Caption>
                 </View>
-                <ChevronRight size={18} color={COLORS.muted} />
+                <ChevronRight size={18} color={COLORS.gray400} />
               </TouchableOpacity>
             ))
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No workouts recorded for this day</Text>
+              <Body secondary style={{ marginBottom: 16 }}>No workouts recorded for this day</Body>
               <TouchableOpacity 
-                style={styles.startBtn}
+                style={[styles.startBtn, { backgroundColor: COLORS.training + '15' }]}
                 onPress={() => router.push('/training/active')}
               >
-                <Text style={styles.startBtnText}>Start a Workout</Text>
+                <Body style={{ color: COLORS.training, fontWeight: '700' }}>Start a Workout</Body>
               </TouchableOpacity>
             </View>
           )}
@@ -169,14 +166,14 @@ export default function WorkoutCalendarScreen() {
 
       {selectedDate !== today && (
         <TouchableOpacity 
-          style={styles.todayButton}
+          style={[styles.todayButton, { backgroundColor: COLORS.primary }]}
           onPress={() => {
             setSelectedDate(today);
             setVisibleMonth(new Date(today));
             processMarkedDates(workouts, today);
           }}
         >
-          <Text style={styles.todayButtonText}>Go to Today</Text>
+          <Body style={{ color: COLORS.primaryContrast, fontWeight: '700' }}>Go to Today</Body>
         </TouchableOpacity>
       )}
     </ScreenWrapper>
@@ -184,45 +181,15 @@ export default function WorkoutCalendarScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: COLORS.bg,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  backButton: {
-    padding: 8,
-  },
   scrollContent: {
     padding: 16,
   },
   calendarCard: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 10,
     marginBottom: 24,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    overflow: 'hidden',
-    position: 'relative',
   },
   loaderOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1,
@@ -236,42 +203,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 8,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
   todayBadge: {
-    backgroundColor: COLORS.workout + '20',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
   },
-  todayBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: COLORS.workout,
-  },
   workoutCard: {
-    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     borderLeftWidth: 4,
-    borderLeftColor: COLORS.workout,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
   },
   iconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.workout + '15',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -279,48 +227,21 @@ const styles = StyleSheet.create({
   info: {
     flex: 1,
   },
-  workoutName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 2,
-  },
-  workoutDetails: {
-    fontSize: 13,
-    color: COLORS.muted,
-  },
   emptyState: {
     padding: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyStateText: {
-    fontSize: 14,
-    color: COLORS.muted,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
   startBtn: {
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: COLORS.workout + '15',
-  },
-  startBtnText: {
-    color: COLORS.workout,
-    fontWeight: '700',
-    fontSize: 14,
   },
   todayButton: {
     margin: 16,
     padding: 16,
-    backgroundColor: COLORS.text,
     borderRadius: 16,
     alignItems: 'center',
   },
-  todayButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
 });
+

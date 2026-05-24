@@ -23,7 +23,7 @@ async function analyzeNutritionalDNA(userId) {
 
   // Map data by date string for easy lookup
   const dateMap = {};
-  const getDateStr = (d) => new Date(d).toISOString().split('T')[0];
+  const getDateStr = (d) => new Date(d).toLocaleDateString('en-CA');
 
   nutrition.forEach(n => {
     const d = getDateStr(n.date);

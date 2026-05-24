@@ -11,7 +11,7 @@ function calculateSmoothTrend(dataPoints, windowSize = 7) {
   // To handle sparse data, we create a map of dates to values
   const dataMap = {};
   dataPoints.forEach(p => {
-    const dStr = new Date(p.date).toISOString().split('T')[0];
+    const dStr = new Date(p.date).toLocaleDateString('en-CA');
     dataMap[dStr] = p.value;
   });
 
@@ -24,7 +24,7 @@ function calculateSmoothTrend(dataPoints, windowSize = 7) {
     for (let i = 0; i < windowSize; i++) {
       const checkDate = new Date(currentDate);
       checkDate.setDate(checkDate.getDate() - i);
-      const checkStr = checkDate.toISOString().split('T')[0];
+      const checkStr = checkDate.toLocaleDateString('en-CA');
 
       if (dataMap[checkStr] !== undefined) {
         windowSum += dataMap[checkStr];
@@ -152,12 +152,12 @@ async function calculateAdaptiveTDEEForRange(userId, startDate, endDate) {
   const weightPoints = weights.map(w => ({ date: w.date, value: w.weightKg }));
   const smoothedWeightsMap = {};
   calculateSmoothTrend(weightPoints, 7).forEach(p => {
-    smoothedWeightsMap[new Date(p.date).toISOString().split('T')[0]] = p.value;
+    smoothedWeightsMap[new Date(p.date).toLocaleDateString('en-CA')] = p.value;
   });
 
   // Iterate through each day in the requested range
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const dayKey = d.toISOString().split('T')[0];
+    const dayKey = d.toLocaleDateString('en-CA');
     
     // Window: [d - 30, d]
     const winEnd = new Date(d);
@@ -168,7 +168,7 @@ async function calculateAdaptiveTDEEForRange(userId, startDate, endDate) {
 
     // Find first and last smoothed points in the 30-day window
     const windowDateKeys = Object.keys(smoothedWeightsMap)
-      .filter(k => k >= winStart.toISOString().split('T')[0] && k <= dayKey)
+      .filter(k => k >= winStart.toLocaleDateString('en-CA') && k <= dayKey)
       .sort();
 
     if (windowDateKeys.length >= 2 && winNutri.length >= 5) {

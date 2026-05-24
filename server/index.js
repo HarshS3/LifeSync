@@ -1,6 +1,8 @@
 require('dotenv').config();
+process.env.TZ = 'Asia/Kolkata';
 const express = require('express');
 const cors = require('cors');
+const morgan = require('morgan');
 const mongoose = require('mongoose');
 const rateLimit = require('express-rate-limit');
 
@@ -37,6 +39,7 @@ const LOCAL_MONGO_URI = process.env.MONGO_URI_LOCAL || 'mongodb://localhost:2701
 const ALLOW_LOCAL_FALLBACK = String(process.env.MONGO_URI_FALLBACK_LOCAL || '1').trim() !== '0';
 
 app.use(cors());
+app.use(morgan('dev'));
 app.use(express.json());
 
 // ... (existing rate limiters)

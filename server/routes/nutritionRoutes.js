@@ -570,7 +570,7 @@ async function getWeightForDate(req, res, dateStr) {
     const logs = await WeightLog.find({
       user: req.userId,
       date: { $gte: startDate, $lt: endDate },
-    }).select('date weightKg').sort({ date: 1 });
+    }).select('date weightKg time').sort({ date: 1 });
 
     res.json({ date: startDate, weights: logs });
   } catch (err) {
@@ -587,7 +587,7 @@ router.get('/weight/date/:date', auth, async (req, res) => {
 // Upsert weight for a date
 router.post('/weight', auth, async (req, res) => {
   try {
-    const { date, weightKg } = req.body;
+    const { date, weightKg, time } = req.body;
     const logDate = parseLocalDate(date);
     if (Number.isNaN(logDate.getTime())) {
       return res.status(400).json({ error: 'Invalid date' });
@@ -597,7 +597,12 @@ router.post('/weight', auth, async (req, res) => {
       return res.status(400).json({ error: 'Invalid weightKg' });
     }
 
-    const log = await WeightLog.create({ user: req.userId, date: logDate, weightKg: w });
+    const log = await WeightLog.create({ 
+      user: req.userId, 
+      date: logDate, 
+      weightKg: w,
+      time: time || new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })
+    });
 
     // Update user profile with latest weight
     const User = require('../models/User');
@@ -633,7 +638,7 @@ router.get('/weight/range/:start/:end', auth, async (req, res) => {
       date: { $gte: start, $lte: end },
     })
       .sort({ date: 1 })
-      .select('date weightKg')
+      .select('date weightKg time')
       .lean();
     res.json(docs);
   } catch (err) {

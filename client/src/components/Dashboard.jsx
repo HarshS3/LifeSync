@@ -332,8 +332,8 @@ function Dashboard() {
               <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary' }}>
                 Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {user?.name?.split(' ')[0] || 'there'}
               </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
               </Typography>
               {dayTone && (
                 <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'text.secondary' }}>

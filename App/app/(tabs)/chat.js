@@ -341,14 +341,14 @@ export default function ChatScreen() {
           showsVerticalScrollIndicator={false}
         />
 
-        <View style={[styles.inputArea, { backgroundColor: COLORS.surface, borderTopColor: COLORS.gray100, ...SHADOWS }]}>
+        <View style={[styles.inputArea, { backgroundColor: COLORS.surface, borderTopColor: COLORS.border, ...SHADOWS }]}>
           {!input && !isRecording && (
             <View style={styles.hardwareButtons}>
               <TouchableOpacity style={styles.iconButton} onPress={takePhoto}>
-                <Camera size={22} color={COLORS.textSecondary} />
+                <Camera size={22} color={COLORS.text} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.iconButton} onPress={pickImage}>
-                <ImageIcon size={22} color={COLORS.textSecondary} />
+                <ImageIcon size={22} color={COLORS.text} />
               </TouchableOpacity>
             </View>
           )}
@@ -369,7 +369,7 @@ export default function ChatScreen() {
           />
 
           {isRecording && (
-            <View style={[styles.recordingIndicator, { backgroundColor: COLORS.error + '15' }]}>
+            <View style={[styles.recordingIndicator, { backgroundColor: COLORS.error + '20' }]}>
               <View style={[styles.redDot, { backgroundColor: COLORS.error }]} />
               <Body style={{ color: COLORS.error, fontWeight: '700' }}>Listening...</Body>
             </View>
@@ -385,13 +385,13 @@ export default function ChatScreen() {
             disabled={isSending}
           >
             {isSending ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={COLORS.primaryContrast} />
             ) : input.trim() ? (
-              <Send size={18} color="#fff" />
+              <Send size={18} color={COLORS.primaryContrast} />
             ) : isRecording ? (
               <Square size={18} color="#fff" />
             ) : (
-              <Mic size={18} color="#fff" />
+              <Mic size={18} color={COLORS.primaryContrast} />
             )}
           </TouchableOpacity>
         </View>

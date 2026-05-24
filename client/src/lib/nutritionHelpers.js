@@ -313,7 +313,7 @@ export const generateCGMData = (meals) => {
 export const fmt = (value, decimals = 1) => {
   const num = Number(value)
   if (!Number.isFinite(num)) return '0'
-  return num.toLocaleString('en-US', {
+  return num.toLocaleString('en-IN', {
     minimumFractionDigits: 0,
     maximumFractionDigits: decimals,
   })

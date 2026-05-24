@@ -13,7 +13,8 @@
     "dev:client": "npm run dev --workspace client",
     "dev:server": "npm run dev --workspace server",
     "build:client": "npm run build --workspace client",
-    "eas-build-pre-install": "npm install --workspace App"
+    "eas-build-pre-install": "npm install --workspace App",
+    "types": "npm run types --workspaces --if-present"
   },
   "devDependencies": {
     "ajv": "^8.20.0",

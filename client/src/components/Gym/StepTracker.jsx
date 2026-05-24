@@ -25,7 +25,7 @@ export default function StepTracker({
   
   const chart = buildStepsChart({ start, end, days: daysCount, series: stepsSeries })
 
-  const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  const fmt = (d) => d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
   const fmtSteps = (v) => (typeof v === 'number' ? `${Math.round(v).toLocaleString()} steps` : '')
 
   return (

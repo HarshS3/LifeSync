@@ -107,6 +107,7 @@ function WeightTracker({ selectedDate }) {
     try {
       setSaving(true);
       setLogError('');
+      const nowTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
       const res = await fetch(`${API_BASE}/api/nutrition/weight`, {
         method: 'POST',
         headers: { 
@@ -115,7 +116,8 @@ function WeightTracker({ selectedDate }) {
         },
         body: JSON.stringify({ 
           date: new Date(selectedDate).toISOString(), 
-          weightKg: w 
+          weightKg: w,
+          time: nowTime
         }),
       });
 
@@ -185,7 +187,7 @@ function WeightTracker({ selectedDate }) {
           </Button>
           {logError && <Typography variant="caption" color="error">{logError}</Typography>}
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            Logging for: {new Date(selectedDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+            Logging for: {new Date(selectedDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
           </Typography>
         </Box>
 
@@ -214,7 +216,7 @@ function WeightTracker({ selectedDate }) {
                     {log.weightKg} <span style={{ fontWeight: 400, fontSize: '0.8rem' }}>kg</span>
                   </Typography>
                   <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    {new Date(log.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {log.time || new Date(log.date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                   </Typography>
                 </Box>
               ))}
@@ -269,7 +271,17 @@ function WeightTracker({ selectedDate }) {
         {data && data.length > 0 ? (
           <Box sx={{ height: 300, width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={data.map(d => ({ ...d, time: new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }))} margin={{ top: 10, right: 10, left: 40, bottom: 10 }}>
+              <ComposedChart data={data.map(d => {
+                const dateObj = new Date(d.date);
+                const safeDate = isNaN(dateObj.getTime()) || String(d.date).length <= 10
+                  ? new Date(String(d.date).split('T')[0] + 'T12:00:00')
+                  : dateObj;
+                
+                return { 
+                  ...d, 
+                  time: safeDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) 
+                };
+              })} margin={{ top: 10, right: 10, left: 40, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke='divider' />
                 <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} />
                 <YAxis 

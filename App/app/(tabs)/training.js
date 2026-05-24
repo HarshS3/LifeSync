@@ -19,12 +19,12 @@ import { H1, H2, H3, Body, Caption } from '../../components/ui/Typography';
 function TrainingStatCard({ emoji, label, value, sublabel, color }) {
   const { COLORS } = useTheme();
   return (
-    <Card style={[styles.statCard, { borderTopColor: color, borderTopWidth: 3 }]} padding={12}>
-      <Body style={{ fontSize: 24, marginBottom: 4 }}>{emoji}</Body>
-      <H2 style={{ color, fontSize: 24 }}>{value ?? '—'}</H2>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-        <Caption secondary style={{ fontWeight: '600' }}>{label}</Caption>
-        {sublabel && <Caption secondary style={{ marginLeft: 2 }}>{sublabel}</Caption>}
+    <Card style={[styles.statCard, { borderTopColor: color, borderTopWidth: 4, minHeight: 90 }]} padding={10}>
+      <Body style={{ fontSize: 20, marginBottom: 2 }}>{emoji}</Body>
+      <H2 style={{ color, fontSize: 22, marginBottom: 2 }} numberOfLines={1} adjustsFontSizeToFit>{value ?? '—'}</H2>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+        <Caption secondary style={{ fontWeight: '700', fontSize: 11, flexShrink: 1 }}>{label}</Caption>
+        {sublabel && <Caption secondary style={{ marginLeft: 4, fontSize: 10, opacity: 0.8 }}>{sublabel}</Caption>}
       </View>
     </Card>
   );
@@ -132,8 +132,10 @@ export default function TrainingScreen() {
 
   const [aiWorkout, setAiWorkout]     = useState('');
   const [aiRecovery, setAiRecovery]   = useState('');
+  const [aiCoachTip, setAiCoachTip]   = useState('');
   const [aiWLoading, setAiWLoading]   = useState(false);
   const [aiRLoading, setAiRLoading]   = useState(false);
+  const [aiCLoading, setAiCLoading]   = useState(false);
 
   const MUSCLE_GROUPS = [
     { key: 'chest',     label: 'Chest' },
@@ -159,12 +161,22 @@ export default function TrainingScreen() {
       setReadiness(data.readiness || null);
       setInsights(Array.isArray(data.correlations) ? data.correlations : []);
 
+      fetchCoachTip();
     } catch (err) {
       console.error('Training fetch error', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const fetchCoachTip = async () => {
+    setAiCLoading(true);
+    try {
+      const res = await api.post('/gym/ai-suggestion', { type: 'proactive' });
+      setAiCoachTip(res.data?.suggestion || '');
+    } catch (e) { console.log('Coach tip error', e); }
+    setAiCLoading(false);
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -278,6 +290,59 @@ export default function TrainingScreen() {
           )
         }
 
+        {(aiCLoading || !!aiCoachTip || aiWLoading || aiRLoading || !!aiWorkout || !!aiRecovery) && (
+          <Card style={[styles.coachCard, { borderColor: COLORS.primary + '30', borderWidth: 1.5 }]}>
+            <View style={styles.cardHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={[styles.aiBadge, { backgroundColor: COLORS.primary }]}>
+                  <Body style={{ color: '#fff', fontSize: 10, fontWeight: '900' }}>AI</Body>
+                </View>
+                <H3 style={{ marginLeft: 8 }}>Training Intelligence</H3>
+              </View>
+            </View>
+            
+            {aiCLoading ? (
+              <ActivityIndicator size="small" color={COLORS.primary} style={{ alignSelf: 'flex-start', marginBottom: 12 }} />
+            ) : aiCoachTip ? (
+              <View style={{ marginBottom: 16 }}>
+                <Caption secondary style={{ marginBottom: 4, fontWeight: '800' }}>COACH TIP</Caption>
+                <Body style={{ lineHeight: 22 }}>{aiCoachTip}</Body>
+              </View>
+            ) : null}
+
+            <View style={styles.aiButtonRow}>
+              <TouchableOpacity 
+                style={[styles.outlinedBtn, { borderColor: COLORS.primary }, aiWLoading && { opacity: 0.6 }]} 
+                onPress={generateAiWorkout} 
+                disabled={aiWLoading}
+              >
+                <Caption style={{ fontWeight: '800' }}>{aiWLoading ? 'Thinking…' : "Workout Idea"}</Caption>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.outlinedBtn, { borderColor: COLORS.primary }, aiRLoading && { opacity: 0.6 }]} 
+                onPress={generateAiRecovery} 
+                disabled={aiRLoading}
+              >
+                <Caption style={{ fontWeight: '800' }}>{aiRLoading ? 'Thinking…' : 'Recovery Plan'}</Caption>
+              </TouchableOpacity>
+            </View>
+
+            {!!aiWorkout && (
+              <View style={[styles.aiResult, { backgroundColor: COLORS.gray100, borderRadius: 12, marginTop: 12 }]}>
+                <Caption secondary style={{ marginBottom: 6, fontWeight: '800' }}>TODAY'S WORKOUT IDEA</Caption>
+                <Body style={{ fontSize: 13, lineHeight: 20 }}>{aiWorkout}</Body>
+              </View>
+            )}
+
+            {!!aiRecovery && (
+              <View style={[styles.aiResult, { backgroundColor: COLORS.gray100, borderRadius: 12, marginTop: 12 }]}>
+                <Caption secondary style={{ marginBottom: 6, fontWeight: '800' }}>RECOVERY PLAN</Caption>
+                <Body style={{ fontSize: 13, lineHeight: 20 }}>{aiRecovery}</Body>
+              </View>
+            )}
+          </Card>
+        )}
+
         <View style={styles.section}>
           <Caption secondary style={styles.sectionLabel}>WORKOUT HISTORY</Caption>
           {workouts.length > 0 ? (
@@ -329,25 +394,6 @@ export default function TrainingScreen() {
             </Card>
 
             <Card>
-              <H3 style={{ marginBottom: 4 }}>AI Suggestions</H3>
-              <Caption secondary style={{ marginBottom: 16 }}>Personalized training advice on demand.</Caption>
-              <View style={styles.aiButtonRow}>
-                <TouchableOpacity style={[styles.outlinedBtn, { borderColor: COLORS.primary }, aiWLoading && { opacity: 0.6 }]} onPress={generateAiWorkout} disabled={aiWLoading}>
-                  <Caption style={{ fontWeight: '800' }}>{aiWLoading ? 'Thinking…' : "Workout Idea"}</Caption>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.outlinedBtn, { borderColor: COLORS.primary }, aiRLoading && { opacity: 0.6 }]} onPress={generateAiRecovery} disabled={aiRLoading}>
-                  <Caption style={{ fontWeight: '800' }}>{aiRLoading ? 'Thinking…' : 'Recovery Plan'}</Caption>
-                </TouchableOpacity>
-              </View>
-              {!!aiWorkout && (
-                <View style={[styles.aiResult, { backgroundColor: COLORS.gray100, borderRadius: 12 }]}>
-                  <Caption secondary style={{ marginBottom: 6 }}>Today's Workout</Caption>
-                  <Body style={{ fontSize: 13, lineHeight: 20 }}>{aiWorkout}</Body>
-                </View>
-              )}
-            </Card>
-
-            <Card>
               <View style={styles.cardHeader}>
                 <H3>Weekly Hypertrophy</H3>
                 <View style={[styles.targetBadge, { backgroundColor: COLORS.gray100 }]}>
@@ -382,8 +428,8 @@ const styles = StyleSheet.create({
   content: { padding: 16 },
   centered:{ flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  statGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 16 },
-  statCard: { width: '48%', marginBottom: 12 },
+  statGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
+  statCard: { width: '48.5%', marginBottom: 12 },
 
   startBtn:     { borderRadius: 16, paddingVertical: 16, alignItems: 'center', marginBottom: 24 },
   section:      { marginBottom: 24 },
@@ -408,6 +454,9 @@ const styles = StyleSheet.create({
   compRow:       { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   overtrain:     { marginTop: 16, padding: 12, borderRadius: 12, borderWidth: 1 },
   stagnationItem:   { padding: 12, borderRadius: 12, borderLeftWidth: 4, marginBottom: 10 },
+
+  coachCard: { marginBottom: 24, padding: 16 },
+  aiBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
 
   advancedToggle:     { borderWidth: 1, borderRadius: 16, padding: 14, alignItems: 'center', marginBottom: 20 },
   insightRow: { paddingVertical: 12, borderBottomWidth: 1 },

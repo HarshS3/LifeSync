@@ -37,7 +37,7 @@ const HistoryTab = ({
                   {workout.name || 'Workout'}
                 </Typography>
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  {new Date(workout.date).toLocaleDateString('en-US', {
+                  {new Date(workout.date).toLocaleDateString('en-IN', {
                     weekday: 'long',
                     month: 'long',
                     day: 'numeric'

@@ -178,10 +178,13 @@ export default function WeightTrackerScreen() {
           <View style={styles.historyList}>
             {history.map((log, idx) => {
               const d = new Date(log.date);
+              const displayDate = isNaN(d.getTime()) || log.date.length <= 10
+                ? new Date(log.date.split('T')[0] + 'T12:00:00')
+                : d;
               return (
                 <View key={idx} style={styles.historyItem}>
                   <Text style={styles.historyDate}>
-                    {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {displayDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </Text>
                   <Text style={styles.historyWeight}>{log.weightKg} kg</Text>
                 </View>

@@ -321,7 +321,7 @@ function SymptomsPanel() {
                         {log.symptomName}
                       </Typography>
                       <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        {log.date ? new Date(log.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'}
+                        {log.date ? new Date(log.date).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'}
                       </Typography>
                     </Box>
 

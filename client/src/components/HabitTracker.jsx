@@ -300,7 +300,7 @@ function HabitTracker() {
       >
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            {isToday ? "Today's Progress" : `Progress for ${selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+            {isToday ? "Today's Progress" : `Progress for ${selectedDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}`}
           </Typography>
           <Chip
             icon={<LocalFireDepartmentIcon sx={{ fontSize: 16 }} />}
@@ -378,7 +378,7 @@ function HabitTracker() {
             </IconButton>
             <Box sx={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => setSelectedDate(new Date())}>
               <Typography variant="body1" sx={{ fontWeight: 700 }}>
-                {isToday ? 'Today' : selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                {isToday ? 'Today' : selectedDate.toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' })}
               </Typography>
               {!isToday && (
                 <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
@@ -608,9 +608,9 @@ function HabitTracker() {
             </IconButton>
             <Box sx={{ textAlign: 'center' }}>
               <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                {new Date(weekData.weekStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {new Date(weekData.weekStart).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
                 {' - '}
-                {new Date(new Date(weekData.weekEnd).setDate(new Date(weekData.weekEnd).getDate() - 1)).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {new Date(new Date(weekData.weekEnd).setDate(new Date(weekData.weekEnd).getDate() - 1)).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 {weekData.stats.completionRate}% completion rate

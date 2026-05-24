@@ -110,6 +110,8 @@ function GymTracker() {
   const [aiWorkoutSuggestionLoading, setAiWorkoutSuggestionLoading] = useState(false)
   const [aiRecoverySuggestion, setAiRecoverySuggestion] = useState('')
   const [aiRecoverySuggestionLoading, setAiRecoverySuggestionLoading] = useState(false)
+  const [aiCoachTip, setAiCoachTip] = useState('')
+  const [aiCoachTipLoading, setAiCoachTipLoading] = useState(false)
 
   // Steps (daily)
   const [stepsDate, setStepsDate] = useState(() => new Date().toISOString().slice(0, 10))
@@ -229,7 +231,7 @@ function GymTracker() {
         }))
 
         data.push({
-          date: new Date(w.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          date: new Date(w.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
           weight: maxWeight,
           oneRepMax: Math.round(est1RM),
           workoutName: w.name
@@ -340,7 +342,7 @@ function GymTracker() {
 
   const volumeChartData = useMemo(() => {
     return workouts.slice().reverse().map(w => ({
-      date: new Date(w.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      date: new Date(w.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
       volume: w.exercises?.reduce((sum, ex) => sum + (ex.sets?.reduce((s, set) => s + (set.reps * set.weight), 0) || 0), 0) || 0,
       duration: w.duration || 0
     }))
@@ -370,111 +372,49 @@ function GymTracker() {
 
   const generateAiWorkoutSuggestion = useCallback(async () => {
     if (!token) return
-
     setAiWorkoutSuggestionLoading(true)
     try {
-      const recent = buildRecentWorkoutsSummary()
-      const heatTop = Object.entries(muscleHeatmap?.normalized || {})
-        .filter(([, v]) => typeof v === 'number' && Number.isFinite(v))
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 6)
-        .map(([k, v]) => `${k}: ${(v * 100).toFixed(0)}%`)
-        .join(', ')
-
-      const insightTitles = (trainingInsights || []).slice(0, 6).map((i) => i?.title).filter(Boolean).join(' | ')
-
-      const message = [
-        'Suggest a workout plan for today based on my recent workouts.',
-        'I am explicitly asking for suggestions.',
-        '',
-        'Recent workouts (most recent first):',
-        recent || '- (none logged)',
-        '',
-        heatTop ? `Muscle heatmap (30d, top): ${heatTop}` : null,
-        insightTitles ? `Deterministic training insights: ${insightTitles}` : null,
-        '',
-        'Return 2 options:',
-        'A) Training day (45–60 min) with exercise list + sets x reps + RPE guidance',
-        'B) Recovery day (20–30 min) with mobility + easy cardio suggestions',
-        '',
-        'Constraints:',
-        '- No diagnosis, no medical advice, no supplements.',
-        '- Keep it concise and practical.',
-        '- Use neutral language; everything is optional.',
-      ].filter(Boolean).join('\n')
-
-      const res = await fetch(`${API_BASE}/api/ai/chat`, {
+      const res = await fetch(`${API_BASE}/api/gym/ai-suggestion`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ type: 'workout' }),
       })
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '')
-        throw new Error(text || `AI request failed (${res.status})`)
+      if (res.ok) {
+        const data = await res.json()
+        setAiWorkoutSuggestion(data.suggestion || '')
       }
-
-      const json = await safeReadJson(res)
-      setAiWorkoutSuggestion(String(json?.reply || json?.message || 'No AI reply returned.'))
     } catch (e) {
-      alert(e?.message || 'Failed to generate a workout suggestion.')
+      toast.error('Failed to generate workout suggestion')
     } finally {
       setAiWorkoutSuggestionLoading(false)
     }
-  }, [API_BASE, token, buildRecentWorkoutsSummary, muscleHeatmap, trainingInsights])
+  }, [API_BASE, token])
 
   const generateAiRecoverySuggestion = useCallback(async () => {
     if (!token) return
-
     setAiRecoverySuggestionLoading(true)
     try {
-      const recent = buildRecentWorkoutsSummary()
-      const insightTitles = (trainingInsights || []).slice(0, 8).map((i) => `${i?.title}: ${i?.detail}`).filter(Boolean).join('\n')
-
-      const message = [
-        'Based on my recent training, suggest a gentle recovery plan and whether I should adjust my workout plan this week.',
-        'I am explicitly asking for guidance; keep it optional and non-medical.',
-        '',
-        'Recent workouts (most recent first):',
-        recent || '- (none logged)',
-        '',
-        insightTitles ? `Signals (deterministic):\n${insightTitles}` : null,
-        '',
-        'Return:',
-        '1) Recovery suggestion for today (sleep, hydration, light activity, mobility) in 5 bullets max',
-        '2) A plan adjustment recommendation for the next 3 workouts (e.g., keep as-is / deload / swap muscle groups) with rationale',
-        '',
-        'Constraints:',
-        '- No diagnosis, no medical advice.',
-        '- Don\'t shame or moralize.',
-        '- Prefer fewer, higher-confidence suggestions.',
-      ].filter(Boolean).join('\n')
-
-      const res = await fetch(`${API_BASE}/api/ai/chat`, {
+      const res = await fetch(`${API_BASE}/api/gym/ai-suggestion`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ type: 'recovery' }),
       })
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '')
-        throw new Error(text || `AI request failed (${res.status})`)
+      if (res.ok) {
+        const data = await res.json()
+        setAiRecoverySuggestion(data.suggestion || '')
       }
-
-      const json = await safeReadJson(res)
-      setAiRecoverySuggestion(String(json?.reply || json?.message || 'No AI reply returned.'))
     } catch (e) {
-      alert(e?.message || 'Failed to generate a recovery suggestion.')
+      toast.error('Failed to generate recovery suggestion')
     } finally {
       setAiRecoverySuggestionLoading(false)
     }
-  }, [API_BASE, token, buildRecentWorkoutsSummary, trainingInsights])
+  }, [API_BASE, token])
 
   const buildStepsChart = ({ start, end, days, series }) => {
     const byDay = new Map()
@@ -670,6 +610,8 @@ function GymTracker() {
         setTemplates(data.templates || [])
         setWorkouts(data.recentWorkouts || [])
         setStats(data.stats || {})
+
+        fetchCoachTip()
       }
     } catch (err) {
       console.error('Failed to load gym summary:', err)
@@ -678,6 +620,26 @@ function GymTracker() {
       setReadinessLoading(false)
       setCorrelationLoading(false)
     }
+  }
+
+  const fetchCoachTip = async () => {
+    if (!token) return
+    setAiCoachTipLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/gym/ai-suggestion`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ type: 'proactive' }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setAiCoachTip(data.suggestion || '')
+      }
+    } catch (e) { console.error('Coach tip error', e) }
+    setAiCoachTipLoading(false)
   }
 
   const loadWorkouts = async () => {
@@ -1257,6 +1219,8 @@ function GymTracker() {
             setAnalysisChartMode={setAnalysisChartMode}
             exerciseProgressionData={exerciseProgressionData}
             trainingInsights={trainingInsights}
+            aiCoachTip={aiCoachTip}
+            aiCoachTipLoading={aiCoachTipLoading}
             generateAiWorkoutSuggestion={generateAiWorkoutSuggestion}
             aiWorkoutSuggestionLoading={aiWorkoutSuggestionLoading}
             aiWorkoutSuggestion={aiWorkoutSuggestion}

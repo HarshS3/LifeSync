@@ -1,6 +1,8 @@
 const DailyLifeState = require('../../models/DailyLifeState');
 const PatternMemory = require('../../models/PatternMemory');
 const IdentityMemory = require('../../models/IdentityMemory');
+const Workout = require('../../models/Workout');
+const { NutritionLog, WeightLog } = require('../../models/Logs');
 
 function isValidMonth(month) {
   return /^\d{4}-\d{2}$/.test(String(month || '').trim());
@@ -25,7 +27,7 @@ function monthRangeDayKeys(month) {
   if (!isValidMonth(month)) return null;
   const [yy, mm] = month.split('-').map((x) => Number(x));
   const start = `${month}-01`;
-  const lastDay = new Date(yy, mm, 0).getDate(); // mm is 1-based; Date month is 0-based so mm gives next month
+  const lastDay = new Date(yy, mm, 0).getDate(); 
   const end = `${month}-${String(lastDay).padStart(2, '0')}`;
   return { startDayKey: start, endDayKey: end };
 }
@@ -41,7 +43,6 @@ function pickSignal(dls, key) {
 }
 
 function buildCsvRow(values) {
-  // Basic CSV escaping
   return values
     .map((v) => {
       const s = v == null ? '' : String(v);
@@ -113,14 +114,42 @@ async function generateMonthlyReport({ userId, month }) {
   }
 
   const { startDayKey, endDayKey } = range;
+  const startDt = new Date(`${startDayKey}T00:00:00`);
+  const endDt = new Date(`${endDayKey}T23:59:59`);
 
-  const [states, patterns, identities] = await Promise.all([
+  const [states, patterns, identities, workouts, nutrition, weights] = await Promise.all([
     DailyLifeState.find({ user: userId, dayKey: { $gte: startDayKey, $lte: endDayKey } })
       .sort({ dayKey: 1 })
       .lean(),
     PatternMemory.find({ user: userId, status: 'active' }).sort({ confidence: -1 }).limit(10).lean(),
     IdentityMemory.find({ user: userId, status: 'active' }).sort({ confidence: -1 }).limit(10).lean(),
+    Workout.find({ user: userId, date: { $gte: startDt, $lte: endDt } }).lean(),
+    NutritionLog.find({ user: userId, date: { $gte: startDt, $lte: endDt } }).lean(),
+    WeightLog.find({ user: userId, date: { $gte: startDt, $lte: endDt } }).lean(),
   ]);
+
+  // 1. Calculate Summary (Frontend Expectations)
+  const totalVolume = workouts.reduce((acc, w) => {
+    return acc + (w.exercises || []).reduce((acc2, ex) => {
+      return acc2 + (ex.sets || []).reduce((acc3, s) => acc3 + (s.weight || 0) * (s.reps || 0), 0);
+    }, 0);
+  }, 0);
+
+  const avgCalories = nutrition.length > 0 
+    ? nutrition.reduce((acc, n) => acc + (n.dailyTotals?.calories || 0), 0) / nutrition.length 
+    : 0;
+  
+  const avgProtein = nutrition.length > 0 
+    ? nutrition.reduce((acc, n) => acc + (n.dailyTotals?.protein || 0), 0) / nutrition.length 
+    : 0;
+
+  const avgSleep = states.length > 0
+    ? states.reduce((acc, s) => acc + (s.signals?.sleep?.raw?.sleepHours || 0), 0) / states.length
+    : 0;
+
+  const avgWeight = weights.length > 0
+    ? weights.reduce((acc, w) => acc + (w.weightKg || 0), 0) / weights.length
+    : 0;
 
   const days = (states || []).map((dls) => {
     const sleep = pickSignal(dls, 'sleep');
@@ -171,6 +200,14 @@ async function generateMonthlyReport({ userId, month }) {
   return {
     month: monthKey,
     range: { startDayKey, endDayKey },
+    summary: {
+      totalWorkouts: workouts.length,
+      totalVolume,
+      avgCalories,
+      avgProtein,
+      avgSleep,
+      avgWeight
+    },
     totals: {
       daysWithState: days.length,
       summaryLabels: labelCounts,

@@ -867,9 +867,9 @@ router.post('/chat', async (req, res) => {
       const needsWork = sortedByStreak.slice(-3).filter(h => h.streak === 0);
       
       // Get today's habit status
-      const todayStr = today.toISOString().split('T')[0];
+      const todayStr = today.toLocaleDateString('en-CA');
       const todayLogs = habitLogs.filter(l => 
-        new Date(l.date).toISOString().split('T')[0] === todayStr
+        new Date(l.date).toLocaleDateString('en-CA') === todayStr
       );
       const completedToday = todayLogs.filter(l => l.completed).length;
       

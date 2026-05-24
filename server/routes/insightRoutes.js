@@ -23,7 +23,7 @@ const auth = require('../middleware/authMiddleware');
 // GET /api/insights/daily?date=YYYY-MM-DD (or ISO) [&refresh=1]
 router.get('/daily', auth, async (req, res) => {
   try {
-    const date = req.query.date || new Date().toISOString();
+    const date = req.query.date || new Date().toLocaleDateString('en-CA');
     const start = new Date(date);
     if (Number.isNaN(start.getTime())) {
       return res.status(400).json({ error: 'Invalid date' });
@@ -68,7 +68,7 @@ router.get('/daily', auth, async (req, res) => {
 // POST /api/insights/daily/recompute { date }
 router.post('/daily/recompute', auth, async (req, res) => {
   try {
-    const date = req.body?.date || new Date().toISOString();
+    const date = req.body?.date || new Date().toLocaleDateString('en-CA');
     const start = new Date(date);
     if (Number.isNaN(start.getTime())) {
       return res.status(400).json({ error: 'Invalid date' });

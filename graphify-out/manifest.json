@@ -56,44 +56,40 @@
     "hash": "a3b6a91ec89c21726e356a3b324ab45b"
   },
   "D:\\Projects\\LifeSync\\App\\app\\(auth)\\login.js": {
-    "mtime": 1778858140.0027363,
-    "hash": "e3de730c00c155d084e1c564b1a35f5f"
+    "mtime": 1779559941.0976093,
+    "hash": "8554d238a6a655fb02d7901fc6f9f32d"
   },
   "D:\\Projects\\LifeSync\\App\\app\\(tabs)\\calendar.js": {
-    "mtime": 1778843644.2544134,
-    "hash": "e98e3dcc7330bf086f9295b4d95ef08a"
+    "mtime": 1779611640.793359,
+    "hash": "a7fa27078b929745759f8efc1ea9db7d"
   },
   "D:\\Projects\\LifeSync\\App\\app\\(tabs)\\chat.js": {
-    "mtime": 1778843375.2020216,
-    "hash": "3e4caffcd7c73554a1c6013b0ea5f5a0"
+    "mtime": 1779603263.4319797,
+    "hash": "26e2f36444715f1933ca4c515dc340a2"
   },
   "D:\\Projects\\LifeSync\\App\\app\\(tabs)\\index.js": {
-    "mtime": 1778843788.3895428,
-    "hash": "ba1b3b4d259feacacaf5f4ac79c18438"
+    "mtime": 1779611635.3678074,
+    "hash": "62f4b2c7d54ca7a63c5504cb65d0ae33"
   },
   "D:\\Projects\\LifeSync\\App\\app\\(tabs)\\insights.js": {
-    "mtime": 1778843685.5489132,
-    "hash": "aa998b12ab95e82ecf94f738606d768a"
+    "mtime": 1779478578.5935695,
+    "hash": "15c49c0a09712d51dec44385c4ddd3ed"
   },
   "D:\\Projects\\LifeSync\\App\\app\\(tabs)\\nutrition.js": {
-    "mtime": 1778851091.257209,
-    "hash": "811a40ef69f23365b3719fc1091f0885"
+    "mtime": 1779611655.2456217,
+    "hash": "786fe89c1960a35157cd54f630ab7429"
   },
   "D:\\Projects\\LifeSync\\App\\app\\(tabs)\\profile.js": {
-    "mtime": 1778857336.3408654,
-    "hash": "c7db9004de432f1259fc4f5a2a2995ec"
+    "mtime": 1779602507.4070063,
+    "hash": "1f33a5b074ad2ca1f486ae0a2b7215af"
   },
   "D:\\Projects\\LifeSync\\App\\app\\(tabs)\\training.js": {
-    "mtime": 1778845570.4054,
-    "hash": "681dcf78fa8d25fccfb283b41eb548e3"
-  },
-  "D:\\Projects\\LifeSync\\App\\app\\(tabs)\\workout-calendar.js": {
-    "mtime": 1778845945.32106,
-    "hash": "3d340d36c94a465fa9a179b0fff211dd"
+    "mtime": 1779607616.7200263,
+    "hash": "16fb7bb8b16dce19d0e3df651fd0a18f"
   },
   "D:\\Projects\\LifeSync\\App\\app\\(tabs)\\_layout.js": {
-    "mtime": 1778856991.3535905,
-    "hash": "193b259390c8735f534e807ffb72ed4a"
+    "mtime": 1779433705.9988692,
+    "hash": "cc88ca3ae15c54d72b80a991dff14125"
   },
   "D:\\Projects\\LifeSync\\App\\app\\nutrition\\details.js": {
     "mtime": 1778215010.3044262,
@@ -128,40 +124,48 @@
     "hash": "6bbbdc09074fe3ba6cd3fcf857fbb746"
   },
   "D:\\Projects\\LifeSync\\App\\app\\profile\\edit.js": {
-    "mtime": 1779422639.8620775,
-    "hash": "06b4840b19476f8a34b489d7410c0ed4"
+    "mtime": 1779602565.4558332,
+    "hash": "540b7fa5e2c12605e202895d64e69b41"
   },
   "D:\\Projects\\LifeSync\\App\\app\\profile\\settings.js": {
-    "mtime": 1778857856.3434875,
-    "hash": "940fdfbe4bfbb5f2286f93549833326f"
+    "mtime": 1779435689.765209,
+    "hash": "b0e8c18a24909f5b81daf436e3aaa4fc"
   },
   "D:\\Projects\\LifeSync\\App\\app\\training\\active.js": {
-    "mtime": 1778844535.105705,
-    "hash": "32b70f1876b54471e0c564e148de5e94"
+    "mtime": 1779611275.3903484,
+    "hash": "659b68cee8bcb8727563c8ddc6f66176"
   },
   "D:\\Projects\\LifeSync\\App\\app\\training\\heatmap.js": {
-    "mtime": 1779426298.0161517,
-    "hash": "8b2a9d695d6e84d928028c72a30402da"
+    "mtime": 1779428462.6062078,
+    "hash": "0c3b7e9cb372c8466ad0d1c11d451381"
   },
   "D:\\Projects\\LifeSync\\App\\app\\training\\progression.js": {
-    "mtime": 1778843911.8313332,
-    "hash": "adf8095509dbc3c5a87b16facb19af37"
+    "mtime": 1779515185.3420317,
+    "hash": "35085b181a6d43f1db2cd1937ecc87d2"
   },
   "D:\\Projects\\LifeSync\\App\\app\\training\\steps.js": {
     "mtime": 1778843935.2649648,
     "hash": "abc7e65c3ac21cd47bc267d7b1fe91a5"
   },
+  "D:\\Projects\\LifeSync\\App\\app\\training\\workout-calendar.js": {
+    "mtime": 1779611662.0699043,
+    "hash": "950d4d64725cc12ff26f994b963a4d9f"
+  },
   "D:\\Projects\\LifeSync\\App\\app\\training\\[id].js": {
-    "mtime": 1778856444.6409338,
-    "hash": "6ea5d748fd3a1cfbe87dcbf548bf4221"
+    "mtime": 1779604593.165902,
+    "hash": "801779ed19304917e0f3ae1e5054c867"
+  },
+  "D:\\Projects\\LifeSync\\App\\app\\training\\exercise\\[name].js": {
+    "mtime": 1779607556.978579,
+    "hash": "c20aa42139b5b278bac75d62504c0dac"
   },
   "D:\\Projects\\LifeSync\\App\\app\\wellness\\labs.js": {
-    "mtime": 1778171190.032147,
-    "hash": "bad57167944b1b6c9c920007bfcfdcd9"
+    "mtime": 1779604280.2961595,
+    "hash": "6b44f1a916a50c947f6d4ce28ea52be4"
   },
   "D:\\Projects\\LifeSync\\App\\app\\wellness\\log.js": {
-    "mtime": 1778183065.6286259,
-    "hash": "cd8e90420589e28d9fc137ded51e29f4"
+    "mtime": 1779604315.0324984,
+    "hash": "8be75ad5fdb55e3b342ed7c462b6e026"
   },
   "D:\\Projects\\LifeSync\\App\\app\\wellness\\symptoms.js": {
     "mtime": 1778843223.2356253,
@@ -192,16 +196,16 @@
     "hash": "5bf594e7b66e687054ba2456d9e01711"
   },
   "D:\\Projects\\LifeSync\\App\\components\\Nutrition\\LogMealTab.js": {
-    "mtime": 1779391070.220404,
-    "hash": "397fd525fd21d1ad31f643e22198115d"
+    "mtime": 1779515106.7095428,
+    "hash": "bb0aeb8e7e315710980259fa54ce8cd4"
   },
   "D:\\Projects\\LifeSync\\App\\components\\Nutrition\\TodayTab.js": {
-    "mtime": 1778857828.277969,
-    "hash": "2d31d8309f9d56bda8418eacc8185de6"
+    "mtime": 1779478849.6943142,
+    "hash": "1519e14f96b2678b0538e70c81a294cc"
   },
   "D:\\Projects\\LifeSync\\App\\components\\Nutrition\\WeightTab.js": {
-    "mtime": 1778851103.5078082,
-    "hash": "2060057bd66d15354b311849bcba5426"
+    "mtime": 1779560879.774347,
+    "hash": "5f7659a43432af1b2dfad7cd5fb593a1"
   },
   "D:\\Projects\\LifeSync\\App\\components\\ui\\Card.js": {
     "mtime": 1778844068.9571414,
@@ -216,16 +220,20 @@
     "hash": "2708b14e0c4a6bce15b2c77239bf21a6"
   },
   "D:\\Projects\\LifeSync\\App\\components\\ui\\ScreenWrapper.js": {
-    "mtime": 1778851061.6394203,
-    "hash": "9285a2f8bcd788cfd01f383da14367b4"
+    "mtime": 1779450032.269344,
+    "hash": "07336f4e8cd61ffbca4621052a42dce5"
   },
   "D:\\Projects\\LifeSync\\App\\components\\ui\\Typography.js": {
     "mtime": 1778849223.9813695,
     "hash": "7474288bf3c806c4b7fcec497c7fc103"
   },
+  "D:\\Projects\\LifeSync\\App\\constants\\ExerciseLibrary.js": {
+    "mtime": 1779477602.461473,
+    "hash": "4535afc7f10a60c8d410c492e5060d38"
+  },
   "D:\\Projects\\LifeSync\\App\\constants\\Theme.js": {
-    "mtime": 1778856934.352681,
-    "hash": "4243fa530c04c0667dcf4c5a795b8279"
+    "mtime": 1779604204.1435702,
+    "hash": "1746e6e36d83f68dcd4902bdd50e352c"
   },
   "D:\\Projects\\LifeSync\\App\\context\\AuthContext.js": {
     "mtime": 1778684536.7449236,
@@ -240,8 +248,8 @@
     "hash": "73ca1b8a3f9ae9d439483fb9cf4e8552"
   },
   "D:\\Projects\\LifeSync\\App\\services\\api.js": {
-    "mtime": 1778304565.6585937,
-    "hash": "5cb516bdbb6cfad950b1ba4f73276138"
+    "mtime": 1779559925.2571054,
+    "hash": "7aec1a6023f06d5b2a571b873a0a6465"
   },
   "D:\\Projects\\LifeSync\\App\\services\\widgets.js": {
     "mtime": 1778388063.1374342,
@@ -272,8 +280,8 @@
     "hash": "61f6825f401c78685aef722b0d715643"
   },
   "D:\\Projects\\LifeSync\\client\\src\\App.jsx": {
-    "mtime": 1778386702.7233348,
-    "hash": "f6c32e5ae8a5218ea7ea1b027bc59f54"
+    "mtime": 1779611814.818711,
+    "hash": "d85dc42fe8d3d9b64dd944143604ddf7"
   },
   "D:\\Projects\\LifeSync\\client\\src\\config.js": {
     "mtime": 1766330151.4734738,
@@ -288,16 +296,16 @@
     "hash": "473c51fc21b4b915307b39c5c8b0ef10"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Calendar.jsx": {
-    "mtime": 1778049270.9549327,
-    "hash": "1096df17734c381f5b338341e4282619"
+    "mtime": 1779611814.818711,
+    "hash": "fef871236e4483e9de6f5dd0067ac38f"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\ChatExperience.jsx": {
-    "mtime": 1777623812.419571,
-    "hash": "6f9c2db173ae9aec72fe1e89c45b4fa5"
+    "mtime": 1779602277.0060153,
+    "hash": "2a074040a52403d3c311b898a55caf8e"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\ChatPanel.jsx": {
-    "mtime": 1778386731.403699,
-    "hash": "7db514227f5af5c529547954786308b1"
+    "mtime": 1779603170.6266425,
+    "hash": "f661206724db7d1a439443ea2466dd6d"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\ChipListInput.jsx": {
     "mtime": 1777623812.426761,
@@ -308,12 +316,12 @@
     "hash": "75c605f80c1ca61d4d020ae3575585e0"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Dashboard.jsx": {
-    "mtime": 1778386013.217352,
-    "hash": "6ef65bb9907bddf73eb988128abfc617"
+    "mtime": 1779611794.6132214,
+    "hash": "228b8385ec9b7d8d10a4babe6a7f335b"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\ExerciseHistoryPage.jsx": {
-    "mtime": 1778079751.641048,
-    "hash": "af5537ea919ad7099b5e8add2c7522f0"
+    "mtime": 1779611794.6132214,
+    "hash": "704a0ba8785f20d7736beeb876550d87"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\ExpandableSection.jsx": {
     "mtime": 1777623812.4367242,
@@ -324,8 +332,8 @@
     "hash": "d3c3b7ef155c045710212c36058d50f0"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\GlobalCalendar.jsx": {
-    "mtime": 1778129699.2042193,
-    "hash": "1734e7857c72d5c34c9d795e45b1a419"
+    "mtime": 1779611794.6132214,
+    "hash": "66166b3e6c3943f11790055a940171ed"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\GlowingEffectDemo.jsx": {
     "mtime": 1766679596.4070604,
@@ -340,12 +348,12 @@
     "hash": "bb703b7b2d2f009e1d21113458297ff2"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\GymTracker.jsx": {
-    "mtime": 1779212443.6605306,
-    "hash": "74017c2b4fbf1ad870d0943eabc3af90"
+    "mtime": 1779611822.2353177,
+    "hash": "0a34aab4bfadc274570ede100e2a5e2f"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\HabitTracker.jsx": {
-    "mtime": 1778129475.7455668,
-    "hash": "a5ccdefcc6b56e7c476b4a5057f0d1ca"
+    "mtime": 1779611822.2376592,
+    "hash": "54e3b253e10bc0afe10db6c287dd05f8"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\JournalPanel.jsx": {
     "mtime": 1777623812.4703124,
@@ -356,8 +364,8 @@
     "hash": "a3221b97bcbec1c03bfc71731d171688"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\LabsPanel.jsx": {
-    "mtime": 1777719952.7356637,
-    "hash": "5b7a1443fe196d818774bae64aa379d3"
+    "mtime": 1779611822.2401562,
+    "hash": "26b00182e962e96a72d8c4b16ec23050"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\LastSetsReference.jsx": {
     "mtime": 1777555324.0570722,
@@ -368,8 +376,8 @@
     "hash": "bc3ddef9acc0b8de5ce7bbaaeecd608e"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\LifeTimelinePanel.jsx": {
-    "mtime": 1777623812.473825,
-    "hash": "11d1b40605a21b45a48454f93703337d"
+    "mtime": 1779611829.591944,
+    "hash": "64dbbdcefd0064cf545f430765da9228"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\LongTermGoalsTab.jsx": {
     "mtime": 1777623812.475844,
@@ -388,12 +396,12 @@
     "hash": "2b5ea0ff07dabb522b163430549eeac9"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\NutritionInsights.jsx": {
-    "mtime": 1777880128.4330165,
-    "hash": "670781c9a2ac346c7cfbcbc7eb54d555"
+    "mtime": 1779611829.591944,
+    "hash": "18b3c1f5a6b5db32bab1e2a0997ac84f"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\NutritionTracker.jsx": {
-    "mtime": 1778089724.1947584,
-    "hash": "ecc0f0fddd0614d6951fdd4170759331"
+    "mtime": 1779611829.677544,
+    "hash": "e4ab7e1c6857f48adf759ebb10c2a5ff"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Onboarding.jsx": {
     "mtime": 1777623812.4950826,
@@ -412,8 +420,8 @@
     "hash": "f91dbbab4ee48d9a9b0efb472bd8eff5"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\ProfilePanel.jsx": {
-    "mtime": 1778782417.684458,
-    "hash": "dd715c01766e697d06600f7b2f6019f7"
+    "mtime": 1779611829.591944,
+    "hash": "fbf8cd488c736185680ca7af717c42b6"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\ProgressNarrative.jsx": {
     "mtime": 1778129668.4975927,
@@ -452,24 +460,24 @@
     "hash": "60c0c328a65322049269155a3b31a160"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\SymptomsPanel.jsx": {
-    "mtime": 1777623812.5224135,
-    "hash": "0bde2ed53bf059243be23d1a5b6bcf2d"
+    "mtime": 1779611840.1821122,
+    "hash": "3f8fee9d34de461b4d4e835bfd137bed"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\TrendsPanel.jsx": {
-    "mtime": 1777719979.9421206,
-    "hash": "1a813882fb6be0e10f5fa90ae628e167"
+    "mtime": 1779432292.6171563,
+    "hash": "d9a877a3683aea708e444d6940ef918f"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\VoiceNutritionConfirm.jsx": {
     "mtime": 1777623812.5303864,
     "hash": "593d97e4b6e939ee9242af4fd15585c6"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\WeeklyReview.jsx": {
-    "mtime": 1777623812.5314548,
-    "hash": "bbdf45c69c766448a6b72fad462d2f29"
+    "mtime": 1779611840.1821122,
+    "hash": "43929bf4856b63657847e226cc95f91e"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\WeightTracker.jsx": {
-    "mtime": 1778044978.5694642,
-    "hash": "9c5128a80438ef2936cbea1e7d7c23b0"
+    "mtime": 1779611840.1821122,
+    "hash": "0729b54e980e90ee057d954680355ffb"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Gym\\ActiveWorkoutSession.jsx": {
     "mtime": 1777623812.4483693,
@@ -488,24 +496,24 @@
     "hash": "5ae45c73b6e02aa5f3e24f02c4f93f29"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Gym\\GymHistoryTab.jsx": {
-    "mtime": 1777623812.451965,
-    "hash": "fba80eb9fd81cb9a67b9c6e85373d743"
+    "mtime": 1779611814.8176942,
+    "hash": "a378c3bc5a897c8da34ce2f12cc47f6f"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Gym\\GymOverviewTab.jsx": {
-    "mtime": 1777623812.4529715,
-    "hash": "8d20df1c4e6a9ae12eb7d4d73bc92dee"
+    "mtime": 1779611814.8191307,
+    "hash": "cf9d5db49df2d3d89a3e8468709bf48d"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Gym\\GymStepsTab.jsx": {
     "mtime": 1777623812.4546404,
     "hash": "82d13093ad4463babbb6412f0609b727"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Gym\\HistoryTab.jsx": {
-    "mtime": 1778045284.566312,
-    "hash": "15129639645a5e062badcd5953ca948a"
+    "mtime": 1779611815.0002377,
+    "hash": "d7ceff495e44f4d807b38e5b58020fad"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Gym\\OverviewTab.jsx": {
-    "mtime": 1778353024.9350588,
-    "hash": "1a9787913136f9a915efc82cdceb6743"
+    "mtime": 1779611814.8191307,
+    "hash": "2e5f26e76d2fc1cedf38ed1812b5004f"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Gym\\ProgressionChart.jsx": {
     "mtime": 1777622767.4951594,
@@ -520,20 +528,20 @@
     "hash": "29ab03d61f9cd2f40a02489208d98e9b"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Gym\\StepsTab.jsx": {
-    "mtime": 1778355037.4562232,
-    "hash": "3419a2e3d597384a46d6e0c5357ce4d9"
+    "mtime": 1779611822.2353177,
+    "hash": "fe69eafc29fc24553e6b6f22f199fa5f"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Gym\\StepTracker.jsx": {
-    "mtime": 1777623812.458787,
-    "hash": "e550107a82fe055985752395538a90d7"
+    "mtime": 1779611814.8191307,
+    "hash": "1b74f12a4f85ad2e9bd9e89a54004c93"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Gym\\TrainingInsights.jsx": {
     "mtime": 1777623812.459802,
     "hash": "38ed43336b9cbcb81184b3e19d88e333"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Gym\\WorkoutDialogs.jsx": {
-    "mtime": 1778046543.3665006,
-    "hash": "054c1a20506976d0349f54d909285897"
+    "mtime": 1779611822.2353177,
+    "hash": "bf9006202cdb8de11a9c2d2926fa4eeb"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Nutrition\\ClinicalTargets.jsx": {
     "mtime": 1778085191.477323,
@@ -580,8 +588,8 @@
     "hash": "f00099d442d98dd4c7f7fbef17a5296f"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Profile\\BodyCompositionTab.jsx": {
-    "mtime": 1778780541.345142,
-    "hash": "a632dcbd08a70440944e5545f626e1ca"
+    "mtime": 1779611829.591944,
+    "hash": "89993d33c642fa17be7a0d58b79cfa9b"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Profile\\BodyStatsTab.jsx": {
     "mtime": 1777623812.5005617,
@@ -620,8 +628,8 @@
     "hash": "f93853c8c7a21a7fc4a911c48461ec5b"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Trends\\TrendsShared.jsx": {
-    "mtime": 1777623812.5263288,
-    "hash": "a7602aa9a5cd7b020e33df4a28737e35"
+    "mtime": 1779611840.137665,
+    "hash": "4f1b8c2d146673cfba8f92596050e8ff"
   },
   "D:\\Projects\\LifeSync\\client\\src\\components\\Trends\\WellnessTab.jsx": {
     "mtime": 1777623812.526843,
@@ -652,12 +660,12 @@
     "hash": "7179c8b9ce72fc897a4c346630001484"
   },
   "D:\\Projects\\LifeSync\\client\\src\\lib\\muscleHeatmap.js": {
-    "mtime": 1768568498.8726864,
-    "hash": "2c8ea49c5908fa75a905af77d5fccd41"
+    "mtime": 1779428535.638439,
+    "hash": "18a9dfaf35d25d31593c58896c7ebbd2"
   },
   "D:\\Projects\\LifeSync\\client\\src\\lib\\nutritionHelpers.js": {
-    "mtime": 1777913527.201335,
-    "hash": "a59c1ed9dedf18da525781e4dc663bed"
+    "mtime": 1779611840.137665,
+    "hash": "b71b89da741293a4c8f4f36bfaa0f139"
   },
   "D:\\Projects\\LifeSync\\client\\src\\lib\\profileHelpers.js": {
     "mtime": 1777463273.3755422,
@@ -760,8 +768,8 @@
     "hash": "ad02f3bfd6b80967aee96c4f45339897"
   },
   "D:\\Projects\\LifeSync\\server\\index.js": {
-    "mtime": 1778841063.3128953,
-    "hash": "6a50dc1c33e4dbcea90d99315d86a4ca"
+    "mtime": 1779611628.7404892,
+    "hash": "06c28205b80bd1a3c41902632753f865"
   },
   "D:\\Projects\\LifeSync\\server\\seed-disease-profiles.js": {
     "mtime": 1766592144.646012,
@@ -802,6 +810,10 @@
   "D:\\Projects\\LifeSync\\server\\test_search.js": {
     "mtime": 1777487051.6661255,
     "hash": "05c5ab43bfaf7b3adfd13503cc2dee79"
+  },
+  "D:\\Projects\\LifeSync\\server\\constants\\exerciseMetadata.js": {
+    "mtime": 1779594450.1347747,
+    "hash": "03762d03e7b6eb7c8913d3a67178c35e"
   },
   "D:\\Projects\\LifeSync\\server\\meal-pipeline\\pipeline.js": {
     "mtime": 1766590724.9459925,
@@ -975,17 +987,21 @@
     "mtime": 1778170918.704893,
     "hash": "5e1c45bd0b0df12b4a803eb0eff8c062"
   },
+  "D:\\Projects\\LifeSync\\server\\routes\\dashboardRoutes.js": {
+    "mtime": 1779433325.3686552,
+    "hash": "728ed5a96ae84d73f50a5e7678883ec5"
+  },
   "D:\\Projects\\LifeSync\\server\\routes\\goalRoutes.js": {
     "mtime": 1766330151.4799714,
     "hash": "920fbcb1be148f30790d91c139c060a0"
   },
   "D:\\Projects\\LifeSync\\server\\routes\\gymRoutes.js": {
-    "mtime": 1778817628.218031,
-    "hash": "9bc203da9ad666bd406ab85a51d6554c"
+    "mtime": 1779604627.646904,
+    "hash": "69484b6262eda5612ea012e5ccf55af1"
   },
   "D:\\Projects\\LifeSync\\server\\routes\\habitRoutes.js": {
-    "mtime": 1767123223.083191,
-    "hash": "d321c6ba2aed4c5aada1a2884696bbdf"
+    "mtime": 1779431871.7673075,
+    "hash": "f79a601c56e3d0b3865b865630934c43"
   },
   "D:\\Projects\\LifeSync\\server\\routes\\insightRoutes.js": {
     "mtime": 1777320566.3595,
@@ -1000,16 +1016,16 @@
     "hash": "944e42369a1477e2024e36678d0eb3bd"
   },
   "D:\\Projects\\LifeSync\\server\\routes\\logRoutes.js": {
-    "mtime": 1778048950.0422845,
-    "hash": "d5373cd59170c1573bacb1c51339adce"
+    "mtime": 1779439313.8172617,
+    "hash": "8aa3a21e7ca9fbeba29506bcb9c5c131"
   },
   "D:\\Projects\\LifeSync\\server\\routes\\longTermGoalRoutes.js": {
     "mtime": 1766330151.4885874,
     "hash": "f9f7b80918dc92dc54866dade77d1b2d"
   },
   "D:\\Projects\\LifeSync\\server\\routes\\nutritionRoutes.js": {
-    "mtime": 1779212494.099739,
-    "hash": "fc594fa795c4a715334dd2ae784bc3d0"
+    "mtime": 1779439122.4074037,
+    "hash": "5e5e0f3b753ac3e1e97a398106afb81c"
   },
   "D:\\Projects\\LifeSync\\server\\routes\\photoLogRoutes.js": {
     "mtime": 1777462910.4891565,
@@ -1219,6 +1235,10 @@
     "mtime": 1777320560.551351,
     "hash": "88abc7f994db258f39b93f41b47c80bd"
   },
+  "D:\\Projects\\LifeSync\\server\\services\\insights\\gymIntelligence.js": {
+    "mtime": 1779611046.3116717,
+    "hash": "5237b03b2d297d94999075fd79bf259d"
+  },
   "D:\\Projects\\LifeSync\\server\\services\\insights\\nutritionalToleranceEngine.js": {
     "mtime": 1777311361.568757,
     "hash": "e96e708121bb811df46e09642809232e"
@@ -1252,8 +1272,8 @@
     "hash": "5b4101409835c7be501f17ab46a73e7e"
   },
   "D:\\Projects\\LifeSync\\server\\services\\mealPipeline\\aggregator.js": {
-    "mtime": 1777965216.3673506,
-    "hash": "b1ab227496a97f4b8c89b986487789c5"
+    "mtime": 1779440047.085858,
+    "hash": "98511edbb2217649139a0e2d2f697902"
   },
   "D:\\Projects\\LifeSync\\server\\services\\mealPipeline\\mealObjectBuilder.js": {
     "mtime": 1766591362.821266,
@@ -1424,8 +1444,12 @@
     "hash": "ecb5b68f2735736fecf9d4b9d1b28684"
   },
   "D:\\Projects\\LifeSync\\GEMINI.md": {
-    "mtime": 1777881377.9010296,
-    "hash": "2ed67c68f28bc1ef95ac24167431d7e8"
+    "mtime": 1779609801.7640707,
+    "hash": "9e5ef2ba590380a06bed1daa729003b3"
+  },
+  "D:\\Projects\\LifeSync\\points.md": {
+    "mtime": 1779476535.0411084,
+    "hash": "fd7744c7050f33b614cc2aec2ac5eceb"
   },
   "D:\\Projects\\LifeSync\\README.md": {
     "mtime": 1767175602.442583,
@@ -1434,6 +1458,10 @@
   "D:\\Projects\\LifeSync\\symptom_lab_audit.md": {
     "mtime": 1778843435.6959743,
     "hash": "07c9dbd5d9a53476180652bac6d4f4f6"
+  },
+  "D:\\Projects\\LifeSync\\todo.md": {
+    "mtime": 1779478745.7912383,
+    "hash": "72c285aed9fa886782cd5b3d35ed9967"
   },
   "D:\\Projects\\LifeSync\\ai_service\\environment.yml": {
     "mtime": 1767015074.2697234,

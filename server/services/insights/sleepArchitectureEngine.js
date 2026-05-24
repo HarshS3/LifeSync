@@ -20,7 +20,7 @@ async function analyzeSleepArchitecture(userId) {
 
   // Map data by date string
   const dailyData = {};
-  const getDateStr = (d) => new Date(d).toISOString().split('T')[0];
+  const getDateStr = (d) => new Date(d).toLocaleDateString('en-CA');
 
   mentalLogs.forEach(m => {
     const d = getDateStr(m.date);

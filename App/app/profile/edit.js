@@ -348,7 +348,7 @@ export default function EditProfileScreen() {
                 <View style={styles.chipContainer}>
                   {profile.conditions.map((item, idx) => (
                     <View key={idx} style={[styles.chip, { backgroundColor: '#fee2e2' }]}>
-                      <Text style={styles.chipText}>{item}</Text>
+                      <Text style={styles.chipText}>{typeof item === 'object' ? item.name : item}</Text>
                       <TouchableOpacity onPress={() => removeChipItem('conditions', idx)}>
                         <X size={14} color="#ef4444" />
                       </TouchableOpacity>
@@ -376,7 +376,7 @@ export default function EditProfileScreen() {
                 <View style={styles.chipContainer}>
                   {profile.allergies.map((item, idx) => (
                     <View key={idx} style={[styles.chip, { backgroundColor: '#fee2e2' }]}>
-                      <Text style={styles.chipText}>{item}</Text>
+                      <Text style={styles.chipText}>{typeof item === 'object' ? item.name : item}</Text>
                       <TouchableOpacity onPress={() => removeChipItem('allergies', idx)}>
                         <X size={14} color="#ef4444" />
                       </TouchableOpacity>

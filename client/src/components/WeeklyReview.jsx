@@ -78,7 +78,7 @@ const WeeklyReview = ({ weekKey }) => {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis 
                         dataKey="date" 
-                        tickFormatter={(str) => new Date(str).toLocaleDateString('en-US', { weekday: 'short' })}
+                        tickFormatter={(str) => new Date(str).toLocaleDateString('en-IN', { weekday: 'short' })}
                         axisLine={false}
                         tickLine={false}
                         tick={{ fontSize: 12, fill: '#94a3b8' }}
@@ -150,7 +150,7 @@ const WeeklyReview = ({ weekKey }) => {
                 {bestDay ? (
                   <Box sx={{ mt: 1, p: 2, bgcolor: '#ecfdf5', borderRadius: 2, border: '1px solid #d1fae5' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant="body1" sx={{ fontWeight: 700 }}>{new Date(bestDay.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 700 }}>{new Date(bestDay.date).toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' })}</Typography>
                       <Chip label={`${bestDay.proteinPercent}% Protein Target`} size="small" sx={{ bgcolor: '#059669', color: 'background.paper', fontWeight: 700 }} />
                     </Box>
                     <Typography variant="body2" color="text.secondary">{bestDay.calories} kcal consumed · Balanced macros.</Typography>
@@ -163,7 +163,7 @@ const WeeklyReview = ({ weekKey }) => {
                 {worstDay ? (
                   <Box sx={{ mt: 1, p: 2, bgcolor: '#fef2f2', borderRadius: 2, border: '1px solid #fee2e2' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant="body1" sx={{ fontWeight: 700 }}>{new Date(worstDay.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 700 }}>{new Date(worstDay.date).toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' })}</Typography>
                       <Chip label={`${worstDay.proteinPercent}% Protein Target`} size="small" sx={{ bgcolor: '#dc2626', color: 'background.paper', fontWeight: 700 }} />
                     </Box>
                     <Typography variant="body2" color="text.secondary">{worstDay.explanation || "Missing protein targets led to potential catabolic stress."}</Typography>

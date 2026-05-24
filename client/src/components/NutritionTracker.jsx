@@ -1539,7 +1539,7 @@ function NutritionTracker() {
   }, [newMeal.foods])
 
   const formatDate = (d) =>
-    d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    d.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })
 
   const effectiveWater = log?.totalWaterOverride != null ? log.totalWaterOverride : (log?.waterIntake || 0)
 

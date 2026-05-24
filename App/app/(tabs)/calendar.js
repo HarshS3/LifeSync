@@ -154,21 +154,21 @@ export default function CalendarScreen() {
               calendarBackground: 'transparent',
               textSectionTitleColor: COLORS.textSecondary,
               selectedDayBackgroundColor: COLORS.primary,
-              selectedDayTextColor: COLORS.surface,
-              todayTextColor: COLORS.primary,
+              selectedDayTextColor: COLORS.primaryContrast,
+              todayTextColor: COLORS.info,
               dayTextColor: COLORS.text,
-              textDisabledColor: COLORS.gray300,
+              textDisabledColor: COLORS.gray400,
               dotColor: COLORS.primary,
-              selectedDotColor: COLORS.surface,
+              selectedDotColor: COLORS.primaryContrast,
               arrowColor: COLORS.primary,
               disabledArrowColor: COLORS.gray300,
               monthTextColor: COLORS.text,
               indicatorColor: COLORS.primary,
-              textDayFontWeight: '400',
+              textDayFontWeight: '500',
               textMonthFontWeight: 'bold',
-              textDayHeaderFontWeight: '600',
+              textDayHeaderFontWeight: '700',
               textDayFontSize: 14,
-              textMonthFontSize: 16,
+              textMonthFontSize: 18,
               textDayHeaderFontSize: 12
             }}
           />
@@ -182,7 +182,7 @@ export default function CalendarScreen() {
         <View style={styles.eventsSection}>
           <View style={styles.sectionHeader}>
             <H3>
-              {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { 
+              {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-IN', { 
                 weekday: 'long', month: 'long', day: 'numeric' 
               })}
             </H3>
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   },
   loaderOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1,

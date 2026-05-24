@@ -44,7 +44,7 @@ export const BarChart = ({ items, maxValue, valueKey, labelKey }) => (
             }}
           />
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            {new Date(item[labelKey]).toLocaleDateString('en-US', { weekday: 'short' })}
+            {new Date(item[labelKey]).toLocaleDateString('en-IN', { weekday: 'short' })}
           </Typography>
         </Box>
       )

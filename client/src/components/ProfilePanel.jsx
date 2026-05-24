@@ -853,7 +853,7 @@ function ProfilePanel() {
     const dt = entry?.updatedAt ? new Date(entry.updatedAt) : null
     const fallback = `Entry ${idx + 1}`
     if (!dt || Number.isNaN(dt.getTime())) return fallback
-    return dt.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+    return dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
   const getCompositionLogLabel = (entry, idx) => {
@@ -862,7 +862,7 @@ function ProfilePanel() {
       const [y, mo, d] = String(entry.date).split('-').map(Number)
       const local = new Date(y, mo - 1, d)
       if (!Number.isNaN(local.getTime())) {
-        return local.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+        return local.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
       }
     }
     // If manual entry and no scan date, show 'New Entry' instead of defaulting to updatedAt (today)
@@ -871,7 +871,7 @@ function ProfilePanel() {
     }
     const dt = entry?.updatedAt ? new Date(entry.updatedAt) : null
     if (!dt || Number.isNaN(dt.getTime())) return fallback
-    return dt.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+    return dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
   }
 
   const addCompositionLog = () => {

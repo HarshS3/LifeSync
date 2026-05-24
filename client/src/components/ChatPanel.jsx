@@ -324,14 +324,14 @@ function ChatPanel() {
   const isVoiceActive = isRecording || isListening
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
 
       {/* Messages list */}
       <Box ref={messagesContainerRef} sx={{ flex: 1, overflow: 'auto', p: 3 }}>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
           {messages.map((m) => (
             <Box key={m.id} sx={{ display: 'flex', gap: 2, flexDirection: m.from === 'user' ? 'row-reverse' : 'row', alignItems: 'flex-start' }}>
-              <Avatar sx={{ width: 32, height: 32, bgcolor: m.from === 'user' ? 'text.primary' : m.from === 'system' ? 'action.selected' : '#f0fdf4', color: m.from === 'user' ? 'background.paper' : m.from === 'system' ? '#9ca3af' : '#16a34a', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: m.from === 'user' ? 'text.primary' : m.from === 'system' ? 'action.selected' : 'success.light', color: m.from === 'user' ? 'background.paper' : m.from === 'system' ? 'text.disabled' : 'success.contrastText', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                 {m.from === 'user' ? 'U' : m.from === 'system' ? '·' : 'L'}
               </Avatar>
 
@@ -353,8 +353,8 @@ function ChatPanel() {
                 {/* ✅ Food-logged confirmation badge */}
                 {m.foodLogged && !m.undone && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                    <CheckCircleIcon sx={{ fontSize: 14, color: '#16a34a' }} />
-                    <Typography variant="caption" sx={{ color: '#16a34a', fontWeight: 600, fontSize: '0.72rem' }}>
+                    <CheckCircleIcon sx={{ fontSize: 14, color: 'success.main' }} />
+                    <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600, fontSize: '0.72rem' }}>
                       Logged to Nutrition Tracker
                     </Typography>
                     <Button
@@ -362,7 +362,7 @@ function ChatPanel() {
                       startIcon={<UndoIcon sx={{ fontSize: 12 }} />}
                       onClick={() => undoMeal(m.committedMealId, m.id)}
                       disabled={undoingId !== null}
-                      sx={{ ml: 0.5, minWidth: 0, py: 0, px: 0.75, fontSize: '0.68rem', color: '#9ca3af', textTransform: 'none', lineHeight: 1.5, '&:hover': { color: '#ef4444', bgcolor: '#fef2f2' } }}
+                      sx={{ ml: 0.5, minWidth: 0, py: 0, px: 0.75, fontSize: '0.68rem', color: 'text.disabled', textTransform: 'none', lineHeight: 1.5, '&:hover': { color: 'error.main', bgcolor: 'error.light' } }}
                     >
                       {undoingId === m.id ? 'Undoing…' : 'Undo'}
                     </Button>
@@ -371,7 +371,7 @@ function ChatPanel() {
 
                 {/* Undone state */}
                 {m.undone && (
-                  <Typography variant="caption" sx={{ color: '#9ca3af', fontSize: '0.7rem', fontStyle: 'italic' }}>
+                  <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.7rem', fontStyle: 'italic' }}>
                     ↩ Removed from log
                   </Typography>
                 )}
@@ -381,10 +381,10 @@ function ChatPanel() {
 
           {isSending && (
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <Avatar sx={{ width: 32, height: 32, bgcolor: '#f0fdf4', color: '#16a34a', fontSize: 13, fontWeight: 700 }}>L</Avatar>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: 'success.light', color: 'success.contrastText', fontSize: 13, fontWeight: 700 }}>L</Avatar>
               <Box sx={{ display: 'flex', gap: 0.5, p: '12px 16px', bgcolor: 'action.hover', borderRadius: 2 }}>
                 {[0, 1, 2].map(i => (
-                  <Box key={i} sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#9ca3af', animation: 'pulse 1.2s ease-in-out infinite', animationDelay: `${i * 0.2}s`, '@keyframes pulse': { '0%,100%': { opacity: 0.3 }, '50%': { opacity: 1 } } }} />
+                  <Box key={i} sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'text.disabled', animation: 'pulse 1.2s ease-in-out infinite', animationDelay: `${i * 0.2}s`, '@keyframes pulse': { '0%,100%': { opacity: 0.3 }, '50%': { opacity: 1 } } }} />
                 ))}
               </Box>
             </Box>
@@ -395,7 +395,7 @@ function ChatPanel() {
       </Box>
 
       {/* Input area */}
-      <Box sx={{ p: 2.5, borderTop: '1px solid #e5e7eb' }}>
+      <Box sx={{ p: 2.5, borderTop: '1px solid', borderColor: 'divider' }}>
 
         {/* Quick-action chips */}
         <Box sx={{ display: 'flex', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
@@ -409,12 +409,12 @@ function ChatPanel() {
                 setInput(action.prefix);
                 inputRef.current?.focus();
               }}
-              sx={{ fontSize: '0.75rem', height: 26, cursor: 'pointer', bgcolor: 'action.selected', color: 'text.secondary', border: '1px solid #e5e7eb', '&:hover': { bgcolor: 'divider' }, '& .MuiChip-icon': { color: 'text.secondary' } }}
+              sx={{ fontSize: '0.75rem', height: 26, cursor: 'pointer', bgcolor: 'action.selected', color: 'text.secondary', border: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'divider' }, '& .MuiChip-icon': { color: 'text.secondary' } }}
             />
           ))}
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1, border: '1px solid #e5e7eb', borderRadius: 2, bgcolor: 'background.paper', '&:focus-within': { borderColor: 'text.primary' } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper', '&:focus-within': { borderColor: 'text.primary' } }}>
           <TextField
             inputRef={inputRef}
             variant="standard"
@@ -429,32 +429,59 @@ function ChatPanel() {
             onClick={isVoiceActive ? () => stopRecording({ submit: true }) : startRecording}
             disabled={isTranscribing || isSending}
             title={isVoiceActive ? 'Stop & send voice' : 'Voice input'}
-            sx={{ bgcolor: isVoiceActive ? '#fee2e2' : 'action.selected', color: isVoiceActive ? '#b91c1c' : '#111827', width: 36, height: 36, '&:hover': { bgcolor: isVoiceActive ? '#fecaca' : 'divider' }, '&.Mui-disabled': { bgcolor: 'action.selected', color: '#9ca3af' } }}
+            sx={{ 
+              bgcolor: isVoiceActive ? 'error.main' : 'action.hover', 
+              color: isVoiceActive ? '#fff' : 'text.primary', 
+              width: 38, height: 38, 
+              border: '1px solid',
+              borderColor: isVoiceActive ? 'error.main' : 'divider',
+              '&:hover': { bgcolor: isVoiceActive ? 'error.dark' : 'action.selected' }
+            }}
           >
-            {isVoiceActive ? <StopIcon sx={{ fontSize: 18 }} /> : <MicIcon sx={{ fontSize: 18 }} />}
+            {isVoiceActive ? <StopIcon sx={{ fontSize: 20 }} /> : <MicIcon sx={{ fontSize: 20 }} />}
           </IconButton>
           <IconButton
             onClick={() => setShowMealTemplates(!showMealTemplates)}
             disabled={isSending || isTranscribing}
             title="Quick relog"
-            sx={{ bgcolor: 'action.selected', color: '#111827', width: 36, height: 36, '&:hover': { bgcolor: 'divider' }, '&.Mui-disabled': { bgcolor: 'action.selected', color: '#9ca3af' } }}
+            sx={{ 
+              bgcolor: 'action.hover', 
+              color: 'text.primary', 
+              width: 38, height: 38, 
+              border: '1px solid',
+              borderColor: 'divider',
+              '&:hover': { bgcolor: 'action.selected' } 
+            }}
           >
-            <HistoryIcon sx={{ fontSize: 18 }} />
+            <HistoryIcon sx={{ fontSize: 20 }} />
           </IconButton>
           <IconButton
             onClick={() => setShowPhotoLog(true)}
             disabled={isSending || isTranscribing}
             title="Photo logging"
-            sx={{ bgcolor: 'action.selected', color: '#111827', width: 36, height: 36, '&:hover': { bgcolor: 'divider' }, '&.Mui-disabled': { bgcolor: 'action.selected', color: '#9ca3af' } }}
+            sx={{ 
+              bgcolor: 'action.hover', 
+              color: 'text.primary', 
+              width: 38, height: 38, 
+              border: '1px solid',
+              borderColor: 'divider',
+              '&:hover': { bgcolor: 'action.selected' } 
+            }}
           >
-            <CameraAltIcon sx={{ fontSize: 18 }} />
+            <CameraAltIcon sx={{ fontSize: 20 }} />
           </IconButton>
           <IconButton
             onClick={sendMessage}
             disabled={isSending || !input.trim()}
-            sx={{ bgcolor: 'text.primary', color: 'background.paper', width: 36, height: 36, '&:hover': { bgcolor: '#262626' }, '&.Mui-disabled': { bgcolor: 'divider', color: '#9ca3af' } }}
+            sx={{ 
+              bgcolor: 'primary.main', 
+              color: 'primary.contrastText', 
+              width: 38, height: 38, 
+              '&:hover': { opacity: 0.9 },
+              '&.Mui-disabled': { bgcolor: 'divider', color: 'text.disabled' }
+            }}
           >
-            <SendIcon sx={{ fontSize: 18 }} />
+            <SendIcon sx={{ fontSize: 20 }} />
           </IconButton>
         </Box>
 

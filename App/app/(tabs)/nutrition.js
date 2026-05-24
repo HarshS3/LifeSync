@@ -76,7 +76,7 @@ export default function NutritionScreen() {
       const newMeal = {
         name: template.mealName,
         mealType: template.mealType,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+        time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }),
         foods: template.foods
       };
       const updatedMeals = [...(log.meals || []), newMeal];
@@ -132,7 +132,7 @@ export default function NutritionScreen() {
           <View style={[styles.dateInfo, { backgroundColor: COLORS.gray100 }]}>
             <Calendar size={14} color={COLORS.nutrition} style={{ marginRight: 6 }} />
             <Caption style={{ fontWeight: '700' }}>
-              {new Date(selectedDate + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+              {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}
             </Caption>
           </View>
           <TouchableOpacity onPress={() => changeDate(1)} style={styles.dateNav}>
@@ -195,6 +195,8 @@ export default function NutritionScreen() {
             )}
             {activeTab === 2 && (
               <WeightTab 
+                selectedDate={selectedDate}
+                onWeightLogged={() => fetchData(true)}
                 COLORS={COLORS} SPACING={SPACING} BORDER_RADIUS={BORDER_RADIUS} SHADOWS={{}} TYPOGRAPHY={TYPOGRAPHY}
               />
             )}

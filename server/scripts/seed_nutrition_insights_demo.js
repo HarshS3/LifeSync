@@ -574,7 +574,7 @@ async function seedNutritionData() {
         { upsert: true, new: true }
       );
 
-      console.log(`✓ Created nutrition log for ${logDate.toISOString().split('T')[0]}`);
+      console.log(`✓ Created nutrition log for ${logDate.toLocaleDateString('en-CA')}`);
 
       // Create weight logs
       const weight = 80 + Math.sin(dayOffset / 3) * 0.5 + Math.random() * 0.3; // Slight trend

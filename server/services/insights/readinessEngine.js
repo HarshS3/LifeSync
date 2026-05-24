@@ -35,8 +35,8 @@ async function calculateReadiness(userId) {
   for (let i = 0; i < 7; i++) {
     const checkDate = new Date(now);
     checkDate.setDate(checkDate.getDate() - i);
-    const checkDateStr = checkDate.toISOString().split('T')[0];
-    const workedOutThatDay = workoutsLast7.some(w => new Date(w.date).toISOString().split('T')[0] === checkDateStr);
+    const checkDateStr = checkDate.toLocaleDateString('en-CA');
+    const workedOutThatDay = workoutsLast7.some(w => new Date(w.date).toLocaleDateString('en-CA') === checkDateStr);
     if (!workedOutThatDay) break;
     daysSinceRestDay++;
   }

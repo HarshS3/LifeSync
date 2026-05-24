@@ -5,7 +5,7 @@ export const COLORS = {
     primary: '#000000',
     secondary: '#666666',
     background: '#f6f1e7',
-    surface: '#ffffff',
+    surface: '#fcfcfc',
     error: '#ef4444',
     success: '#10b981',
     warning: '#f59e0b',
@@ -36,10 +36,10 @@ export const COLORS = {
     border: '#eeeeee',
     text: '#000000',
     textSecondary: '#666666',
-    primaryContrast: '#ffffff',
+    primaryContrast: '#fcfcfc',
   },
   dark: {
-    primary: '#ffffff',
+    primary: '#f3f4f6',
     secondary: '#a1a1aa',
     background: '#000000',
     surface: '#121212',
@@ -71,9 +71,9 @@ export const COLORS = {
     gray600: '#e5e7eb',
     gray700: '#f3f4f6',
     border: '#27272a',
-    text: '#ffffff',
+    text: '#f9fafb',
     textSecondary: '#a1a1aa',
-    primaryContrast: '#000000',
+    primaryContrast: '#121212',
   }
 };
 

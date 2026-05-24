@@ -384,7 +384,7 @@ function LabsPanel() {
                           {r.panelName}
                         </Typography>
                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          {r.date ? new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                          {r.date ? new Date(r.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                           {Array.isArray(r.results) ? ` • ${r.results.length} results` : ''}
                         </Typography>
                       </Box>

@@ -68,7 +68,7 @@ const NutritionInsights = ({ selectedDate }) => {
     start.setUTCDate(start.getUTCDate() - dayNum); // Sunday
     const end = new Date(start);
     end.setUTCDate(end.getUTCDate() + 6); // Saturday
-    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`;
+    return `${start.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', timeZone: 'UTC' })} - ${end.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`;
   };
 
   useEffect(() => {

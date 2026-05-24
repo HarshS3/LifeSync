@@ -20,7 +20,7 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
       if (d) {
         setCustomTime(d);
       } else {
-        setCustomTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
+        setCustomTime(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
       }
     }
   };
@@ -52,7 +52,7 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
     if (customTime) return customTime;
     const scheduled = user?.mealSchedule?.[selectedMealType];
     if (scheduled) return scheduled;
-    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    return new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
   };
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -215,7 +215,7 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
     
     // Initialize customTime with the best default so it's stable for editing
     const scheduled = user?.mealSchedule?.[selectedMealType];
-    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    const now = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
     setCustomTime(scheduled || now);
     
     setShowQtyModal(true);
@@ -229,7 +229,7 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
 
     setIsSubmitting(true);
     try {
-      const finalTime = customTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+      const finalTime = customTime || new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
       const newMeal = {
         name: manualFood.name,
         mealType: selectedMealType,
@@ -465,7 +465,7 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
                 </View>
                 <TextInput
                   style={themedStyles.formInput}
-                  value={customTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  value={customTime || new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })}
                   onChangeText={handleTimeChange}
                   placeholder="08:00"
                 />
@@ -578,7 +578,7 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
               </View>
               <TextInput
                 style={themedStyles.formInput}
-                value={customTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                value={customTime || new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })}
                 onChangeText={handleTimeChange}
                 placeholder="08:00"
               />

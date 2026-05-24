@@ -497,7 +497,7 @@ router.get('/analytics', async (req, res) => {
       const total = habits.length;
       
       dailyData.push({
-        date: date.toISOString().split('T')[0],
+        date: date.toLocaleDateString('en-CA'),
         day: date.toLocaleDateString('en-US', { weekday: 'short' }),
         dayNum: date.getDate(),
         completed,
@@ -591,7 +591,7 @@ router.get('/analytics', async (req, res) => {
       });
       
       heatmapData.push({
-        date: date.toISOString().split('T')[0],
+        date: date.toLocaleDateString('en-CA'),
         count: dayLogs.length,
         day: date.getDay(),
         week: Math.floor(i / 7),

@@ -103,7 +103,7 @@ function ExerciseHistoryPage() {
       .map(log => {
         const oneRM = calculate1RM(log.maxWeight || 0, log.maxReps || 0)
         return {
-          date: new Date(log.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          date: new Date(log.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
           fullDate: new Date(log.date),
           weight: log.maxWeight || 0,
           reps: log.maxReps || 0,
@@ -388,7 +388,7 @@ function ExerciseHistoryPage() {
                     </Box>
                     <Box>
                       <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                        {new Date(log.date).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
+                        {new Date(log.date).toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' })}
                       </Typography>
                       <Typography variant="caption" sx={{ color: '#9ca3af', fontWeight: 600 }}>
                         {log.sets?.length} sets · {Math.round(log.volume / 1000 * 10) / 10}k kg volume

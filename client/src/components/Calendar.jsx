@@ -294,7 +294,7 @@ function Calendar({ events = [], onDateClick, onEventClick, compact = false, onM
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h6">
-            {selectedDate?.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            {selectedDate?.toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
           </Typography>
           <IconButton size="small" onClick={() => setDialogOpen(false)}>
             <CloseIcon />

@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import api from '../../services/api';
 import { ChevronLeft, Plus, FileText, AlertTriangle, CheckCircle, TrendingUp } from 'lucide-react-native';
+import { useTheme } from '../../constants/Theme';
+
+// UI Components
+import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
+import { Card } from '../../components/ui/Card';
+import { H3, Body, Caption } from '../../components/ui/Typography';
 
 export default function LabsScreen() {
   const router = useRouter();
+  const { COLORS, SHADOWS } = useTheme();
   const [loading, setLoading] = useState(true);
   const [reports, setReports] = useState([]);
 
@@ -26,8 +33,8 @@ export default function LabsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#000" />
+      <View style={[styles.centered, { backgroundColor: COLORS.background }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
@@ -35,116 +42,86 @@ export default function LabsScreen() {
   const getFlagColor = (flag) => {
     switch (flag) {
       case 'high':
-      case 'low': return '#ef4444';
-      case 'normal': return '#10b981';
-      default: return '#999';
+      case 'low': return COLORS.error;
+      case 'normal': return COLORS.success;
+      default: return COLORS.gray400;
     }
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ChevronLeft size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Biomarkers & Labs</Text>
-        <TouchableOpacity onPress={() => Alert.alert('OCR', 'OCR feature coming soon to mobile')}>
-          <FileText size={24} color="#000" />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <ScreenWrapper title="Biomarkers & Labs">
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {reports.length > 0 ? (
           reports.map((report) => (
-            <View key={report._id} style={styles.reportCard}>
-              <View style={styles.reportHeader}>
+            <Card key={report._id} style={styles.reportCard} padding={20}>
+              <View style={[styles.reportHeader, { borderBottomColor: COLORS.gray100 }]}>
                 <View>
-                  <Text style={styles.reportTitle}>{report.panelName}</Text>
-                  <Text style={styles.reportDate}>
-                    {new Date(report.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
-                  </Text>
+                  <H3>{report.panelName}</H3>
+                  <Caption secondary style={{ marginTop: 4 }}>
+                    {new Date(report.date).toLocaleDateString('en-IN', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  </Caption>
                 </View>
                 {report.results.some(r => r.flag === 'high' || r.flag === 'low') && (
-                  <AlertTriangle size={20} color="#f59e0b" />
+                  <AlertTriangle size={20} color={COLORS.warning} />
                 )}
               </View>
 
               <View style={styles.resultsList}>
                 {report.results.slice(0, 5).map((res, i) => (
                   <View key={i} style={styles.resultRow}>
-                    <Text style={styles.resultName}>{res.name}</Text>
+                    <Body style={{ flex: 1 }}>{res.name}</Body>
                     <View style={styles.resultValueBox}>
-                      <Text style={[styles.resultValue, { color: getFlagColor(res.flag) }]}>
+                      <Body style={{ fontWeight: '700', color: getFlagColor(res.flag) }}>
                         {res.value} {res.unit}
-                      </Text>
-                      <Text style={styles.resultRange}>
+                      </Body>
+                      <Caption secondary style={{ fontSize: 10 }}>
                         {res.refRangeLow}-{res.refRangeHigh}
-                      </Text>
+                      </Caption>
                     </View>
                   </View>
                 ))}
                 {report.results.length > 5 && (
-                  <Text style={styles.moreResults}>+ {report.results.length - 5} more markers</Text>
+                  <TouchableOpacity onPress={() => {}}>
+                    <Caption style={{ color: COLORS.info, textAlign: 'center', marginTop: 8, fontWeight: '700' }}>
+                      + {report.results.length - 5} MORE MARKERS
+                    </Caption>
+                  </TouchableOpacity>
                 )}
               </View>
-            </View>
+            </Card>
           ))
         ) : (
           <View style={styles.emptyState}>
-            <FileText size={60} color="#eee" />
-            <Text style={styles.emptyText}>No lab reports uploaded yet.</Text>
-            <TouchableOpacity style={styles.uploadButton}>
-              <Text style={styles.uploadButtonText}>Upload first report</Text>
+            <FileText size={60} color={COLORS.gray100} />
+            <Body secondary style={{ marginTop: 20, textAlign: 'center' }}>No lab reports uploaded yet.</Body>
+            <TouchableOpacity style={[styles.uploadButton, { backgroundColor: COLORS.primary }]}>
+              <Body style={{ color: COLORS.primaryContrast, fontWeight: 'bold' }}>Upload first report</Body>
             </TouchableOpacity>
           </View>
         )}
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={() => Alert.alert('Add', 'Manual entry coming soon')}>
-        <Plus size={24} color="#fff" />
+      <TouchableOpacity 
+        style={[styles.fab, { backgroundColor: COLORS.primary, ...SHADOWS }]} 
+        onPress={() => Alert.alert('Add', 'Manual entry coming soon')}
+      >
+        <Plus size={24} color={COLORS.primaryContrast} />
       </TouchableOpacity>
-    </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
   scrollContent: {
     padding: 16,
   },
   reportCard: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
     marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    borderWidth: 1,
-    borderColor: '#eee',
   },
   reportHeader: {
     flexDirection: 'row',
@@ -152,18 +129,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
     paddingBottom: 12,
-  },
-  reportTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  reportDate: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 2,
   },
   resultsList: {
     gap: 12,
@@ -173,50 +139,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  resultName: {
-    fontSize: 14,
-    color: '#4b5563',
-    flex: 1,
-  },
   resultValueBox: {
     alignItems: 'flex-end',
-  },
-  resultValue: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  resultRange: {
-    fontSize: 10,
-    color: '#9ca3af',
-  },
-  moreResults: {
-    fontSize: 12,
-    color: '#3b82f6',
-    textAlign: 'center',
-    marginTop: 8,
-    fontWeight: '600',
   },
   emptyState: {
     alignItems: 'center',
     padding: 60,
     marginTop: 40,
   },
-  emptyText: {
-    marginTop: 20,
-    color: '#999',
-    fontSize: 16,
-    textAlign: 'center',
-  },
   uploadButton: {
     marginTop: 24,
-    backgroundColor: '#000',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
-  },
-  uploadButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
   },
   fab: {
     position: 'absolute',
@@ -225,13 +160,9 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
   },
 });
+

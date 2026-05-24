@@ -60,7 +60,7 @@ function GymHistoryTab({
                 {workout.name}
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {new Date(workout.date).toLocaleDateString(undefined, { 
+                {new Date(workout.date).toLocaleDateString('en-IN', { 
                   weekday: 'long', 
                   year: 'numeric', 
                   month: 'long', 
@@ -113,7 +113,7 @@ function GymHistoryTab({
             {selectedWorkout?.name}
           </Typography>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            {selectedWorkout?.date && new Date(selectedWorkout.date).toLocaleDateString(undefined, {
+            {selectedWorkout?.date && new Date(selectedWorkout.date).toLocaleDateString('en-IN', {
               weekday: 'long',
               year: 'numeric',
               month: 'long',

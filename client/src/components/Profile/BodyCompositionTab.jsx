@@ -68,7 +68,7 @@ export default function BodyCompositionTab({
 
   const chartData = logs.map(entry => ({
     ...entry,
-    displayDate: entry.date ? new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '?',
+    displayDate: entry.date ? new Date(entry.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : '?',
     timestamp: entry.date ? new Date(entry.date).getTime() : new Date(entry.updatedAt).getTime()
   }))
 

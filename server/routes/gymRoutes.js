@@ -7,6 +7,8 @@ const WorkoutTemplate = require('../models/WorkoutTemplate');
 const { analyzeCorrelations } = require('../services/insights/correlationEngine');
 const { calculateReadiness } = require('../services/insights/readinessEngine');
 const { triggerDailyLifeStateRecompute } = require('../services/dailyLifeState/triggerDailyLifeStateRecompute');
+const { EXERCISE_METADATA } = require('../constants/exerciseMetadata');
+const { generateAiSuggestion } = require('../services/insights/gymIntelligence');
 
 const router = express.Router();
 
@@ -87,9 +89,20 @@ router.get('/summary', auth, async (req, res) => {
     const muscleDistribution = {};
     allWorkouts.filter(w => new Date(w.date) > weekAgo).forEach(w => {
       w.exercises?.forEach(ex => {
-        const muscle = String(ex.muscleGroup || 'other').toLowerCase().trim();
+        const metadata = EXERCISE_METADATA[ex.name];
+        const primaryMuscle = (ex.muscleGroup || metadata?.primary || 'other').toLowerCase().trim();
         const setsCount = ex.sets?.filter(s => (s.reps || 0) > 0).length || 0;
-        muscleDistribution[muscle] = (muscleDistribution[muscle] || 0) + setsCount;
+
+        // Add to primary muscle (full set credit)
+        muscleDistribution[primaryMuscle] = (muscleDistribution[primaryMuscle] || 0) + setsCount;
+
+        // Add to secondary muscles (partial set credit - e.g., 0.5 sets)
+        if (metadata?.secondary && Array.isArray(metadata.secondary)) {
+          metadata.secondary.forEach(secMuscle => {
+            const m = secMuscle.toLowerCase().trim();
+            muscleDistribution[m] = (muscleDistribution[m] || 0) + (setsCount * 0.5);
+          });
+        }
       });
     });
 
@@ -305,13 +318,24 @@ router.get('/stats', auth, async (req, res) => {
       const inDistributionRange = workoutDate >= distStart && workoutDate <= distEnd;
 
       w.exercises?.forEach((ex) => {
-        // Normalize muscle group to lowercase
-        const muscle = String(ex.muscleGroup || 'other').toLowerCase().trim();
+        // Use metadata for accurate muscle mapping
+        const metadata = EXERCISE_METADATA[ex.name];
+        const muscle = (ex.muscleGroup || metadata?.primary || 'other').toLowerCase().trim();
         
         // Count "Hard Sets" for weekly hypertrophy (recent only or range)
         if (inDistributionRange) {
           const setsCount = ex.sets?.filter(s => (s.reps || 0) > 0).length || 0;
+          
+          // Primary muscle credit
           muscleCount[muscle] = (muscleCount[muscle] || 0) + setsCount;
+
+          // Secondary muscle credit
+          if (metadata?.secondary && Array.isArray(metadata.secondary)) {
+            metadata.secondary.forEach(secMuscle => {
+              const m = secMuscle.toLowerCase().trim();
+              muscleCount[m] = (muscleCount[m] || 0) + (setsCount * 0.5);
+            });
+          }
         }
 
         // Track exercise history for PRs
@@ -378,9 +402,21 @@ router.get('/exercise-names', auth, async (req, res) => {
 router.get('/exercise-history/:exerciseName', auth, async (req, res) => {
   try {
     const { exerciseName } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
     const decodedName = decodeURIComponent(exerciseName).toLowerCase().trim();
+    
+    // Get Metadata (Case-insensitive lookup)
+    const exerciseNameRaw = decodeURIComponent(exerciseName);
+    const metaKey = Object.keys(EXERCISE_METADATA).find(k => k.toLowerCase() === exerciseNameRaw.toLowerCase());
+    const metadata = metaKey ? EXERCISE_METADATA[metaKey] : null;
+
     const [workouts, user] = await Promise.all([
-      Workout.find({ user: req.userId }).sort({ date: -1 }).limit(200),
+      Workout.find({ 
+        user: req.userId,
+        'exercises.name': { $regex: new RegExp('^' + decodedName + '$', 'i') }
+      }).sort({ date: -1 }).lean(),
       require('../models/User').findById(req.userId).select('weight biologicalProfile').lean()
     ]);
 
@@ -395,14 +431,15 @@ router.get('/exercise-history/:exerciseName', auth, async (req, res) => {
     workouts.forEach((workout) => {
       workout.exercises?.forEach((ex) => {
         const exName = ex.name?.toLowerCase().trim() || '';
-        if (exName === decodedName || exName === decodedName + 's' || exName + 's' === decodedName) {
+        if (exName === decodedName) {
           if (ex.sets && ex.sets.length > 0) {
             const maxWeight = Math.max(...ex.sets.map(s => s.weight || 0));
             const maxReps = Math.max(...ex.sets.map(s => s.reps || 0));
-            const avgRPE = ex.sets.filter(s => s.rpe).length > 0 
-              ? ex.sets.reduce((sum, s) => sum + (s.rpe || 0), 0) / ex.sets.length 
-              : 0;
             
+            // Calc session Max 1RM
+            const session1RMs = ex.sets.map(s => (s.weight || 0) * (1 + (s.reps || 0) / 30));
+            const max1RM = Math.max(...session1RMs);
+
             const volume = ex.sets.reduce((sum, s) => {
               const effectiveWeight = (s.weight && s.weight > 0) ? s.weight : userWeight;
               return sum + (effectiveWeight * (s.reps || 0));
@@ -412,15 +449,13 @@ router.get('/exercise-history/:exerciseName', auth, async (req, res) => {
               date: workout.date,
               sets: ex.sets,
               maxWeight,
-              maxReps,
-              avgRPE: avgRPE.toFixed(1),
+              max1RM: Math.round(max1RM),
               volume
             });
             
             ex.sets.forEach(set => {
               if (set.weight) allWeights.push(set.weight);
               if (set.reps) allReps.push(set.reps);
-              if (set.rpe) allRPEs.push(set.rpe);
               totalSets++;
             });
           }
@@ -428,22 +463,28 @@ router.get('/exercise-history/:exerciseName', auth, async (req, res) => {
       });
     });
     
-    const calculateEstimated1RM = (weight, reps) => {
-      if (reps === 1) return weight;
-      return (weight * (1 + reps / 30)).toFixed(1);
-    };
-    
+    // Sort chronologically for trend
+    const fullTrend = [...history].sort((a, b) => new Date(a.date) - new Date(b.date));
+
     const stats = {
-      totalLogs: history.length,
+      totalSessions: history.length,
       maxWeight: allWeights.length > 0 ? Math.max(...allWeights) : 0,
-      avgWeight: allWeights.length > 0 ? Number((allWeights.reduce((a, b) => a + b) / allWeights.length).toFixed(1)) : 0,
-      estimated1RM: allWeights.length > 0 ? Number(calculateEstimated1RM(Math.max(...allWeights), 5)) : 0,
-      avgReps: allReps.length > 0 ? Number((allReps.reduce((a, b) => a + b) / allReps.length).toFixed(1)) : 0,
-      avgSetsPerLog: history.length > 0 ? Number((totalSets / history.length).toFixed(1)) : 0,
-      avgRPE: allRPEs.length > 0 ? Number((allRPEs.reduce((a, b) => a + b) / allRPEs.length).toFixed(1)) : 0,
+      estimated1RM: fullTrend.length > 0 ? Math.max(...fullTrend.map(f => f.max1RM)) : 0,
+      totalSets,
+      startWeight: fullTrend.length > 0 ? fullTrend[0].maxWeight : 0,
+      currentWeight: history.length > 0 ? history[0].maxWeight : 0,
     };
+
+    // Paginate history
+    const paginatedHistory = history.slice(skip, skip + parseInt(limit));
     
-    res.json({ history, stats });
+    res.json({ 
+      history: paginatedHistory, 
+      stats, 
+      metadata,
+      trend: fullTrend.map(t => ({ d: t.date, w: t.maxWeight, r1: t.max1RM, v: t.volume })),
+      hasMore: history.length > (skip + parseInt(limit))
+    });
   } catch (err) {
     console.error('Failed to fetch exercise history:', err);
     res.status(500).json({ error: 'Failed to fetch exercise history' });
@@ -553,6 +594,18 @@ router.get('/readiness', auth, async (req, res) => {
   } catch (err) {
     console.error('Failed to calculate readiness:', err);
     res.status(500).json({ error: 'Failed to calculate readiness' });
+  }
+});
+
+// Get AI Training Suggestions
+router.post('/ai-suggestion', auth, async (req, res) => {
+  try {
+    const { type } = req.body;
+    const suggestion = await generateAiSuggestion({ userId: req.userId, type });
+    res.json({ suggestion });
+  } catch (err) {
+    console.error('Failed to get AI suggestion:', err);
+    res.status(500).json({ error: 'Failed to get AI suggestion' });
   }
 });
 

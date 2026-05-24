@@ -5,7 +5,7 @@ import api from '../../services/api';
 
 const { width } = Dimensions.get('window');
 
-export default function WeightTab({ COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY }) {
+export default function WeightTab({ selectedDate, onWeightLogged, COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY }) {
   const [weight, setWeight] = useState('');
   const [history, setHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,13 +41,16 @@ export default function WeightTab({ COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYP
     }
     setIsSubmitting(true);
     try {
+      const nowTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
       await api.post('/nutrition/weight', { 
-        date: new Date().toISOString().split('T')[0],
-        weightKg: parseFloat(weight) 
+        date: selectedDate,
+        weightKg: parseFloat(weight),
+        time: nowTime
       });
       Alert.alert('Success', 'Weight logged successfully.');
       setWeight('');
       fetchHistory();
+      if (onWeightLogged) onWeightLogged();
     } catch (err) {
       console.error('Log weight error', err);
       Alert.alert('Error', 'Failed to log weight.');
@@ -74,7 +77,9 @@ export default function WeightTab({ COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYP
       <View style={themedStyles.logCard}>
         <View style={themedStyles.cardHeader}>
           <Scale size={20} color={COLORS.info} style={{ marginRight: 8 }} />
-          <Text style={themedStyles.cardTitle}>Log Today's Weight</Text>
+          <Text style={themedStyles.cardTitle}>
+            Log Weight for {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+          </Text>
         </View>
         <View style={themedStyles.inputRow}>
           <TextInput
@@ -117,12 +122,26 @@ export default function WeightTab({ COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYP
         {isLoading ? (
           <ActivityIndicator size="small" color={COLORS.primary} style={{ marginTop: 20 }} />
         ) : (
-          history.map((item, idx) => (
-            <View key={idx} style={themedStyles.historyItem}>
-              <Text style={themedStyles.historyDate}>{new Date(item.date).toLocaleDateString()}</Text>
-              <Text style={themedStyles.historyWeight}>{item.weightKg} kg</Text>
-            </View>
-          ))
+          history.map((item, idx) => {
+            const dateObj = new Date(item.date);
+            // If the date string was YYYY-MM-DD, the above might shift it. 
+            // But from server lean() it's usually ISO. Let's be safe:
+            const displayDate = isNaN(dateObj.getTime()) || item.date.length <= 10
+              ? new Date(item.date.split('T')[0] + 'T12:00:00')
+              : dateObj;
+
+            return (
+              <View key={idx} style={themedStyles.historyItem}>
+                <View>
+                  <Text style={themedStyles.historyDate}>
+                    {displayDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
+                  {item.time && <Text style={{ fontSize: 12, color: COLORS.textSecondary }}>{item.time}</Text>}
+                </View>
+                <Text style={themedStyles.historyWeight}>{item.weightKg} kg</Text>
+              </View>
+            );
+          })
         )}
       </View>
     </ScrollView>

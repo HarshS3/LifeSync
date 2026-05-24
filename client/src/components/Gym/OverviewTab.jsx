@@ -39,6 +39,8 @@ const OverviewTab = ({
   setAnalysisChartMode,
   exerciseProgressionData,
   trainingInsights,
+  aiCoachTip,
+  aiCoachTipLoading,
   generateAiWorkoutSuggestion,
   aiWorkoutSuggestionLoading,
   aiWorkoutSuggestion,
@@ -275,6 +277,106 @@ const OverviewTab = ({
           )}
         </Box>
       </Box>
+
+      {/* AI Coach Proactive Tip & Suggestions */}
+      {(aiCoachTipLoading || aiCoachTip || aiWorkoutSuggestion || aiRecoverySuggestion) && (
+        <Box sx={{ gridColumn: { md: '1 / -1' } }}>
+          <Box sx={{
+            p: 3, borderRadius: 2,
+            bgcolor: theme.palette.mode === 'dark' ? '#0f172a' : '#f0f9ff',
+            border: `1px solid ${theme.palette.mode === 'dark' ? '#1e3a8a' : '#bae6fd'}`,
+            display: 'flex', gap: 3, alignItems: 'flex-start'
+          }}>
+            <Box sx={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 44, height: 44, borderRadius: 2,
+              bgcolor: theme.palette.mode === 'dark' ? '#1e40af' : '#e0f2fe',
+              color: theme.palette.mode === 'dark' ? '#60a5fa' : '#0284c7',
+              flexShrink: 0
+            }}>
+              <InsightsIcon />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary', fontSize: '1rem' }}>
+                  AI Training Intelligence
+                </Typography>
+                <Chip label="PERSONALIZED" size="small" sx={{ height: 16, fontSize: '0.6rem', fontWeight: 900, bgcolor: '#0284c7', color: '#fff' }} />
+              </Box>
+
+              {aiCoachTipLoading ? (
+                <LinearProgress sx={{ mt: 1, mb: 2, borderRadius: 1, height: 2, maxWidth: 200 }} />
+              ) : aiCoachTip ? (
+                <Box sx={{ mb: 2.5 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', mb: 0.5 }}>
+                    Proactive Coach Tip
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.6 }}>
+                    {aiCoachTip}
+                  </Typography>
+                </Box>
+              ) : null}
+
+              {/* Action Buttons */}
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: (aiWorkoutSuggestion || aiRecoverySuggestion) ? 2.5 : 0 }}>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={generateAiWorkoutSuggestion}
+                  disabled={aiWorkoutSuggestionLoading}
+                  sx={{ 
+                    textTransform: 'none', 
+                    bgcolor: theme.palette.mode === 'dark' ? '#1e40af' : '#0284c7',
+                    fontWeight: 700,
+                    px: 2
+                  }}
+                >
+                  {aiWorkoutSuggestionLoading ? 'AI Thinking…' : 'Suggest Workout'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={generateAiRecoverySuggestion}
+                  disabled={aiRecoverySuggestionLoading}
+                  sx={{ 
+                    textTransform: 'none', 
+                    fontWeight: 700,
+                    borderColor: theme.palette.mode === 'dark' ? '#334155' : '#cbd5e1',
+                    color: 'text.primary',
+                    bgcolor: 'background.paper'
+                  }}
+                >
+                  {aiRecoverySuggestionLoading ? 'AI Thinking…' : 'Recovery Plan'}
+                </Button>
+              </Box>
+
+              {/* Results */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {aiWorkoutSuggestion && (
+                  <Box sx={{ p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(15, 23, 42, 0.6)' : 'rgba(255,255,255,0.7)', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 800, textTransform: 'uppercase', mb: 1, display: 'block' }}>
+                      Workout Idea
+                    </Typography>
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.primary', lineHeight: 1.7 }}>
+                      {aiWorkoutSuggestion}
+                    </Typography>
+                  </Box>
+                )}
+                {aiRecoverySuggestion && (
+                  <Box sx={{ p: 2, bgcolor: theme.palette.mode === 'dark' ? 'rgba(15, 23, 42, 0.6)' : 'rgba(255,255,255,0.7)', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 800, textTransform: 'uppercase', mb: 1, display: 'block' }}>
+                      Recovery Guidance
+                    </Typography>
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.primary', lineHeight: 1.7 }}>
+                      {aiRecoverySuggestion}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      )}
 
       <Box sx={{ gridColumn: { md: '1 / -1' } }}>
         <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
@@ -526,71 +628,6 @@ const OverviewTab = ({
         </Box>
       )}
 
-      {/* AI Suggestions */}
-      {(!isMobile || showAdvancedOverview) && (
-        <Box sx={{ gridColumn: { md: '1 / -1' } }}>
-          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: 'text.primary' }}>
-              AI Suggestions
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 2 }}>
-              Generated only when you ask—useful for demo or low-friction planning.
-            </Typography>
-
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={generateAiWorkoutSuggestion}
-                disabled={aiWorkoutSuggestionLoading}
-                sx={{ textTransform: 'none' }}
-              >
-                {aiWorkoutSuggestionLoading ? 'Thinking…' : 'Suggest Today’s Workout'}
-              </Button>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={generateAiRecoverySuggestion}
-                disabled={aiRecoverySuggestionLoading}
-                sx={{ textTransform: 'none' }}
-              >
-                {aiRecoverySuggestionLoading ? 'Thinking…' : 'Recovery + Plan Adjustment'}
-              </Button>
-            </Box>
-
-            {(aiWorkoutSuggestion || aiRecoverySuggestion) ? (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {aiWorkoutSuggestion ? (
-                  <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
-                      Today’s Workout
-                    </Typography>
-                    <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.primary', lineHeight: 1.7 }}>
-                      {aiWorkoutSuggestion}
-                    </Typography>
-                  </Box>
-                ) : null}
-
-                {aiRecoverySuggestion ? (
-                  <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
-                      Recovery + Adjustment
-                    </Typography>
-                    <Typography variant="body2" sx={{ whiteSpace: 'pre-line', color: 'text.primary', lineHeight: 1.7 }}>
-                      {aiRecoverySuggestion}
-                    </Typography>
-                  </Box>
-                ) : null}
-              </Box>
-            ) : (
-              <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-                Ask when you want suggestions.
-              </Typography>
-            )}
-          </Box>
-        </Box>
-      )}
-
       {/* Life Sync: Cross-Domain Correlation */}
       {(!isMobile || showAdvancedOverview) && (
         <Box sx={{ gridColumn: { md: '1 / -1' } }}>
@@ -615,7 +652,7 @@ const OverviewTab = ({
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 9, fill: '#64748b' }}
-                    tickFormatter={(d) => new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    tickFormatter={(d) => new Date(d).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
                   />
                   <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />
                   <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} />

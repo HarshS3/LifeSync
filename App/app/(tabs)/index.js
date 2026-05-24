@@ -199,7 +199,7 @@ export default function DashboardScreen() {
             <View style={{ flex: 1 }}>
               <H2>Good {greet()}, {user?.name?.split(' ')[0] || 'there'}</H2>
               <Caption secondary>
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
               </Caption>
               {stateReflection && (
                 <Body style={s.greetReflection}>{stateReflection}</Body>

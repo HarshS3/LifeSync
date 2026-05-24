@@ -288,14 +288,17 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
         <View style={styles.chipContainer}>
-          {items.map((item, idx) => (
-            <View key={idx} style={[styles.chip, { backgroundColor: bg || COLORS.primary + '15' }]}>
-              <Body style={{ fontSize: 13, fontWeight: '600' }}>{item}</Body>
-              <TouchableOpacity onPress={() => handleUpdate(field, items.filter((_, i) => i !== idx))}>
-                <X size={14} color={COLORS.textSecondary} />
-              </TouchableOpacity>
-            </View>
-          ))}
+          {items.map((item, idx) => {
+            const label = typeof item === 'object' ? item.name : item;
+            return (
+              <View key={idx} style={[styles.chip, { backgroundColor: bg || COLORS.primary + '15' }]}>
+                <Body style={{ fontSize: 13, fontWeight: '600' }}>{label}</Body>
+                <TouchableOpacity onPress={() => handleUpdate(field, items.filter((_, i) => i !== idx))}>
+                  <X size={14} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            );
+          })}
         </View>
       </View>
     );

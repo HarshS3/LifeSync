@@ -28,7 +28,7 @@ function ChatExperience() {
               p: 3,
               bgcolor: 'background.paper',
               borderRadius: 2,
-              border: '1px solid #e5e7eb',
+              border: '1px solid', borderColor: 'divider',
             }}
           >
             <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.primary' }}>
@@ -46,7 +46,7 @@ function ChatExperience() {
               p: 3,
               bgcolor: 'background.paper',
               borderRadius: 2,
-              border: '1px solid #e5e7eb',
+              border: '1px solid', borderColor: 'divider',
             }}
           >
             <LifeTimelinePanel />
@@ -58,7 +58,7 @@ function ChatExperience() {
               p: 3,
               bgcolor: 'background.paper',
               borderRadius: 2,
-              border: '1px solid #e5e7eb',
+              border: '1px solid', borderColor: 'divider',
             }}
           >
             <Typography variant="subtitle2" sx={{ mb: 2, color: 'text.secondary' }}>
@@ -77,10 +77,10 @@ function ChatExperience() {
                     py: 1.5,
                     borderRadius: 1.5,
                     bgcolor: 'action.hover',
-                    border: '1px solid #e5e7eb',
+                    border: '1px solid', borderColor: 'divider',
                     cursor: 'pointer',
                     transition: 'all 0.15s',
-                    '&:hover': { bgcolor: 'action.selected', borderColor: '#d1d5db' },
+                    '&:hover': { bgcolor: 'action.selected', borderColor: 'text.secondary' },
                   }}
                 >
                   <Typography variant="body2" sx={{ color: 'text.secondary' }}>

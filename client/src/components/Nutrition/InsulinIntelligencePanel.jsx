@@ -8,84 +8,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 
 // ─── Spike Analysis Engine ────────────────────────────────────────────────────
 
-function analyzeMeals(meals) {
-  if (!meals || meals.length === 0) return null
-
-  const mealAnalyses = []
-  let totalDailyCarbs = 0
-  let totalDailyFiber = 0
-  let totalDailySugar = 0
-
-  const sorted = [...meals]
-    .map(m => {
-      const parts = (m.time || '').split(':').map(Number)
-      const minute = parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])
-        ? parts[0] * 60 + parts[1] : null
-      return { ...m, mealMinute: minute }
-    })
-    .filter(m => m.mealMinute !== null)
-    .sort((a, b) => a.mealMinute - b.mealMinute)
-
-  if (sorted.length === 0) return null
-
-  let cumulativeFiber = 0
-
-  sorted.forEach(meal => {
-    let carbs = 0, fiber = 0, protein = 0, fat = 0, sugar = 0
-    meal.foods?.forEach(f => {
-      carbs   += f.carbs   || 0
-      fiber   += f.fiber   || 0
-      protein += f.protein || 0
-      fat     += f.fat     || 0
-      sugar   += f.sugar   || 0
-    })
-
-    totalDailyCarbs += carbs
-    totalDailyFiber += fiber
-    totalDailySugar += sugar
-
-    const fiberBonus = Math.min(cumulativeFiber * 0.015, 0.40)
-    const gp = (carbs / (fiber + protein + 1)) * (1 - fiberBonus)
-    const peakAmp = Math.min(carbs, 80) * Math.min(gp / 5, 2.5)
-    const peakGlucose = Math.round(90 + peakAmp)
-    const buffer = fiber + fat * 0.5 + protein * 0.2
-    const spikeLevel = peakGlucose >= 160 ? 'high' : peakGlucose >= 130 ? 'moderate' : 'low'
-
-    mealAnalyses.push({
-      name: meal.name || 'Meal',
-      time: meal.time,
-      carbs: Math.round(carbs),
-      fiber: Math.round(fiber),
-      protein: Math.round(protein),
-      fat: Math.round(fat),
-      sugar: Math.round(sugar),
-      peakGlucose,
-      spikeLevel,
-      gp: Math.round(gp * 10) / 10,
-      buffer: Math.round(buffer),
-    })
-
-    cumulativeFiber += fiber
-  })
-
-  const avgPeak = Math.round(mealAnalyses.reduce((s, m) => s + m.peakGlucose, 0) / mealAnalyses.length)
-  const overallLevel = avgPeak >= 155 ? 'high' : avgPeak >= 130 ? 'moderate' : 'low'
-  const fiberCoverage = totalDailyFiber >= 25 ? 'good' : totalDailyFiber >= 15 ? 'moderate' : 'low'
-  const highSpikeMeals = mealAnalyses.filter(m => m.spikeLevel === 'high')
-  const proteinBuffered = mealAnalyses.filter(m => m.protein >= 15)
-
-  return {
-    mealAnalyses,
-    avgPeak,
-    overallLevel,
-    fiberCoverage,
-    totalDailyCarbs: Math.round(totalDailyCarbs),
-    totalDailyFiber: Math.round(totalDailyFiber),
-    totalDailySugar: Math.round(totalDailySugar),
-    highSpikeMeals,
-    proteinBuffered,
-  }
-}
+// (Local analyzeMeals removed; now provided by backend)
 
 // ─── Sub-Components ───────────────────────────────────────────────────────────
 
@@ -327,9 +250,7 @@ function HowToReduceSpikes({ analysis }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function InsulinIntelligencePanel({ meals }) {
-  const analysis = useMemo(() => analyzeMeals(meals), [meals])
-
+export default function InsulinIntelligencePanel({ analysis }) {
   if (!analysis) return null
 
   const { mealAnalyses, overallLevel, avgPeak, fiberCoverage, totalDailyFiber } = analysis

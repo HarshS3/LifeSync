@@ -353,7 +353,13 @@ function DailyLogTab({
         </Box>
         <Box sx={{ height: 250, width: '100%', mt: 2 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={generateCGMData(log.meals)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <AreaChart 
+              data={log.insulinIntelligence?.curveData ? log.insulinIntelligence.curveData.map((v, i) => ({
+                glucose: v,
+                time: log.insulinIntelligence.labels[i] || ""
+              })) : generateCGMData(log.meals)} 
+              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+            >
               <defs>
                 <linearGradient id="glucoseGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
@@ -376,7 +382,7 @@ function DailyLogTab({
       </Box>
 
       {/* Insulin Intelligence Panel */}
-      <InsulinIntelligencePanel meals={log.meals} />
+      <InsulinIntelligencePanel analysis={log.insulinIntelligence} />
 
       {/* AI insight + hydration */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>

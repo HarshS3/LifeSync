@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@android:color/transparent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#fcfcfc"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:elevation="4dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="LIFESYNC TODAY"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:textColor="#9ca3af"
+            android:letterSpacing="0.1" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="12dp"
+            android:gravity="center_vertical">
+
+            <LinearLayout
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:background="@android:color/transparent"
+                android:gravity="center"
+                android:orientation="vertical">
+                <TextView
+                    android:id="@+id/widget_readiness_val"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="--"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    android:textColor="#3b82f6" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="READINESS"
+                    android:textSize="7sp"
+                    android:textColor="#666666" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="40dp"
+                android:layout_marginHorizontal="16dp"
+                android:background="#eeeeee" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+                
+                <TextView
+                    android:id="@+id/widget_calories"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="-- / -- kcal"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="#000000" />
+                
+                <ProgressBar
+                    android:id="@+id/widget_progress"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="4dp"
+                    android:layout_marginTop="6dp"
+                    android:progress="0"
+                    android:max="100" />
+
+                <TextView
+                    android:id="@+id/widget_protein"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="P: --g"
+                    android:textSize="11sp"
+                    android:textColor="#666666" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/widget_insight"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Sync to unlock today's coaching tip."
+            android:textSize="11sp"
+            android:fontStyle="italic"
+            android:textColor="#4b5563"
+            android:maxLines="2"
+            android:ellipsize="end" />
+    </LinearLayout>
+</LinearLayout>

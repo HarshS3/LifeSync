@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal } from 'react-native';
 import { Search, Zap, Camera, Mic, ChevronRight, Utensils, Plus, X, Clock } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -141,6 +142,97 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
     } finally {
       setIsAiLoading(false);
     }
+  };
+
+  const handleImageCapture = async (useGallery = false) => {
+    try {
+      const permissionResult = useGallery 
+        ? await ImagePicker.requestMediaLibraryPermissionsAsync()
+        : await ImagePicker.requestCameraPermissionsAsync();
+
+      if (permissionResult.granted === false) {
+        Alert.alert('Permission required', `You need to grant ${useGallery ? 'gallery' : 'camera'} permissions to use this feature.`);
+        return;
+      }
+
+      const result = useGallery
+        ? await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            quality: 0.8,
+          })
+        : await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            quality: 0.8,
+          });
+
+      if (result.canceled) return;
+
+      setIsAiLoading(true);
+      const uri = result.assets[0].uri;
+      const filename = uri.split('/').pop() || 'photo.jpg';
+      const match = /\.(\w+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+      const formData = new FormData();
+      formData.append('image', { uri, name: filename, type });
+
+      // Analyze
+      const analyzeRes = await api.post('/photo-log/analyze', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      const { detected, mealType } = analyzeRes.data;
+
+      if (!detected || detected.length === 0) {
+        Alert.alert('No food detected', 'Could not identify any food in this image. Please try again or use manual entry.');
+        return;
+      }
+
+      // Show summary and commit
+      Alert.alert(
+        'Food Detected',
+        `Found: ${detected.map(d => `${d.quantity || 1}x ${d.name}`).join(', ')}\nTotal Calories: ~${Math.round(detected.reduce((acc, curr) => acc + (curr.estimatedCalories || 0), 0))} kcal`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Log It', 
+            onPress: async () => {
+              setIsAiLoading(true);
+              try {
+                await api.post('/photo-log/commit', { items: detected, mealType: selectedMealType || mealType });
+                Alert.alert('Success', 'Meal logged successfully!');
+                if (onMealLogged) onMealLogged();
+              } catch (err) {
+                console.error('Commit error:', err);
+                Alert.alert('Error', 'Failed to log the meal.');
+              } finally {
+                setIsAiLoading(false);
+              }
+            } 
+          }
+        ]
+      );
+
+    } catch (error) {
+      console.error('Image capture error', error);
+      Alert.alert('Error', 'Failed to process image');
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const promptImageSource = () => {
+    Alert.alert(
+      'Log Meal with Photo',
+      'Choose an option',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Camera', onPress: () => handleImageCapture(false) },
+        { text: 'Gallery', onPress: () => handleImageCapture(true) },
+      ]
+    );
   };
 
   const handleSearch = async () => {
@@ -411,7 +503,9 @@ export default function LogMealTab({ onMealLogged, currentMeals = [], COLORS, SP
             />
             <View style={themedStyles.aiActions}>
               <TouchableOpacity style={themedStyles.iconBtn}><Mic size={20} color={COLORS.textSecondary} /></TouchableOpacity>
-              <TouchableOpacity style={themedStyles.iconBtn}><Camera size={20} color={COLORS.textSecondary} /></TouchableOpacity>
+              <TouchableOpacity style={themedStyles.iconBtn} onPress={promptImageSource} disabled={isAiLoading}>
+                {isAiLoading ? <ActivityIndicator size="small" color={COLORS.textSecondary} /> : <Camera size={20} color={COLORS.textSecondary} />}
+              </TouchableOpacity>
               <TouchableOpacity 
                 style={[themedStyles.logBtn, !aiInput.trim() && { opacity: 0.5 }]} 
                 onPress={handleAiLog}

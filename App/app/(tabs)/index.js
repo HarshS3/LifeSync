@@ -79,6 +79,21 @@ export default function DashboardScreen() {
   const scrollRef = useRef(null);
   useScrollToTop(scrollRef);
 
+  const syncWidgetData = async (summary) => {
+    try {
+      const { NativeModules, Platform } = require('react-native');
+      if (Platform.OS === 'android' && NativeModules.LifeSyncWidget) {
+        await NativeModules.LifeSyncWidget.updateDashboard({
+          readiness: summary.readinessScore || 0,
+          calories: summary.today?.calories || 0,
+          calorieTarget: summary.today?.calorieTarget || 2000,
+          protein: summary.today?.protein || 0,
+          insight: summary.stateReflection || "Keep tracking to see your coaching tip!"
+        });
+      }
+    } catch (e) { console.log('Widget sync failed', e); }
+  };
+
   const loadData = async () => {
     try {
       const res = await api.get('/dashboard/summary');
@@ -99,6 +114,7 @@ export default function DashboardScreen() {
       }
 
       setStateReflection(summary.stateReflection);
+      syncWidgetData(summary);
 
     } catch (err) {
       console.error('Dashboard load error', err);

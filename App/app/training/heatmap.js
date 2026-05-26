@@ -22,6 +22,8 @@ export default function HeatmapScreen() {
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [selectingState, setSelectingState] = useState('start'); // 'start' | 'end'
+  const [scrollEnabled, setScrollEnabled] = useState(true);
+  const [selectedMuscle, setSelectedMuscle] = useState(null);
 
   const fetchStats = async (range, start = null, end = null) => {
     setLoading(true);
@@ -159,12 +161,20 @@ export default function HeatmapScreen() {
       }
     }
 
-    return entries;
+    return entries.sort((a, b) => b.intensity - a.intensity);
   })() : [];
+
+  const handleChipPress = (slug) => {
+    setSelectedMuscle(prev => prev === slug ? null : slug);
+  };
 
   return (
     <ScreenWrapper title="Muscle Distribution">
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={scrollEnabled}
+      >
         <Card style={[styles.infoCard, { backgroundColor: COLORS.training + '10' }]} padding={16}>
           <ActivityIcon size={20} color={COLORS.training} />
           <Body style={{ color: COLORS.training, flex: 1 }}>
@@ -262,7 +272,37 @@ export default function HeatmapScreen() {
           </View>
         ) : muscleHeatmapData.length > 0 ? (
           <View style={styles.heatmapContainer}>
-            <MuscleHeatmap data={muscleHeatmapData} />
+            <View style={styles.chipsContainer}>
+              <Caption style={{ marginBottom: 8, fontWeight: '700', color: COLORS.textSecondary, width: '100%' }}>
+                TRAINED MUSCLES (TAP TO SELECT)
+              </Caption>
+              {muscleHeatmapData.map((item) => (
+                <TouchableOpacity
+                  key={item.slug}
+                  style={[
+                    styles.chip,
+                    selectedMuscle === item.slug
+                      ? { backgroundColor: COLORS.primary }
+                      : { backgroundColor: COLORS.gray100 }
+                  ]}
+                  onPress={() => handleChipPress(item.slug)}
+                >
+                  <Body style={[
+                    styles.chipText,
+                    selectedMuscle === item.slug ? { color: COLORS.surface, fontWeight: 'bold' } : { color: COLORS.textSecondary }
+                  ]}>
+                    {item.slug.replace(/-/g, ' ')}
+                  </Body>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <MuscleHeatmap 
+              data={muscleHeatmapData} 
+              onZoomChange={(zoomed) => setScrollEnabled(!zoomed)}
+              selectedMuscle={selectedMuscle}
+              onMuscleSelect={setSelectedMuscle}
+            />
           </View>
         ) : (
           <View style={styles.emptyContainer}>
@@ -350,5 +390,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 16,
     gap: 8,
+  },
+  chipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  chipText: {
+    fontSize: 13,
+    textTransform: 'capitalize',
   },
 });

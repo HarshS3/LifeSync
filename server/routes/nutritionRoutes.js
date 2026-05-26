@@ -22,6 +22,7 @@ const { analyzeMealTiming } = require('../services/nutritionPipeline/mealTimingE
 const { calculateDailyTargets } = require('../services/nutritionEngine');
 const KitchenInventory = require('../models/KitchenInventory');
 const { computeWeeklyDiversity } = require('../services/nutritionPipeline/sourceDiversityEngine');
+const { analyzeMeals } = require('../services/insulinIntelligenceService');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
@@ -348,6 +349,9 @@ async function getLogForDate(req, res, dateStr) {
 
       // Feature 2: Protein Distribution Analysis
       logPayload.proteinDistribution = await evaluateProteinDistribution(req.userId, logPayload.meals);
+
+      // Feature 3: Insulin Intelligence Simulation
+      logPayload.insulinIntelligence = analyzeMeals(logPayload.meals);
     }
 
     res.json({
@@ -549,6 +553,9 @@ async function upsertNutritionLog(req, res) {
       
       // Feature 2: Protein Distribution Analysis
       logObj.proteinDistribution = await evaluateProteinDistribution(req.userId, logObj.meals);
+
+      // Feature 3: Insulin Intelligence Simulation
+      logObj.insulinIntelligence = analyzeMeals(logObj.meals);
     }
     
     res.status(201).json(logObj);

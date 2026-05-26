@@ -8,7 +8,8 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "./plugins/withLifeSyncWidgets"
     ],
     "splash": {
       "image": "./assets/splash-icon.png",

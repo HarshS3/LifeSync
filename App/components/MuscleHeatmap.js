@@ -10,9 +10,6 @@ import * as Haptics from 'expo-haptics';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Heatmap colors: index 0 = resting, 1-4 = low→high intensity, 5 = selected (blue)
-const HEATMAP_COLORS = ['#e5e7eb', '#fed7aa', '#fb923c', '#ea580c', '#9a3412', '#3b82f6'];
-
 // Verified slugs for react-native-body-highlighter v3
 const MUSCLE_META = {
   chest:         { label: 'Chest',         side: 'front' },
@@ -40,11 +37,30 @@ const MAX_SCALE = 3.0;
 const BODY_WIDTH  = SCREEN_WIDTH - 48;
 const BODY_HEIGHT = 340;
 
-export default function MuscleHeatmap({ data = [], gender = 'male' }) {
+export default function MuscleHeatmap({ data = [], gender = 'male', onZoomChange, selectedMuscle, onMuscleSelect }) {
   const { COLORS, BORDER_RADIUS, SHADOWS, TYPOGRAPHY, SPACING } = useTheme();
-  const [selectedMuscle, setSelectedMuscle] = useState(null);
   const [side, setSide] = useState('front');
   const [isZoomed, setIsZoomed] = useState(false);
+
+  // --- BLUE THEME (Active) ---
+  const heatmapColors = useMemo(() => [
+    COLORS.gray200,
+    COLORS.training + '40',
+    COLORS.training + '80',
+    COLORS.training + 'C0',
+    COLORS.training,
+    COLORS.primary,
+  ], [COLORS]);
+
+  // --- ORANGE THEME ALTERNATIVE (Commented out) ---
+  // const heatmapColors = useMemo(() => [
+  //   COLORS.gray200 || '#e5e7eb',
+  //   '#fed7aa', // Low
+  //   '#fb923c', // Moderate
+  //   '#ea580c', // High
+  //   '#9a3412', // Very High
+  //   COLORS.info || '#3b82f6',    // Selected
+  // ], [COLORS]);
 
   // ---------- Animation refs ----------
   const animScale     = useRef(new Animated.Value(1)).current;
@@ -78,9 +94,9 @@ export default function MuscleHeatmap({ data = [], gender = 'male' }) {
       onMoveShouldSetPanResponder: (evt, gs) => {
         const touches = evt.nativeEvent.touches;
         if (touches && touches.length >= 2) return true;
-        // Zoomed in and moving beyond small jitter threshold
+        // Increased threshold to 15 to prevent swallowing valid taps
         if (currentScale.current > 1.05) {
-          return Math.abs(gs.dx) > 6 || Math.abs(gs.dy) > 6;
+          return Math.abs(gs.dx) > 15 || Math.abs(gs.dy) > 15;
         }
         return false;
       },
@@ -128,6 +144,7 @@ export default function MuscleHeatmap({ data = [], gender = 'male' }) {
           resetZoom();
         } else {
           setIsZoomed(true);
+          if (onZoomChange) onZoomChange(true);
         }
       },
       onPanResponderTerminate: () => {},
@@ -145,33 +162,35 @@ export default function MuscleHeatmap({ data = [], gender = 'male' }) {
       currentTX.current    = 0;
       currentTY.current    = 0;
       setIsZoomed(false);
+      if (onZoomChange) onZoomChange(false);
     });
-  }, [animScale, animTranslateX, animTranslateY]);
+  }, [animScale, animTranslateX, animTranslateY, onZoomChange]);
 
   // ---------- Muscle data ----------
   const heatmapData = useMemo(() => {
     const updated = data.map((item) =>
       item.slug === selectedMuscle
-        ? { ...item, color: HEATMAP_COLORS[5] }
+        ? { ...item, color: heatmapColors[5] }
         : item
     );
     if (selectedMuscle && !updated.some((d) => d.slug === selectedMuscle)) {
-      updated.push({ slug: selectedMuscle, color: HEATMAP_COLORS[5] });
+      updated.push({ slug: selectedMuscle, color: heatmapColors[5] });
     }
     return updated;
-  }, [data, selectedMuscle]);
+  }, [data, selectedMuscle, heatmapColors]);
 
   const handleMusclePress = useCallback((bodyPart) => {
     if (!bodyPart?.slug) return;
     Haptics.selectionAsync().catch(() => {});
-    setSelectedMuscle((prev) => (prev === bodyPart.slug ? null : bodyPart.slug));
-  }, []);
+    if (onMuscleSelect) {
+      onMuscleSelect(bodyPart.slug === selectedMuscle ? null : bodyPart.slug);
+    }
+  }, [selectedMuscle, onMuscleSelect]);
 
   const switchSide = useCallback(() => {
     setSide((s) => (s === 'front' ? 'back' : 'front'));
-    // Reset selection when switching views so stale highlight vanishes
-    setSelectedMuscle(null);
-  }, []);
+    if (onMuscleSelect) onMuscleSelect(null);
+  }, [onMuscleSelect]);
 
   // Compute label for selected muscle
   const selectedLabel = selectedMuscle
@@ -250,7 +269,7 @@ export default function MuscleHeatmap({ data = [], gender = 'male' }) {
             width={BODY_WIDTH}
             height={BODY_HEIGHT}
             onBodyPartPress={handleMusclePress}
-            colors={HEATMAP_COLORS}
+            colors={heatmapColors}
           />
         </Animated.View>
       </View>
@@ -298,7 +317,7 @@ export default function MuscleHeatmap({ data = [], gender = 'male' }) {
               Legend
             </Text>
             <View style={muscleStyles.legendGradient}>
-              {HEATMAP_COLORS.slice(0, 5).map((color, i) => (
+              {heatmapColors.slice(0, 5).map((color, i) => (
                 <View key={i} style={[muscleStyles.legendSwatch, { backgroundColor: color }]} />
               ))}
             </View>

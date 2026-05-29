@@ -1,5 +1,6 @@
-const { NutritionLog, WeightLog, MentalLog } = require('../../models/Logs');
+const { NutritionLog, WeightLog, MentalLog, StepsLog } = require('../../models/Logs');
 const Workout = require('../../models/Workout');
+const { EXERCISE_METADATA } = require('../../constants/exerciseMetadata');
 
 /**
  * Calculates the running 7-day average of an array of data points.
@@ -216,12 +217,13 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
   startDate.setDate(startDate.getDate() - daysBack);
 
   // ── Fetch all data in parallel ──────────────────────────────────
-  const [user, nutritionLogs, weightLogs, mentalLogs, workouts] = await Promise.all([
+  const [user, nutritionLogs, weightLogs, mentalLogs, workouts, stepLogs] = await Promise.all([
     require('../../models/User').findById(userId).select('weight biologicalProfile').lean(),
     NutritionLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date dailyTotals.calories').sort({ date: 1 }).lean(),
     WeightLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date weightKg').sort({ date: 1 }).lean(),
     MentalLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date stressLevel').sort({ date: 1 }).lean(),
-    Workout.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date exercises.sets.weight exercises.sets.reps').sort({ date: 1 }).lean(),
+    Workout.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date exercises.name exercises.muscleGroup exercises.sets.weight exercises.sets.reps exercises.sets.duration exercises.sets.distance').sort({ date: 1 }).lean(),
+    StepsLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).select('date stepsCount').sort({ date: 1 }).lean(),
   ]);
 
   const validNutriLogs = nutritionLogs.filter(l => (l.dailyTotals?.calories || 0) > 800);
@@ -267,40 +269,108 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
     ? `Lower stress than baseline — NEAT likely elevated by ~${Math.abs(stressModifier)} cal/day.`
     : `Stress within normal range.`;
 
-  // ── 3. TRAINING LOAD MODIFIER ───────────────────────────────────
-  // Recent week volume vs rolling 4-week average
+  // ── 3. TRAINING LOAD MODIFIER (Resistance) ──────────────────────
+  // Recent week volume vs rolling average
   const recentWeekWorkouts = workouts.filter(w => (endDate - new Date(w.date)) / 86400000 <= 7);
   const olderWorkouts = workouts.filter(w => {
     const daysAgo = (endDate - new Date(w.date)) / 86400000;
-    return daysAgo > 7 && daysAgo <= 35;
+    return daysAgo > 7 && daysAgo <= 42; // Up to 6 weeks for baseline
   });
 
   const userWeight = user?.biologicalProfile?.weight || user?.weight || 75;
 
-  const calcVolume = (ws) => ws.reduce((total, w) => {
-    const wVol = (w.exercises || []).reduce((ex, e) =>
-      ex + (e.sets || []).reduce((s, set) => {
+  // Calculates RESISTANCE volume (weight * reps)
+  const calcResistanceVolume = (ws) => ws.reduce((total, w) => {
+    const wVol = (w.exercises || []).reduce((ex, e) => {
+      const meta = EXERCISE_METADATA[e.name];
+      if (meta?.type === 'cardio') return ex; // Skip cardio in resistance calc
+
+      return ex + (e.sets || []).reduce((s, set) => {
         const effectiveWeight = (set.weight && set.weight > 0) ? set.weight : userWeight;
         return s + effectiveWeight * (set.reps || 0);
-      }, 0), 0);
+      }, 0);
+    }, 0);
     return total + wVol;
   }, 0);
 
-  const recentVolume = calcVolume(recentWeekWorkouts);
-  const avgWeeklyVolume = olderWorkouts.length > 0
-    ? calcVolume(olderWorkouts) / 4 // Correctly divide by 4 weeks
-    : recentVolume;
+  const recentResVolume = calcResistanceVolume(recentWeekWorkouts);
+  const avgWeeklyResVolume = olderWorkouts.length > 0
+    ? calcResistanceVolume(olderWorkouts) / (olderWorkouts.length > 28 ? 5 : 4) // Estimate weeks
+    : recentResVolume;
 
-  const volumeRatio = avgWeeklyVolume > 0 ? recentVolume / avgWeeklyVolume : 1;
-  // Scale modifier: 1.5x volume → +~150 cal; 0.5x volume → -~75 cal
-  const trainingModifier = Math.round(Math.max(-150, Math.min(300, (volumeRatio - 1) * 200)));
+  const resVolumeRatio = avgWeeklyResVolume > 0 ? recentResVolume / avgWeeklyResVolume : 1;
+  const trainingModifier = Math.round(Math.max(-150, Math.min(300, (resVolumeRatio - 1) * 200)));
   const trainingLabel = recentWeekWorkouts.length === 0
-    ? `No workouts logged this week — EPOC contribution is zero.`
-    : volumeRatio > 1.3
-    ? `Heavy training week (${recentWeekWorkouts.length} sessions). EPOC elevating TDEE by ~${trainingModifier} cal/day.`
-    : volumeRatio < 0.7
-    ? `Lighter training week than usual. TDEE adjusted down by ~${Math.abs(trainingModifier)} cal/day.`
-    : `Training load is at your normal level.`;
+    ? `No resistance workouts logged this week.`
+    : resVolumeRatio > 1.3
+    ? `Heavy lifting week detected. EPOC elevating TDEE by ~${trainingModifier} cal/day.`
+    : resVolumeRatio < 0.7
+    ? `Lighter lifting week than usual. TDEE adjusted down by ~${Math.abs(trainingModifier)} cal/day.`
+    : `Resistance training load is at your normal level.`;
+
+  // ── 3.1 STEP MODIFIER (Relative Delta) ───────────────────────────
+  const recentSteps = stepLogs.filter(l => (endDate - new Date(l.date)) / 86400000 <= 7);
+  const olderSteps = stepLogs.filter(l => {
+    const daysAgo = (endDate - new Date(l.date)) / 86400000;
+    return daysAgo > 7;
+  });
+
+  const avgRecentSteps = recentSteps.length > 0
+    ? recentSteps.reduce((s, l) => s + (l.stepsCount || 0), 0) / recentSteps.length
+    : 0;
+  const avgBaselineSteps = olderSteps.length > 0
+    ? olderSteps.reduce((s, l) => s + (l.stepsCount || 0), 0) / olderSteps.length
+    : avgRecentSteps || 5000; // Fallback to recent or 5k
+
+  const stepDelta = avgRecentSteps - avgBaselineSteps;
+  const stepModifier = Math.round(stepDelta * 0.04); // ~0.04 kcal per step
+  const stepLabel = Math.abs(stepDelta) > 1500
+    ? `${stepDelta > 0 ? 'Increased' : 'Decreased'} daily activity by ${Math.round(Math.abs(stepDelta))} steps vs baseline. Adjusted TDEE by ${stepModifier} cal/day.`
+    : `Daily steps are consistent with your baseline.`;
+
+  // ── 3.2 CARDIO MODIFIER (Relative Delta) ────────────────────────
+  const calcCardioBurn = (ws) => {
+    const dailyBurn = {};
+    ws.forEach(w => {
+      const dayKey = new Date(w.date).toLocaleDateString('en-CA');
+      if (!dailyBurn[dayKey]) dailyBurn[dayKey] = 0;
+
+      (w.exercises || []).forEach(e => {
+        const meta = EXERCISE_METADATA[e.name];
+        if (meta?.type === 'cardio' && meta.met) {
+          const setsBurn = (e.sets || []).reduce((s, set) => {
+            const durationHrs = (set.duration || 0) / 3600;
+            // If duration 0 but reps exists, maybe reps is minutes? Heuristic:
+            const effectiveHrs = durationHrs || ((set.reps || 0) * 60) / 3600; 
+            return s + (meta.met * userWeight * effectiveHrs);
+          }, 0);
+          dailyBurn[dayKey] += setsBurn;
+        }
+      });
+    });
+    return dailyBurn;
+  };
+
+  const dailyCardioMap = calcCardioBurn(workouts);
+  const recentCardioCals = Object.keys(dailyCardioMap)
+    .filter(k => (endDate - new Date(k)) / 86400000 <= 7)
+    .map(k => dailyCardioMap[k]);
+  
+  const olderCardioCals = Object.keys(dailyCardioMap)
+    .filter(k => (endDate - new Date(k)) / 86400000 > 7)
+    .map(k => dailyCardioMap[k]);
+
+  const avgRecentCardio = recentCardioCals.length > 0
+    ? recentCardioCals.reduce((s, c) => s + c, 0) / 7 // Divide by 7 days
+    : 0;
+  const avgBaselineCardio = olderCardioCals.length > 0
+    ? olderCardioCals.reduce((s, c) => s + c, 0) / (daysBack - 7)
+    : avgRecentCardio;
+
+  const cardioModifier = Math.round(avgRecentCardio - avgBaselineCardio);
+  const cardioLabel = Math.abs(cardioModifier) > 50
+    ? `${cardioModifier > 0 ? 'More' : 'Less'} cardio than usual (${Math.abs(cardioModifier)} cal/day difference).`
+    : `Cardio levels are stable.`;
 
   // ── 4. METABOLIC ADAPTATION MODIFIER ───────────────────────────
   // Detect sustained caloric deficit (consecutive weeks below TDEE)
@@ -343,7 +413,7 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
   }
 
   // ── 5. DYNAMIC TDEE ─────────────────────────────────────────────
-  const dynamicTDEE = baseTDEE + stressModifier + trainingModifier + adaptationModifier;
+  const dynamicTDEE = baseTDEE + stressModifier + trainingModifier + adaptationModifier + stepModifier + cardioModifier;
 
   // ── 6. DIET PHASE DETECTION ─────────────────────────────────────
   const intakeVsDynamic = avgIntake - dynamicTDEE;
@@ -370,8 +440,19 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
       training: {
         value: trainingModifier,
         sessionsThisWeek: recentWeekWorkouts.length,
-        volumeRatio: parseFloat(volumeRatio.toFixed(2)),
+        volumeRatio: parseFloat(resVolumeRatio.toFixed(2)),
         label: trainingLabel,
+      },
+      steps: {
+        value: stepModifier,
+        avgRecentSteps: Math.round(avgRecentSteps),
+        avgBaselineSteps: Math.round(avgBaselineSteps),
+        label: stepLabel,
+      },
+      cardio: {
+        value: cardioModifier,
+        avgRecentCardio: Math.round(avgRecentCardio),
+        label: cardioLabel,
       },
       adaptation: {
         value: adaptationModifier,
@@ -379,7 +460,7 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
         label: adaptationLabel,
       },
     },
-    insight: `Your real TDEE right now is ~${Math.round(dynamicTDEE)} cal/day — not the formula's estimate of ${baseTDEE}. This accounts for your current stress load, training volume, and diet history.`,
+    insight: `Your real TDEE right now is ~${Math.round(dynamicTDEE)} cal/day. This accounts for your current activity levels, stress load, and training volume.`,
     weightChangeKg: parseFloat(weightChangeKg.toFixed(2)),
     daysAnalyzed: Math.round(daysElapsed),
     insulinSensitivity: user?.biologicalProfile?.insulinSensitivity || 'normal'

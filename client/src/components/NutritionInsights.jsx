@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { API_BASE } from '../config';
 import { useAuth } from '../context/AuthContext';
+import DeficiencyRadar from './Nutrition/DeficiencyRadar';
 
 // ----------------------------------------------------------------------
 // NEW DAILYLIFESTATE-ALIGNED NUTRITION INSIGHTS (Brutalist/Editorial UI)
@@ -13,6 +14,7 @@ const NutritionInsights = ({ selectedDate }) => {
   const [macroData, setMacroData] = useState(null);
   const [microData, setMicroData] = useState(null);
   const [metabolicMap, setMetabolicMap] = useState(null);
+  const [reviewData, setReviewData] = useState(null);
   const [hypotheses, setHypotheses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -72,16 +74,27 @@ const NutritionInsights = ({ selectedDate }) => {
   };
 
   useEffect(() => {
+    const handler = (e) => {
+      const tab = e?.detail?.tab;
+      if (tab) setActiveTab(tab);
+    };
+    window.addEventListener('lifesync:nutrition:insights:setTab', handler);
+    return () => window.removeEventListener('lifesync:nutrition:insights:setTab', handler);
+  }, []);
+
+  useEffect(() => {
     const fetchAggregationData = async () => {
       try {
         setLoading(true);
         const weekKey = getWeekKey(selectedDate);
+        const dayKey = new Date(selectedDate).toISOString().split('T')[0];
 
-        const [macroRes, microRes, metabolicRes, hypoRes] = await Promise.all([
+        const [macroRes, microRes, metabolicRes, hypoRes, reviewRes] = await Promise.all([
           fetch(`${API_BASE}/api/nutrition/aggregation/weekly-macros/${weekKey}`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch(`${API_BASE}/api/nutrition/aggregation/weekly-micros/${weekKey}`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch(`${API_BASE}/api/nutrition/metabolic-map?daysBack=60`, { headers: { Authorization: `Bearer ${token}` } }),
           fetch(`${API_BASE}/api/nutrition/hypotheses`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_BASE}/api/insights/nutrition/review?dayKey=${dayKey}`, { headers: { Authorization: `Bearer ${token}` } }),
         ]);
 
         if (!macroRes.ok || !microRes.ok) throw new Error('Failed to fetch aggregation data');
@@ -89,6 +102,10 @@ const NutritionInsights = ({ selectedDate }) => {
         setMicroData(await microRes.json());
         if (metabolicRes.ok) setMetabolicMap(await metabolicRes.json());
         if (hypoRes.ok) setHypotheses(await hypoRes.json());
+        if (reviewRes.ok) {
+          const r = await reviewRes.json();
+          setReviewData(r.review);
+        }
         setError(null);
       } catch (err) {
         setError(err.message);
@@ -122,14 +139,14 @@ const NutritionInsights = ({ selectedDate }) => {
           '&::-webkit-scrollbar': { display: 'none' },
           scrollbarWidth: 'none'
         }}>
-          {['macro', 'micro', 'metabolic', 'hypo'].map(tab => (
+          {['macro', 'micro', 'radar', 'metabolic', 'hypo'].map(tab => (
             <Typography key={tab} component="button" onClick={() => setActiveTab(tab)} sx={{
               background: 'none', border: 'none', borderBottom: activeTab === tab ? '2px solid var(--ls-text)' : '2px solid transparent',
               pb: 0.5, cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.85rem',
               color: activeTab === tab ? 'var(--ls-text)' : 'var(--ls-text-muted)', transition: 'all 0.2s', '&:hover': { color: 'var(--ls-text)' },
               whiteSpace: 'nowrap'
             }}>
-              {tab === 'macro' ? 'Macros' : tab === 'micro' ? 'Micronutrients' : tab === 'metabolic' ? 'Metabolic Map' : 'AI Hypotheses'}
+              {tab === 'macro' ? 'Macros' : tab === 'micro' ? 'Micronutrients' : tab === 'radar' ? 'Deficiency Radar' : tab === 'metabolic' ? 'Metabolic Map' : 'AI Hypotheses'}
             </Typography>
           ))}
         </Box>
@@ -138,6 +155,7 @@ const NutritionInsights = ({ selectedDate }) => {
       <Box sx={{ animation: 'fadeIn 0.5s ease-out' }}>
         {activeTab === 'macro' && macroData && <MacroEditorialView data={macroData} />}
         {activeTab === 'micro' && microData && <MicroEditorialView data={microData} />}
+        {activeTab === 'radar' && reviewData && <DeficiencyRadar risks={reviewData.deficiencyRisks} />}
         {activeTab === 'metabolic' && <MetabolicMapView data={metabolicMap} />}
 
         {activeTab === 'hypo' && (

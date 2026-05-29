@@ -553,29 +553,53 @@ function Dashboard() {
           </Box>
 
           <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2 }}>
-            All pattern analysis and AI insights are now centralized in the Insights tab.
+            Centralized pattern analysis, deficiency risks, and AI-powered health hypotheses.
           </Typography>
 
-          <Button
-            fullWidth
-            variant="outlined"
-            onClick={() => {
-              try {
-                localStorage.setItem('lifesync:insights:activeTab', '2')
-              } catch {
-                // ignore
-              }
-              window.dispatchEvent(new CustomEvent('lifesync:navigate', { detail: { section: 'trends' } }))
-            }}
-            sx={{
-              textTransform: 'none',
-              borderColor: 'divider',
-              color: 'text.primary',
-              '&:hover': { borderColor: 'text.secondary', bgcolor: 'action.hover' },
-            }}
-          >
-            Open Insights
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('lifesync:navigate', { detail: { section: 'trends' } }))
+              }}
+              sx={{
+                textTransform: 'none',
+                borderColor: 'divider',
+                color: 'text.primary',
+                '&:hover': { borderColor: 'text.secondary', bgcolor: 'action.hover' },
+              }}
+            >
+              Trends
+            </Button>
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={() => {
+                // Navigate to Nutrition section
+                window.dispatchEvent(new CustomEvent('lifesync:navigate', { detail: { section: 'nutrition' } }))
+                // Set tab to index 6 (Insights)
+                setTimeout(() => {
+                  window.dispatchEvent(new CustomEvent('lifesync:nutrition:tab', { detail: { tab: 'Insights' } }))
+                }, 50)
+                // Inside Insights, we might want the Radar tab.
+                // NutritionInsights component uses local activeTab state.
+                // We'll use a custom event to tell it to switch.
+                setTimeout(() => {
+                  window.dispatchEvent(new CustomEvent('lifesync:nutrition:insights:setTab', { detail: { tab: 'radar' } }))
+                }, 100)
+              }}
+              sx={{
+                textTransform: 'none',
+                borderColor: '#f59e0b',
+                color: '#f59e0b',
+                bgcolor: 'rgba(245, 158, 11, 0.05)',
+                '&:hover': { bgcolor: 'rgba(245, 158, 11, 0.1)' },
+              }}
+            >
+              Radar
+            </Button>
+          </Box>
         </Box>
 
         <Box 

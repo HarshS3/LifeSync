@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Info, Play, Activity as ActivityIcon } from 'lucide-react-native';
 import { Calendar } from 'react-native-calendars';
 import api from '../../services/api';
-import MuscleHeatmap from '../../components/MuscleHeatmap';
+import MuscleHeatmap, { MUSCLE_META } from '../../components/MuscleHeatmap';
 import { useTheme } from '../../constants/Theme';
 
 // UI Components
@@ -118,10 +118,10 @@ export default function HeatmapScreen() {
     const slugMap = {
       'chest':      ['chest'],
       'back':       ['upper-back', 'lower-back', 'trapezius'],   // back includes upper-back, lower-back, and trapezius
-      'shoulders':  ['front-deltoids', 'back-deltoids'],
+      'shoulders':  ['front-deltoids', 'back-deltoids', 'deltoids'],
       'biceps':     ['biceps'],
       'triceps':    ['triceps'],
-      'legs':       ['quadriceps', 'hamstring'],    // generic 'legs' hits both
+      'legs':       ['quadriceps', 'hamstring', 'gluteal', 'calves'],    // generic 'legs' hits both
       'quads':      ['quadriceps'],
       'hamstrings': ['hamstring'],
       'abs':        ['abs', 'obliques'],
@@ -132,6 +132,7 @@ export default function HeatmapScreen() {
       'traps':      ['trapezius'],
       'lats':       ['upper-back'],
       'adductors':  ['adductors'],
+      'other':      [],
     };
 
     const entries = [];
@@ -270,56 +271,85 @@ export default function HeatmapScreen() {
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={COLORS.primary} />
           </View>
-        ) : muscleHeatmapData.length > 0 ? (
+        ) : (
           <View style={styles.heatmapContainer}>
             <View style={styles.chipsContainer}>
               <Caption style={{ marginBottom: 8, fontWeight: '700', color: COLORS.textSecondary, width: '100%' }}>
-                TRAINED MUSCLES (TAP TO SELECT)
+                SELECT MUSCLE TO INSPECT
               </Caption>
-              {muscleHeatmapData.map((item) => (
+              
+              {Object.entries(MUSCLE_META).map(([slug, meta]) => {
+                const isTrained = muscleHeatmapData.some(d => d.slug === slug);
+                return (
+                  <TouchableOpacity
+                    key={slug}
+                    style={[
+                      styles.chip,
+                      selectedMuscle === slug
+                        ? { backgroundColor: COLORS.primary }
+                        : { backgroundColor: COLORS.gray100 },
+                      !isTrained && selectedMuscle !== slug && { opacity: 0.6 }
+                    ]}
+                    onPress={() => handleChipPress(slug)}
+                  >
+                    <Body style={[
+                      styles.chipText,
+                      selectedMuscle === slug ? { color: COLORS.surface, fontWeight: 'bold' } : { color: COLORS.textSecondary }
+                    ]}>
+                      {meta.label}
+                    </Body>
+                    {isTrained && selectedMuscle !== slug && (
+                      <View style={[styles.dot, { backgroundColor: COLORS.training }]} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+
+              {stats?.muscleDistribution?.other > 0 && (
                 <TouchableOpacity
-                  key={item.slug}
                   style={[
                     styles.chip,
-                    selectedMuscle === item.slug
+                    selectedMuscle === 'other'
                       ? { backgroundColor: COLORS.primary }
                       : { backgroundColor: COLORS.gray100 }
                   ]}
-                  onPress={() => handleChipPress(item.slug)}
+                  onPress={() => handleChipPress('other')}
                 >
                   <Body style={[
                     styles.chipText,
-                    selectedMuscle === item.slug ? { color: COLORS.surface, fontWeight: 'bold' } : { color: COLORS.textSecondary }
+                    selectedMuscle === 'other' ? { color: COLORS.surface, fontWeight: 'bold' } : { color: COLORS.textSecondary }
                   ]}>
-                    {item.slug.replace(/-/g, ' ')}
+                    Other ({stats.muscleDistribution.other})
                   </Body>
                 </TouchableOpacity>
-              ))}
+              )}
             </View>
 
-            <MuscleHeatmap 
-              data={muscleHeatmapData} 
-              onZoomChange={(zoomed) => setScrollEnabled(!zoomed)}
-              selectedMuscle={selectedMuscle}
-              onMuscleSelect={setSelectedMuscle}
-            />
-          </View>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <View style={[styles.emptyIconCircle, { backgroundColor: COLORS.gray100 }]}>
-              <Info size={32} color={COLORS.gray400} />
-            </View>
-            <H3 style={{ marginBottom: 8 }}>No Data Available</H3>
-            <Body secondary style={{ textAlign: 'center', paddingHorizontal: 40, marginBottom: 24 }}>
-              Log some workouts with exercises in this range to see your muscle distribution heatmap!
-            </Body>
-            <TouchableOpacity 
-              style={[styles.emptyAction, { backgroundColor: COLORS.primary }]}
-              onPress={() => router.push('/training/active')}
-            >
-              <Play size={16} color={COLORS.surface} />
-              <Body style={{ color: COLORS.surface, fontWeight: '700' }}>Start Workout</Body>
-            </TouchableOpacity>
+            {muscleHeatmapData.length > 0 || selectedMuscle ? (
+              <MuscleHeatmap 
+                data={muscleHeatmapData} 
+                onZoomChange={(zoomed) => setScrollEnabled(!zoomed)}
+                selectedMuscle={selectedMuscle}
+                onMuscleSelect={setSelectedMuscle}
+              />
+            ) : (
+              <View style={styles.emptyContainer}>
+                <View style={[styles.emptyIconCircle, { backgroundColor: COLORS.gray100 }]}>
+                  <Info size={32} color={COLORS.gray400} />
+                </View>
+                <H3 style={{ marginBottom: 8 }}>No Data Available</H3>
+                <Body secondary style={{ textAlign: 'center', paddingHorizontal: 40, marginBottom: 24 }}>
+                  Log some workouts with exercises in this range to see your muscle distribution heatmap!
+                </Body>
+                <TouchableOpacity 
+                  style={[styles.emptyAction, { backgroundColor: COLORS.primary }]}
+                  onPress={() => router.push('/training/active')}
+                >
+                  <Play size={16} color={COLORS.surface} />
+                  <Body style={{ color: COLORS.surface, fontWeight: '700' }}>Start Workout</Body>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -401,9 +431,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   chipText: {
-    fontSize: 13,
+    fontSize: 12,
     textTransform: 'capitalize',
   },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginLeft: 4,
+  }
 });

@@ -10,6 +10,11 @@ const WorkoutSchema = new mongoose.Schema(
       {
         name: String,
         muscleGroup: String,
+        metadata: {
+          type: { type: String, enum: ['compound', 'isolation'] },
+          primary: String,
+          secondary: [String],
+        },
         sets: [
           {
             weight: Number,

@@ -132,6 +132,13 @@ export default function ActiveWorkoutScreen() {
   const [isReady, setIsReady] = useState(false);
   
   const [showPicker, setShowPicker] = useState(false);
+  const [showCustomForm, setShowCustomForm] = useState(false);
+  const [customExerciseData, setCustomExerciseData] = useState({
+    name: '',
+    primaryMuscle: 'chest',
+    type: 'compound',
+    secondaryMuscles: []
+  });
   const [search, setSearch] = useState('');
   const [selectedToBatch, setSelectedToBatch] = useState([]);
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('all');
@@ -426,6 +433,31 @@ export default function ActiveWorkoutScreen() {
     }));
   };
 
+  const handleCreateCustom = () => {
+    if (!customExerciseData.name.trim()) return;
+    const newEx = {
+      id: generateId(),
+      name: customExerciseData.name.trim(),
+      muscleGroup: customExerciseData.primaryMuscle,
+      metadata: {
+        type: customExerciseData.type,
+        primary: customExerciseData.primaryMuscle,
+        secondary: customExerciseData.secondaryMuscles
+      },
+      sets: [{ id: generateId(), weight: '', reps: '', completed: false }]
+    };
+    setExercises(prev => [...prev, newEx]);
+    setShowCustomForm(false);
+    setShowPicker(false);
+    setSearch('');
+    setCustomExerciseData({
+      name: '',
+      primaryMuscle: 'chest',
+      type: 'compound',
+      secondaryMuscles: []
+    });
+  };
+
   const handleFinish = async () => {
     if (exercises.length === 0) {
       Alert.alert('Empty Workout', 'Add at least one exercise!');
@@ -438,18 +470,22 @@ export default function ActiveWorkoutScreen() {
         duration: Math.floor(elapsed / 60),
         date: new Date(),
         exercises: exercises.map(ex => {
-          // Find muscle group for this exercise
-          let muscleGroup = 'other';
-          for (const [group, data] of Object.entries(EXERCISE_LIBRARY)) {
-            if (data.exercises.includes(ex.name)) {
-              muscleGroup = group;
-              break;
+          // Use attached muscleGroup/metadata if it exists (custom exercises)
+          // otherwise fallback to library lookup
+          let muscleGroup = ex.muscleGroup;
+          if (!muscleGroup || muscleGroup === 'other') {
+            for (const [group, data] of Object.entries(EXERCISE_LIBRARY)) {
+              if (data.exercises.includes(ex.name)) {
+                muscleGroup = group;
+                break;
+              }
             }
           }
 
           return {
             name: ex.name,
-            muscleGroup,
+            muscleGroup: muscleGroup || 'other',
+            metadata: ex.metadata,
             sets: ex.sets.map(s => ({
               weight: parseFloat(s.weight) || 0,
               reps: parseInt(s.reps) || 0,
@@ -677,31 +713,16 @@ export default function ActiveWorkoutScreen() {
               ListFooterComponent={search.trim() && !allNames.some(n => n.toLowerCase() === search.toLowerCase().trim()) && (
                 <TouchableOpacity 
                   style={styles.pickerItem} 
-                  onPress={async () => {
+                  onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    const customName = search.trim();
-                    let historySets = [];
-                    try {
-                      const res = await api.get(`/gym/exercise-history/${encodeURIComponent(customName)}`);
-                      const history = res.data?.history;
-                      if (history && history.length > 0) {
-                        const lastSession = history[0];
-                        historySets = lastSession.sets || [];
-                      }
-                    } catch (e) { console.error(e); }
-
-                    const newEx = {
-                      id: generateId(),
-                      name: customName,
-                      historySets,
-                      sets: [{ id: generateId(), weight: '', reps: '', completed: false }]
-                    };
-                    setExercises([...exercises, newEx]);
-                    setShowPicker(false);
-                    setSearch('');
+                    setCustomExerciseData(prev => ({ ...prev, name: search.trim() }));
+                    setShowCustomForm(true);
                   }}
                 >
-                  <Body>Add custom: "{search}"</Body>
+                  <View style={{ flex: 1 }}>
+                    <Body>Add custom: "{search}"</Body>
+                    <Caption style={{ color: COLORS.primary }}>Tap to specify muscle groups & type</Caption>
+                  </View>
                   <Plus size={18} color={COLORS.primary} />
                 </TouchableOpacity>
               )}
@@ -719,6 +740,111 @@ export default function ActiveWorkoutScreen() {
                 }
               </TouchableOpacity>
             )}
+          </View>
+        </View>
+      </Modal>
+      {/* Custom Exercise Detail Form Modal */}
+      <Modal visible={showCustomForm} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalBody, { backgroundColor: COLORS.surface, height: '70%' }]}>
+            <View style={styles.modalHeader}>
+              <H2>Exercise Details</H2>
+              <TouchableOpacity onPress={() => setShowCustomForm(false)}>
+                <X size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={{ marginBottom: 20 }}>
+                <Caption style={{ marginBottom: 8, fontWeight: '700', color: COLORS.textSecondary }}>NAME</Caption>
+                <TextInput 
+                  style={[styles.modalInput, { color: COLORS.text, backgroundColor: COLORS.gray100 }]}
+                  value={customExerciseData.name}
+                  onChangeText={(v) => setCustomExerciseData(prev => ({ ...prev, name: v }))}
+                />
+              </View>
+
+              <View style={{ marginBottom: 20 }}>
+                <Caption style={{ marginBottom: 8, fontWeight: '700', color: COLORS.textSecondary }}>EXERCISE TYPE</Caption>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {['compound', 'isolation'].map(t => (
+                    <TouchableOpacity 
+                      key={t}
+                      style={[
+                        styles.formTab, 
+                        { backgroundColor: COLORS.gray100 },
+                        customExerciseData.type === t && { backgroundColor: COLORS.primary }
+                      ]}
+                      onPress={() => setCustomExerciseData(prev => ({ ...prev, type: t }))}
+                    >
+                      <Body style={[
+                        { fontSize: 13, textTransform: 'capitalize' },
+                        customExerciseData.type === t && { color: COLORS.surface, fontWeight: '700' }
+                      ]}>{t}</Body>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={{ marginBottom: 20 }}>
+                <Caption style={{ marginBottom: 8, fontWeight: '700', color: COLORS.textSecondary }}>PRIMARY MUSCLE</Caption>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {Object.keys(EXERCISE_LIBRARY).map(m => (
+                    <TouchableOpacity 
+                      key={m}
+                      style={[
+                        styles.formTab, 
+                        { backgroundColor: COLORS.gray100 },
+                        customExerciseData.primaryMuscle === m && { backgroundColor: COLORS.primary }
+                      ]}
+                      onPress={() => setCustomExerciseData(prev => ({ ...prev, primaryMuscle: m }))}
+                    >
+                      <Body style={[
+                        { fontSize: 12, textTransform: 'capitalize' },
+                        customExerciseData.primaryMuscle === m && { color: COLORS.surface, fontWeight: '700' }
+                      ]}>{m}</Body>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={{ marginBottom: 40 }}>
+                <Caption style={{ marginBottom: 8, fontWeight: '700', color: COLORS.textSecondary }}>SECONDARY MUSCLES (OPTIONAL)</Caption>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {Object.keys(EXERCISE_LIBRARY).map(m => (
+                    <TouchableOpacity 
+                      key={m}
+                      style={[
+                        styles.formTab, 
+                        { backgroundColor: COLORS.gray100 },
+                        customExerciseData.secondaryMuscles.includes(m) && { backgroundColor: COLORS.primary + '40' },
+                        customExerciseData.primaryMuscle === m && { opacity: 0.3 }
+                      ]}
+                      disabled={customExerciseData.primaryMuscle === m}
+                      onPress={() => {
+                        setCustomExerciseData(prev => {
+                          const exists = prev.secondaryMuscles.includes(m);
+                          if (exists) return { ...prev, secondaryMuscles: prev.secondaryMuscles.filter(x => x !== m) };
+                          return { ...prev, secondaryMuscles: [...prev.secondaryMuscles, m] };
+                        });
+                      }}
+                    >
+                      <Body style={[
+                        { fontSize: 12, textTransform: 'capitalize' },
+                        customExerciseData.secondaryMuscles.includes(m) && { fontWeight: '700' }
+                      ]}>{m}</Body>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity 
+              style={[styles.modalDoneBtn, { backgroundColor: COLORS.primary }]} 
+              onPress={handleCreateCustom}
+            >
+              <Body style={{ color: COLORS.primaryContrast, fontWeight: 'bold' }}>Create & Add Exercise</Body>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -770,5 +896,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalDoneBtn: { padding: 16, borderRadius: 16, alignItems: 'center', marginTop: 10 }
+  modalDoneBtn: { padding: 16, borderRadius: 16, alignItems: 'center', marginTop: 10 },
+  modalInput: { padding: 12, borderRadius: 12, fontSize: 16, fontWeight: '600' },
+  formTab: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

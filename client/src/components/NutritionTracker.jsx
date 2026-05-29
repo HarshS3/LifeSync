@@ -413,13 +413,18 @@ function NutritionTracker() {
 
   useEffect(() => {
     const handler = (e) => {
-      const tab = e?.detail?.tab
-      if (tab === 'Weight') {
-        setActiveTab(2)
-      } else if (tab === 'Log Meal') {
-        setActiveTab(1)
-      } else if (tab === 'Today') {
-        setActiveTab(0)
+      const tabLabel = e?.detail?.tab
+      if (!tabLabel) return
+
+      const tabLabels = [
+        'Today', 'Log Meal', 'Weight', "Today's Details", 
+        'Summary', 'Scan Product', 'Insights', 'Recipes', 
+        'Kitchen', 'Review', 'Add Food to DB'
+      ]
+      
+      const idx = tabLabels.findIndex(l => l.toLowerCase() === tabLabel.toLowerCase())
+      if (idx !== -1) {
+        setActiveTab(idx)
       }
     }
     window.addEventListener('lifesync:nutrition:tab', handler)

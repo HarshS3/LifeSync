@@ -112,6 +112,13 @@ const EXERCISE_METADATA = {
   'Crunch': { type: 'isolation', primary: 'core', secondary: [] },
   'Mountain Climber': { type: 'compound', primary: 'core', secondary: ['shoulders', 'quads'] },
   'Bicycle Crunches': { type: 'isolation', primary: 'core', secondary: [] },
+
+  // Cardio (MET values)
+  'Running': { type: 'cardio', met: 9.8, primary: 'cardio', secondary: ['legs'] },
+  'Cycling': { type: 'cardio', met: 7.5, primary: 'cardio', secondary: ['legs'] },
+  'Treadmill Walk': { type: 'cardio', met: 3.8, primary: 'cardio', secondary: ['legs'] },
+  'Rowing': { type: 'cardio', met: 7.0, primary: 'cardio', secondary: ['back', 'legs'] },
+  'Elliptical': { type: 'cardio', met: 5.0, primary: 'cardio', secondary: ['legs'] },
 };
 
 module.exports = { EXERCISE_METADATA };

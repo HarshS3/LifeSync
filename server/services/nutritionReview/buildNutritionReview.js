@@ -1,4 +1,21 @@
 const { NutritionLog } = require('../../models/Logs');
+const User = require('../../models/User');
+
+const MICRONUTRIENT_MAPPING = [
+  { key: 'iron', name: 'Iron', rda: 14, risk: 'Brain fog, chronic fatigue, feeling cold', fix: 'Lentils, spinach, red meat, pumpkin seeds', unit: 'mg' },
+  { key: 'magnesium', name: 'Magnesium', rda: 400, risk: 'Muscle cramps, poor sleep quality, eye twitches', fix: 'Almonds, dark chocolate, black beans', unit: 'mg' },
+  { key: 'zinc', name: 'Zinc', rda: 11, risk: 'Weakened immunity, slow wound healing', fix: 'Oysters, beef, pumpkin seeds, chickpeas', unit: 'mg' },
+  { key: 'potassium', name: 'Potassium', rda: 3400, risk: 'Muscle weakness, bloating, BP spikes', fix: 'Bananas, sweet potatoes, coconut water', unit: 'mg' },
+  { key: 'calcium', name: 'Calcium', rda: 1000, risk: 'Muscle spasms, weak nails, bone density loss', fix: 'Dairy, tofu, leafy greens', unit: 'mg' },
+  { key: 'vitaminC', name: 'Vitamin C', rda: 90, risk: 'Bleeding gums, joint pain, poor iron absorption', fix: 'Citrus fruits, bell peppers, strawberries', unit: 'mg' },
+  { key: 'vitaminD', name: 'Vitamin D', rda: 15, risk: 'Low mood, bone ache, frequent illness, fatigue', fix: 'Salmon, egg yolks, fortified milk, sunlight', unit: 'mcg' },
+  { key: 'omega3', name: 'Omega-3', rda: 1.6, risk: 'Joint stiffness, brain fog, dry skin, inflammation', fix: 'Salmon, chia seeds, walnuts, flaxseed', unit: 'g' },
+  { key: 'vitaminA', name: 'Vitamin A', rda: 900, risk: 'Poor night vision, dry skin, acne breakouts', fix: 'Sweet potatoes, carrots, spinach', unit: 'mcg' },
+  { key: 'vitaminE', name: 'Vitamin E', rda: 15, risk: 'Muscle weakness, vision problems, immune decline', fix: 'Sunflower seeds, almonds, spinach', unit: 'mg' },
+  { key: 'vitaminB12', name: 'Vitamin B12', rda: 2.4, risk: 'Low energy, tingling in hands/feet, mood swings', fix: 'Eggs, nutritional yeast, salmon', unit: 'mcg' },
+  { key: 'folate', name: 'Folate (B9)', rda: 400, risk: 'Chronic fatigue, irritability, pale skin', fix: 'Lentils, asparagus, spinach', unit: 'mcg' },
+  { key: 'selenium', name: 'Selenium', rda: 55, risk: 'Thyroid imbalances, fatigue, hair loss', fix: 'Brazil nuts, fish, eggs', unit: 'mcg' }
+];
 
 function clamp01(n) {
   if (!Number.isFinite(n)) return 0;
@@ -210,6 +227,55 @@ async function buildNutritionReview({ userId, dayKey }) {
     'If nutrients are missing from the log, LifeSync treats them as unknown rather than “low”.',
   ];
 
+  // --- Predictive Deficiency Radar (7-Day Analysis) ---
+  const sevenDaysAgo = new Date(dateStart);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  
+  const weeklyLogs = await NutritionLog.find({ 
+    user: userId, 
+    date: { $gte: sevenDaysAgo, $lt: dateEnd } 
+  }).lean();
+
+  const userDoc = await User.findById(userId).select('gender').lean();
+  const isFemale = userDoc?.gender === 'female';
+
+  const deficiencyRisks = [];
+  
+  // Only evaluate if we have at least 3 days of logs to avoid noisy alerts on empty weeks
+  if (weeklyLogs.length >= 3) {
+    const averages = {};
+    const validDaysCount = weeklyLogs.length;
+
+    MICRONUTRIENT_MAPPING.forEach(nutrient => {
+      let total = 0;
+      weeklyLogs.forEach(wlog => {
+        const val = safeNumber(wlog?.dailyTotals?.[nutrient.key]) || 0;
+        total += val;
+      });
+      averages[nutrient.key] = total / validDaysCount;
+
+      // Adjust RDAs based on gender where applicable
+      let target = nutrient.rda;
+      if (nutrient.key === 'iron') target = isFemale ? 18 : 8;
+      if (nutrient.key === 'zinc') target = isFemale ? 8 : 11;
+      if (nutrient.key === 'vitaminA') target = isFemale ? 700 : 900;
+      if (nutrient.key === 'omega3') target = isFemale ? 1.1 : 1.6;
+
+      // Only evaluate if they logged SOME of this nutrient (avoiding noise if they don't track micros)
+      if (averages[nutrient.key] > 0 && averages[nutrient.key] < target * 0.7) {
+        deficiencyRisks.push({
+          nutrient: nutrient.name,
+          key: nutrient.key,
+          average: Math.round(averages[nutrient.key] * 10) / 10,
+          target,
+          unit: nutrient.unit,
+          symptomRisk: nutrient.risk,
+          foodFix: nutrient.fix
+        });
+      }
+    });
+  }
+
   return {
     dayKey,
     dateStart,
@@ -219,6 +285,7 @@ async function buildNutritionReview({ userId, dayKey }) {
     completeness,
     snapshot,
     flags,
+    deficiencyRisks,
     questionsForClinician,
     notes,
   };

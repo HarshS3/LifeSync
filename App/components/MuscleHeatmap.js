@@ -11,7 +11,7 @@ import * as Haptics from 'expo-haptics';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Verified slugs for react-native-body-highlighter v3
-const MUSCLE_META = {
+export const MUSCLE_META = {
   chest:         { label: 'Chest',         side: 'front' },
   'upper-back':  { label: 'Upper Back',    side: 'back'  },
   'lower-back':  { label: 'Lower Back',    side: 'back'  },
@@ -34,13 +34,24 @@ const MUSCLE_META = {
 
 const MIN_SCALE = 1.0;
 const MAX_SCALE = 3.0;
-const BODY_WIDTH  = SCREEN_WIDTH - 48;
-const BODY_HEIGHT = 340;
+const DEFAULT_BODY_WIDTH  = SCREEN_WIDTH - 48;
+const DEFAULT_BODY_HEIGHT = 380; // Increased height to prevent anatomical clipping
 
-export default function MuscleHeatmap({ data = [], gender = 'male', onZoomChange, selectedMuscle, onMuscleSelect }) {
+export default function MuscleHeatmap({ 
+  data = [], 
+  gender = 'male', 
+  onZoomChange, 
+  selectedMuscle, 
+  onMuscleSelect,
+  width: customWidth,
+  height: customHeight
+}) {
   const { COLORS, BORDER_RADIUS, SHADOWS, TYPOGRAPHY, SPACING } = useTheme();
   const [side, setSide] = useState('front');
   const [isZoomed, setIsZoomed] = useState(false);
+
+  const BODY_WIDTH = customWidth || DEFAULT_BODY_WIDTH;
+  const BODY_HEIGHT = customHeight || DEFAULT_BODY_HEIGHT;
 
   // --- BLUE THEME (Active) ---
   const heatmapColors = useMemo(() => [
@@ -51,16 +62,6 @@ export default function MuscleHeatmap({ data = [], gender = 'male', onZoomChange
     COLORS.training,
     COLORS.primary,
   ], [COLORS]);
-
-  // --- ORANGE THEME ALTERNATIVE (Commented out) ---
-  // const heatmapColors = useMemo(() => [
-  //   COLORS.gray200 || '#e5e7eb',
-  //   '#fed7aa', // Low
-  //   '#fb923c', // Moderate
-  //   '#ea580c', // High
-  //   '#9a3412', // Very High
-  //   COLORS.info || '#3b82f6',    // Selected
-  // ], [COLORS]);
 
   // ---------- Animation refs ----------
   const animScale     = useRef(new Animated.Value(1)).current;
@@ -207,7 +208,7 @@ export default function MuscleHeatmap({ data = [], gender = 'male', onZoomChange
     ? (intensityLabels[selectedEntry.intensity] || 'Moderate')
     : null;
 
-  const muscleStyles = styles(COLORS, BORDER_RADIUS, SHADOWS, SPACING);
+  const muscleStyles = styles(COLORS, BORDER_RADIUS, SHADOWS, SPACING, BODY_HEIGHT);
 
   return (
     <View style={muscleStyles.container}>
@@ -265,7 +266,7 @@ export default function MuscleHeatmap({ data = [], gender = 'male', onZoomChange
             data={heatmapData}
             gender={gender}
             side={side}
-            scale={1.0}
+            scale={0.9} // Slightly reduced internal scale to ensure fit
             width={BODY_WIDTH}
             height={BODY_HEIGHT}
             onBodyPartPress={handleMusclePress}
@@ -283,7 +284,7 @@ export default function MuscleHeatmap({ data = [], gender = 'male', onZoomChange
                 Selected Muscle
               </Text>
               <TouchableOpacity
-                onPress={() => setSelectedMuscle(null)}
+                onPress={() => onMuscleSelect(null)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <X size={16} color={COLORS.textSecondary} />
@@ -332,12 +333,12 @@ export default function MuscleHeatmap({ data = [], gender = 'male', onZoomChange
   );
 }
 
-const styles = (COLORS, BORDER_RADIUS, SHADOWS, SPACING) =>
+const styles = (COLORS, BORDER_RADIUS, SHADOWS, SPACING, BODY_HEIGHT) =>
   StyleSheet.create({
     container: {
       backgroundColor: COLORS?.surface || '#fff',
       borderRadius: BORDER_RADIUS?.lg || 16,
-      padding: 20,
+      padding: 16,
       marginBottom: 20,
       borderWidth: 1,
       borderColor: COLORS?.border || '#eee',

@@ -89,7 +89,7 @@ router.get('/summary', auth, async (req, res) => {
     const muscleDistribution = {};
     allWorkouts.filter(w => new Date(w.date) > weekAgo).forEach(w => {
       w.exercises?.forEach(ex => {
-        const metadata = EXERCISE_METADATA[ex.name];
+        const metadata = ex.metadata || EXERCISE_METADATA[ex.name];
         const primaryMuscle = (ex.muscleGroup || metadata?.primary || 'other').toLowerCase().trim();
         const setsCount = ex.sets?.filter(s => (s.reps || 0) > 0).length || 0;
 
@@ -319,7 +319,7 @@ router.get('/stats', auth, async (req, res) => {
 
       w.exercises?.forEach((ex) => {
         // Use metadata for accurate muscle mapping
-        const metadata = EXERCISE_METADATA[ex.name];
+        const metadata = ex.metadata || EXERCISE_METADATA[ex.name];
         const muscle = (ex.muscleGroup || metadata?.primary || 'other').toLowerCase().trim();
         
         // Count "Hard Sets" for weekly hypertrophy (recent only or range)

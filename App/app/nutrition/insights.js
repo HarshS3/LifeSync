@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import api from '../../services/api';
-import { ChevronLeft, Info, AlertTriangle, BookOpen, MessageSquare, Dna, Activity } from 'lucide-react-native';
+import { Info, AlertTriangle, BookOpen, MessageSquare, Activity } from 'lucide-react-native';
+import DeficiencyRadar from '../../components/Nutrition/DeficiencyRadar';
+import { useTheme } from '../../constants/Theme';
+import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
+import { Card } from '../../components/ui/Card';
+import { H3, Body, Caption } from '../../components/ui/Typography';
 
 export default function NutritionInsightsScreen() {
   const router = useRouter();
+  const { COLORS, TYPOGRAPHY, SHADOWS } = useTheme();
   const { date } = useLocalSearchParams();
   const selectedDate = date || new Date().toISOString().split('T')[0];
   
@@ -40,8 +46,8 @@ export default function NutritionInsightsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#000" />
+      <View style={[styles.centered, { backgroundColor: COLORS.background }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }
@@ -50,137 +56,117 @@ export default function NutritionInsightsScreen() {
   const narration = insight?.narration || '';
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ChevronLeft size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Nutrition Insight</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
+    <ScreenWrapper title="Nutrition Insight">
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.dateCard}>
-          <Text style={styles.dateText}>
+          <Body secondary style={{ fontWeight: '600' }}>
             {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
-          </Text>
+          </Body>
         </View>
 
         {narration ? (
-          <View style={styles.narrationCard}>
+          <Card style={[styles.narrationCard, { borderColor: COLORS.insight + '30', ...SHADOWS }]} padding={20}>
             <View style={styles.narrationHeader}>
-              <MessageSquare size={18} color="#8b5cf6" />
-              <Text style={styles.narrationTitle}>LifeSync Analysis</Text>
+              <MessageSquare size={18} color={COLORS.insight} />
+              <H3 style={[styles.narrationTitle, { color: COLORS.insight }]}>LifeSync Analysis</H3>
             </View>
-            <Text style={styles.narrationText}>{narration}</Text>
+            <Body style={styles.narrationText}>{narration}</Body>
             {insight.rag?.ok && (
-              <View style={styles.ragBadge}>
-                <BookOpen size={12} color="#8b5cf6" />
-                <Text style={styles.ragBadgeText}>Grounded in medical textbooks</Text>
+              <View style={[styles.ragBadge, { borderTopColor: COLORS.border }]}>
+                <BookOpen size={12} color={COLORS.insight} />
+                <Caption style={{ color: COLORS.insight, fontWeight: '600' }}>Grounded in medical textbooks</Caption>
               </View>
             )}
-          </View>
+          </Card>
         ) : null}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Key Findings</Text>
+          <H3 style={styles.sectionTitle}>Key Findings</H3>
           {review.flags?.length > 0 ? (
-            review.flags.map((flag, i) => (
-              <View key={i} style={styles.flagCard}>
-                <View style={[styles.flagIcon, { backgroundColor: flag.severity === 'high' ? '#fef2f2' : '#fff7ed' }]}>
-                  <AlertTriangle size={20} color={flag.severity === 'high' ? '#ef4444' : '#f59e0b'} />
-                </View>
-                <View style={styles.flagInfo}>
-                  <Text style={styles.flagTitle}>{flag.title}</Text>
-                  <Text style={styles.flagDesc}>{flag.description}</Text>
-                </View>
-              </View>
-            ))
+            review.flags.map((flag, i) => {
+              const severityColor = flag.severity === 'high' ? COLORS.error : COLORS.warning;
+              return (
+                <Card key={i} style={styles.flagCard} padding={16}>
+                  <View style={[styles.flagIcon, { backgroundColor: severityColor + '15' }]}>
+                    <AlertTriangle size={20} color={severityColor} />
+                  </View>
+                  <View style={styles.flagInfo}>
+                    <Body style={{ fontWeight: '700' }}>{flag.title}</Body>
+                    <Caption style={{ marginTop: 2 }}>{flag.description}</Caption>
+                  </View>
+                </Card>
+              );
+            })
           ) : (
-            <View style={styles.emptyInsight}>
-              <Text style={styles.emptyText}>No major flags identified for today.</Text>
-            </View>
+            <Card style={styles.emptyInsight} padding={30}>
+              <Caption>No major flags identified for today.</Caption>
+            </Card>
           )}
         </View>
 
         {review.questionsForClinician?.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>To Discuss With Clinician</Text>
-            <View style={styles.questionsCard}>
+            <H3 style={styles.sectionTitle}>To Discuss With Clinician</H3>
+            <Card style={styles.questionsCard} padding={20}>
               {review.questionsForClinician.map((q, i) => (
                 <View key={i} style={styles.questionRow}>
-                  <Info size={16} color="#666" style={{ marginTop: 2 }} />
-                  <Text style={styles.questionText}>{q}</Text>
+                  <Info size={16} color={COLORS.textSecondary} style={{ marginTop: 2 }} />
+                  <Body style={styles.questionText}>{q}</Body>
                 </View>
               ))}
-            </View>
+            </Card>
           </View>
         )}
 
+        <DeficiencyRadar risks={review.deficiencyRisks} />
+
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🧬 Nutritional DNA</Text>
+          <H3 style={styles.sectionTitle}>🧬 Nutritional DNA</H3>
           {dna && dna.status !== 'insufficient_data' && dna.profile ? (
-            <View style={styles.dnaCard}>
+            <Card style={styles.dnaCard} padding={20}>
               <View style={styles.dnaHeader}>
-                <Text style={styles.dnaTitle}>Carbohydrate Tolerance</Text>
-                <View style={[styles.dnaBadge, { backgroundColor: dna.profile.carbTolerance?.tolerance === 'high' ? '#dcfce7' : dna.profile.carbTolerance?.tolerance === 'low' ? '#fecaca' : '#f1f5f9' }]}>
-                  <Text style={[styles.dnaBadgeText, { color: dna.profile.carbTolerance?.tolerance === 'high' ? '#16a34a' : dna.profile.carbTolerance?.tolerance === 'low' ? '#dc2626' : '#64748b' }]}>
+                <Body style={{ fontWeight: '700' }}>Carbohydrate Tolerance</Body>
+                <View style={[styles.dnaBadge, { backgroundColor: dna.profile.carbTolerance?.tolerance === 'high' ? COLORS.success + '15' : dna.profile.carbTolerance?.tolerance === 'low' ? COLORS.error + '15' : COLORS.gray100 }]}>
+                  <Caption style={{ color: dna.profile.carbTolerance?.tolerance === 'high' ? COLORS.success : dna.profile.carbTolerance?.tolerance === 'low' ? COLORS.error : COLORS.textSecondary, fontWeight: '800' }}>
                     {dna.profile.carbTolerance?.tolerance?.toUpperCase()}
-                  </Text>
+                  </Caption>
                 </View>
               </View>
-              <Text style={styles.dnaReasoning}>{dna.profile.carbTolerance?.reasoning}</Text>
+              <Body style={styles.dnaReasoning}>{dna.profile.carbTolerance?.reasoning}</Body>
               
-              <View style={styles.dnaStrategy}>
-                <Text style={styles.dnaStrategyTitle}>Recommended Strategy</Text>
-                <Text style={styles.dnaStrategyText}>{dna.profile.carbTolerance?.action}</Text>
+              <View style={[styles.dnaStrategy, { backgroundColor: COLORS.gray100, borderColor: COLORS.border }]}>
+                <Caption style={{ fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 }}>Recommended Strategy</Caption>
+                <Body style={{ fontWeight: '500' }}>{dna.profile.carbTolerance?.action}</Body>
               </View>
               
-              <View style={styles.dnaDivider} />
+              <View style={[styles.dnaDivider, { backgroundColor: COLORS.border }]} />
               
               <View style={styles.dnaHeader}>
-                <Text style={styles.dnaTitle}>Salt Sensitivity</Text>
-                <View style={[styles.dnaBadge, { backgroundColor: '#f1f5f9' }]}>
-                  <Text style={[styles.dnaBadgeText, { color: '#64748b' }]}>ANALYZING</Text>
+                <Body style={{ fontWeight: '700' }}>Salt Sensitivity</Body>
+                <View style={[styles.dnaBadge, { backgroundColor: COLORS.gray100 }]}>
+                  <Caption style={{ color: COLORS.textSecondary, fontWeight: '800' }}>ANALYZING</Caption>
                 </View>
               </View>
-              <Text style={styles.dnaReasoning}>Tracking how morning weight correlates with previous-day sodium intake.</Text>
-            </View>
+              <Body style={styles.dnaReasoning}>Tracking how morning weight correlates with previous-day sodium intake.</Body>
+            </Card>
           ) : (
-            <View style={styles.dnaCard}>
-              <Activity size={32} color="#94a3b8" style={{ marginBottom: 12, alignSelf: 'center' }} />
-              <Text style={[styles.dnaTitle, { textAlign: 'center' }]}>Analyzing...</Text>
-              <Text style={[styles.dnaReasoning, { textAlign: 'center', marginTop: 4 }]}>Keep logging your meals. Observing how your body responds to macronutrients.</Text>
-            </View>
+            <Card style={styles.dnaCard} padding={20}>
+              <Activity size={32} color={COLORS.gray400} style={{ marginBottom: 12, alignSelf: 'center' }} />
+              <Body style={{ fontWeight: '700', textAlign: 'center' }}>Analyzing...</Body>
+              <Body style={{ textAlign: 'center', marginTop: 4 }}>Keep logging your meals. Observing how your body responds to macronutrients.</Body>
+            </Card>
           )}
         </View>
       </ScrollView>
-    </View>
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
   },
   scrollContent: {
     padding: 16,
@@ -189,23 +175,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  dateText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
   narrationCard: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
     marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#ede9fe',
-    elevation: 2,
-    shadowColor: '#8b5cf6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
   },
   narrationHeader: {
     flexDirection: 'row',
@@ -215,15 +186,12 @@ const styles = StyleSheet.create({
   narrationTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#7c3aed',
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginLeft: 8,
   },
   narrationText: {
-    fontSize: 15,
     lineHeight: 24,
-    color: '#333',
   },
   ragBadge: {
     flexDirection: 'row',
@@ -231,32 +199,18 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
     gap: 6,
-  },
-  ragBadgeText: {
-    fontSize: 11,
-    color: '#8b5cf6',
-    fontWeight: '600',
   },
   section: {
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
     marginBottom: 16,
-    color: '#333',
     paddingHorizontal: 4,
   },
   flagCard: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#eee',
     alignItems: 'center',
   },
   flagIcon: {
@@ -270,22 +224,7 @@ const styles = StyleSheet.create({
   flagInfo: {
     flex: 1,
   },
-  flagTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#000',
-  },
-  flagDesc: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 2,
-  },
   questionsCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#eee',
   },
   questionRow: {
     flexDirection: 'row',
@@ -293,29 +232,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   questionText: {
-    fontSize: 14,
-    color: '#4b5563',
     lineHeight: 20,
     flex: 1,
   },
   emptyInsight: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 30,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#eee',
-  },
-  emptyText: {
-    color: '#9ca3af',
-    fontSize: 14,
   },
   dnaCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#eee',
   },
   dnaHeader: {
     flexDirection: 'row',
@@ -323,48 +246,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  dnaTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0f172a',
-  },
   dnaBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  dnaBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
   dnaReasoning: {
-    fontSize: 14,
-    color: '#475569',
     lineHeight: 20,
     marginBottom: 16,
   },
   dnaStrategy: {
-    backgroundColor: '#f8f9fa',
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
-  },
-  dnaStrategyTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748b',
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  dnaStrategyText: {
-    fontSize: 14,
-    color: '#0f172a',
-    fontWeight: '500',
   },
   dnaDivider: {
     height: 1,
-    backgroundColor: '#eee',
     marginVertical: 16,
   },
 });

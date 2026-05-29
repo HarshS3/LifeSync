@@ -326,12 +326,20 @@ export default function DashboardScreen() {
           <Body secondary style={{ marginBottom: 16 }}>
             Pattern analysis and AI insights are centralized in the Insights tab.
           </Body>
-          <TouchableOpacity 
-            style={[s.outlinedBtn, { borderColor: COLORS.border }]} 
-            onPress={() => nav('/(tabs)/insights')}
-          >
-            <Body style={{ fontWeight: '600' }}>Open Insights</Body>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity 
+              style={[s.outlinedBtn, { borderColor: COLORS.border, flex: 1 }]} 
+              onPress={() => nav('/(tabs)/insights')}
+            >
+              <Body style={{ fontWeight: '600' }}>Patterns</Body>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[s.outlinedBtn, { borderColor: COLORS.nutrition, flex: 1, backgroundColor: COLORS.nutrition + '05' }]} 
+              onPress={() => nav('/nutrition/insights')}
+            >
+              <Body style={{ fontWeight: '600', color: COLORS.nutrition }}>Deficiency Radar</Body>
+            </TouchableOpacity>
+          </View>
         </Card>
         
         <View style={{ height: 40 }} />

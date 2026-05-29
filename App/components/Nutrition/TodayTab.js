@@ -326,13 +326,21 @@ export default function TodayTab({
         />
       </View>
 
-      {/* 6. AI Insight & Suggestions (Placeholder for consistency) */}
+      {/* 6. AI Insight & Suggestions */}
       <View style={themedStyles.webGridRow}>
-         <View style={[themedStyles.webSectionBox, { flex: 1, marginBottom: 0 }]}>
-            <Text style={themedStyles.webSectionTitleSmall}>AI Insight</Text>
-            <Text style={themedStyles.webEmptyTextSmall}>Log more meals to unlock daily AI-powered nutritional trends and fixes.</Text>
-            <TouchableOpacity style={[themedStyles.webOutlineBtn, { borderColor: COLORS.border }]}>
-               <Text style={[themedStyles.webOutlineBtnText, { color: COLORS.textSecondary }]}>Generate Insight</Text>
+         <View style={[themedStyles.webSectionBox, { flex: 1, marginBottom: 0, borderColor: COLORS.nutrition + '30', backgroundColor: COLORS.nutrition + '05' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+               <Zap size={18} color={COLORS.nutrition} />
+               <Text style={[themedStyles.webSectionTitleSmall, { color: COLORS.nutrition }]}>Deficiency Radar & AI Analysis</Text>
+            </View>
+            <Text style={themedStyles.webEmptyTextSmall}>
+               We've analyzed your 7-day rolling average for micronutrients. View your personalized radar for risks like Iron, Magnesium, or Zinc.
+            </Text>
+            <TouchableOpacity 
+              style={[themedStyles.webOutlineBtn, { borderColor: COLORS.nutrition, marginTop: 12 }]}
+              onPress={() => handleActionPress(`/nutrition/insights?date=${selectedDate}`)}
+            >
+               <Text style={[themedStyles.webOutlineBtnText, { color: COLORS.nutrition }]}>View Insights Radar</Text>
             </TouchableOpacity>
          </View>
       </View>

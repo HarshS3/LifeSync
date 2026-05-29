@@ -240,6 +240,30 @@ export default function InsightsScreen() {
                       </Body>
                     </View>
 
+                    {metabolic.modifiers.steps && (
+                      <View style={styles.modifierItem}>
+                        <View style={{ flex: 1 }}>
+                          <Body style={{ fontWeight: '700', fontSize: 14 }}>Step Activity</Body>
+                          <Caption secondary numberOfLines={1}>{metabolic.modifiers.steps.label}</Caption>
+                        </View>
+                        <Body style={{ color: metabolic.modifiers.steps.value < 0 ? COLORS.error : COLORS.success, fontWeight: 'bold' }}>
+                          {metabolic.modifiers.steps.value > 0 ? '+' : ''}{metabolic.modifiers.steps.value}
+                        </Body>
+                      </View>
+                    )}
+
+                    {metabolic.modifiers.cardio && metabolic.modifiers.cardio.value !== 0 && (
+                      <View style={styles.modifierItem}>
+                        <View style={{ flex: 1 }}>
+                          <Body style={{ fontWeight: '700', fontSize: 14 }}>Cardio Burn</Body>
+                          <Caption secondary numberOfLines={1}>{metabolic.modifiers.cardio.label}</Caption>
+                        </View>
+                        <Body style={{ color: metabolic.modifiers.cardio.value < 0 ? COLORS.error : COLORS.success, fontWeight: 'bold' }}>
+                          {metabolic.modifiers.cardio.value > 0 ? '+' : ''}{metabolic.modifiers.cardio.value}
+                        </Body>
+                      </View>
+                    )}
+
                     {metabolic.modifiers.adaptation.value !== 0 && (
                       <View style={styles.modifierItem}>
                         <View style={{ flex: 1 }}>

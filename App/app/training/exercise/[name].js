@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, FlatList, Dimensions, PanResponder } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import api from '../../../services/api';
@@ -10,6 +10,8 @@ import { LineChart } from 'react-native-chart-kit';
 import { ScreenWrapper } from '../../../components/ui/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
 import { H1, H2, H3, Body, Caption } from '../../../components/ui/Typography';
+import MuscleHeatmap from '../../../components/MuscleHeatmap';
+import { getHeatmapDataForExercise } from '../../../lib/muscleMapping';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -93,6 +95,12 @@ export default function ExerciseDetailScreen() {
     const point = currentTrend[idx];
     setSelectedPoint({ d: point.d, val: currentMode === 'weight' ? (point.r1 || point.w) : point.v });
   };
+
+  const [selectedMuscle, setSelectedMuscle] = useState(null);
+
+  const heatmapData = useMemo(() => {
+    return getHeatmapDataForExercise(metadata);
+  }, [metadata]);
 
   const fetchHistory = async (pageNum = 1) => {
     if (pageNum === 1) setLoading(true);
@@ -259,43 +267,48 @@ export default function ExerciseDetailScreen() {
   const renderHeader = () => {
     const weightGain = stats?.startWeight > 0 ? ((stats.currentWeight - stats.startWeight) / stats.startWeight * 100).toFixed(1) : 0;
     
+    // Provide default metadata if missing to keep UI consistent
+    const displayMeta = metadata || {
+      type: 'custom',
+      primary: 'other',
+      secondary: []
+    };
+
     return (
       <View>
         {/* Exercise Metadata Section */}
-        {metadata && (
-          <Card style={styles.metaCard} padding={16}>
-            <View style={styles.metaHeader}>
-              <Info size={16} color={COLORS.primary} />
-              <Caption style={{ marginLeft: 8, fontWeight: '800', color: COLORS.primary, textTransform: 'uppercase' }}>
-                Exercise Profile
-              </Caption>
+        <Card style={styles.metaCard} padding={16}>
+          <View style={styles.metaHeader}>
+            <Info size={16} color={COLORS.primary} />
+            <Caption style={{ marginLeft: 8, fontWeight: '800', color: COLORS.primary, textTransform: 'uppercase' }}>
+              Exercise Profile
+            </Caption>
+          </View>
+          
+          <View style={styles.metaGrid}>
+            <View style={styles.metaItem}>
+              <Caption secondary>TYPE</Caption>
+              <Body style={{ fontWeight: '700', textTransform: 'capitalize' }}>{displayMeta.type}</Body>
             </View>
-            
-            <View style={styles.metaGrid}>
-              <View style={styles.metaItem}>
-                <Caption secondary>TYPE</Caption>
-                <Body style={{ fontWeight: '700', textTransform: 'capitalize' }}>{metadata.type}</Body>
-              </View>
-              <View style={styles.metaItem}>
-                <Caption secondary>PRIMARY</Caption>
-                <Body style={{ fontWeight: '700', textTransform: 'capitalize' }}>{metadata.primary}</Body>
-              </View>
+            <View style={styles.metaItem}>
+              <Caption secondary>PRIMARY TARGET</Caption>
+              <Body style={{ fontWeight: '700', textTransform: 'capitalize' }}>{displayMeta.primary}</Body>
             </View>
+          </View>
 
-            {metadata.secondary && metadata.secondary.length > 0 && (
-              <View style={{ marginTop: 12 }}>
-                <Caption secondary style={{ marginBottom: 4 }}>SECONDARY TARGETS</Caption>
-                <View style={styles.tagContainer}>
-                  {metadata.secondary.map(m => (
-                    <View key={m} style={[styles.tag, { backgroundColor: COLORS.primary + '10' }]}>
-                      <Caption style={{ color: COLORS.primary, fontWeight: '700', textTransform: 'capitalize' }}>{m}</Caption>
-                    </View>
-                  ))}
-                </View>
+          {displayMeta.secondary && displayMeta.secondary.length > 0 && (
+            <View style={{ marginTop: 12 }}>
+              <Caption secondary style={{ marginBottom: 4 }}>SECONDARY TARGETS</Caption>
+              <View style={styles.tagContainer}>
+                {displayMeta.secondary.map(m => (
+                  <View key={m} style={[styles.tag, { backgroundColor: COLORS.primary + '10' }]}>
+                    <Caption style={{ color: COLORS.primary, fontWeight: '700', textTransform: 'capitalize' }}>{m}</Caption>
+                  </View>
+                ))}
               </View>
-            )}
-          </Card>
-        )}
+            </View>
+          )}
+        </Card>
 
         {/* Analytics & Charts */}
         {renderChart()}
@@ -319,6 +332,22 @@ export default function ExerciseDetailScreen() {
             <H2 style={{ color: COLORS.success }}>{stats?.estimated1RM || 0}<Caption> kg</Caption></H2>
             <Caption secondary style={{ fontSize: 10 }}>Projected max strength</Caption>
           </Card>
+        </View>
+
+        {/* Muscle Engagement Section */}
+        <View style={{ marginBottom: 16 }}>
+          <H3 style={{ marginBottom: 12, marginLeft: 4 }}>Muscle Engagement</H3>
+          <MuscleHeatmap
+            data={heatmapData}
+            height={340} // Optimized height to prevent clipping
+            selectedMuscle={selectedMuscle}
+            onMuscleSelect={setSelectedMuscle}
+          />
+          {heatmapData.length === 0 && (
+            <Caption secondary style={{ textAlign: 'center', marginTop: -8 }}>
+              Muscle target data unavailable for this exercise.
+            </Caption>
+          )}
         </View>
 
         <View style={[styles.statsGrid, { marginTop: -4 }]}>

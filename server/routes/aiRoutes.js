@@ -485,16 +485,7 @@ function buildDeterministicReflectQuestion(message, history) {
 
   // Greetings: don’t loop the same reflective prompt.
   if (isGreetingOnly(s)) {
-    const prev = lastAssistantText(history);
-    // If we already asked the default grounding question, vary the response.
-    if (prev === 'What would feel most supportive to name right now?') {
-      return directAnswer
-        ? 'Hi — I’m here. Here’s what I can do: I can look at your recent logs and give a tentative explanation.'
-        : `Hi — I’m here. ${followUp}`;
-    }
-    return directAnswer
-      ? 'Hi — I’m here. Here’s what I can do: I can look at your recent logs and give a tentative explanation.'
-      : `Hi — I’m here. ${followUp}`;
+    return "Hi! I'm here and ready to support you. How can I help you today?";
   }
 
   // Keep to ONE sentence, end with '?', no advice/directives, no medical claims.
@@ -1060,8 +1051,11 @@ router.post('/chat', async (req, res) => {
     // SIMPLE MODE: forward user message + compiled context to Gemini.
     // This bypasses gatekeeper + deterministic prompts (opt-in only).
     if (simpleGeminiMode) {
-      const memoryContext = buildMemoryContextForMode();
-      const systemPrompt = buildSystemPrompt({ mode });
+      const isGreeting = isGreetingOnly(message);
+      const memoryContext = isGreeting ? '' : buildMemoryContextForMode();
+      const systemPrompt = isGreeting
+        ? 'You are LifeSync, a warm, calm, and friendly health/wellness assistant. The user just said hello. Respond with a warm, brief greeting and ask how you can support them today. Do NOT bring up their logs, stats, or goals unless they ask.'
+        : buildSystemPrompt({ mode });
 
       let reply = await generateLLMReply({
         message,
@@ -1342,10 +1336,13 @@ router.post('/chat', async (req, res) => {
       llmReply = `${llmReply}\n${lines.join('\n')}`;
     }
 
+    // Clean any residual markdown bold markers (like **) since the UI displays plain text
+    const cleanReply = String(llmReply || '').replace(/\*\*/g, '').replace(/__/g, '');
+
     const response = {
       message,
       mode,
-      reply: llmReply,
+      reply: cleanReply,
       foodLogged: false,
       committedMealId: null,
       safety,

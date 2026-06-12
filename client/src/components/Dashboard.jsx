@@ -30,6 +30,11 @@ function Dashboard() {
   const [loading, setLoading] = useState(!dashboardCache.data)
   const [dailyLifeState, setDailyLifeState] = useState(dashboardCache.data?.dailyLifeState || null)
   const [stateReflection, setStateReflection] = useState(dashboardCache.data?.stateReflection || null)
+  const [topInsights, setTopInsights] = useState(dashboardCache.data?.topInsights || [])
+  const [expandedInsightId, setExpandedInsightId] = useState(null)
+  // Minimal wellness check-in: one readiness slider + optional follow-ups.
+  const [readiness, setReadiness] = useState(7)
+  const [followupOpen, setFollowupOpen] = useState(false)
   const [todayState, setTodayState] = useState(dashboardCache.data?.todayState || {
     energy: 5,
     mood: 5,
@@ -110,11 +115,15 @@ function Dashboard() {
 
       setDailyLifeState(summary.dailyLifeState)
       setStateReflection(summary.stateReflection)
+      setTopInsights(Array.isArray(summary.topInsights) ? summary.topInsights : [])
       setWeeklyStats(summary.stats)
       setHasCheckedIn(summary.hasCheckedIn)
       
       if (summary.today) {
         setTodayState(summary.today)
+        const t = summary.today
+        const avg = [t.energy, t.mood, t.bodyFeel, t.hunger].filter(v => typeof v === 'number')
+        if (avg.length) setReadiness(Math.round(avg.reduce((a, b) => a + b, 0) / avg.length))
       }
 
       // Update cache
@@ -168,20 +177,31 @@ function Dashboard() {
         return
       }
 
+      // If user didn't expand follow-ups, derive every dimension from the readiness score.
+      const body = followupOpen
+        ? {
+            moodScore: todayState.mood,
+            energyLevel: todayState.energy,
+            bodyFeel: todayState.bodyFeel,
+            hungerLevel: todayState.hunger,
+            sleepHours: todayState.sleep,
+            date: new Date(),
+          }
+        : {
+            moodScore: readiness,
+            energyLevel: readiness,
+            bodyFeel: readiness,
+            hungerLevel: readiness,
+            date: new Date(),
+          }
+
       const res = await fetch(`${API_BASE}/api/logs/mental`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          moodScore: todayState.mood,
-          energyLevel: todayState.energy,
-          bodyFeel: todayState.bodyFeel,
-          hungerLevel: todayState.hunger,
-          sleepHours: todayState.sleep,
-          date: new Date(),
-        }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) {
         const msg = await res.text().catch(() => '')
@@ -317,6 +337,44 @@ function Dashboard() {
 
       {/* CENTER: Today's State */}
       <Box>
+        {topInsights.length > 0 && (
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+              <TipsAndUpdatesIcon sx={{ color: '#f59e0b' }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Today's Signal</Typography>
+            </Box>
+            {topInsights.map((insight, idx) => {
+              const expanded = expandedInsightId === insight.id
+              const impactColor = insight.impact === 'high' ? '#dc2626' : insight.impact === 'moderate' ? '#d97706' : '#2563eb'
+              const trimmed = !expanded && insight.detail.length > 140 ? insight.detail.slice(0, 140) + '…' : insight.detail
+              return (
+                <Box
+                  key={insight.id}
+                  onClick={() => setExpandedInsightId(expanded ? null : insight.id)}
+                  sx={{
+                    cursor: 'pointer',
+                    py: 1.5,
+                    borderTop: idx === 0 ? 'none' : '1px solid',
+                    borderColor: 'divider',
+                    '&:hover': { opacity: 0.85 },
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: impactColor, flexShrink: 0 }} />
+                    <Typography variant="body1" sx={{ fontWeight: 700 }}>{insight.title}</Typography>
+                  </Box>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.5 }}>{trimmed}</Typography>
+                  {expanded && insight.action && (
+                    <Box sx={{ mt: 1.5, p: 1.5, bgcolor: '#fef3c7', borderRadius: 1, borderLeft: '3px solid', borderColor: '#f59e0b' }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.5 }}>WHAT TO DO</Typography>
+                      <Typography variant="body2">{insight.action}</Typography>
+                    </Box>
+                  )}
+                </Box>
+              )
+            })}
+          </Box>
+        )}
         <ProgressNarrative />
         <Box sx={{ p: 4, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', mb: 3, position: 'relative', overflow: 'hidden' }}>
           <GlowingEffect
@@ -351,33 +409,48 @@ function Dashboard() {
           </Box>
 
           <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 2, fontWeight: 600 }}>
-            {hasCheckedIn ? "Today's State" : "How are you feeling?"}
+            {hasCheckedIn ? "Today's readiness" : "How's your readiness today?"}
           </Typography>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3, mb: 3 }}>
-            {/* Energy */}
-            <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <BoltIcon sx={{ fontSize: 18, color: '#f59e0b' }} />
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>Energy</Typography>
-                <Typography variant="body2" sx={{ ml: 'auto', fontWeight: 600, color: getStateColor(todayState.energy) }}>
-                  {todayState.energy}/10
-                </Typography>
-              </Box>
-              <Slider
-                value={todayState.energy}
-                onChange={(e, v) => !hasCheckedIn && setTodayState(prev => ({ ...prev, energy: v }))}
-                min={1}
-                max={10}
-                disabled={hasCheckedIn}
-                sx={{
-                  color: getStateColor(todayState.energy),
-                  '& .MuiSlider-thumb': { width: 16, height: 16 },
-                }}
-              />
+          {/* Readiness — primary signal */}
+          <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2, mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <BoltIcon sx={{ fontSize: 18, color: '#3b82f6' }} />
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>Readiness</Typography>
+              <Typography variant="body2" sx={{ ml: 'auto', fontWeight: 600, color: getStateColor(readiness) }}>
+                {readiness}/10
+              </Typography>
             </Box>
+            <Slider
+              value={readiness}
+              onChange={(e, v) => {
+                if (hasCheckedIn) return
+                setReadiness(v)
+                if (v < 5 && !followupOpen) setFollowupOpen(true)
+              }}
+              min={1}
+              max={10}
+              disabled={hasCheckedIn}
+              sx={{
+                color: getStateColor(readiness),
+                '& .MuiSlider-thumb': { width: 16, height: 16 },
+              }}
+            />
+          </Box>
 
-            {/* Mood */}
+          {!hasCheckedIn && (
+            <Button
+              size="small"
+              onClick={() => setFollowupOpen(o => !o)}
+              sx={{ textTransform: 'none', mb: 2, color: 'text.secondary', fontWeight: 600, p: 0, '&:hover': { bgcolor: 'transparent', color: 'text.primary' } }}
+              disableRipple
+            >
+              {followupOpen ? '− Hide details' : '+ Add details (mood, sleep, hunger)'}
+            </Button>
+          )}
+
+          {(followupOpen || hasCheckedIn) && (
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3, mb: 3 }}>
             <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <MoodIcon sx={{ fontSize: 18, color: '#8b5cf6' }} />
@@ -392,36 +465,28 @@ function Dashboard() {
                 min={1}
                 max={10}
                 disabled={hasCheckedIn}
-                sx={{
-                  color: getStateColor(todayState.mood),
-                  '& .MuiSlider-thumb': { width: 16, height: 16 },
-                }}
+                sx={{ color: getStateColor(todayState.mood), '& .MuiSlider-thumb': { width: 16, height: 16 } }}
               />
             </Box>
 
-            {/* Body Feel */}
             <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <FitnessCenterIcon sx={{ fontSize: 18, color: '#10b981' }} />
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>Body Feel</Typography>
-                <Typography variant="body2" sx={{ ml: 'auto', fontWeight: 600, color: getStateColor(todayState.bodyFeel) }}>
-                  {todayState.bodyFeel}/10
+                <BoltIcon sx={{ fontSize: 18, color: '#f59e0b' }} />
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>Energy</Typography>
+                <Typography variant="body2" sx={{ ml: 'auto', fontWeight: 600, color: getStateColor(todayState.energy) }}>
+                  {todayState.energy}/10
                 </Typography>
               </Box>
               <Slider
-                value={todayState.bodyFeel}
-                onChange={(e, v) => !hasCheckedIn && setTodayState(prev => ({ ...prev, bodyFeel: v }))}
+                value={todayState.energy}
+                onChange={(e, v) => !hasCheckedIn && setTodayState(prev => ({ ...prev, energy: v }))}
                 min={1}
                 max={10}
                 disabled={hasCheckedIn}
-                sx={{
-                  color: getStateColor(todayState.bodyFeel),
-                  '& .MuiSlider-thumb': { width: 16, height: 16 },
-                }}
+                sx={{ color: getStateColor(todayState.energy), '& .MuiSlider-thumb': { width: 16, height: 16 } }}
               />
             </Box>
 
-            {/* Hunger */}
             <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <RestaurantIcon sx={{ fontSize: 18, color: '#ec4899' }} />
@@ -436,14 +501,10 @@ function Dashboard() {
                 min={1}
                 max={10}
                 disabled={hasCheckedIn}
-                sx={{
-                  color: getStateColor(11 - todayState.hunger),
-                  '& .MuiSlider-thumb': { width: 16, height: 16 },
-                }}
+                sx={{ color: getStateColor(11 - todayState.hunger), '& .MuiSlider-thumb': { width: 16, height: 16 } }}
               />
             </Box>
 
-            {/* Sleep */}
             <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <NightsStayIcon sx={{ fontSize: 18, color: '#6366f1' }} />
@@ -466,6 +527,7 @@ function Dashboard() {
               />
             </Box>
           </Box>
+          )}
 
           {!hasCheckedIn && (
             <Button

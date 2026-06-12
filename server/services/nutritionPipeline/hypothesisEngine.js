@@ -88,8 +88,11 @@ async function recordHypothesisFeedback({ userId, hypothesisId, outcome, note })
   if (!doc) return null
 
   doc.observations.push({ outcome, note: String(note || '').slice(0, 400) })
+  if (outcome === 'support') doc.supportCount = (doc.supportCount || 0) + 1
+  if (outcome === 'refute') doc.refuteCount = (doc.refuteCount || 0) + 1
   doc.confidence = updatePosteriorConfidence(doc.confidence, outcome)
   doc.status = outcome === 'support' ? (doc.confidence >= 0.75 ? 'confirmed' : 'testing') : (doc.confidence <= 0.25 ? 'rejected' : 'testing')
+  doc.lastEvaluatedAt = new Date()
   await doc.save()
   return doc
 }

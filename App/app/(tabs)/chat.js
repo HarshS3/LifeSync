@@ -29,6 +29,7 @@ export default function ChatScreen() {
   const [isSending, setIsSending] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState(null);
+  const [threadId, setThreadId] = useState(null);
   
   const flatListRef = useRef(null);
   const inputRef = useRef(null);
@@ -59,14 +60,18 @@ export default function ChatScreen() {
     setIsSending(true);
 
     try {
+      // Server owns full history via threadId; we still send a compact tail for offline/anon fallback.
       const history = messages
         .filter(m => (m.from === 'user' || m.from === 'ai') && m.text)
         .slice(-10)
         .map(m => ({ role: m.from === 'user' ? 'user' : 'assistant', content: m.text }));
-      
+
       history.push({ role: 'user', content: trimmed });
 
-      const res = await api.post('/ai/chat', { message: trimmed, history });
+      const res = await api.post('/ai/chat', { message: trimmed, history, threadId });
+      if (res.data?.threadId && res.data.threadId !== threadId) {
+        setThreadId(res.data.threadId);
+      }
       addMessage({ from: 'ai', text: res.data.reply || 'Got it.' });
     } catch (err) {
       console.error('Chat error', err);
@@ -250,7 +255,7 @@ export default function ChatScreen() {
   const handleImageResult = async (result) => {
     if (result.canceled || !result.assets[0].uri) return;
     const uri = result.assets[0].uri;
-    
+
     addMessage({ from: 'user', image: uri });
     setIsSending(true);
 
@@ -266,23 +271,55 @@ export default function ChatScreen() {
       const res = await api.post('/photo-log/analyze', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      const data = res.data;
+      const data = res.data || {};
+      const detected = Array.isArray(data.detected) ? data.detected : [];
 
-      if (data.foodDetected) {
-        addMessage({ 
-          from: 'ai', 
-          text: `I see ${data.analysis.name} (~${data.analysis.estimatedCalories} kcal). Should I log this for you?` 
-        });
-      } else {
+      if (detected.length === 0) {
         addMessage({ from: 'ai', text: "I couldn't identify any food in that image." });
+      } else {
+        addMessage({
+          from: 'ai',
+          mealCandidate: {
+            detected,
+            mealType: data.mealType || 'snack',
+            overallConfidence: data.overallConfidence || 'medium',
+            notes: data.notes || '',
+          },
+        });
       }
-
     } catch (err) {
       console.error('Image analysis error', err);
       addMessage({ from: 'system', text: 'Failed to analyze image.' });
     } finally {
       setIsSending(false);
     }
+  };
+
+  const commitMealCandidate = async (messageId, candidate) => {
+    try {
+      setIsSending(true);
+      const res = await api.post('/photo-log/commit', {
+        items: candidate.detected,
+        mealType: candidate.mealType,
+      });
+      const data = res.data || {};
+      // Mark this candidate message as logged so the buttons collapse to a confirmation line.
+      setMessages(prev => prev.map(m => m.id === messageId
+        ? { ...m, mealCandidate: { ...m.mealCandidate, loggedAs: data.mealName, loggedKcal: data.totalCalories } }
+        : m));
+      addMessage({ from: 'ai', text: `Logged "${data.mealName}" (${data.totalCalories} kcal).` });
+    } catch (err) {
+      console.error('Photo log commit error', err);
+      addMessage({ from: 'system', text: 'Failed to save meal.' });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const dismissMealCandidate = (messageId) => {
+    setMessages(prev => prev.map(m => m.id === messageId
+      ? { ...m, mealCandidate: { ...m.mealCandidate, dismissed: true } }
+      : m));
   };
 
   const renderMessage = ({ item }) => {
@@ -297,10 +334,53 @@ export default function ChatScreen() {
       );
     }
 
+    if (item.mealCandidate) {
+      const c = item.mealCandidate;
+      const total = c.detected.reduce((s, f) => s + Number(f.estimatedCalories || 0), 0);
+      const isLogged = !!c.loggedAs;
+      const isDismissed = !!c.dismissed;
+      return (
+        <View style={[styles.messageRow, styles.aiRow]}>
+          <View style={[styles.candidateCard, { backgroundColor: COLORS.gray100, borderColor: COLORS.border }]}>
+            <Body style={{ fontWeight: '700', marginBottom: 4 }}>
+              {isLogged ? `Logged: ${c.loggedAs}` : 'Meal detected'}
+            </Body>
+            {c.detected.map((f, i) => (
+              <View key={i} style={styles.candidateRow}>
+                <Body style={{ flex: 1 }}>{f.name} <Caption secondary>({f.quantity}{f.unit})</Caption></Body>
+                <Caption style={{ fontWeight: '600' }}>{Math.round(f.estimatedCalories || 0)} kcal</Caption>
+              </View>
+            ))}
+            <View style={[styles.candidateRow, { borderTopWidth: 1, borderTopColor: COLORS.border, marginTop: 6, paddingTop: 6 }]}>
+              <Body style={{ fontWeight: '700', flex: 1 }}>Total</Body>
+              <Body style={{ fontWeight: '700' }}>{Math.round(total)} kcal</Body>
+            </View>
+            {!isLogged && !isDismissed && (
+              <View style={styles.candidateActions}>
+                <TouchableOpacity
+                  onPress={() => commitMealCandidate(item.id, c)}
+                  style={[styles.candidateBtn, { backgroundColor: COLORS.primary }]}
+                  disabled={isSending}
+                >
+                  <Caption style={{ color: COLORS.surface, fontWeight: '700' }}>Log this meal</Caption>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => dismissMealCandidate(item.id)}
+                  style={[styles.candidateBtn, { backgroundColor: 'transparent', borderColor: COLORS.border, borderWidth: 1 }]}
+                >
+                  <Caption secondary style={{ fontWeight: '700' }}>Dismiss</Caption>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      );
+    }
+
     return (
       <View style={[styles.messageRow, isAi ? styles.aiRow : styles.userRow]}>
         <View style={[
-          styles.messageBubble, 
+          styles.messageBubble,
           isAi ? { backgroundColor: COLORS.gray100, borderBottomLeftRadius: 4 } : { backgroundColor: COLORS.primary, borderBottomRightRadius: 4 }
         ]}>
           {item.image && (
@@ -489,6 +569,29 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  candidateCard: {
+    maxWidth: '85%',
+    padding: 12,
+    borderRadius: 16,
+    borderBottomLeftRadius: 4,
+    borderWidth: 1,
+  },
+  candidateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  candidateActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  candidateBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
     alignItems: 'center',
   },
 });

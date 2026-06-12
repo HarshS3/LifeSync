@@ -8,7 +8,6 @@ import SummaryTab from './Nutrition/SummaryTab'
 import ScanProductTab from './Nutrition/ScanProductTab'
 import SupplementSection from './Nutrition/SupplementSection'
 import RecipeExplorer from './RecipeExplorer'
-import KitchenInventory from './KitchenInventory'
 import WeeklyReview from './WeeklyReview'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart } from 'recharts'
@@ -1850,7 +1849,6 @@ function NutritionTracker() {
         <Tab label="Scan Product" />
         <Tab label="Insights" />
         <Tab label="Recipes" />
-        <Tab label="Kitchen" />
         <Tab label="Review" />
         <Tab label="Add Food to DB" />
       </Tabs>
@@ -1990,17 +1988,11 @@ function NutritionTracker() {
 
       {activeTab === 8 && (
         <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-          <KitchenInventory />
-        </Box>
-      )}
-
-      {activeTab === 9 && (
-        <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
           <WeeklyReview weekKey={`${selectedDate.getFullYear()}-W${String(Math.ceil((((selectedDate - new Date(selectedDate.getFullYear(), 0, 1)) / 86400000) + new Date(selectedDate.getFullYear(), 0, 1).getDay() + 1) / 7)).padStart(2, '0')}`} />
         </Box>
       )}
 
-      {activeTab === 10 && (
+      {activeTab === 9 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>

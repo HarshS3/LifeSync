@@ -1,10 +1,10 @@
 # LifeSync
 
-LifeSync is a Personal Life OS (MERN-style) built around *daily state* rather than isolated logs. It includes an AI assistant, an “advanced nutrition” pipeline, and a deterministic derived layer that produces fewer, higher-confidence reflections.
+LifeSync is a Personal Life OS built around *daily state* rather than isolated logs. It ships on **two clients by design**: `client/` (React + Vite, web — desk-time analytics, lab uploads, configuration) and `App/` (Expo / React Native, mobile — in-the-moment logging). Both are first-class.
 
 **Key idea:** raw logs → `DailyLifeState` → memory layers → gated reflections (silence by default).
 
-This README is intended to be a *developer handbook*: how the system is wired, what each module does, every API endpoint, and the data model behind it.
+> For *what we are building, what we are killing, and why*, see **[`docs/PRODUCT_DIRECTION.md`](docs/PRODUCT_DIRECTION.md)** — the canonical decisions doc. This README is the developer handbook (how the system is wired, every endpoint, data model). When the two disagree, `PRODUCT_DIRECTION.md` is authoritative.
 
 ---
 
@@ -180,7 +180,6 @@ LifeSync uses JWT auth.
 
 - Most protected endpoints require `Authorization: Bearer <token>`.
 - Some legacy endpoints accept `:userId` in the path for back-compat.
-- Some POST routes in `server/routes/logRoutes.js` are not wrapped in auth middleware but still *extract* a token to set the `user` field; without a token, they may create logs with a null/empty user (treat as an MVP shortcut).
 
 JWT payload:
 
@@ -210,7 +209,6 @@ Key fields:
 - `FitnessLog`: `type`, `focus`, `intensity`, `fatigue`, `notes`, `date`
 - `NutritionLog`: `meals[]` (foods + macros), `waterIntake`, `dailyTotals`, `notes`, `date`
 - `MentalLog`: `mood`, `moodScore`, `stressLevel`, `energyLevel`, `bodyFeel`, `sleepHours`, `notes`
-- `Goal`: legacy goal collection used by `/api/goals`
 
 ### Habits (`server/models/Habit.js`)
 
@@ -265,8 +263,9 @@ The API server mounts routes in `server/index.js`:
 /api/logs           Basic fitness/nutrition/mental logs
 /api/gym            Gym workouts
 /api/nutrition      Advanced nutrition tracker + pipeline
-/api/habits         Habits + logs + analytics
-/api/long-term-goals Long-term goal tracker
+/api/habits         Habits + logs + analytics (legacy — see /api/commitments)
+/api/long-term-goals Long-term goal tracker (legacy — see /api/commitments)
+/api/commitments    Unified habit + long-term-goal API (kind: 'habit' | 'long_term_goal')
 /api/journal        Journal
 /api/symptoms       Symptoms
 /api/labs           Labs
@@ -491,7 +490,7 @@ curl -s "$BASE_URL/api/logs/mental" -H "$AUTH_HEADER"
 [{ "_id": "...", "mood": "good", "stressLevel": 4, "energyLevel": 6, "date": "..." }]
 ```
 
-#### `POST /api/logs/fitness` (token optional)
+#### `POST /api/logs/fitness`
 
 ```bash
 curl -s -X POST "$BASE_URL/api/logs/fitness" \
@@ -512,29 +511,6 @@ curl -s "$BASE_URL/api/logs/fitness/USER_OBJECT_ID"
 
 ```json
 [{ "_id": "...", "type": "strength", "date": "..." }]
-```
-
-#### `POST /api/logs/nutrition` (token optional)
-
-```bash
-curl -s -X POST "$BASE_URL/api/logs/nutrition" \
-	-H "Content-Type: application/json" \
-	-H "$AUTH_HEADER" \
-	-d '{"date":"2025-12-30","waterIntake":1500,"meals":[],"dailyTotals":{"calories":0,"protein":0,"carbs":0,"fat":0}}'
-```
-
-```json
-{ "_id": "...", "date": "...", "waterIntake": 1500, "user": "..." }
-```
-
-#### `GET /api/logs/nutrition/:userId` (back-compat)
-
-```bash
-curl -s "$BASE_URL/api/logs/nutrition/USER_OBJECT_ID"
-```
-
-```json
-[{ "_id": "...", "date": "..." }]
 ```
 
 #### `POST /api/logs/mental` (token required)
@@ -576,32 +552,6 @@ curl -s "$BASE_URL/api/logs/mental/USER_OBJECT_ID"
 
 ```json
 [{ "_id": "...", "mood": "good", "date": "..." }]
-```
-
----
-
-### Legacy goals (`/api/goals`)
-
-#### `POST /api/goals`
-
-```bash
-curl -s -X POST "$BASE_URL/api/goals" \
-	-H "Content-Type: application/json" \
-	-d '{"user":"USER_OBJECT_ID","title":"Lose 5kg","type":"fitness","target":5}'
-```
-
-```json
-{ "_id": "...", "user": "USER_OBJECT_ID", "title": "Lose 5kg", "type": "fitness" }
-```
-
-#### `GET /api/goals/:userId`
-
-```bash
-curl -s "$BASE_URL/api/goals/USER_OBJECT_ID"
-```
-
-```json
-[{ "_id": "...", "title": "Lose 5kg" }]
 ```
 
 ---

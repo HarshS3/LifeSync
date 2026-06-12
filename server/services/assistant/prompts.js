@@ -55,7 +55,7 @@ function generalPrompt() {
   ]
 }
 
-function buildSystemPrompt({ mode }) {
+function buildSystemPrompt({ mode, userContext } = {}) {
   const head = baseGuardrails()
   const tail = (() => {
     if (mode === 'medical') return medicalPrompt()
@@ -64,7 +64,22 @@ function buildSystemPrompt({ mode }) {
     return generalPrompt()
   })()
 
-  return [...head, ...tail].join(' ')
+  const base = [...head, ...tail].join(' ')
+
+  const contextText = typeof userContext === 'string' ? userContext.trim() : ''
+  if (!contextText) return base
+
+  // Append a structured user-context block. The model is told to ground replies
+  // in this block before falling back to general knowledge — and to be explicit
+  // when the user asks something the block doesn't cover.
+  const grounding = [
+    'GROUNDING: A <USER_CONTEXT> block follows with the user\'s real, current data (today\'s state, recent patterns, active goals, recent logs).',
+    'Treat it as authoritative for any "my X" question.',
+    'If the user asks about something the block does not contain, say so plainly instead of inventing.',
+    'Do not regurgitate the block — refer to specific facts from it only when relevant to the user\'s message.',
+  ].join(' ')
+
+  return `${base}\n\n${grounding}\n\n<USER_CONTEXT>\n${contextText}\n</USER_CONTEXT>`
 }
 
 module.exports = { buildSystemPrompt }

@@ -11,6 +11,8 @@ const jwt = require('jsonwebtoken');
 const { runHealthTriage, riskRank } = require('../services/safety/healthTriageEngine');
 const { detectAssistantMode } = require('../services/assistant/router');
 const { buildSystemPrompt } = require('../services/assistant/prompts');
+const { buildUserContextBundle, renderBundleAsText } = require('../services/assistant/userContextBundle');
+const { getOrCreateThread, appendTurn, toLLMHistory, listThreads, archiveThread } = require('../services/assistant/chatThreadService');
 const { fetchTextbookRag } = require('../services/ragClient');
 const { buildSupplementAdvice, buildSupplementAdvisorContext } = require('../services/supplements/advisor');
 const { decideInsight } = require('../services/insightGatekeeper/decideInsight');
@@ -642,8 +644,8 @@ const getUserFromToken = async (req) => {
 // AI endpoint: memory-aware summary with optional LLM layer
 router.post('/chat', async (req, res) => {
   try {
-    const { message, history } = req.body;
-    
+    const { message, history, threadId } = req.body;
+
     // --- Input Validation ---
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'A valid message string is required.' });
@@ -653,6 +655,9 @@ router.post('/chat', async (req, res) => {
     }
     if (history && (!Array.isArray(history) || history.length > 20)) {
       return res.status(400).json({ error: 'Invalid or excessively long chat history.' });
+    }
+    if (threadId && (typeof threadId !== 'string' || threadId.length > 100)) {
+      return res.status(400).json({ error: 'Invalid threadId.' });
     }
 
     const skipIngestion = Boolean(req.body?.skipIngestion);
@@ -1053,15 +1058,44 @@ router.post('/chat', async (req, res) => {
     if (simpleGeminiMode) {
       const isGreeting = isGreetingOnly(message);
       const memoryContext = isGreeting ? '' : buildMemoryContextForMode();
+
+      // Pull the structured user-context bundle (today's DLS, last 7d patterns, active goals, recent logs).
+      // Skipped for greetings to keep them light. Failures are non-fatal.
+      let userContextText = null;
+      if (!isGreeting && userId) {
+        try {
+          const bundle = await buildUserContextBundle(userId);
+          userContextText = renderBundleAsText(bundle);
+        } catch (e) {
+          console.warn('[AI Chat] userContextBundle failed:', e.message);
+        }
+      }
+
       const systemPrompt = isGreeting
         ? 'You are LifeSync, a warm, calm, and friendly health/wellness assistant. The user just said hello. Respond with a warm, brief greeting and ask how you can support them today. Do NOT bring up their logs, stats, or goals unless they ask.'
-        : buildSystemPrompt({ mode });
+        : buildSystemPrompt({ mode, userContext: userContextText });
+
+      // Load (or create) the user's persistent chat thread so history outlives the client's
+      // 10-message slice. Append the user turn before calling the LLM so it's in the record
+      // even if the LLM call later fails. Anonymous greetings are not persisted.
+      let thread = null;
+      let effectiveHistory = Array.isArray(history) ? history : [];
+      if (userId) {
+        try {
+          thread = await getOrCreateThread({ userId, threadId });
+          await appendTurn({ thread, role: 'user', content: message, meta: { mode } });
+          // Server-stored history takes precedence (excludes the just-appended user turn).
+          effectiveHistory = toLLMHistory(thread, { excludeLast: true });
+        } catch (e) {
+          console.warn('[AI Chat] thread load/append failed:', e.message);
+        }
+      }
 
       let reply = await generateLLMReply({
         message,
         memoryContext,
         systemPrompt,
-        history,
+        history: effectiveHistory,
         // Remove providerOverride: 'gemini' to allow fallback to Groq if Gemini is busy
       });
 
@@ -1083,14 +1117,26 @@ router.post('/chat', async (req, res) => {
         reply = `${reply}\n${lines.join('\n')}`;
       }
 
+      // Persist assistant turn (after triage append so the saved transcript matches the user-visible reply).
+      if (thread) {
+        try {
+          await appendTurn({ thread, role: 'assistant', content: reply, meta: { mode, riskLevel: safety.risk_level } });
+        } catch (e) {
+          console.warn('[AI Chat] thread append (assistant) failed:', e.message);
+        }
+      }
+
       return res.json({
         message,
         mode,
         reply,
         safety,
+        threadId: thread ? String(thread._id) : null,
         memorySnapshot: {
           simpleGeminiMode: true,
           contextIncluded: Boolean(memoryContext),
+          userContextGrounded: Boolean(userContextText),
+          threadTurnCount: thread ? thread.turns.length : 0,
           fitnessCount: fitness.length,
           nutritionCount: nutrition.length,
           mentalCount: mental.length,
@@ -1455,6 +1501,47 @@ router.post('/nutrition-agent', async (req, res) => {
     console.error('[NutritionAgent] Error:', err);
     delete global.agentSessions[agentId];
     return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Chat thread management ─────────────────────────────────────────────────
+
+router.get('/threads', async (req, res) => {
+  try {
+    const user = await getUserFromToken(req);
+    if (!user?._id) return res.status(401).json({ error: 'Authentication required' });
+    const threads = await listThreads(user._id, { limit: Math.min(Number(req.query.limit) || 20, 50) });
+    res.json({ threads });
+  } catch (err) {
+    console.error('[AI Threads] list error:', err);
+    res.status(500).json({ error: 'Failed to list chat threads' });
+  }
+});
+
+router.get('/threads/:id', async (req, res) => {
+  try {
+    const user = await getUserFromToken(req);
+    if (!user?._id) return res.status(401).json({ error: 'Authentication required' });
+    const ChatThread = require('../models/ChatThread');
+    const thread = await ChatThread.findOne({ _id: req.params.id, user: user._id }).lean();
+    if (!thread) return res.status(404).json({ error: 'Thread not found' });
+    res.json(thread);
+  } catch (err) {
+    console.error('[AI Threads] get error:', err);
+    res.status(500).json({ error: 'Failed to fetch chat thread' });
+  }
+});
+
+router.delete('/threads/:id', async (req, res) => {
+  try {
+    const user = await getUserFromToken(req);
+    if (!user?._id) return res.status(401).json({ error: 'Authentication required' });
+    const archived = await archiveThread({ userId: user._id, threadId: req.params.id });
+    if (!archived) return res.status(404).json({ error: 'Thread not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[AI Threads] archive error:', err);
+    res.status(500).json({ error: 'Failed to archive thread' });
   }
 });
 

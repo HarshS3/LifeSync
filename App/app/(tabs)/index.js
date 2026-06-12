@@ -66,7 +66,14 @@ export default function DashboardScreen() {
   const [submitting, setSubmitting]     = useState(false);
   const [activeWorkout, setActiveWorkout] = useState(null);
   const [stateReflection, setStateReflection] = useState(null);
+  const [topInsights, setTopInsights] = useState([]);
+  const [expandedInsightId, setExpandedInsightId] = useState(null);
 
+  // Wellness check-in is intentionally minimal: one readiness slider 1-10.
+  // The other dimensions are kept in state (so server payload shape is unchanged)
+  // and default to the readiness value when the user doesn't expand follow-ups.
+  const [readiness, setReadiness] = useState(7);
+  const [followupOpen, setFollowupOpen] = useState(false);
   const [todayState, setTodayState] = useState({
     energy: 5, mood: 5, bodyFeel: 5, hunger: 5, sleep: 7,
   });
@@ -111,9 +118,14 @@ export default function DashboardScreen() {
       setHasCheckedIn(summary.hasCheckedIn);
       if (summary.today) {
         setTodayState(summary.today);
+        // Existing check-in: surface readiness as the average of the 4 quick dimensions.
+        const t = summary.today;
+        const avg = [t.energy, t.mood, t.bodyFeel, t.hunger].filter(v => typeof v === 'number');
+        if (avg.length) setReadiness(Math.round(avg.reduce((a, b) => a + b, 0) / avg.length));
       }
 
       setStateReflection(summary.stateReflection);
+      setTopInsights(Array.isArray(summary.topInsights) ? summary.topInsights : []);
       syncWidgetData(summary);
 
     } catch (err) {
@@ -148,14 +160,27 @@ export default function DashboardScreen() {
   const handleCheckIn = async () => {
     setSubmitting(true);
     try {
-      await api.post('/logs/mental', {
-        moodScore:    todayState.mood,
-        energyLevel:  todayState.energy,
-        bodyFeel:     todayState.bodyFeel,
-        hungerLevel:  todayState.hunger,
-        sleepHours:   todayState.sleep,
-        date:         new Date(),
-      });
+      // If user didn't expand follow-ups, derive every dimension from the readiness score.
+      // Sleep is independent — it only carries through when followupOpen, otherwise omit so we
+      // don't overwrite an existing entry from a wearable / earlier log.
+      const payload = followupOpen
+        ? {
+            moodScore:    todayState.mood,
+            energyLevel:  todayState.energy,
+            bodyFeel:     todayState.bodyFeel,
+            hungerLevel:  todayState.hunger,
+            sleepHours:   todayState.sleep,
+            date:         new Date(),
+          }
+        : {
+            moodScore:    readiness,
+            energyLevel:  readiness,
+            bodyFeel:     readiness,
+            hungerLevel:  readiness,
+            date:         new Date(),
+          };
+
+      await api.post('/logs/mental', payload);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setHasCheckedIn(true);
       loadData();
@@ -198,8 +223,8 @@ export default function DashboardScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {activeWorkout && (
-          <TouchableOpacity 
-            style={[s.resumeBanner, { backgroundColor: COLORS.trainingBg, borderColor: COLORS.training }]} 
+          <TouchableOpacity
+            style={[s.resumeBanner, { backgroundColor: COLORS.trainingBg, borderColor: COLORS.training }]}
             onPress={() => nav('/training/active')}
           >
             <H3 style={{ color: COLORS.training }}>🏋️ Active Workout Found</H3>
@@ -208,6 +233,44 @@ export default function DashboardScreen() {
               <Body style={{ color: COLORS.error, fontWeight: '600' }}>Discard</Body>
             </TouchableOpacity>
           </TouchableOpacity>
+        )}
+
+        {topInsights.length > 0 && (
+          <Card style={[s.heroCard, { backgroundColor: COLORS.insightBg || COLORS.surface, borderColor: COLORS.insight || COLORS.primary }]}>
+            <View style={s.heroHeader}>
+              <Body style={{ fontSize: 18 }}>✨</Body>
+              <H3 style={{ marginLeft: 8 }}>Today's Signal</H3>
+            </View>
+            {topInsights.map((insight) => {
+              const expanded = expandedInsightId === insight.id;
+              const impactColor = insight.impact === 'high' ? COLORS.error : insight.impact === 'moderate' ? COLORS.warning : COLORS.info;
+              return (
+                <TouchableOpacity
+                  key={insight.id}
+                  style={[s.insightItem, { borderColor: COLORS.border }]}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setExpandedInsightId(expanded ? null : insight.id);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <View style={s.insightTitleRow}>
+                    <View style={[s.impactDot, { backgroundColor: impactColor }]} />
+                    <Body style={{ fontWeight: '700', flex: 1 }}>{insight.title}</Body>
+                  </View>
+                  <Body secondary style={s.insightDetail}>
+                    {expanded || insight.detail.length <= 110 ? insight.detail : insight.detail.slice(0, 110) + '…'}
+                  </Body>
+                  {expanded && insight.action && (
+                    <View style={[s.actionBox, { backgroundColor: COLORS.primaryBg || COLORS.surface, borderLeftColor: COLORS.primary }]}>
+                      <Caption secondary style={{ fontWeight: '700', marginBottom: 2 }}>WHAT TO DO</Caption>
+                      <Body>{insight.action}</Body>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </Card>
         )}
 
         <Card>
@@ -229,45 +292,66 @@ export default function DashboardScreen() {
           </View>
 
           <Body secondary style={s.sectionSub}>
-            {hasCheckedIn ? "Today's State" : 'How are you feeling?'}
+            {hasCheckedIn ? "Today's readiness" : "How's your readiness today?"}
           </Body>
 
-          <MetricSlider 
-            icon="⚡" label="Energy" 
-            value={todayState.energy} 
-            disabled={hasCheckedIn} 
-            color="#fbbf24"
-            onChange={v => setTodayState(p => ({ ...p, energy: v }))} 
-          />
-          <MetricSlider 
-            icon="😊" label="Mood" 
-            value={todayState.mood} 
-            disabled={hasCheckedIn} 
-            color="#ec4899"
-            onChange={v => setTodayState(p => ({ ...p, mood: v }))} 
-          />
-          <MetricSlider 
-            icon="💪" label="Body" 
-            value={todayState.bodyFeel} 
-            disabled={hasCheckedIn} 
-            color="#8b5cf6"
-            onChange={v => setTodayState(p => ({ ...p, bodyFeel: v }))} 
-          />
-          <MetricSlider 
-            icon="🍽️" label="Hunger" 
-            value={todayState.hunger} 
-            disabled={hasCheckedIn} 
-            color="#ef4444"
-            onChange={v => setTodayState(p => ({ ...p, hunger: v }))} 
-          />
-          <MetricSlider 
-            icon="🌙" label="Sleep" 
-            value={todayState.sleep} 
-            disabled={hasCheckedIn} 
+          <MetricSlider
+            icon="✨" label="Readiness"
+            value={readiness}
+            disabled={hasCheckedIn}
             color="#3b82f6"
-            min={0} max={12} step={0.5} unit="h"
-            onChange={v => setTodayState(p => ({ ...p, sleep: v }))} 
+            onChange={v => {
+              setReadiness(v);
+              // Auto-open follow-ups if the user signals a low day; user can also manually toggle.
+              if (v < 5 && !followupOpen) setFollowupOpen(true);
+            }}
           />
+
+          {!hasCheckedIn && (
+            <TouchableOpacity
+              onPress={() => setFollowupOpen(o => !o)}
+              style={s.followupToggle}
+              activeOpacity={0.7}
+            >
+              <Caption secondary style={{ fontWeight: '600' }}>
+                {followupOpen ? '− Hide details' : '+ Add details (mood, sleep, hunger)'}
+              </Caption>
+            </TouchableOpacity>
+          )}
+
+          {(followupOpen || hasCheckedIn) && (
+            <View style={s.followupBlock}>
+              <MetricSlider
+                icon="😊" label="Mood"
+                value={todayState.mood}
+                disabled={hasCheckedIn}
+                color="#ec4899"
+                onChange={v => setTodayState(p => ({ ...p, mood: v }))}
+              />
+              <MetricSlider
+                icon="⚡" label="Energy"
+                value={todayState.energy}
+                disabled={hasCheckedIn}
+                color="#fbbf24"
+                onChange={v => setTodayState(p => ({ ...p, energy: v }))}
+              />
+              <MetricSlider
+                icon="🍽️" label="Hunger"
+                value={todayState.hunger}
+                disabled={hasCheckedIn}
+                color="#ef4444"
+                onChange={v => setTodayState(p => ({ ...p, hunger: v }))}
+              />
+              <MetricSlider
+                icon="🌙" label="Sleep"
+                value={todayState.sleep}
+                disabled={hasCheckedIn}
+                color="#3b82f6"
+                min={0} max={12} step={0.5} unit="h"
+                onChange={v => setTodayState(p => ({ ...p, sleep: v }))}
+              />
+            </View>
+          )}
 
           {!hasCheckedIn && (
             <TouchableOpacity
@@ -375,4 +459,15 @@ const s = StyleSheet.create({
   insightsHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   outlinedBtn:     { borderWidth: 1, borderRadius: 16, paddingVertical: 12, alignItems: 'center' },
   darkCard: { marginBottom: 16 },
+
+  followupToggle: { paddingVertical: 8, alignSelf: 'flex-start' },
+  followupBlock:  { marginTop: 8 },
+
+  heroCard:       { marginBottom: 16, borderWidth: 1 },
+  heroHeader:     { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  insightItem:    { paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  insightTitleRow:{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  impactDot:      { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
+  insightDetail:  { lineHeight: 20 },
+  actionBox:      { marginTop: 10, padding: 10, borderRadius: 8, borderLeftWidth: 3 },
 });

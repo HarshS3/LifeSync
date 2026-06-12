@@ -29,7 +29,7 @@ const bcrypt = require('bcryptjs');
 
 const User = require('../models/User');
 const { Habit, HabitLog } = require('../models/Habit');
-const { FitnessLog, NutritionLog, MentalLog, Goal, StepsLog, WeightLog } = require('../models/Logs');
+const { FitnessLog, NutritionLog, MentalLog, StepsLog, WeightLog } = require('../models/Logs');
 const { LongTermGoal, LongTermGoalLog } = require('../models/LongTermGoal');
 const { WardrobeItem, Outfit } = require('../models/Wardrobe');
 const SymptomLog = require('../models/SymptomLog');
@@ -683,26 +683,8 @@ async function ensureLongTermGoals(userId, endDayKey) {
 }
 
 async function ensureGoals(userId) {
-  const goals = [
-    { title: 'Sleep by 11:30pm', domain: 'mental', target: 'Most weekdays', status: 'active' },
-    { title: 'Train 3x / week', domain: 'fitness', target: 'Strength + cardio', status: 'active' },
-    { title: 'Hit protein target', domain: 'nutrition', target: '130g', status: 'active' },
-  ];
-
-  for (const g of goals) {
-    await Goal.updateOne(
-      { user: userId, title: g.title },
-      {
-        $setOnInsert: {
-          user: userId,
-          ...g,
-          startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-          targetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        },
-      },
-      { upsert: true }
-    );
-  }
+  // Legacy Goal model removed; LongTermGoal seeds elsewhere in this file cover streak goals.
+  return;
 }
 
 async function ensureWardrobe(userId) {

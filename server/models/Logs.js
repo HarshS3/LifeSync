@@ -1,4 +1,7 @@
 const mongoose = require('mongoose');
+const { buildNumericSchemaFragment } = require('./nutritionFields');
+
+const NUTRIENT_FRAGMENT = buildNumericSchemaFragment();
 
 const FitnessLogSchema = new mongoose.Schema(
   {
@@ -22,6 +25,7 @@ const NutritionLogSchema = new mongoose.Schema(
         name: String,
         mealType: { type: String, enum: ['breakfast', 'lunch', 'dinner', 'snack', 'pre-workout', 'post-workout'], default: 'snack' },
         time: String,
+        mealTime: { type: Date, default: null },
         loggedAt: String,
         foods: [
           {
@@ -34,43 +38,11 @@ const NutritionLogSchema = new mongoose.Schema(
             servingWeightG: { type: Number, default: null },
             sourceFoodId: { type: String, default: '' },
             sourceKind: { type: String, default: '' },
-            calories: { type: Number, default: 0 },
-            protein: { type: Number, default: 0 },
-            carbs: { type: Number, default: 0 },
-            fat: { type: Number, default: 0 },
-            fiber: { type: Number, default: 0 },
-            sugar: { type: Number, default: 0 },
-            sodium: { type: Number, default: 0 },
-            potassium: { type: Number, default: 0 },
-            iron: { type: Number, default: 0 },
-            calcium: { type: Number, default: 0 },
-            vitaminB: { type: Number, default: 0 },
-            magnesium: { type: Number, default: 0 },
-            zinc: { type: Number, default: 0 },
-            vitaminC: { type: Number, default: 0 },
-            omega3: { type: Number, default: 0 },
-            saturatedFat: { type: Number, default: 0 },
-            monounsaturatedFat: { type: Number, default: 0 },
-            polyunsaturatedFat: { type: Number, default: 0 },
-            cholesterol: { type: Number, default: 0 },
-            phosphorus: { type: Number, default: 0 },
-            copper: { type: Number, default: 0 },
-            selenium: { type: Number, default: 0 },
-            manganese: { type: Number, default: 0 },
-            vitaminA: { type: Number, default: 0 },
-            vitaminE: { type: Number, default: 0 },
-            vitaminD2: { type: Number, default: 0 },
-            vitaminD3: { type: Number, default: 0 },
-            vitaminD: { type: Number, default: 0 },
-            vitaminB1: { type: Number, default: 0 },
-            vitaminB2: { type: Number, default: 0 },
-            vitaminB3: { type: Number, default: 0 },
-            vitaminB5: { type: Number, default: 0 },
-            vitaminB6: { type: Number, default: 0 },
-            vitaminB7: { type: Number, default: 0 },
-            vitaminB9: { type: Number, default: 0 },
-            vitaminB12: { type: Number, default: 0 },
-            folate: { type: Number, default: 0 },
+            ...NUTRIENT_FRAGMENT,
+            // Per-nutrient quality: { [nutrientKey]: { confidence: 0..1, source: string } }
+            // Populated by ingest paths that know nutrient provenance (barcode AI estimation,
+            // recipe resolution, manual entry). Absent => assume primary-source / full confidence.
+            nutrientQuality: { type: mongoose.Schema.Types.Mixed, default: {} },
           },
         ],
         totalCalories: { type: Number, default: 0 },
@@ -96,45 +68,7 @@ const NutritionLogSchema = new mongoose.Schema(
       }
     ],
     waterIntake: { type: Number, default: 0 }, // in ml
-    dailyTotals: {
-      calories: { type: Number, default: 0 },
-      protein: { type: Number, default: 0 },
-      carbs: { type: Number, default: 0 },
-      fat: { type: Number, default: 0 },
-      fiber: { type: Number, default: 0 },
-      sugar: { type: Number, default: 0 },
-      sodium: { type: Number, default: 0 },
-      potassium: { type: Number, default: 0 },
-      iron: { type: Number, default: 0 },
-      calcium: { type: Number, default: 0 },
-      vitaminB: { type: Number, default: 0 },
-      magnesium: { type: Number, default: 0 },
-      zinc: { type: Number, default: 0 },
-      vitaminC: { type: Number, default: 0 },
-      omega3: { type: Number, default: 0 },
-      saturatedFat: { type: Number, default: 0 },
-      monounsaturatedFat: { type: Number, default: 0 },
-      polyunsaturatedFat: { type: Number, default: 0 },
-      cholesterol: { type: Number, default: 0 },
-      phosphorus: { type: Number, default: 0 },
-      copper: { type: Number, default: 0 },
-      selenium: { type: Number, default: 0 },
-      manganese: { type: Number, default: 0 },
-      vitaminA: { type: Number, default: 0 },
-      vitaminE: { type: Number, default: 0 },
-      vitaminD2: { type: Number, default: 0 },
-      vitaminD3: { type: Number, default: 0 },
-      vitaminD: { type: Number, default: 0 },
-      vitaminB1: { type: Number, default: 0 },
-      vitaminB2: { type: Number, default: 0 },
-      vitaminB3: { type: Number, default: 0 },
-      vitaminB5: { type: Number, default: 0 },
-      vitaminB6: { type: Number, default: 0 },
-      vitaminB7: { type: Number, default: 0 },
-      vitaminB9: { type: Number, default: 0 },
-      vitaminB12: { type: Number, default: 0 },
-      folate: { type: Number, default: 0 },
-    },
+    dailyTotals: { ...NUTRIENT_FRAGMENT },
     // ── Effective nutrient totals (after bioavailability adjustments) ──
     effectiveNutrientTotals: { type: mongoose.Schema.Types.Mixed, default: {} },
     notes: String,
@@ -181,19 +115,6 @@ const MentalLogSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const GoalSchema = new mongoose.Schema(
-  {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    title: { type: String, required: true },
-    domain: { type: String, enum: ['fitness', 'nutrition', 'mental', 'lifestyle'], required: true },
-    target: String,
-    status: { type: String, enum: ['active', 'paused', 'completed'], default: 'active' },
-    startDate: Date,
-    targetDate: Date,
-  },
-  { timestamps: true }
-);
-
 const MemorySummarySchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -206,12 +127,16 @@ const MemorySummarySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+NutritionLogSchema.index({ user: 1, date: 1 });
+FitnessLogSchema.index({ user: 1, date: 1 });
+MentalLogSchema.index({ user: 1, date: 1 });
+WeightLogSchema.index({ user: 1, date: 1 });
+
 module.exports = {
   FitnessLog: mongoose.model('FitnessLog', FitnessLogSchema),
   NutritionLog: mongoose.model('NutritionLog', NutritionLogSchema),
   WeightLog: mongoose.model('WeightLog', WeightLogSchema),
   StepsLog: mongoose.model('StepsLog', StepsLogSchema),
   MentalLog: mongoose.model('MentalLog', MentalLogSchema),
-  Goal: mongoose.model('Goal', GoalSchema),
   MemorySummary: mongoose.model('MemorySummary', MemorySummarySchema),
 };

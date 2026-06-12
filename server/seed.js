@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 const { Habit, HabitLog } = require('./models/Habit');
-const { FitnessLog, NutritionLog, MentalLog, Goal, MemorySummary } = require('./models/Logs');
+const { FitnessLog, NutritionLog, MentalLog, MemorySummary } = require('./models/Logs');
 const { LongTermGoal, LongTermGoalLog } = require('./models/LongTermGoal');
 const { WardrobeItem, Outfit } = require('./models/Wardrobe');
 const SymptomLog = require('./models/SymptomLog');
@@ -32,7 +32,6 @@ async function seed() {
     await FitnessLog.deleteMany({ user: userId });
     await NutritionLog.deleteMany({ user: userId });
     await MentalLog.deleteMany({ user: userId });
-    await Goal.deleteMany({ user: userId });
     await MemorySummary.deleteMany({ user: userId });
     await SymptomLog.deleteMany({ user: userId });
     await LabReport.deleteMany({ user: userId });
@@ -275,16 +274,8 @@ async function seed() {
     ],
   });
 
-  // Create a goal
-  const goal = await Goal.create({
-    user: user._id,
-    title: 'Lose 5kg',
-    domain: 'fitness',
-    target: '70kg',
-    status: 'active',
-    startDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-    targetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-  });
+  // Legacy Goal seed removed (model deleted). Use LongTermGoal seeds elsewhere in this file
+  // for streak-based goals.
 
   // Create a memory summary
   await MemorySummary.create({

@@ -11,7 +11,7 @@ const bcrypt = require('bcryptjs');
 
 const User = require('./models/User');
 const { Habit, HabitLog } = require('./models/Habit');
-const { FitnessLog, NutritionLog, MentalLog, Goal, MemorySummary } = require('./models/Logs');
+const { FitnessLog, NutritionLog, MentalLog, MemorySummary } = require('./models/Logs');
 const { LongTermGoal, LongTermGoalLog } = require('./models/LongTermGoal');
 const { WardrobeItem, Outfit } = require('./models/Wardrobe');
 const SymptomLog = require('./models/SymptomLog');
@@ -301,18 +301,9 @@ async function ensureMentalLogs(userId) {
 }
 
 async function ensureGoal(userId) {
-  const existing = await Goal.findOne({ user: userId, title: 'Lose 5kg' });
-  if (existing) return existing;
-
-  return Goal.create({
-    user: userId,
-    title: 'Lose 5kg',
-    domain: 'fitness',
-    target: '70kg',
-    status: 'active',
-    startDate: daysAgo(14),
-    targetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-  });
+  // Legacy Goal model removed; this helper is a no-op kept to preserve callsites.
+  // Streak-style goals now use LongTermGoal — seed those separately if needed.
+  return null;
 }
 
 async function ensureMemorySummary(userId) {

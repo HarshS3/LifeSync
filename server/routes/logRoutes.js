@@ -104,31 +104,6 @@ router.get('/fitness/:userId', async (req, res) => {
   }
 });
 
-router.post('/nutrition', auth, async (req, res) => {
-  try {
-    const userId = req.userId;
-    const log = await NutritionLog.create({
-      ...req.body,
-      user: userId,
-    });
-    triggerDailyLifeStateRecompute({ userId, date: log?.date, reason: 'logRoutes nutrition' });
-    res.status(201).json(log);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to save nutrition log' });
-  }
-});
-
-router.get('/nutrition/:userId', async (req, res) => {
-  try {
-    const logs = await NutritionLog.find({ user: req.params.userId }).sort({ date: -1 }).limit(30);
-    res.json(logs);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch nutrition logs' });
-  }
-});
-
 async function createMentalLog(req, res, userId) {
   try {
     if (!userId) {

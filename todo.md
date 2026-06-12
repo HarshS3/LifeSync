@@ -1,3 +1,12 @@
+<!--
+NOTE (2026-06-12): The canonical product direction lives in docs/PRODUCT_DIRECTION.md.
+Active decisions: kill `Goal` legacy + `POST /api/logs/nutrition`, consolidate Habit+LongTermGoal,
+ground the AI assistant, replace IdentityMemory with causal hypothesis lifecycle,
+promote stateReflection to a hero card with top-3 cross-domain insights, keep wellness minimal,
+rebuild monthly insights screen, rebuild recipes.js as ingredient-level meal builder.
+This file remains a free-form scratchpad for ideas and follow-ups.
+-->
+
 Food calorie of dish with all ingredient and their calories And all nutrients
 
 Amino acid

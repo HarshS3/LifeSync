@@ -20,7 +20,7 @@ const { spawn } = require('child_process');
 
 const User = require('./models/User');
 const { Habit, HabitLog } = require('./models/Habit');
-const { FitnessLog, NutritionLog, MentalLog, Goal, MemorySummary } = require('./models/Logs');
+const { FitnessLog, NutritionLog, MentalLog, MemorySummary } = require('./models/Logs');
 const { LongTermGoal, LongTermGoalLog } = require('./models/LongTermGoal');
 const { WardrobeItem, Outfit } = require('./models/Wardrobe');
 const SymptomLog = require('./models/SymptomLog');
@@ -413,38 +413,9 @@ async function ensureMentalLogs(userId) {
 }
 
 async function ensureGoals(userId) {
-  const goals = [
-    {
-      title: 'Build a consistent gym routine',
-      domain: 'fitness',
-      target: '4 workouts/week',
-      status: 'active',
-      startDate: daysAgo(14),
-      targetDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
-    },
-    {
-      title: 'Hit protein target most days',
-      domain: 'nutrition',
-      target: '140g/day',
-      status: 'active',
-      startDate: daysAgo(10),
-      targetDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    },
-    {
-      title: 'Daily check-ins',
-      domain: 'mental',
-      target: '7/7 days',
-      status: 'active',
-      startDate: daysAgo(7),
-      targetDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000),
-    },
-  ];
-
-  for (const g of goals) {
-    const existing = await Goal.findOne({ user: userId, title: g.title });
-    if (existing) continue;
-    await Goal.create({ user: userId, ...g });
-  }
+  // Legacy Goal model removed. The LongTermGoal seeds in this file already cover
+  // streak-based abstain/build goals; the old "title/domain/target" goals are dropped.
+  return;
 }
 
 async function ensureMemorySummary(userId) {
@@ -769,7 +740,6 @@ async function printDemoIntegritySummary(userId) {
     fitnessLogsCount,
     nutritionLogsCount,
     mentalLogsCount,
-    goalsCount,
     memoryCount,
     symptomsCount,
     labsCount,
@@ -785,7 +755,6 @@ async function printDemoIntegritySummary(userId) {
     FitnessLog.countDocuments({ user: userId }),
     NutritionLog.countDocuments({ user: userId }),
     MentalLog.countDocuments({ user: userId }),
-    Goal.countDocuments({ user: userId }),
     MemorySummary.countDocuments({ user: userId }),
     SymptomLog.countDocuments({ user: userId }),
     LabReport.countDocuments({ user: userId }),
@@ -827,7 +796,7 @@ async function printDemoIntegritySummary(userId) {
   console.log(`- Fitness logs: ${fitnessLogsCount}`);
   console.log(`- Nutrition logs: ${nutritionLogsCount}`);
   console.log(`- Mental logs: ${mentalLogsCount}`);
-  console.log(`- Goals: ${goalsCount}`);
+  console.log(`- LongTermGoals: ${ltGoalsCount}`);
   console.log(`- Memory summaries: ${memoryCount}`);
   console.log(`- Symptoms: ${symptomsCount}`);
   console.log(`- Lab reports: ${labsCount}`);

@@ -4,6 +4,7 @@ const Workout = require('../models/Workout');
 const DailyLifeState = require('../models/DailyLifeState');
 const User = require('../models/User');
 const auth = require('../middleware/authMiddleware');
+const { selectTopInsights } = require('../services/insightSelector/crossDomainInsightSelector');
 
 const router = express.Router();
 
@@ -18,14 +19,18 @@ router.get('/summary', auth, async (req, res) => {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     // Fetch all needed data in parallel
-    const [fitness, mental, nutrition, gymWorkouts, totalWorkouts, dls, user] = await Promise.all([
+    const [fitness, mental, nutrition, gymWorkouts, totalWorkouts, dls, user, topInsights] = await Promise.all([
       FitnessLog.find({ user: userId, date: { $gte: thirtyDaysAgo } }).sort({ date: -1 }).lean(),
       MentalLog.find({ user: userId, date: { $gte: thirtyDaysAgo } }).sort({ date: -1 }).lean(),
       NutritionLog.find({ user: userId, date: { $gte: thirtyDaysAgo } }).sort({ date: -1 }).lean(),
       Workout.find({ user: userId, date: { $gte: thirtyDaysAgo } }).sort({ date: -1 }).lean(),
       Workout.countDocuments({ user: userId }),
       DailyLifeState.findOne({ user: userId, dayKey: dayKeyFromDate(today) }).lean(),
-      User.findById(userId).select('weight biologicalProfile').lean()
+      User.findById(userId).select('weight biologicalProfile').lean(),
+      selectTopInsights(userId, { limit: 3 }).catch(err => {
+        console.warn('[DashboardSummary] selectTopInsights failed:', err.message);
+        return [];
+      }),
     ]);
 
     // Calculate Weekly Stats (last 7 days)
@@ -94,6 +99,7 @@ router.get('/summary', auth, async (req, res) => {
       hasCheckedIn: !!todayLog,
       dailyLifeState: dls || null,
       stateReflection: dls?.lastReflection || null,
+      topInsights: topInsights || [],
       // Include limited logs for cache compatibility if needed
       logs: {
         fitness: fitness.slice(0, 10),

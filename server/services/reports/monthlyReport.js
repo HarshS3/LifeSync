@@ -2,7 +2,8 @@ const DailyLifeState = require('../../models/DailyLifeState');
 const PatternMemory = require('../../models/PatternMemory');
 const IdentityMemory = require('../../models/IdentityMemory');
 const Workout = require('../../models/Workout');
-const { NutritionLog, WeightLog } = require('../../models/Logs');
+const { NutritionLog, WeightLog, MentalLog } = require('../../models/Logs');
+const { analyzeCorrelations } = require('../insights/correlationEngine');
 
 function isValidMonth(month) {
   return /^\d{4}-\d{2}$/.test(String(month || '').trim());
@@ -27,9 +28,59 @@ function monthRangeDayKeys(month) {
   if (!isValidMonth(month)) return null;
   const [yy, mm] = month.split('-').map((x) => Number(x));
   const start = `${month}-01`;
-  const lastDay = new Date(yy, mm, 0).getDate(); 
+  const lastDay = new Date(yy, mm, 0).getDate();
   const end = `${month}-${String(lastDay).padStart(2, '0')}`;
   return { startDayKey: start, endDayKey: end };
+}
+
+function priorMonthKey(monthKey) {
+  if (!isValidMonth(monthKey)) return null;
+  const [yy, mm] = monthKey.split('-').map((x) => Number(x));
+  const d = new Date(yy, mm - 2, 1); // mm-2 because mm is 1-indexed and we want the *prior* month
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+async function summarizeMonthAggregates({ userId, monthKey }) {
+  const range = monthRangeDayKeys(monthKey);
+  if (!range) return null;
+  const { startDayKey, endDayKey } = range;
+  const startDt = new Date(`${startDayKey}T00:00:00`);
+  const endDt = new Date(`${endDayKey}T23:59:59`);
+
+  const [workouts, nutrition, weights, states] = await Promise.all([
+    Workout.find({ user: userId, date: { $gte: startDt, $lte: endDt } }).select('exercises date').lean(),
+    NutritionLog.find({ user: userId, date: { $gte: startDt, $lte: endDt } }).select('dailyTotals date').lean(),
+    WeightLog.find({ user: userId, date: { $gte: startDt, $lte: endDt } }).select('weightKg date').lean(),
+    DailyLifeState.find({ user: userId, dayKey: { $gte: startDayKey, $lte: endDayKey } }).select('signals').lean(),
+  ]);
+
+  const totalVolume = workouts.reduce((acc, w) => acc + (w.exercises || []).reduce((a2, ex) =>
+    a2 + (ex.sets || []).reduce((a3, s) => a3 + (s.weight || 0) * (s.reps || 0), 0), 0), 0);
+  const avgCalories = mean(nutrition.map(n => n.dailyTotals?.calories));
+  const avgProtein = mean(nutrition.map(n => n.dailyTotals?.protein));
+  const avgWeight = mean(weights.map(w => w.weightKg));
+  const avgSleep = mean(states.map(s => s.signals?.sleep?.raw?.sleepHours));
+
+  return {
+    monthKey,
+    totalWorkouts: workouts.length,
+    totalVolume,
+    avgCalories,
+    avgProtein,
+    avgWeight,
+    avgSleep,
+    daysWithNutrition: nutrition.length,
+    daysWithState: states.length,
+  };
+}
+
+function deltaPair(curr, prior) {
+  const c = Number.isFinite(curr) ? curr : null;
+  const p = Number.isFinite(prior) ? prior : null;
+  if (c == null || p == null) return { current: c, prior: p, delta: null, deltaPct: null };
+  const delta = c - p;
+  const deltaPct = p === 0 ? null : Math.round((delta / p) * 1000) / 10; // one decimal
+  return { current: c, prior: p, delta: Math.round(delta * 100) / 100, deltaPct };
 }
 
 function pickSignal(dls, key) {
@@ -197,6 +248,49 @@ async function generateMonthlyReport({ userId, month }) {
       .map(([reason, count]) => ({ reason, count }));
   })();
 
+  // ── Month-over-month deltas vs prior month ────────────────────────────────
+  const priorKey = priorMonthKey(monthKey);
+  const priorAgg = priorKey ? await summarizeMonthAggregates({ userId, monthKey: priorKey }).catch(() => null) : null;
+
+  const monthOverMonth = priorAgg ? {
+    priorMonth: priorKey,
+    totalWorkouts: deltaPair(workouts.length, priorAgg.totalWorkouts),
+    totalVolume: deltaPair(totalVolume, priorAgg.totalVolume),
+    avgCalories: deltaPair(avgCalories || null, priorAgg.avgCalories),
+    avgProtein: deltaPair(avgProtein || null, priorAgg.avgProtein),
+    avgSleep: deltaPair(avgSleep || null, priorAgg.avgSleep),
+    avgWeight: deltaPair(avgWeight || null, priorAgg.avgWeight),
+  } : null;
+
+  // ── Cross-domain correlations over the 30-day window ─────────────────────
+  // Note: analyzeCorrelations uses a fixed `days` window relative to "now", not arbitrary
+  // ranges. For non-current months it still gives a snapshot of the user's recent
+  // pattern landscape. The frontend should treat this as "as of report time".
+  let correlations = [];
+  try {
+    correlations = await analyzeCorrelations(userId, 30);
+  } catch (err) {
+    console.warn('[monthlyReport] correlations failed:', err.message);
+  }
+
+  // ── Best / worst days within the month (by readiness score on DailyLifeState) ─
+  const dayScores = days
+    .map((d) => {
+      // Composite: weight DLS confidence x summaryState mood. Use signals[energy] as fallback "score".
+      const e = d.energy?.value;
+      const s = d.summaryStateConfidence;
+      if (e == null && s == null) return null;
+      const score = (e ?? 0.5) * 0.6 + (s ?? 0) * 0.4;
+      return { dayKey: d.dayKey, label: d.summaryStateLabel, score: Math.round(score * 100) / 100, reasons: d.reasons };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score);
+
+  const bestWorstDays = dayScores.length >= 2 ? {
+    best: dayScores.slice(0, 3),
+    worst: dayScores.slice(-3).reverse(),
+  } : null;
+
   return {
     month: monthKey,
     range: { startDayKey, endDayKey },
@@ -208,6 +302,9 @@ async function generateMonthlyReport({ userId, month }) {
       avgSleep,
       avgWeight
     },
+    monthOverMonth,
+    correlations,
+    bestWorstDays,
     totals: {
       daysWithState: days.length,
       summaryLabels: labelCounts,

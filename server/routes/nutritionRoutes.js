@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { NutritionLog, WeightLog } = require('../models/Logs');
+const { NUTRIENT_FIELDS, sumNutrients } = require('../models/nutritionFields');
 const User = require('../models/User');
 const { searchFoods } = require('../services/nutritionProvider');
 const { searchLocalFoods } = require('../services/mealPipeline/aggregator');
@@ -20,7 +21,6 @@ const MealTemplate = require('../models/MealTemplate');
 const { calculateAdaptiveTDEE, calculateAdaptiveTDEEForRange, calculateMetabolicMap } = require('../services/nutritionPipeline/adaptiveTdeeEngine');
 const { analyzeMealTiming } = require('../services/nutritionPipeline/mealTimingEngine');
 const { calculateDailyTargets } = require('../services/nutritionEngine');
-const KitchenInventory = require('../models/KitchenInventory');
 const { computeWeeklyDiversity } = require('../services/nutritionPipeline/sourceDiversityEngine');
 const { analyzeMeals } = require('../services/insulinIntelligenceService');
 
@@ -68,46 +68,62 @@ router.get('/daily-summary/:date', auth, async (req, res) => {
   }
 });
 
-const DAILY_TOTAL_FIELDS = [
-  'calories',
-  'protein',
-  'carbs',
-  'fat',
-  'fiber',
-  'sugar',
-  'sodium',
-  'potassium',
-  'iron',
-  'calcium',
-  'vitaminB',
-  'magnesium',
-  'zinc',
-  'vitaminC',
-  'omega3',
-  'saturatedFat',
-  'monounsaturatedFat',
-  'polyunsaturatedFat',
-  'cholesterol',
-  'phosphorus',
-  'copper',
-  'selenium',
-  'manganese',
-  'vitaminA',
-  'vitaminE',
-  'vitaminD2',
-  'vitaminD3',
-  'vitaminD',
-  'vitaminB1',
-  'vitaminB2',
-  'vitaminB3',
-  'vitaminB5',
-  'vitaminB6',
-  'vitaminB7',
-  'vitaminB9',
-  'vitaminB12',
-  'folate',
-];
+// Single source of truth lives in models/nutritionFields.js; alias for local readability.
+const DAILY_TOTAL_FIELDS = NUTRIENT_FIELDS;
 
+
+/**
+ * Stamp per-nutrient confidence/source on a food when the ingest path knows the provenance.
+ *
+ * Inputs the client may send (any subset):
+ *   food._estimatedFields: string[]   — keys whose values came from LLM estimation
+ *   food.estimationConfidence: 'low'|'medium'|'high'
+ *   food.source: 'barcode'|'recipe'|'manual'|'photo-vision'|...
+ *
+ * Output: food.nutrientQuality = { [nutrientKey]: { confidence: 0..1, source } }
+ *
+ * Non-enumerated nutrients are treated as primary-source (no entry; readers assume 1.0).
+ * Idempotent: if the food already has nutrientQuality with entries, those win.
+ */
+const CONFIDENCE_SCALE = { low: 0.35, medium: 0.6, high: 0.85 };
+
+function stampNutrientQuality(food) {
+  if (!food || typeof food !== 'object') return;
+  const existing = food.nutrientQuality && typeof food.nutrientQuality === 'object' ? food.nutrientQuality : {};
+
+  const estimated = Array.isArray(food._estimatedFields) ? food._estimatedFields : [];
+  if (estimated.length === 0) {
+    if (Object.keys(existing).length === 0) delete food.nutrientQuality;
+    return;
+  }
+
+  const conf = CONFIDENCE_SCALE[String(food.estimationConfidence || 'medium').toLowerCase()] ?? 0.6;
+  const source = String(food.source || food.sourceKind || 'llm-estimate');
+
+  const out = { ...existing };
+  for (const key of estimated) {
+    if (out[key]) continue; // don't clobber explicit caller-provided entries
+    out[key] = { confidence: conf, source };
+  }
+  food.nutrientQuality = out;
+
+  // Strip ingest-only fields so they don't bloat the stored doc.
+  delete food._estimatedFields;
+  delete food.estimationConfidence;
+}
+
+/** Combine a log date (midnight local) with an "HH:mm" string to a Date for meal timestamps. */
+function deriveMealTime(logDate, timeStr) {
+  if (!(logDate instanceof Date) || Number.isNaN(logDate.getTime())) return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(timeStr || '').trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const mm = Number(m[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(mm) || h < 0 || h > 23 || mm < 0 || mm > 59) return null;
+  const out = new Date(logDate);
+  out.setHours(h, mm, 0, 0);
+  return out;
+}
 
 /** Helper to parse a date string or object consistently into local-time midnight. */
 function parseLocalDate(input) {
@@ -142,30 +158,9 @@ function createEmptyDailyTotals() {
 }
 
 function calculateDailyTotals(meals = [], supplements = []) {
-  const dailyTotals = createEmptyDailyTotals();
-  
-  // 1. From Meals
-  meals.forEach((meal) => {
-    meal.foods?.forEach((food) => {
-      DAILY_TOTAL_FIELDS.forEach((f) => {
-        dailyTotals[f] += Number(food?.[f] || 0);
-      });
-    });
-  });
-
-  // 2. From Supplements
-  supplements.forEach((supp) => {
-    const nutriments = supp.nutriments || {};
-    DAILY_TOTAL_FIELDS.forEach((f) => {
-      dailyTotals[f] += Number(nutriments[f] || 0);
-    });
-  });
-
-  // Normalize precision everywhere to avoid floating point artifacts
-  DAILY_TOTAL_FIELDS.forEach((f) => {
-    dailyTotals[f] = Math.round(dailyTotals[f] * 10) / 10;
-  });
-  return dailyTotals;
+  const allFoods = (meals || []).flatMap((m) => m?.foods || []);
+  const allSupps = (supplements || []).map((s) => s?.nutriments || {});
+  return sumNutrients([...allFoods, ...allSupps]);
 }
 
 function getAgeFromDob(dob) {
@@ -503,18 +498,17 @@ async function upsertNutritionLog(req, res) {
 
     // Update meal totals for each meal object
     meals?.forEach(meal => {
+      meal.foods?.forEach(stampNutrientQuality);
       meal.totalCalories = meal.foods?.reduce((s, f) => s + (f.calories || 0), 0) || 0;
       meal.totalProtein = meal.foods?.reduce((s, f) => s + (f.protein || 0), 0) || 0;
       meal.totalCarbs = meal.foods?.reduce((s, f) => s + (f.carbs || 0), 0) || 0;
       meal.totalFat = meal.foods?.reduce((s, f) => s + (f.fat || 0), 0) || 0;
+      if (!meal.mealTime) {
+        meal.mealTime = deriveMealTime(logDate, meal.time);
+      }
     });
 
     const dailyTotals = calculateDailyTotals(meals || [], supplements || []);
-
-
-    DAILY_TOTAL_FIELDS.forEach((f) => {
-      dailyTotals[f] = Math.round(dailyTotals[f] * 10) / 10;
-    });
 
     // Find existing log or create new
     let log = await NutritionLog.findOne({
@@ -670,10 +664,14 @@ router.post('/meals', auth, async (req, res) => {
     endDate.setDate(endDate.getDate() + 1);
 
     // Calculate meal totals
+    meal.foods?.forEach(stampNutrientQuality);
     meal.totalCalories = meal.foods?.reduce((s, f) => s + (f.calories || 0), 0) || 0;
     meal.totalProtein = meal.foods?.reduce((s, f) => s + (f.protein || 0), 0) || 0;
     meal.totalCarbs = meal.foods?.reduce((s, f) => s + (f.carbs || 0), 0) || 0;
     meal.totalFat = meal.foods?.reduce((s, f) => s + (f.fat || 0), 0) || 0;
+    if (!meal.mealTime) {
+      meal.mealTime = deriveMealTime(logDate, meal.time);
+    }
 
     let log = await NutritionLog.findOne({
       user: req.userId,
@@ -1574,10 +1572,12 @@ router.post('/meal-templates/relog', auth, async (req, res) => {
     const totalCarbs    = clonedFoods.reduce((s, f) => s + (f.carbs || 0), 0);
     const totalFat      = clonedFoods.reduce((s, f) => s + (f.fat || 0), 0);
 
+    const mealTimeStr = now.toTimeString().slice(0, 5);
     log.meals.push({
       name: mealName,
       mealType: mealType || 'snack',
-      time: now.toTimeString().slice(0, 5),
+      time: mealTimeStr,
+      mealTime: deriveMealTime(start, mealTimeStr) || now,
       foods: clonedFoods,
       totalCalories,
       totalProtein,
@@ -1661,37 +1661,6 @@ router.get('/insights/diversity', auth, async (req, res) => {
   } catch (err) {
     console.error('[NutritionRoutes] GET /insights/diversity error:', err);
     res.status(500).json({ error: 'Failed to compute diversity insights.' });
-  }
-});
-
-// ── Kitchen Inventory ──────────────────────────────────────────────────────
-// GET  /api/nutrition/kitchen-inventory   → returns { items: [...] }
-// PUT  /api/nutrition/kitchen-inventory   → body { items: [...] } replaces list
-
-router.get('/kitchen-inventory', auth, async (req, res) => {
-  try {
-    const inv = await KitchenInventory.findOne({ user: req.userId }).lean();
-    res.json({ items: inv?.items || [] });
-  } catch (err) {
-    console.error('[KitchenInventory] GET error:', err);
-    res.status(500).json({ error: 'Failed to fetch kitchen inventory' });
-  }
-});
-
-router.put('/kitchen-inventory', auth, async (req, res) => {
-  try {
-    const { items } = req.body;
-    if (!Array.isArray(items)) return res.status(400).json({ error: 'items must be an array' });
-    const cleaned = [...new Set(items.map(i => String(i).trim()).filter(Boolean))];
-    const inv = await KitchenInventory.findOneAndUpdate(
-      { user: req.userId },
-      { $set: { items: cleaned } },
-      { upsert: true, new: true }
-    );
-    res.json({ items: inv.items });
-  } catch (err) {
-    console.error('[KitchenInventory] PUT error:', err);
-    res.status(500).json({ error: 'Failed to update kitchen inventory' });
   }
 });
 

@@ -2,6 +2,7 @@ const PatternMemory = require('../../models/PatternMemory');
 const DailyLifeState = require('../../models/DailyLifeState');
 const { computeIdentityMemory } = require('../identityMemory/computeIdentityMemory');
 const { applyMemoryOverrides } = require('../memoryControl/applyMemoryOverrides');
+const { evaluateHypothesesForDay } = require('../hypothesisLifecycle/evaluateHypotheses');
 
 const COMPUTE_VERSION = 'pm-v1';
 
@@ -407,6 +408,12 @@ async function computePatternMemory({ userId, dayKey }) {
       });
     });
   }
+
+  // Hypothesis lifecycle: archive stale hypotheses, stamp evaluation timestamps.
+  // Generation of cross-domain hypotheses lives in the insight pipeline; this is bookkeeping only.
+  setImmediate(() => {
+    evaluateHypothesesForDay({ userId, dayKey }).catch(() => { /* swallowed by worker */ });
+  });
 
   return { didMutatePatterns, reinforcement };
 }

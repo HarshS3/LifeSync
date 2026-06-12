@@ -16,7 +16,7 @@ DailyLifeState is a derived, non-user-edited representation of one user-day.
 Recompute the relevant day when any of these writes happen:
 
 - Fitness: `POST /api/logs/fitness`
-- Nutrition: `POST /api/logs/nutrition`
+- Nutrition: `POST /api/nutrition/logs` (and `POST /api/nutrition/meals`, `PATCH /api/nutrition/water`)
 - Mental: `POST /api/logs/mental` (and back-compat `POST /api/logs/mental/:userId`)
 - Habits: `POST /api/habits/toggle`, `POST /api/habits/note`
 - Symptoms: `POST/PATCH/DELETE /api/symptoms`

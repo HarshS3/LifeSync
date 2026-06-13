@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 process.env.TZ = 'Asia/Kolkata';
 const express = require('express');
 const cors = require('cors');
@@ -34,9 +34,11 @@ require('./services/reminderScheduler');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/lifesync';
-const LOCAL_MONGO_URI = process.env.MONGO_URI_LOCAL || 'mongodb://localhost:27017/lifesync';
-const ALLOW_LOCAL_FALLBACK = String(process.env.MONGO_URI_FALLBACK_LOCAL || '1').trim() !== '0';
+const MONGO_URI = process.env.MONGO_URI;
+if (!MONGO_URI) {
+  console.error('[MongoDB] MONGO_URI env var is not set. Set it to your Atlas connection string.');
+  process.exit(1);
+}
 
 app.use(cors());
 app.use(morgan('dev'));
@@ -71,23 +73,7 @@ async function start() {
     try {
       await mongoose.connect(MONGO_URI);
     } catch (err) {
-      const isProd = String(process.env.NODE_ENV || '').trim() === 'production';
-      const msg = String(err?.message || '');
-      const code = String(err?.code || '');
-      const looksLikeSrvDns =
-        msg.includes('querySrv') ||
-        msg.includes('mongodb+srv') ||
-        code === 'ECONNREFUSED' ||
-        code === 'ENOTFOUND' ||
-        code === 'EAI_AGAIN';
-
-      if (!isProd && ALLOW_LOCAL_FALLBACK && looksLikeSrvDns && MONGO_URI !== LOCAL_MONGO_URI) {
-        console.warn('[MongoDB] Primary connection failed. Falling back to local MongoDB for dev.');
-        console.warn('[MongoDB] To disable fallback set MONGO_URI_FALLBACK_LOCAL=0');
-        await mongoose.connect(LOCAL_MONGO_URI);
-      } else {
-        throw err;
-      }
+      throw err;
     }
     console.log('Connected to MongoDB');
 

@@ -317,7 +317,7 @@ function Dashboard() {
           </Box>
         </Box>
 
-        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', mt: { lg: 'auto' } }}>
           <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1 }}>
             Check-in Streak
           </Typography>
@@ -336,47 +336,8 @@ function Dashboard() {
       </Box>
 
       {/* CENTER: Today's State */}
-      <Box>
-        {topInsights.length > 0 && (
-          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', mb: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-              <TipsAndUpdatesIcon sx={{ color: '#f59e0b' }} />
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Today's Signal</Typography>
-            </Box>
-            {topInsights.map((insight, idx) => {
-              const expanded = expandedInsightId === insight.id
-              const impactColor = insight.impact === 'high' ? '#dc2626' : insight.impact === 'moderate' ? '#d97706' : '#2563eb'
-              const trimmed = !expanded && insight.detail.length > 140 ? insight.detail.slice(0, 140) + '…' : insight.detail
-              return (
-                <Box
-                  key={insight.id}
-                  onClick={() => setExpandedInsightId(expanded ? null : insight.id)}
-                  sx={{
-                    cursor: 'pointer',
-                    py: 1.5,
-                    borderTop: idx === 0 ? 'none' : '1px solid',
-                    borderColor: 'divider',
-                    '&:hover': { opacity: 0.85 },
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: impactColor, flexShrink: 0 }} />
-                    <Typography variant="body1" sx={{ fontWeight: 700 }}>{insight.title}</Typography>
-                  </Box>
-                  <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.5 }}>{trimmed}</Typography>
-                  {expanded && insight.action && (
-                    <Box sx={{ mt: 1.5, p: 1.5, bgcolor: '#fef3c7', borderRadius: 1, borderLeft: '3px solid', borderColor: '#f59e0b' }}>
-                      <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.5 }}>WHAT TO DO</Typography>
-                      <Typography variant="body2">{insight.action}</Typography>
-                    </Box>
-                  )}
-                </Box>
-              )
-            })}
-          </Box>
-        )}
-        <ProgressNarrative />
-        <Box sx={{ p: 4, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', mb: 3, position: 'relative', overflow: 'hidden' }}>
+      <Box sx={{ order: { xs: -1, lg: 0 }, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', position: 'relative', overflow: 'hidden' }}>
           <GlowingEffect
             spread={40}
             glow={true}
@@ -557,6 +518,7 @@ function Dashboard() {
             display: 'grid',
             gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' },
             gap: 2,
+            mt: { lg: 'auto' },
           }}
         >
           {[
@@ -664,12 +626,13 @@ function Dashboard() {
           </Box>
         </Box>
 
-        <Box 
-          sx={{ 
-            p: 3, 
-            bgcolor: (theme) => theme.palette.mode === 'dark' ? 'primary.main' : '#111827', 
-            borderRadius: 2, 
-            color: 'background.paper' 
+        <Box
+          sx={{
+            p: 3,
+            bgcolor: (theme) => theme.palette.mode === 'dark' ? 'primary.main' : '#111827',
+            borderRadius: 2,
+            color: 'background.paper',
+            mt: { lg: 'auto' },
           }}
         >
           <Typography 
@@ -723,6 +686,57 @@ function Dashboard() {
 
 
 
+      </Box>
+
+      {/* FULL-WIDTH ROW: Today's Signal + Progress Narratives */}
+      <Box
+        sx={{
+          gridColumn: { xs: '1', lg: '1 / -1' },
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+          gap: 2,
+          alignItems: 'stretch',
+        }}
+      >
+        {topInsights.length > 0 && (
+          <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+              <TipsAndUpdatesIcon sx={{ color: '#f59e0b' }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Today's Signal</Typography>
+            </Box>
+            {topInsights.map((insight, idx) => {
+              const expanded = expandedInsightId === insight.id
+              const impactColor = insight.impact === 'high' ? '#dc2626' : insight.impact === 'moderate' ? '#d97706' : '#2563eb'
+              const trimmed = !expanded && insight.detail.length > 140 ? insight.detail.slice(0, 140) + '…' : insight.detail
+              return (
+                <Box
+                  key={insight.id}
+                  onClick={() => setExpandedInsightId(expanded ? null : insight.id)}
+                  sx={{
+                    cursor: 'pointer',
+                    py: 1.5,
+                    borderTop: idx === 0 ? 'none' : '1px solid',
+                    borderColor: 'divider',
+                    '&:hover': { opacity: 0.85 },
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: impactColor, flexShrink: 0 }} />
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>{insight.title}</Typography>
+                  </Box>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.5, display: 'block' }}>{trimmed}</Typography>
+                  {expanded && insight.action && (
+                    <Box sx={{ mt: 1.5, p: 1.5, bgcolor: '#fef3c7', borderRadius: 1, borderLeft: '3px solid', borderColor: '#f59e0b' }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.5 }}>WHAT TO DO</Typography>
+                      <Typography variant="body2">{insight.action}</Typography>
+                    </Box>
+                  )}
+                </Box>
+              )
+            })}
+          </Box>
+        )}
+        <ProgressNarrative inline />
       </Box>
     </Box>
   )

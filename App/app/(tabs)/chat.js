@@ -18,13 +18,8 @@ export default function ChatScreen() {
   const params = useLocalSearchParams();
   const { COLORS, SHADOWS } = useTheme();
   
-  const [messages, setMessages] = useState([
-    {
-      id: '1',
-      from: 'ai',
-      text: 'Hi! Type a message, hold the mic to speak, or snap a photo of your meal to log it.',
-    },
-  ]);
+  const [messages, setMessages] = useState([]);
+  const [briefLoading, setBriefLoading] = useState(true);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -46,6 +41,30 @@ export default function ChatScreen() {
     };
   }, [recording]);
 
+  // --- MORNING BRIEF ---
+  useEffect(() => {
+    let cancelled = false;
+    const loadBrief = async () => {
+      try {
+        const res = await api.get('/ai/morning-brief');
+        if (cancelled) return;
+        if (res.data?.brief) {
+          addMessage({ from: 'ai', text: res.data.brief });
+        } else {
+          addMessage({ from: 'ai', text: 'Hi! How can I help you today?' });
+        }
+      } catch {
+        if (!cancelled) {
+          addMessage({ from: 'ai', text: 'Hi! How can I help you today?' });
+        }
+      } finally {
+        if (!cancelled) setBriefLoading(false);
+      }
+    };
+    loadBrief();
+    return () => { cancelled = true; };
+  }, []);
+
   const addMessage = (msg) => {
     setMessages(prev => [...prev, { id: Date.now().toString(), ...msg }]);
   };
@@ -60,15 +79,8 @@ export default function ChatScreen() {
     setIsSending(true);
 
     try {
-      // Server owns full history via threadId; we still send a compact tail for offline/anon fallback.
-      const history = messages
-        .filter(m => (m.from === 'user' || m.from === 'ai') && m.text)
-        .slice(-10)
-        .map(m => ({ role: m.from === 'user' ? 'user' : 'assistant', content: m.text }));
-
-      history.push({ role: 'user', content: trimmed });
-
-      const res = await api.post('/ai/chat', { message: trimmed, history, threadId });
+      // Server owns the full thread via threadId — no need to ship history.
+      const res = await api.post('/ai/chat', { message: trimmed, threadId });
       if (res.data?.threadId && res.data.threadId !== threadId) {
         setThreadId(res.data.threadId);
       }
@@ -419,6 +431,13 @@ export default function ChatScreen() {
           contentContainerStyle={styles.messageList}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            briefLoading ? (
+              <View style={styles.briefLoader}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              </View>
+            ) : null
+          }
         />
 
         <View style={[styles.inputArea, { backgroundColor: COLORS.surface, borderTopColor: COLORS.border, ...SHADOWS }]}>
@@ -593,5 +612,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
+  },
+  briefLoader: {
+    flex: 1,
+    alignItems: 'center',
+    paddingTop: 32,
   },
 });

@@ -147,7 +147,7 @@ const UserSchema = new mongoose.Schema(
     hydrationGoal: { type: Number, default: 8 },
     
     // Workout Preferences
-    trainingExperience: { type: String, default: 'intermediate' },
+    trainingExperience: { type: String, enum: ["beginner","novice","intermediate","advanced","athlete"], default: 'beginner' },
     preferredWorkouts: [String],
     workoutFrequency: { type: Number, default: 4 },
     workoutDuration: { type: Number, default: 60 },
@@ -267,7 +267,11 @@ const UserSchema = new mongoose.Schema(
         default: 'normal' 
       },
       defaultSleepTime: { type: String, default: '22:30' },
-      useAdaptiveTdee: { type: Boolean, default: true }
+      useAdaptiveTdee: { type: Boolean, default: true },
+      trainingPhase: { type: String, enum: ["bulk","cut","maintenance","recomp"], default: "maintenance" },
+      trainingPhaseStartDate: { type: Date, default: null },
+      lastDeloadDate: { type: Date, default: null },
+      sessionDurationMinutes: { type: Number, default: 60 },
     },
     // Comprehensive calculated targets stored as a structured object
     clinicalTargets: mongoose.Schema.Types.Mixed,

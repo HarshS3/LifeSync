@@ -1010,8 +1010,8 @@ function GymTracker() {
   }
 
   const handleFinishWorkout = async () => {
-    const success = await finishWorkout()
-    if (success) {
+    const result = await finishWorkout()
+    if (result) {
       loadWorkouts()
     }
   }

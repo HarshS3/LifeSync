@@ -21,6 +21,7 @@ import { ScreenWrapper } from '../../components/ui/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { MetricSlider } from '../../components/ui/MetricSlider';
 import { H1, H2, H3, Body, Caption } from '../../components/ui/Typography';
+import DiagnosticCard from '../../components/DiagnosticCard';
 
 const WORKOUT_KEY = '@active_workout_draft';
 
@@ -235,6 +236,22 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         )}
 
+        {/* Sunday contract nudge — only on Sundays */}
+        {new Date().getDay() === 0 && (
+          <TouchableOpacity
+            style={[s.sundayBanner, { backgroundColor: COLORS.insightBg || '#f5f3ff', borderColor: COLORS.insight || '#6366f1' }]}
+            onPress={() => nav('/insights/weekly')}
+            activeOpacity={0.85}
+          >
+            <Body style={{ fontSize: 16 }}>📋</Body>
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <H3 style={{ fontSize: 14 }}>This week's review is ready</H3>
+              <Caption secondary>Set next week's 3 targets → commit → get scored Friday.</Caption>
+            </View>
+            <Body secondary style={{ fontSize: 18 }}>›</Body>
+          </TouchableOpacity>
+        )}
+
         {topInsights.length > 0 && (
           <Card style={[s.heroCard, { backgroundColor: COLORS.insightBg || COLORS.surface, borderColor: COLORS.insight || COLORS.primary }]}>
             <View style={s.heroHeader}>
@@ -272,6 +289,9 @@ export default function DashboardScreen() {
             })}
           </Card>
         )}
+
+        {/* Diagnostic card — only visible when readiness < 7 and check-in done */}
+        {hasCheckedIn && <DiagnosticCard readiness={readiness} COLORS={COLORS} />}
 
         <Card>
           <View style={s.greetRow}>
@@ -439,6 +459,7 @@ const s = StyleSheet.create({
 
   resumeBanner:      { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 16 },
   resumeDiscard:     { marginTop: 8 },
+  sundayBanner:      { flexDirection: 'row', alignItems: 'center', borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 14 },
 
   greetRow:        { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 },
   greetReflection: { marginTop: 4, fontStyle: 'italic' },

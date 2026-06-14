@@ -178,6 +178,7 @@ async function computePatternMemory({ userId, dayKey }) {
   const byDayKey = new Map(history.map((d) => [d.dayKey, d]));
 
   const patterns = [
+    // ── Wellness patterns ─────────────────────────────────────────
     {
       key: 'low_sleep__next_day__low_energy',
       conditions: ['low_sleep'],
@@ -197,15 +198,6 @@ async function computePatternMemory({ userId, dayKey }) {
       effectCheck: (d) => isLow(getSignal(d, 'energy')),
     },
     {
-      key: 'high_training_load__next_day__fatigue',
-      conditions: ['high_training_load'],
-      effect: 'next_day_fatigue',
-      window: 'next_day',
-      signalType: 'training',
-      condition: (d) => isHigh(getSignal(d, 'trainingLoad')),
-      effectCheck: (dNext) => isLow(getSignal(dNext, 'energy')),
-    },
-    {
       key: 'low_nutrition__same_day__low_energy',
       conditions: ['low_nutrition'],
       effect: 'low_energy',
@@ -213,6 +205,54 @@ async function computePatternMemory({ userId, dayKey }) {
       signalType: 'nutrition',
       condition: (d) => isLow(getSignal(d, 'nutrition')),
       effectCheck: (d) => isLow(getSignal(d, 'energy')),
+    },
+    // ── Cross-domain: training × wellness ─────────────────────────
+    {
+      key: 'high_training_load__next_day__low_energy',
+      conditions: ['high_training_load'],
+      effect: 'next_day_low_energy',
+      window: 'next_day',
+      signalType: 'training',
+      condition: (d) => isHigh(getSignal(d, 'trainingLoad')),
+      effectCheck: (dNext) => isLow(getSignal(dNext, 'energy')),
+    },
+    {
+      key: 'high_training_load__next_day__low_sleep',
+      conditions: ['high_training_load'],
+      effect: 'next_day_low_sleep',
+      window: 'next_day',
+      signalType: 'training',
+      condition: (d) => isHigh(getSignal(d, 'trainingLoad')),
+      effectCheck: (dNext) => isLow(getSignal(dNext, 'sleep')),
+    },
+    // ── Cross-domain: nutrition × training ────────────────────────
+    {
+      key: 'low_nutrition__next_day__low_training',
+      conditions: ['low_nutrition'],
+      effect: 'next_day_low_training_output',
+      window: 'next_day',
+      signalType: 'nutrition',
+      condition: (d) => isLow(getSignal(d, 'nutrition')),
+      effectCheck: (dNext) => isLow(getSignal(dNext, 'trainingLoad')),
+    },
+    {
+      key: 'high_training_load__same_day__low_nutrition',
+      conditions: ['high_training_load', 'low_nutrition'],
+      effect: 'underfueled_session',
+      window: 'same_day',
+      signalType: 'nutrition',
+      condition: (d) => isHigh(getSignal(d, 'trainingLoad')) && isLow(getSignal(d, 'nutrition')),
+      effectCheck: (d) => isLow(getSignal(d, 'energy')),
+    },
+    // ── Cross-domain: stress × training ──────────────────────────
+    {
+      key: 'high_stress__next_day__low_training',
+      conditions: ['high_stress'],
+      effect: 'next_day_low_training_output',
+      window: 'next_day',
+      signalType: 'stress',
+      condition: (d) => isHigh(getSignal(d, 'stress')),
+      effectCheck: (dNext) => isLow(getSignal(dNext, 'trainingLoad')),
     },
   ];
 

@@ -1,16 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  View, Text, StyleSheet, ScrollView, RefreshControl, 
-  TouchableOpacity, ActivityIndicator, Dimensions 
+import {
+  View, Text, StyleSheet, ScrollView, RefreshControl,
+  TouchableOpacity, ActivityIndicator, Dimensions
 } from 'react-native';
-import { 
-  Trash2, History, Utensils, Zap, Package, 
-  Activity as ActivityIcon, ChevronRight, ChevronDown, 
+import {
+  Trash2, History, Utensils, Zap, Package,
+  Activity as ActivityIcon, ChevronRight, ChevronDown,
   AlertTriangle, Info, Droplets, Edit2, X
 } from 'lucide-react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { AnimatedCard } from '../AnimatedCard';
 import { generateCGMData, fmt, percent } from '../../lib/nutritionHelpers';
+import DailyIntelligencePanel from './DailyIntelligencePanel';
+import CompoundEffectCard from './CompoundEffectCard';
+import OverIntakeBanner from './OverIntakeBanner';
 
 const { width } = Dimensions.get('window');
 
@@ -168,11 +171,14 @@ export default function TodayTab({
   }, [log, totals]);
 
   return (
-    <ScrollView 
+    <ScrollView
       style={{ flex: 1, backgroundColor: COLORS.background }}
       contentContainerStyle={themedStyles.scrollContent}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
+      {/* Daily Intelligence Panel — time-sensitive actions + cross-domain insight */}
+      <DailyIntelligencePanel COLORS={COLORS} />
+
       {/* 1. Meals List (At Top in Web) */}
       <View style={themedStyles.webSectionBox}>
         <View style={themedStyles.webSectionHeader}>
@@ -198,6 +204,12 @@ export default function TodayTab({
           <Text style={themedStyles.webEmptyText}>No meals logged yet for this day.</Text>
         )}
       </View>
+
+      {/* Over-intake recovery banner — only when significantly over target */}
+      <OverIntakeBanner calories={totals.calories} targetCalories={targets?.calories} COLORS={COLORS} />
+
+      {/* Compound Effect — collapsed by default */}
+      <CompoundEffectCard COLORS={COLORS} />
 
       {/* 2. Macro Summary Strip (Grid of 4) */}
       <View style={themedStyles.macroGrid}>

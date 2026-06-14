@@ -36,8 +36,12 @@ async function getOrCreateThread({ userId, threadId }) {
 }
 
 async function appendTurn({ thread, role, content, meta }) {
-  if (!thread || !role || !content) return thread;
-  thread.turns.push({ role, content: String(content).slice(0, 8000), createdAt: new Date(), meta: meta || {} });
+  if (!thread || !role) return thread;
+  // Persist even when content is empty so the transcript matches what the user
+  // saw on screen — record an explicit placeholder so the LLM can see that a
+  // turn happened and isn't confused on the next round.
+  const safeContent = String(content || '').trim() || '[empty response]';
+  thread.turns.push({ role, content: safeContent.slice(0, 8000), createdAt: new Date(), meta: meta || {} });
   thread.lastActiveAt = new Date();
 
   if (thread.turns.length > MAX_TURNS) {
@@ -52,15 +56,28 @@ async function appendTurn({ thread, role, content, meta }) {
 
 /**
  * Returns the recent turn slice in the {role, content} shape generateLLMReply expects.
- * Excludes the most recent user message if `excludeLast` is true (caller is about to
- * send it as the new user prompt).
+ *
+ * `excludeMessage` lets the caller specify the *exact* user message they're
+ * about to send so we strip it explicitly. This avoids the bug where a blind
+ * `slice(-1)` could drop an assistant turn from a concurrent request instead
+ * of the user turn we just appended.
  */
-function toLLMHistory(thread, { excludeLast = false } = {}) {
+function toLLMHistory(thread, { excludeMessage = null } = {}) {
   if (!thread || !Array.isArray(thread.turns)) return [];
   const turns = thread.turns
     .filter((t) => t.role === 'user' || t.role === 'assistant')
     .map((t) => ({ role: t.role, content: t.content }));
-  return excludeLast ? turns.slice(0, -1) : turns;
+
+  if (!excludeMessage) return turns;
+
+  // Walk backwards and drop the most recent user turn whose content matches.
+  // If we don't find a match (rare race), fall back to the unchanged history.
+  for (let i = turns.length - 1; i >= 0; i--) {
+    if (turns[i].role === 'user' && turns[i].content === excludeMessage) {
+      return turns.slice(0, i).concat(turns.slice(i + 1));
+    }
+  }
+  return turns;
 }
 
 async function listThreads(userId, { limit = 20 } = {}) {

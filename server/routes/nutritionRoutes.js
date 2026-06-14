@@ -23,6 +23,8 @@ const { analyzeMealTiming } = require('../services/nutritionPipeline/mealTimingE
 const { calculateDailyTargets } = require('../services/nutritionEngine');
 const { computeWeeklyDiversity } = require('../services/nutritionPipeline/sourceDiversityEngine');
 const { analyzeMeals } = require('../services/insulinIntelligenceService');
+const { computePriorityGaps } = require('../services/nutritionPipeline/priorityGapsEngine');
+const { computeDailyIntelligence } = require('../services/nutritionPipeline/dailyIntelligenceEngine');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
@@ -41,21 +43,75 @@ router.get('/daily-summary/:date', auth, async (req, res) => {
 
     const [log, user, stats] = await Promise.all([
       NutritionLog.findOne({ user: req.userId, date: { $gte: start, $lt: end } }).lean(),
-      User.findById(req.userId).select('clinicalTargets biologicalProfile height weight gender dob bodyComposition').lean(),
+      User.findById(req.userId).select('clinicalTargets biologicalProfile height weight gender dob bodyComposition labMarkers').lean(),
       NutritionLog.find({ user: req.userId, date: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } }).limit(30).lean()
     ]);
-    
-    // Get targets: prefer stored clinicalTargets, otherwise fallback to calculation
-    let targets = user?.clinicalTargets;
-    if (!targets && user?.biologicalProfile) {
-      targets = calculateDailyTargets(user.biologicalProfile);
+
+    const profile = user?.biologicalProfile;
+    const toNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : undefined; };
+    const effectiveProfile = profile ? {
+      ...profile,
+      biologicalSex: profile.biologicalSex || (user.gender === 'male' || user.gender === 'female' ? user.gender : undefined),
+      heightCm: toNum(profile.heightCm) ?? toNum(user.height),
+      weightKg: toNum(profile.weightKg) ?? toNum(user.weight),
+      bodyFatPercentage: toNum(profile.bodyFatPercentage),
+      dob: profile.dob || user.dob,
+    } : null;
+
+    const bmrOverride = toNum(user?.bodyComposition?.bmrKcal);
+    const labMarkers = user?.labMarkers ? (typeof user.labMarkers.toObject === 'function' ? user.labMarkers.toObject() : user.labMarkers) : null;
+    const useAdaptiveTdee = profile?.useAdaptiveTdee !== false;
+
+    let targets = null;
+    let tdeeSource = 'formula';
+    let adaptiveTdeeValue = null;
+    let metabolicMapData = null;
+
+    if (effectiveProfile) {
+      // Try adaptive TDEE first — gives a dynamic TDEE adjusted for real-world intake vs weight change
+      if (useAdaptiveTdee) {
+        try {
+          const [adaptiveResult, mapResult] = await Promise.all([
+            calculateAdaptiveTDEE(req.userId, 30),
+            calculateMetabolicMap(req.userId, 60).catch(() => null),
+          ]);
+          if (adaptiveResult.status === 'success') {
+            adaptiveTdeeValue = adaptiveResult.adaptiveTdee;
+            tdeeSource = 'adaptive';
+            // Prefer the full metabolic map's dynamic TDEE (which factors stress, training, steps)
+            if (mapResult?.status === 'success' && mapResult.dynamicTDEE) {
+              adaptiveTdeeValue = mapResult.dynamicTDEE;
+              tdeeSource = 'metabolic_map';
+              metabolicMapData = {
+                baseTDEE: mapResult.baseTDEE,
+                dynamicTDEE: mapResult.dynamicTDEE,
+                dietPhase: mapResult.dietPhase,
+                modifiers: mapResult.modifiers,
+                insight: mapResult.insight,
+              };
+            }
+          }
+        } catch (_) {
+          // adaptive unavailable — fall through to formula
+        }
+      }
+      targets = calculateDailyTargets(effectiveProfile, adaptiveTdeeValue, labMarkers, bmrOverride);
     }
-    
+
+    // If calculation failed, fall back to stored targets
+    if (!targets && user?.clinicalTargets?.targets) {
+      targets = user.clinicalTargets;
+      tdeeSource = 'stored';
+    }
+
     const mealTemplates = await MealTemplate.find({ user: req.userId }).limit(20).lean();
 
     res.json({
       log,
       targets,
+      tdeeSource,
+      adaptiveTdee: adaptiveTdeeValue,
+      metabolicMap: metabolicMapData,
       templates: mealTemplates,
       stats: {
         count: stats.length,
@@ -979,15 +1035,17 @@ router.get('/clinical-targets', auth, async (req, res) => {
     const calculatedBase = calculateDailyTargets(effectiveProfile, null, labMarkers, bmrOverride);
     
     let adaptiveOverride = null;
+    let tdeeSourceLabel = 'formula';
     if (useAdaptiveTdee) {
       const adaptiveResult = await calculateAdaptiveTDEE(req.userId, 30);
       if (adaptiveResult.status === 'success') {
         adaptiveOverride = adaptiveResult.adaptiveTdee;
+        tdeeSourceLabel = 'adaptive';
         console.log('[ClinicalTargets] Using Adaptive TDEE override:', adaptiveOverride);
       }
     }
 
-    const calculated = adaptiveOverride 
+    const calculated = adaptiveOverride
       ? calculateDailyTargets(effectiveProfile, adaptiveOverride, labMarkers, bmrOverride)
       : calculatedBase;
 
@@ -1018,6 +1076,8 @@ router.get('/clinical-targets', auth, async (req, res) => {
 
     res.status(200).json({
       requiresSetup: false,
+      tdeeSource: tdeeSourceLabel,
+      adaptiveTdee: adaptiveOverride,
       ...calculated
     });
   } catch (err) {
@@ -1034,6 +1094,8 @@ router.put('/clinical-profile', auth, async (req, res) => {
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
+    const phaseToGoal = { bulk: "lean_gain", cut: "mild_loss", maintenance: "maintenance", recomp: "maintenance" };
+
     const updateData = {
       'biologicalProfile.biologicalSex': biologicalSex || user.biologicalProfile?.biologicalSex,
       'biologicalProfile.dob': dob || user.biologicalProfile?.dob,
@@ -1041,11 +1103,16 @@ router.put('/clinical-profile', auth, async (req, res) => {
       'biologicalProfile.weightKg': weightKg || user.biologicalProfile?.weightKg,
       'biologicalProfile.bodyFatPercentage': bodyFatPercentage || user.biologicalProfile?.bodyFatPercentage,
       'biologicalProfile.activityLevel': activityLevel || user.biologicalProfile?.activityLevel || 'sedentary',
-      'biologicalProfile.metabolicGoal': metabolicGoal || user.biologicalProfile?.metabolicGoal || 'maintenance',
+      'biologicalProfile.metabolicGoal': phaseToGoal[req.body.trainingPhase] || user.biologicalProfile?.metabolicGoal || 'maintenance',
       'biologicalProfile.pregnancyStatus': pregnancyStatus || user.biologicalProfile?.pregnancyStatus || 'none',
       'biologicalProfile.dietaryPreference': dietaryPreference || user.biologicalProfile?.dietaryPreference || 'omnivore',
       'biologicalProfile.hypertension': hypertension !== undefined ? hypertension : user.biologicalProfile?.hypertension || false,
       'biologicalProfile.defaultSleepTime': defaultSleepTime || user.biologicalProfile?.defaultSleepTime || '22:30',
+      'biologicalProfile.trainingPhase': req.body.trainingPhase || user.biologicalProfile?.trainingPhase || 'maintenance',
+      'biologicalProfile.trainingPhaseStartDate': req.body.trainingPhaseStartDate || user.biologicalProfile?.trainingPhaseStartDate || null,
+      'biologicalProfile.lastDeloadDate': req.body.lastDeloadDate || user.biologicalProfile?.lastDeloadDate || null,
+      'biologicalProfile.sessionDurationMinutes': req.body.sessionDurationMinutes || user.biologicalProfile?.sessionDurationMinutes || 60,
+      trainingExperience: req.body.trainingExperience || user.trainingExperience || 'beginner',
     };
 
     // Remove empty strings so they don't break Date casting or numbers
@@ -1057,19 +1124,36 @@ router.put('/clinical-profile', auth, async (req, res) => {
 
     await User.updateOne({ _id: req.userId }, { $set: updateData });
     const updatedUser = await User.findById(req.userId);
-    
-    // Recompute and return the brand new targets
-    const calculated = calculateDailyTargets(updatedUser.biologicalProfile);
-    
-    // Save the targets to the user document for persistence
+
+    const updatedProfile = updatedUser.biologicalProfile ? updatedUser.biologicalProfile.toObject() : {};
+    const bmrOvr = updatedUser.bodyComposition?.bmrKcal ? Number(updatedUser.bodyComposition.bmrKcal) : null;
+    const labMkrs = updatedUser.labMarkers ? (typeof updatedUser.labMarkers.toObject === 'function' ? updatedUser.labMarkers.toObject() : updatedUser.labMarkers) : null;
+
+    // Attempt adaptive TDEE so profile updates reflect real metabolic state immediately
+    let adaptiveOvr = null;
+    let tdeeSource = 'formula';
+    if (updatedProfile.useAdaptiveTdee !== false) {
+      try {
+        const aResult = await calculateAdaptiveTDEE(req.userId, 30);
+        if (aResult.status === 'success') {
+          adaptiveOvr = aResult.adaptiveTdee;
+          tdeeSource = 'adaptive';
+        }
+      } catch (_) { /* not enough data yet — formula fallback is fine */ }
+    }
+
+    const calculated = calculateDailyTargets(updatedProfile, adaptiveOvr, labMkrs, bmrOvr);
+
     updatedUser.clinicalTargets = calculated;
     updatedUser.dailyCalorieTarget = calculated.targets.calories;
     updatedUser.dailyProteinTarget = calculated.targets.protein;
     await updatedUser.save();
-    
+
     res.status(200).json({
       message: 'Profile updated',
       profile: updatedUser.biologicalProfile,
+      tdeeSource,
+      adaptiveTdee: adaptiveOvr,
       ...calculated
     });
 
@@ -1661,6 +1745,60 @@ router.get('/insights/diversity', auth, async (req, res) => {
   } catch (err) {
     console.error('[NutritionRoutes] GET /insights/diversity error:', err);
     res.status(500).json({ error: 'Failed to compute diversity insights.' });
+  }
+});
+
+// Daily Intelligence — Day Profile: mode, dynamic targets, time-sensitive actions, cross-domain insight
+router.get('/daily-intelligence', auth, async (req, res) => {
+  try {
+    const data = await computeDailyIntelligence(req.userId);
+    res.json(data);
+  } catch (err) {
+    console.error('[DailyIntelligence] Error:', err);
+    res.status(500).json({ error: 'Failed to compute daily intelligence' });
+  }
+});
+
+// Priority nutrient gaps — nutrients chronically under-consumed with food fix suggestions
+router.get('/priority-gaps', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('biologicalProfile clinicalTargets labMarkers bodyComposition height weight gender dob').lean();
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const toNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : undefined; };
+    const profile = user.biologicalProfile || {};
+    const effectiveProfile = {
+      ...profile,
+      biologicalSex: profile.biologicalSex || (user.gender === 'male' || user.gender === 'female' ? user.gender : undefined),
+      heightCm: toNum(profile.heightCm) ?? toNum(user.height),
+      weightKg: toNum(profile.weightKg) ?? toNum(user.weight),
+      dob: profile.dob || user.dob,
+    };
+
+    // Resolve clinical targets — adaptive if available
+    let clinicalTargets = user.clinicalTargets;
+    if (!clinicalTargets?.targets && effectiveProfile.biologicalSex) {
+      const bmrOvr = toNum(user.bodyComposition?.bmrKcal);
+      const labMkrs = user.labMarkers ? (typeof user.labMarkers.toObject === 'function' ? user.labMarkers.toObject() : user.labMarkers) : null;
+      let adaptiveOvr = null;
+      if (profile.useAdaptiveTdee !== false) {
+        try {
+          const ar = await calculateAdaptiveTDEE(req.userId, 30);
+          if (ar.status === 'success') adaptiveOvr = ar.adaptiveTdee;
+        } catch (_) {}
+      }
+      clinicalTargets = calculateDailyTargets(effectiveProfile, adaptiveOvr, labMkrs, bmrOvr);
+    }
+
+    if (!clinicalTargets?.targets) {
+      return res.status(200).json({ gaps: [], requiresSetup: true });
+    }
+
+    const gaps = await computePriorityGaps(req.userId, clinicalTargets);
+    res.json({ gaps, daysAnalyzed: 7 });
+  } catch (err) {
+    console.error('[PriorityGaps] Error:', err);
+    res.status(500).json({ error: 'Failed to compute priority gaps' });
   }
 });
 

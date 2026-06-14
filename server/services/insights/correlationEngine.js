@@ -42,6 +42,9 @@ async function analyzeCorrelations(userId, days = 30) {
   const perfInsight = analyzeNutritionPerformance(workouts, buildNutritionMap(nutritionLogs));
   if (perfInsight) insights.push(perfInsight);
 
+  const fuelWindowInsight = await analyzePreTrainingFuelWindow(workouts, nutritionLogs);
+  if (fuelWindowInsight) insights.push(fuelWindowInsight);
+
   insights.push(...analyzeChronicDeficiencies(nutritionLogs));
 
   const gutInsights = await analyzeGutTriggers(userId, days);
@@ -107,11 +110,28 @@ function analyzeNutritionPerformance(workouts, nutritionMap) {
 
   const avgRecent = recent.reduce((s, v) => s + v.vol, 0) / recent.length;
   const avgPrev   = previous.reduce((s, v) => s + v.vol, 0) / previous.length;
-  if (avgPrev === 0 || avgRecent >= avgPrev * 0.9) return null;
+  if (avgPrev === 0) return null;
+
+  // ── Positive signal: volume up + high protein ─────────────────────────────
+  const highProteinDays = recent.filter(rv => {
+    const log = nutritionMap[rv.date];
+    return log && log.dailyTotals && log.dailyTotals.protein >= 140;
+  }).length;
+  if (avgRecent >= avgPrev * 1.1 && highProteinDays >= 2) {
+    return {
+      type: 'correlation',
+      title: 'High protein driving performance gains',
+      detail: `Workout volume is up ${Math.round((avgRecent / avgPrev - 1) * 100)}% vs the prior 3 sessions. ${highProteinDays} of those days had protein >= 140g.`,
+      impact: 'moderate',
+      action: 'Keep protein intake consistent — this pattern is directly supporting your performance gains.',
+    };
+  }
+
+  // ── Negative signal: volume down + underfueling ────────────────────────────
+  if (avgRecent >= avgPrev * 0.9) return null; // flat or mild drop — not notable
 
   const dropPct = Math.round((1 - avgRecent / avgPrev) * 100);
 
-  // Count workout days where calories were notably below a reasonable floor
   let lowCalDays = 0;
   for (const rv of recent) {
     const log = nutritionMap[rv.date];
@@ -132,7 +152,60 @@ function analyzeNutritionPerformance(workouts, nutritionMap) {
   return null;
 }
 
-// ── 3. Chronic deficiency scan — all nutrients in NUTRIENT_RDA ───────────────
+// ── 3. Pre-training fuel window (forward-looking) ────────────────────────────
+// Fires when the user has trained today but today's calorie/protein intake is
+// meaningfully behind their historical training-day baseline — catching a
+// recovery-nutrition gap before performance suffers.
+async function analyzePreTrainingFuelWindow(workouts, nutritionLogs) {
+  const now = new Date();
+  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+
+  // logs are sorted ascending — most recent is last; find today from the tail
+  const todayLog = [...nutritionLogs].reverse().find(l => new Date(l.date) >= todayStart);
+  if (!todayLog) return null;
+
+  const todayCalories = todayLog.dailyTotals?.calories || 0;
+  const todayProtein  = todayLog.dailyTotals?.protein  || 0;
+
+  // Use 7 most-recent completed days (before today) as historical baseline
+  const historicalLogs = nutritionLogs.filter(l => new Date(l.date) < todayStart).slice(-7);
+  if (historicalLogs.length < 3) return null;
+
+  const avgCals    = historicalLogs.reduce((s, l) => s + (l.dailyTotals?.calories || 0), 0) / historicalLogs.length;
+  const avgProtein = historicalLogs.reduce((s, l) => s + (l.dailyTotals?.protein  || 0), 0) / historicalLogs.length;
+
+  // Only fire when the user has trained today
+  const trainedToday = workouts.some(w => new Date(w.date) >= todayStart);
+  if (!trainedToday) return null;
+  if (avgCals < 500) return null; // baseline too thin to be meaningful
+
+  const calRatio   = todayCalories / avgCals;
+  const proteinGap = avgProtein - todayProtein;
+
+  if (calRatio < 0.6 && proteinGap > 20) {
+    return {
+      type: 'fuel_timing',
+      title: 'Post-workout refuel behind schedule',
+      detail: `You've logged ${Math.round(todayCalories)} kcal today vs your typical ${Math.round(avgCals)} kcal. Protein is ${Math.round(proteinGap)}g below your usual intake on training days.`,
+      impact: 'high',
+      action: `Prioritise a ${Math.round(proteinGap)}g protein meal now — muscle protein synthesis peaks within 2h post-training.`,
+    };
+  }
+
+  if (calRatio < 0.75 && proteinGap > 10) {
+    return {
+      type: 'fuel_timing',
+      title: 'Recovery nutrition below typical',
+      detail: `Today's intake (${Math.round(todayCalories)} kcal, ${Math.round(todayProtein)}g protein) is behind your usual training-day nutrition.`,
+      impact: 'moderate',
+      action: 'Add a protein-rich snack or meal to support recovery and muscle repair.',
+    };
+  }
+
+  return null;
+}
+
+// ── 4. Chronic deficiency scan — all nutrients in NUTRIENT_RDA ───────────────
 // Returns one insight per nutrient that averages below 60% of RDA over the window.
 // Sorted by severity (largest gap first), capped at 3 to avoid noise.
 function analyzeChronicDeficiencies(logs) {
@@ -174,4 +247,4 @@ function analyzeChronicDeficiencies(logs) {
   }));
 }
 
-module.exports = { analyzeCorrelations };
+module.exports = { analyzeCorrelations, analyzePreTrainingFuelWindow };

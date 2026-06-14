@@ -106,15 +106,21 @@ async function fromReadinessEngine(userId) {
       }));
     }
     if (Array.isArray(r.stagnationAlerts)) {
-      r.stagnationAlerts.slice(0, 2).forEach((s, idx) => {
+      r.stagnationAlerts.slice(0, 3).forEach((s, idx) => {
+        const isRpеCreep = s.type === 'rpe_creep';
         out.push(makeInsight({
           id: `readiness:stagnation:${idx}`,
-          kind: 'training_progress',
-          title: `Plateau detected: ${s.exercise}`,
-          detail: `Best in last 3 sessions: ${s.currentBest} kg.`,
+          kind: isRpеCreep ? 'training_overreach' : 'training_progress',
+          title: isRpеCreep
+            ? `Overreaching signal: ${s.exercise}`
+            : `Plateau detected: ${s.exercise}`,
+          detail: isRpеCreep
+            ? `RPE has risen from ${s.avgOlderRpe} to ${s.avgRecentRpe} at similar weights — effort is increasing without load progression.`
+            : `Best weight in last 3 sessions: ${s.currentBest} kg — no progression.`,
           action: s.suggestion,
-          impact: 'moderate',
-          recencyDays: 3,
+          impact: isRpеCreep ? 'high' : 'moderate',
+          recencyDays: 2,
+          evidence: s,
         }));
       });
     }

@@ -1,4 +1,4 @@
-const { MentalLog, NutritionLog } = require('../../models/Logs');
+const { MentalLog, NutritionLog, StepsLog } = require('../../models/Logs');
 const Workout = require('../../models/Workout');
 
 /**
@@ -22,10 +22,12 @@ async function calculateReadiness(userId) {
   const twentyEightDaysAgo = new Date(now);
   twentyEightDaysAgo.setDate(twentyEightDaysAgo.getDate() - 28);
 
-  const [recentMental, workoutsLast28, todayNutrition] = await Promise.all([
+  const [recentMental, workoutsLast28, todayNutrition, user, todaySteps] = await Promise.all([
     MentalLog.find({ user: userId, date: { $gte: sevenDaysAgo } }).sort({ date: -1 }).lean(),
     Workout.find({ user: userId, date: { $gte: twentyEightDaysAgo } }).sort({ date: 1 }).lean(),
     NutritionLog.findOne({ user: userId, date: { $gte: todayStart } }).lean(),
+    require('../../models/User').findById(userId).select('weight biologicalProfile dailyCalorieTarget trainingExperience').lean(),
+    StepsLog.findOne({ user: userId, date: { $gte: todayStart } }).lean(),
   ]);
 
   const workoutsLast7 = workoutsLast28.filter(w => new Date(w.date) >= sevenDaysAgo);
@@ -41,19 +43,31 @@ async function calculateReadiness(userId) {
     daysSinceRestDay++;
   }
 
+  // ── Recency-weighted average: entries sorted desc by date (most recent first)
+  // Weight decays linearly: most recent = weight N, oldest = weight 1
+  const weightedAvg = (logs, field, fallback) => {
+    const valid = logs.filter(l => l[field] != null);
+    if (valid.length === 0) return fallback;
+    const n = valid.length;
+    let weightedSum = 0;
+    let totalWeight = 0;
+    valid.forEach((l, i) => {
+      const w = n - i; // most recent gets weight n, oldest gets weight 1
+      weightedSum += l[field] * w;
+      totalWeight += w;
+    });
+    return weightedSum / totalWeight;
+  };
+
   // ── 1. SLEEP SCORE (20% weight) ─────────────────────────────
-  const recentSleepLogs = recentMental.filter(l => l.sleepHours != null);
-  const avgSleep = recentSleepLogs.length > 0
-    ? recentSleepLogs.reduce((s, l) => s + l.sleepHours, 0) / recentSleepLogs.length
-    : 7;
+  const avgSleep = weightedAvg(recentMental, 'sleepHours', 7);
   const sleepHoursScore = Math.max(0, Math.min(10,
     avgSleep < 6  ? (avgSleep - 4) * 2.5
     : avgSleep < 8 ? 5 + (avgSleep - 6) * 2.5
     : avgSleep <= 9 ? 10 - (avgSleep - 8) * 2
     : Math.max(0, 8 - (avgSleep - 9) * 3)
   ));
-  const recentQualityLogs = recentMental.filter(l => l.sleepQuality != null);
-  const avgQuality = recentQualityLogs.length > 0 ? recentQualityLogs.reduce((s, l) => s + l.sleepQuality, 0) / recentQualityLogs.length : 6;
+  const avgQuality = weightedAvg(recentMental, 'sleepQuality', 6);
   const sleepScore = (sleepHoursScore * 0.6) + (avgQuality * 0.4);
 
   // ── 2. RECOVERY METRICS (RHR) (15% weight) ────────────────────
@@ -61,53 +75,59 @@ async function calculateReadiness(userId) {
   let rhrScore = 7;
   let avgRhr = null;
   if (recentRhrLogs.length > 0) {
-    avgRhr = recentRhrLogs.reduce((s, l) => s + l.restingHeartRate, 0) / recentRhrLogs.length;
-    rhrScore = Math.max(1, Math.min(10, 10 - (avgRhr - 55) * 0.3));
+    avgRhr = weightedAvg(recentMental, 'restingHeartRate', null);
+    if (avgRhr != null) rhrScore = Math.max(1, Math.min(10, 10 - (avgRhr - 55) * 0.3));
   }
 
   // ── 3. ENERGY SCORE (15% weight) ────────────────────────────
-  const recentEnergyLogs = recentMental.filter(l => l.energyLevel != null);
-  const avgEnergy = recentEnergyLogs.length > 0 ? recentEnergyLogs.reduce((s, l) => s + l.energyLevel, 0) / recentEnergyLogs.length : 7;
+  const avgEnergy = weightedAvg(recentMental, 'energyLevel', 7);
   const energyScore = avgEnergy;
 
   // ── 4. STRESS SCORE (10% weight, inverted) ──────────────────
-  const recentStressLogs = recentMental.filter(l => l.stressLevel != null);
-  const avgStress = recentStressLogs.length > 0 ? recentStressLogs.reduce((s, l) => s + l.stressLevel, 0) / recentStressLogs.length : 4;
+  const avgStress = weightedAvg(recentMental, 'stressLevel', 4);
   const stressScore = Math.max(1, Math.min(10, 11 - avgStress));
 
   // ── 5. NUTRITION/FUEL SCORE (20% weight) ───────────────────────
-  // New: Adjust readiness based on today's fuel intake
-  let fuelScore = 7; // Neutral start
+  // Use stored TDEE-adjusted target when available (avoids re-deriving what
+  // nutritionEngine + adaptiveTdeeEngine already computed). Fall back to
+  // body-weight heuristic only when the user hasn't set up their profile.
+  const userBodyWeight = user?.biologicalProfile?.weight || user?.weight || 75;
+  const storedTarget = user?.dailyCalorieTarget;
+  const calsTarget = storedTarget && storedTarget > 800 ? storedTarget : Math.round(userBodyWeight * 32);
+  const calsFloor = Math.round(calsTarget * 0.55); // < 55% of maintenance = genuinely underfueled
+  const trainingToday = workoutsLast7.some(w => new Date(w.date) >= todayStart);
+  const trainingPhase = user?.biologicalProfile?.trainingPhase;
+  const isDeficitPhase = trainingPhase === "cut" || trainingPhase === "recomp";
+  const adjustedCalsTarget = (isDeficitPhase && trainingToday) ? calsTarget + 200 : calsTarget;
+  const adjustedCalsFloor = Math.round(adjustedCalsTarget * 0.55);
+
+  let fuelScore = 7;
   let fuelDetail = 'Awaiting today\'s nutrition data.';
   if (todayNutrition) {
     const calories = todayNutrition.dailyTotals?.calories || 0;
     const carbs = todayNutrition.dailyTotals?.carbs || 0;
-    const protein = todayNutrition.dailyTotals?.protein || 0;
 
-    // Check if user has eaten enough for their baseline
-    // Simple heuristic: if it's afternoon and they haven't eaten much, fuel is low
-    const hour = now.getHours();
-    if (hour > 12 && calories < 800) {
+    if (calories === 0) {
+      fuelScore = 7;
+      fuelDetail = 'No nutrition logged yet today.';
+    } else if (calories < adjustedCalsFloor) {
       fuelScore = 3;
-      fuelDetail = 'Glycogen stores may be low. Energy output could be compromised.';
-    } else if (carbs < 50 && hour > 10) {
+      fuelDetail = `Calorie intake (${calories} kcal) is low for your body weight. Glycogen stores may be depleted.${isDeficitPhase && trainingToday ? ' Training day in a cut/recomp — recovery nutrition is critical.' : ''}`;
+    } else if (carbs < 40) {
       fuelScore = 5;
-      fuelDetail = 'Low carb intake detected. High-intensity performance may suffer.';
-    } else if (calories > 1500) {
+      fuelDetail = 'Very low carb intake. High-intensity or explosive performance may suffer.';
+    } else if (calories >= adjustedCalsTarget) {
       fuelScore = 10;
-      fuelDetail = 'Well fueled for a high-intensity session.';
+      fuelDetail = (isDeficitPhase && trainingToday) ? 'Well fueled for training day recovery.' : 'Well fueled for a high-intensity session.';
     } else {
-      fuelScore = 8;
+      fuelScore = Math.round(5 + 5 * ((calories - adjustedCalsFloor) / (adjustedCalsTarget - adjustedCalsFloor)));
       fuelDetail = 'Moderate fueling detected.';
     }
   }
   const nutritionWeight = 0.2;
 
   // ── 6. TRAINING LOAD SCORE (20% weight) ───────
-  const [user] = await Promise.all([
-    require('../../models/User').findById(userId).select('weight biologicalProfile').lean()
-  ]);
-  const userWeight = user?.biologicalProfile?.weight || user?.weight || 75;
+  const userWeight = userBodyWeight;
 
   const calcVolume = (ws) => ws.reduce((total, w) => {
     return total + (w.exercises || []).reduce((ex, e) =>
@@ -123,6 +143,19 @@ async function calculateReadiness(userId) {
   const volumeRatio = avgWeeklyBaseVolume > 0 ? recentVolume / avgWeeklyBaseVolume : 1;
   let trainingLoadScore = volumeRatio > 1.4 ? Math.max(1, 10 - (volumeRatio - 1.4) * 8) : 10;
   if (daysSinceRestDay > 3) trainingLoadScore = Math.max(1, trainingLoadScore - (daysSinceRestDay - 3) * 1.5);
+
+  // Steps modifier: NEAT load matters.
+  // High steps on a rest day (>= 8k) = active recovery → small positive bump.
+  // High steps on a heavy training day (>= 12k) = extra load → small penalty.
+  const stepsToday = todaySteps?.stepsCount || 0;
+  let stepsDetail = null;
+  if (stepsToday >= 8000 && !trainingToday) {
+    trainingLoadScore = Math.min(10, trainingLoadScore + 0.5);
+    stepsDetail = `${stepsToday.toLocaleString()} steps — active recovery bonus applied.`;
+  } else if (stepsToday >= 12000 && trainingToday) {
+    trainingLoadScore = Math.max(1, trainingLoadScore - 0.5);
+    stepsDetail = `${stepsToday.toLocaleString()} steps on top of a training session — cumulative load elevated.`;
+  }
 
   // ── 7. COMPOSITE READINESS SCORE ────────────────────────────
   const rawScore = (sleepScore * 0.2) + (rhrScore * 0.15) + (energyScore * 0.15) + (stressScore * 0.1) + (fuelScore * 0.2) + (trainingLoadScore * 0.2);
@@ -150,12 +183,16 @@ async function calculateReadiness(userId) {
   // ── 10. OVERTRAINING RISK ────────────────────────────────────
   let overtTrainingRisk = 'low';
   let overtTrainingDetail = 'Training load is balanced relative to your recovery.';
-  if (volumeRatio > 1.6 && readinessScore < 6) {
+  const userExperience = user?.trainingExperience || "intermediate";
+  const isBeginnerUser = userExperience === "beginner" || userExperience === "novice";
+  const overtHighThreshold = isBeginnerUser ? 1.4 : 1.6;
+  const overtModThreshold = isBeginnerUser ? 1.2 : 1.4;
+  if (volumeRatio > overtHighThreshold && readinessScore < 6) {
     overtTrainingRisk = 'high';
     overtTrainingDetail = `Training volume is ${Math.round(volumeRatio * 100)}% of baseline, but readiness is low. Take 2-3 rest days.`;
-  } else if (volumeRatio > 1.4 || readinessScore < 5) {
+  } else if (volumeRatio > overtModThreshold || readinessScore < 5) {
     overtTrainingRisk = 'moderate';
-    overtTrainingDetail = volumeRatio > 1.4 ? `Volume spike detected. Prioritize sleep and protein.` : `Recovery indicators are below threshold.`;
+    overtTrainingDetail = volumeRatio > overtModThreshold ? `Volume spike detected. Prioritize sleep and protein.` : `Recovery indicators are below threshold.`;
   } else if (daysSinceRestDay >= 5) {
     overtTrainingRisk = 'moderate';
     overtTrainingDetail = `You have trained ${daysSinceRestDay} days in a row. Consider a rest day.`;
@@ -169,7 +206,7 @@ async function calculateReadiness(userId) {
       energy: { score: Math.round(energyScore * 10) / 10, avgRating: Math.round(avgEnergy * 10) / 10, weight: '15%' },
       stress: { score: Math.round(stressScore * 10) / 10, avgRating: Math.round(avgStress * 10) / 10, weight: '10%' },
       fuel: { score: Math.round(fuelScore * 10) / 10, detail: fuelDetail, weight: '20%' },
-      trainingLoad: { score: Math.round(trainingLoadScore * 10) / 10, volumeRatio: Math.round(volumeRatio * 100) / 100, daysSinceRestDay, weight: '20%' },
+      trainingLoad: { score: Math.round(trainingLoadScore * 10) / 10, volumeRatio: Math.round(volumeRatio * 100) / 100, daysSinceRestDay, stepsToday, stepsDetail, weight: '20%' },
     },
     stagnationAlerts,
     overtraining: { risk: overtTrainingRisk, detail: overtTrainingDetail },
@@ -193,12 +230,12 @@ function detectStagnation(workouts) {
       if (!exerciseHistory[name]) exerciseHistory[name] = [];
       const maxWeight = Math.max(...(ex.sets || []).map(s => s.weight || 0));
       const totalVolume = (ex.sets || []).reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0);
-      exerciseHistory[name].push({ date, maxWeight, totalVolume });
+      // Capture RPE: average of completed sets with RPE logged
+      const rpeSets = (ex.sets || []).filter(s => s.rpe != null && s.rpe > 0);
+      const avgRpe = rpeSets.length ? rpeSets.reduce((s, set) => s + set.rpe, 0) / rpeSets.length : null;
+      exerciseHistory[name].push({ date, maxWeight, totalVolume, avgRpe });
     });
   });
-
-  const cutoff14d = new Date();
-  cutoff14d.setDate(cutoff14d.getDate() - 14);
 
   Object.entries(exerciseHistory).forEach(([name, sessions]) => {
     if (sessions.length < 4) return;
@@ -212,14 +249,42 @@ function detectStagnation(workouts) {
     const recentMaxVolume = Math.max(...recent.map(s => s.totalVolume));
     const olderMaxVolume = Math.max(...older.map(s => s.totalVolume));
 
-    // Stagnation if recent best <= older best over last 3 sessions
+    // Weight+volume plateau
     if (olderMaxWeight > 0 && recentMaxWeight <= olderMaxWeight && recentMaxVolume <= olderMaxVolume) {
-      alerts.push({
-        exercise: name,
-        currentBest: recentMaxWeight,
-        sessionsStagnated: recent.length,
-        suggestion: `Plateau detected. Try 'Micro-loading' (add 1kg) or changing the rep range (e.g. from 5 to 8 reps) to break the adaptation lock for ${name}.`
-      });
+      const recentRpeVals = recent.filter(s => s.avgRpe).map(s => s.avgRpe);
+      const olderRpeVals = older.filter(s => s.avgRpe).map(s => s.avgRpe);
+      const recentAvgRpe = recentRpeVals.length ? recentRpeVals.reduce((a,b) => a+b, 0) / recentRpeVals.length : null;
+      const olderAvgRpe = olderRpeVals.length ? olderRpeVals.reduce((a,b) => a+b, 0) / olderRpeVals.length : null;
+      const hasRpeData = recentRpeVals.length >= 2;
+
+      let cause, suggestion;
+      if (hasRpeData && recentAvgRpe !== null && olderAvgRpe !== null && recentAvgRpe > olderAvgRpe + 1.0) {
+        cause = "overreaching";
+        suggestion = "RPE on " + name + " has risen to " + recentAvgRpe.toFixed(1) + " at the same weights. Reduce volume 30% for one week before attempting to progress.";
+      } else {
+        cause = "adaptation_lock";
+        suggestion = "Adaptation lock on " + name + ". Try adding 1 rep per set for 2 sessions, then add 2.5kg. Or swap to a close variation (paused reps, tempo change) to re-sensitise.";
+      }
+      alerts.push({ exercise: name, currentBest: recentMaxWeight, sessionsStagnated: recent.length, cause, type: cause === "overreaching" ? "rpe_creep" : "plateau", suggestion });
+      return; // one alert per exercise
+    }
+
+    // RPE creep: weight is stable or rising but RPE is trending up — early overreaching signal,
+    // distinct from a plateau (you're still lifting the same weight, it's just costing more).
+    const recentRpes = recent.map(s => s.avgRpe).filter(r => r != null);
+    const olderRpes = older.map(s => s.avgRpe).filter(r => r != null);
+    if (recentRpes.length >= 2 && olderRpes.length >= 1) {
+      const avgRecentRpe = recentRpes.reduce((a, b) => a + b, 0) / recentRpes.length;
+      const avgOlderRpe = olderRpes.reduce((a, b) => a + b, 0) / olderRpes.length;
+      if (avgRecentRpe >= avgOlderRpe + 1.5 && recentMaxWeight >= olderMaxWeight * 0.95) {
+        alerts.push({
+          exercise: name,
+          type: 'rpe_creep',
+          avgRecentRpe: Math.round(avgRecentRpe * 10) / 10,
+          avgOlderRpe: Math.round(avgOlderRpe * 10) / 10,
+          suggestion: `RPE on ${name} has risen from avg ${Math.round(avgOlderRpe * 10) / 10} to ${Math.round(avgRecentRpe * 10) / 10} at similar weights — early overreaching signal. Consider a deload set or reduced volume this session.`,
+        });
+      }
     }
   });
 

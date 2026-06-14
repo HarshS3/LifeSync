@@ -145,6 +145,7 @@ export default function ActiveWorkoutScreen() {
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [restTimerKey, setRestTimerKey] = useState(0);
   const [allNames, setAllNames] = useState([]);
+  const [prFlash, setPrFlash] = useState(null); // { exercise, newBest } shown briefly
 
   const timerRef = useRef(null);
 
@@ -217,13 +218,14 @@ export default function ActiveWorkoutScreen() {
           if (t.exercises && Array.isArray(t.exercises)) {
             const loadedEx = await Promise.all(t.exercises.map(async (ex, i) => {
               let historySets = [];
+              let prBest = 0;
               try {
                 const res = await api.get(`/gym/exercise-history/${encodeURIComponent(ex.name)}`);
                 const history = res.data?.history;
                 if (history && history.length > 0) {
-                  const lastSession = history[0];
-                  historySets = lastSession.sets || [];
+                  historySets = history[0].sets || [];
                 }
+                if (res.data?.stats?.maxWeight) prBest = res.data.stats.maxWeight;
               } catch (e) { console.error(e); }
 
               const cleanValue = (v) => (v === undefined || v === null || v === '') ? '' : v.toString();
@@ -232,12 +234,13 @@ export default function ActiveWorkoutScreen() {
                 id: generateId(),
                 name: ex.name || '',
                 historySets,
-                sets: (ex.sets && ex.sets.length > 0) 
-                  ? ex.sets.map((s, si) => ({ 
+                prBest,
+                sets: (ex.sets && ex.sets.length > 0)
+                  ? ex.sets.map((s, si) => ({
                       id: generateId(),
-                      weight: cleanValue(s.weight), 
-                      reps: cleanValue(s.reps), 
-                      completed: false 
+                      weight: cleanValue(s.weight),
+                      reps: cleanValue(s.reps),
+                      completed: false
                     }))
                   : [{ id: generateId(), weight: '', reps: '', completed: false }]
               };
@@ -298,12 +301,15 @@ export default function ActiveWorkoutScreen() {
     try {
       const newExs = await Promise.all(selectedToBatch.map(async (name, i) => {
         let historySets = [];
+        let prBest = 0; // all-time best weight for this exercise
         try {
           const res = await api.get(`/gym/exercise-history/${encodeURIComponent(name)}`);
           const history = res.data?.history;
           if (history && history.length > 0) {
-            const lastSession = history[0];
-            historySets = lastSession.sets || [];
+            historySets = history[0].sets || [];
+          }
+          if (res.data?.stats?.maxWeight) {
+            prBest = res.data.stats.maxWeight;
           }
         } catch (e) {
           console.error(`Failed to fetch history for ${name}`, e);
@@ -313,6 +319,7 @@ export default function ActiveWorkoutScreen() {
           id: generateId(),
           name: name,
           historySets,
+          prBest,
           sets: [{ id: generateId(), weight: '', reps: '', completed: false }]
         };
       }));
@@ -344,9 +351,14 @@ export default function ActiveWorkoutScreen() {
   const updateSet = (exId, setId, field, value) => {
     setExercises(prev => prev.map(ex => {
       if (ex.id === exId) {
+        const lastUsedUpdate = field === 'weight'
+          ? { lastUsedWeight: value }
+          : field === 'reps'
+            ? { lastUsedReps: value }
+            : {};
         return {
           ...ex,
-          [field === 'weight' ? 'lastUsedWeight' : 'lastUsedReps']: value,
+          ...lastUsedUpdate,
           sets: ex.sets.map(s => s.id === setId ? { ...s, [field]: value } : s)
         };
       }
@@ -386,6 +398,20 @@ export default function ActiveWorkoutScreen() {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           setRestTimerKey(prev => prev + 1);
           setShowRestTimer(true);
+
+          // Live PR detection: compare this set's weight against the all-time best
+          const setWeight = parseFloat(targetSet.weight) || 0;
+          const historicalBest = targetEx.prBest || 0;
+          // Also compare vs best weight logged so far in this session for this exercise
+          const sessionBest = Math.max(0, ...targetEx.sets
+            .filter(s => s.completed && s.id !== setId)
+            .map(s => parseFloat(s.weight) || 0));
+          const currentBest = Math.max(historicalBest, sessionBest);
+          if (setWeight > 0 && setWeight > currentBest) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setPrFlash({ exercise: targetEx.name, newBest: setWeight, previous: currentBest });
+            setTimeout(() => setPrFlash(null), 3000);
+          }
         } else {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         }
@@ -489,15 +515,47 @@ export default function ActiveWorkoutScreen() {
             sets: ex.sets.map(s => ({
               weight: parseFloat(s.weight) || 0,
               reps: parseInt(s.reps) || 0,
-              completed: s.completed
+              completed: s.completed,
+              ...(parseFloat(s.rpe) ? { rpe: parseFloat(s.rpe) } : {})
             }))
           };
         })
       };
-      await api.post('/gym/workouts', payload);
+      const { data } = await api.post('/gym/workouts', payload);
       await clearProgress();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace('/(tabs)/training');
+
+      const prs = data?.prsHit || [];
+      const progressions = data?.progressionSuggestions || [];
+      const deloadStamped = data?.deloadStamped || false;
+
+      // Build post-workout alert: PRs first, then progression nudges, then deload note
+      const lines = [];
+      if (prs.length > 0) {
+        lines.push('🏆 Personal Records:');
+        prs.forEach(pr => lines.push(
+          pr.type === 'weight'
+            ? `  ${pr.exercise}: ${pr.newBest}kg (was ${pr.previous}kg)`
+            : `  ${pr.exercise}: est. 1RM ${pr.newBest}kg`
+        ));
+      }
+      if (progressions.length > 0) {
+        if (lines.length > 0) lines.push('');
+        lines.push('📈 Ready to progress:');
+        progressions.forEach(p => lines.push(`  ${p.exercise}: try ${p.suggestedWeight}kg next session`));
+      }
+      if (deloadStamped) {
+        if (lines.length > 0) lines.push('');
+        lines.push('✅ Deload logged — clock reset. Good recovery work.');
+      }
+
+      if (lines.length > 0) {
+        Alert.alert('Workout Complete', lines.join('\n'), [
+          { text: 'Got it!', onPress: () => router.replace('/(tabs)/training') }
+        ]);
+      } else {
+        router.replace('/(tabs)/training');
+      }
     } catch (err) {
       Alert.alert('Error', 'Failed to save workout.');
       setIsSaving(false);
@@ -557,6 +615,7 @@ export default function ActiveWorkoutScreen() {
                   <Caption secondary style={styles.col1}>SET</Caption>
                   <Caption secondary style={styles.col2}>KG</Caption>
                   <Caption secondary style={styles.col3}>REPS</Caption>
+                  <Caption secondary style={styles.col_rpe}>RPE</Caption>
                   <View style={styles.col4} />
                 </View>
 
@@ -596,6 +655,16 @@ export default function ActiveWorkoutScreen() {
                           placeholderColor={COLORS.gray400}
                         />
 
+                        <SetInput
+                          key={`rpe-${set.id}`}
+                          value={set.rpe || ''}
+                          onChange={(v) => updateSet(ex.id, set.id, 'rpe', v)}
+                          placeholder="RPE"
+                          style={[styles.setInput, styles.col_rpe, { color: COLORS.text }]}
+                          textColor={COLORS.text}
+                          placeholderColor={COLORS.gray400}
+                        />
+
                       <TouchableOpacity 
                         style={[
                           styles.checkBtn, 
@@ -630,6 +699,14 @@ export default function ActiveWorkoutScreen() {
 
       {showRestTimer && (
         <RestTimer key={restTimerKey} onReset={() => setShowRestTimer(false)} />
+      )}
+
+      {prFlash && (
+        <View style={[styles.prBanner, { backgroundColor: '#f59e0b' }]}>
+          <Body style={{ color: '#fff', fontWeight: 'bold', fontSize: 15 }}>
+            PR — {prFlash.exercise}: {prFlash.newBest}kg{prFlash.previous > 0 ? ` (was ${prFlash.previous}kg)` : ' (first log)'}
+          </Body>
+        </View>
       )}
 
       {/* Exercise Picker Modal */}
@@ -870,6 +947,7 @@ const styles = StyleSheet.create({
   col2: { flex: 1, textAlign: 'center' },
   col3: { flex: 1, textAlign: 'center' },
   col4: { width: 50 },
+  col_rpe: { width: 40, textAlign: 'center' },
 
   setRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.03)' },
   setInput: { height: 44, textAlign: 'center', fontSize: 16, fontWeight: '600' },
@@ -880,6 +958,7 @@ const styles = StyleSheet.create({
   addExBtn: { borderStyle: 'dashed', borderWidth: 2, borderRadius: 16, padding: 16, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 8 },
 
   restTimer: { position: 'absolute', bottom: 30, alignSelf: 'center', width: '80%', height: 50, borderRadius: 25, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, elevation: 10, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 10 },
+  prBanner: { position: 'absolute', top: 12, alignSelf: 'center', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, elevation: 12, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 8 },
   restTimerContent: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   restReset: { padding: 8 },
 

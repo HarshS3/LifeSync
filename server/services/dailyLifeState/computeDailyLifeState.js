@@ -5,6 +5,7 @@ const { HabitLog } = require('../../models/Habit');
 const SymptomLog = require('../../models/SymptomLog');
 const LabReport = require('../../models/LabReport');
 const JournalEntry = require('../../models/JournalEntry');
+const Workout = require('../../models/Workout');
 
 function clamp01(n) {
   if (!Number.isFinite(n)) return 0;
@@ -145,7 +146,7 @@ async function computeDailyLifeState({ userId, dayKey }) {
   const { dateStart, dateEnd } = range;
   const dateQuery = { $gte: dateStart, $lt: dateEnd };
 
-  const [mentalLogs, nutritionLogs, fitnessLogs, habitLogs, symptomLogs, labReports, journalEntries] = await Promise.all([
+  const [mentalLogs, nutritionLogs, fitnessLogs, habitLogs, symptomLogs, labReports, journalEntries, dayWorkouts] = await Promise.all([
     MentalLog.find({ user: userId, date: dateQuery }).sort({ date: -1 }).limit(5),
     NutritionLog.find({ user: userId, date: dateQuery }).sort({ date: -1 }).limit(5),
     FitnessLog.find({ user: userId, date: dateQuery }).sort({ date: -1 }).limit(20),
@@ -153,6 +154,7 @@ async function computeDailyLifeState({ userId, dayKey }) {
     SymptomLog.find({ user: userId, date: dateQuery }).sort({ date: -1 }).limit(200),
     LabReport.find({ user: userId, date: dateQuery }).sort({ date: -1 }).limit(20),
     JournalEntry.find({ user: userId, date: dateQuery }).sort({ date: -1 }).limit(20),
+    Workout.find({ user: userId, date: dateQuery }).select('exercises duration').lean(),
   ]);
 
   const latestMental = mentalLogs[0] || null;
@@ -197,28 +199,50 @@ async function computeDailyLifeState({ userId, dayKey }) {
   const intensityAvg = avg(intensityValues);
   const fatigueAvg = avg(fatigueValues);
 
-  const trainingValue = intensityAvg == null && fatigueAvg == null
-    ? null
-    : normalizeFromRange(((intensityAvg || 0) + (fatigueAvg || 0)) / (countFinite([intensityAvg, fatigueAvg]) || 1), 1, 10);
+  // If FitnessLog entries exist, use them (explicit intensity/fatigue logging).
+  // Otherwise derive training load from Workout volume — the actual data users produce.
+  // Volume-based load: calculate total kg·reps, normalize against a reference session
+  // (~10,000 kg·reps = moderate, 20,000+ = high). High volume → high trainingLoad signal value.
+  let trainingValue = null;
+  let trainingConfidence = 0;
+  let trainingRaw = null;
 
-  const trainingConfidence = (() => {
-    const hasIntensity = intensityAvg != null;
-    const hasFatigue = fatigueAvg != null;
-    if (hasIntensity && hasFatigue) return 0.9;
-    if (hasIntensity || hasFatigue) return 0.6;
-    return 0;
-  })();
+  if (intensityAvg != null || fatigueAvg != null) {
+    trainingValue = normalizeFromRange(
+      ((intensityAvg || 0) + (fatigueAvg || 0)) / (countFinite([intensityAvg, fatigueAvg]) || 1),
+      1, 10
+    );
+    trainingConfidence = (intensityAvg != null && fatigueAvg != null) ? 0.9 : 0.6;
+    trainingRaw = { workoutsCount: fitnessLogs.length, intensityAvg, fatigueAvg };
+  } else if (dayWorkouts.length > 0) {
+    // Compute total volume from Workout documents
+    const totalVolume = dayWorkouts.reduce((sum, w) =>
+      sum + (w.exercises || []).reduce((exSum, ex) =>
+        exSum + (ex.sets || []).reduce((sSum, s) =>
+          sSum + ((s.reps || 0) * (s.weight || 0)), 0), 0), 0);
+    const totalDurationMin = dayWorkouts.reduce((s, w) => s + (w.duration || 0), 0);
+
+    // Normalize: 0 vol & 0 duration = 0.1 (rest), 15k vol = ~0.7, 25k+ = ~1.0
+    const volScore = totalVolume > 0
+      ? clamp01(totalVolume / 20000)
+      : totalDurationMin > 0
+        ? clamp01(totalDurationMin / 90) // fallback: 90min session = high load
+        : 0.3; // workout logged but no sets recorded — treat as moderate
+
+    trainingValue = volScore;
+    trainingConfidence = 0.75; // slightly lower than explicit FitnessLog, but usable
+    trainingRaw = {
+      workoutsCount: dayWorkouts.length,
+      totalVolume: Math.round(totalVolume),
+      totalDurationMin,
+      source: 'workout_volume',
+    };
+  }
 
   const trainingLoadSignal = buildSignal({
     value: trainingValue,
     confidence: trainingConfidence,
-    raw: fitnessLogs.length
-      ? {
-          workoutsCount: fitnessLogs.length,
-          intensityAvg,
-          fatigueAvg,
-        }
-      : null,
+    raw: trainingRaw,
   });
 
   const totals = latestNutrition?.dailyTotals || {};

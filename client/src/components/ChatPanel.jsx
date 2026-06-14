@@ -118,7 +118,7 @@ function ChatPanel() {
   }
 
   // ── Core send ────────────────────────────────────────────────────────────────
-  const sendMessageText = async (text, { skipIngestion = false } = {}) => {
+  const sendMessageText = async (text) => {
     const trimmed = String(text || '').trim()
     if (!trimmed || isSending) return
 
@@ -128,18 +128,15 @@ function ChatPanel() {
     setIsSending(true)
 
     try {
-      const history = [...messages, { from: 'user', text: trimmed }]
-        .filter(m => m && (m.from === 'user' || m.from === 'ai') && typeof m.text === 'string')
-        .slice(-12)
-        .map(m => ({ role: m.from === 'user' ? 'user' : 'assistant', content: m.text }))
-
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
 
+      // Server owns the full thread via threadId — no need to ship history.
+      // skipIngestion was a client-controlled flag the server now ignores.
       const res = await fetch(`${API_BASE}/api/ai/chat`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ message: trimmed, history, skipIngestion }),
+        body: JSON.stringify({ message: trimmed }),
       })
       const data = await res.json()
 

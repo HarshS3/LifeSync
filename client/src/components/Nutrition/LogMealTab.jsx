@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
@@ -8,17 +8,23 @@ import Chip from '@mui/material/Chip'
 import LinearProgress from '@mui/material/LinearProgress'
 import Divider from '@mui/material/Divider'
 import Stack from '@mui/material/Stack'
+import Collapse from '@mui/material/Collapse'
 import BookmarkIcon from '@mui/icons-material/Bookmark'
 import HistoryIcon from '@mui/icons-material/History'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddIcon from '@mui/icons-material/Add'
 import RestaurantIcon from '@mui/icons-material/Restaurant'
 import WaterDropIcon from '@mui/icons-material/WaterDrop'
+import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner'
+import MenuBookIcon from '@mui/icons-material/MenuBook'
 import ExpandableSection from '../ExpandableSection'
-import { 
-  MEAL_TYPES, 
-  MACRO_FIELD_META, 
-  MINERAL_FIELD_META, 
+import ScanProductTab from './ScanProductTab'
+import RecipeExplorer from '../RecipeExplorer'
+import { useAuth } from '../../context/AuthContext'
+import {
+  MEAL_TYPES,
+  MACRO_FIELD_META,
+  MINERAL_FIELD_META,
   VITAMIN_FIELD_META,
   formatServingDisplay
 } from '../../lib/nutritionHelpers'
@@ -55,8 +61,23 @@ function LogMealTab({
   liveInsights,
   log,
   handleWaterChange,
-  handleTotalWaterChange
+  handleTotalWaterChange,
+  // Scan product props (formerly their own tab)
+  barcodeInput,
+  setBarcodeInput,
+  lookupBarcode,
+  barcodeLookupLoading,
+  startBarcodeScanner,
+  supportsBarcodeDetector,
+  scannerOpen,
+  scanBusy,
+  stopBarcodeScanner,
+  scanVideoRef,
 }) {
+  const { token } = useAuth()
+  const [scanOpen, setScanOpen] = useState(false)
+  const [recipesOpen, setRecipesOpen] = useState(false)
+
   const renderNutrientInputs = (food, index, fields) => (
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1.25 }}>
       {fields.map(({ key, label, unit }) => (
@@ -73,6 +94,51 @@ function LogMealTab({
   )
 
   return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+
+      {/* Quick access row — Scan + Recipes */}
+      <Box sx={{ display: 'flex', gap: 1.5 }}>
+        <Button
+          variant={scanOpen ? 'contained' : 'outlined'}
+          startIcon={<QrCodeScannerIcon />}
+          onClick={() => { setScanOpen(o => !o); setRecipesOpen(false); }}
+          sx={{ textTransform: 'none', fontWeight: 600 }}
+        >
+          Scan Barcode
+        </Button>
+        <Button
+          variant={recipesOpen ? 'contained' : 'outlined'}
+          startIcon={<MenuBookIcon />}
+          onClick={() => { setRecipesOpen(o => !o); setScanOpen(false); }}
+          sx={{ textTransform: 'none', fontWeight: 600 }}
+        >
+          Browse Recipes
+        </Button>
+      </Box>
+
+      <Collapse in={scanOpen}>
+        <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+          <ScanProductTab
+            barcodeInput={barcodeInput}
+            setBarcodeInput={setBarcodeInput}
+            lookupBarcode={lookupBarcode}
+            barcodeLookupLoading={barcodeLookupLoading}
+            startBarcodeScanner={startBarcodeScanner}
+            supportsBarcodeDetector={supportsBarcodeDetector}
+            scannerOpen={scannerOpen}
+            scanBusy={scanBusy}
+            stopBarcodeScanner={stopBarcodeScanner}
+            scanVideoRef={scanVideoRef}
+          />
+        </Box>
+      </Collapse>
+
+      <Collapse in={recipesOpen}>
+        <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb', p: 3 }}>
+          <RecipeExplorer token={token} />
+        </Box>
+      </Collapse>
+
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1.25fr' }, gap: 3, alignItems: 'start' }}>
 
       {/* LEFT: Search + Deep Analysis */}
@@ -465,6 +531,7 @@ function LogMealTab({
           </Box>
         </Box>
       </Box>
+    </Box>
     </Box>
   )
 }

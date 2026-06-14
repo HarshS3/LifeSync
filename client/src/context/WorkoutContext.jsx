@@ -113,7 +113,16 @@ export const WorkoutProvider = ({ children }) => {
       })
 
       if (res.ok) {
+        const data = await res.json()
         toast.success(isEdit ? 'Workout updated!' : 'Workout saved!')
+        if (data.prsHit?.length > 0) {
+          setTimeout(() => {
+            const [first, ...rest] = data.prsHit
+            const firstMsg = `🏆 PR: ${first.exercise} ${first.newBest}kg (was ${first.previous}kg)`
+            const msg = rest.length > 0 ? `${firstMsg} and ${rest.length} more` : firstMsg
+            toast.success(msg)
+          }, 500)
+        }
         setCurrentWorkout(null)
         setWorkoutStartTime(null)
         setElapsedTime(0)
@@ -122,7 +131,7 @@ export const WorkoutProvider = ({ children }) => {
         } catch (err) {
           console.error('Failed to clear active workout after finish:', err)
         }
-        return true
+        return { success: true, prsHit: data.prsHit || [] }
       }
     } catch (err) {
       console.error('Failed to save workout:', err)

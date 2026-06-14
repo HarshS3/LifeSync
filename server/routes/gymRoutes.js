@@ -40,15 +40,32 @@ async function getStepsForDate(req, res, dateStr) {
   }
 }
 
+// Weekly volume targets per muscle group (sets/week).
+// Ranges are evidence-based (Schoenfeld/Israetel). Beginners need fewer sets.
+// Format: [minimum effective, maximum adaptive]
+const WEEKLY_VOLUME_TARGETS = {
+  chest:      { beginner: [6, 10],  intermediate: [10, 20] },
+  back:       { beginner: [6, 10],  intermediate: [10, 20] },
+  shoulders:  { beginner: [6, 10],  intermediate: [12, 20] },
+  quads:      { beginner: [6, 10],  intermediate: [10, 20] },
+  hamstrings: { beginner: [4, 8],   intermediate: [10, 16] },
+  glutes:     { beginner: [4, 8],   intermediate: [8, 16]  },
+  biceps:     { beginner: [4, 8],   intermediate: [10, 16] },
+  triceps:    { beginner: [4, 8],   intermediate: [10, 16] },
+  core:       { beginner: [4, 8],   intermediate: [8, 16]  },
+  calves:     { beginner: [4, 8],   intermediate: [10, 16] },
+};
+
 // Get consolidated gym summary
 router.get('/summary', auth, async (req, res) => {
   try {
     const userId = req.userId;
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
 
-    const [workouts, totalWorkouts, templates, readiness, correlations, volumeResult, allWorkouts] = await Promise.all([
-      Workout.find({ user: userId }).sort({ date: -1 }).limit(10), 
+    const [workouts, totalWorkouts, templates, readiness, correlations, volumeResult, allWorkouts, user] = await Promise.all([
+      Workout.find({ user: userId }).sort({ date: -1 }).limit(10),
       Workout.countDocuments({ user: userId }),
       WorkoutTemplate.find({ userId }).sort({ lastUsed: -1, createdAt: -1 }),
       calculateReadiness(userId),
@@ -57,26 +74,29 @@ router.get('/summary', auth, async (req, res) => {
         { $match: { user: new mongoose.Types.ObjectId(userId) } },
         { $unwind: "$exercises" },
         { $unwind: "$exercises.sets" },
-        { 
-          $group: { 
-            _id: null, 
-            totalVolume: { 
-              $sum: { $multiply: [{ $ifNull: ["$exercises.sets.weight", 0] }, { $ifNull: ["$exercises.sets.reps", 0] }] } 
-            } 
-          } 
+        {
+          $group: {
+            _id: null,
+            totalVolume: {
+              $sum: { $multiply: [{ $ifNull: ["$exercises.sets.weight", 0] }, { $ifNull: ["$exercises.sets.reps", 0] }] }
+            }
+          }
         }
       ]),
-      Workout.find({ user: userId }).sort({ date: -1 }).select('date exercises.muscleGroup exercises.sets')
+      Workout.find({ user: userId }).sort({ date: -1 }).select('date exercises.name exercises.muscleGroup exercises.metadata exercises.sets'),
+      require('../models/User').findById(userId).select('trainingExperience').lean(),
     ]);
 
     const totalVolume = volumeResult[0]?.totalVolume || 0;
     const weeklyWorkouts = allWorkouts.filter(w => new Date(w.date) > weekAgo).length;
+    const isBeginnerUser = (user?.trainingExperience === 'beginner' || user?.trainingExperience === 'novice');
+    const tierKey = isBeginnerUser ? 'beginner' : 'intermediate';
 
     // Calculate Streak
     let currentStreak = 0;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     for (let i = 0; i < 30; i++) {
       const checkDate = new Date(today);
       checkDate.setDate(checkDate.getDate() - i);
@@ -85,26 +105,61 @@ router.get('/summary', auth, async (req, res) => {
       else if (i > 0) break;
     }
 
-    // Calculate Weekly Hypertrophy (Muscle Distribution)
+    // ── Weekly Hypertrophy Volume (sets per muscle this week) ──────────────────
     const muscleDistribution = {};
-    allWorkouts.filter(w => new Date(w.date) > weekAgo).forEach(w => {
+    // Track last-trained date per muscle for neglected-muscle detection
+    const muscleLastTrained = {};
+
+    allWorkouts.forEach(w => {
+      const wDate = new Date(w.date);
+      const isThisWeek = wDate > weekAgo;
       w.exercises?.forEach(ex => {
         const metadata = ex.metadata || EXERCISE_METADATA[ex.name];
         const primaryMuscle = (ex.muscleGroup || metadata?.primary || 'other').toLowerCase().trim();
         const setsCount = ex.sets?.filter(s => (s.reps || 0) > 0).length || 0;
 
-        // Add to primary muscle (full set credit)
-        muscleDistribution[primaryMuscle] = (muscleDistribution[primaryMuscle] || 0) + setsCount;
+        if (isThisWeek) {
+          muscleDistribution[primaryMuscle] = (muscleDistribution[primaryMuscle] || 0) + setsCount;
+          if (metadata?.secondary && Array.isArray(metadata.secondary)) {
+            metadata.secondary.forEach(secMuscle => {
+              const m = secMuscle.toLowerCase().trim();
+              muscleDistribution[m] = (muscleDistribution[m] || 0) + (setsCount * 0.5);
+            });
+          }
+        }
 
-        // Add to secondary muscles (partial set credit - e.g., 0.5 sets)
-        if (metadata?.secondary && Array.isArray(metadata.secondary)) {
-          metadata.secondary.forEach(secMuscle => {
-            const m = secMuscle.toLowerCase().trim();
-            muscleDistribution[m] = (muscleDistribution[m] || 0) + (setsCount * 0.5);
-          });
+        // Track most recent date trained per muscle (across all history)
+        if (!muscleLastTrained[primaryMuscle] || wDate > muscleLastTrained[primaryMuscle]) {
+          muscleLastTrained[primaryMuscle] = wDate;
         }
       });
     });
+
+    // ── Weekly Volume Targets (how close each muscle is to its target) ─────────
+    const weeklyVolumeStatus = {};
+    Object.entries(WEEKLY_VOLUME_TARGETS).forEach(([muscle, tiers]) => {
+      const [min, max] = tiers[tierKey];
+      const done = Math.round(muscleDistribution[muscle] || 0);
+      weeklyVolumeStatus[muscle] = {
+        sets: done,
+        min,
+        max,
+        pct: Math.min(100, Math.round((done / min) * 100)),
+        status: done >= max ? 'maxed' : done >= min ? 'sufficient' : done > 0 ? 'building' : 'empty',
+      };
+    });
+
+    // ── Neglected Muscle Nudges (< min sets this week AND not trained in 5+ days) ─
+    const neglectedMuscles = Object.entries(weeklyVolumeStatus)
+      .filter(([muscle, v]) => {
+        if (v.status === 'maxed' || v.status === 'sufficient') return false;
+        const lastTrained = muscleLastTrained[muscle];
+        if (!lastTrained) return totalWorkouts >= 3; // no history at all, only nudge if user has data
+        return lastTrained < fiveDaysAgo;
+      })
+      .sort((a, b) => a[1].sets - b[1].sets) // most neglected first
+      .slice(0, 3)
+      .map(([muscle]) => muscle);
 
     res.json({
       readiness,
@@ -116,7 +171,9 @@ router.get('/summary', auth, async (req, res) => {
         weeklyWorkouts,
         totalVolume,
         currentStreak,
-        muscleDistribution
+        muscleDistribution,
+        weeklyVolumeStatus,
+        neglectedMuscles,
       }
     });
   } catch (err) {
@@ -229,7 +286,134 @@ router.post('/workouts', auth, async (req, res) => {
       notes,
     });
 
-    res.status(201).json(workout);
+    // Detect PRs by comparing new workout against all prior bests
+    const priorWorkouts = await Workout.find({
+      user: req.userId,
+      _id: { $ne: workout._id },
+    }).select('exercises.name exercises.sets.weight exercises.sets.reps').lean();
+
+    const allTimeBest = {}; // exerciseName -> { weight, est1RM }
+    for (const w of priorWorkouts) {
+      for (const ex of w.exercises || []) {
+        if (!ex.name) continue;
+        const key = ex.name.toLowerCase().trim();
+        if (!allTimeBest[key]) allTimeBest[key] = { weight: 0, est1RM: 0 };
+        for (const s of ex.sets || []) {
+          const w_ = s.weight || 0;
+          const r = s.reps || 0;
+          if (w_ > allTimeBest[key].weight) allTimeBest[key].weight = w_;
+          const e1 = r > 0 ? w_ * (1 + r / 30) : 0;
+          if (e1 > allTimeBest[key].est1RM) allTimeBest[key].est1RM = e1;
+        }
+      }
+    }
+
+    const prsHit = [];
+    for (const ex of workout.exercises || []) {
+      if (!ex.name) continue;
+      const key = ex.name.toLowerCase().trim();
+      const prior = allTimeBest[key] || { weight: 0, est1RM: 0 };
+      let newBestWeight = 0;
+      let newBestEst1RM = 0;
+      for (const s of ex.sets || []) {
+        const w_ = s.weight || 0;
+        const r = s.reps || 0;
+        if (w_ > newBestWeight) newBestWeight = w_;
+        const e1 = r > 0 ? w_ * (1 + r / 30) : 0;
+        if (e1 > newBestEst1RM) newBestEst1RM = e1;
+      }
+      if (newBestWeight > prior.weight && newBestWeight > 0) {
+        prsHit.push({
+          exercise: ex.name,
+          type: 'weight',
+          newBest: Math.round(newBestWeight * 10) / 10,
+          previous: Math.round(prior.weight * 10) / 10,
+        });
+      } else if (newBestEst1RM > prior.est1RM * 1.01 && newBestEst1RM > 0 && prior.est1RM > 0) {
+        prsHit.push({
+          exercise: ex.name,
+          type: 'estimated_1rm',
+          newBest: Math.round(newBestEst1RM),
+          previous: Math.round(prior.est1RM),
+        });
+      }
+    }
+
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: workout.date, reason: 'gymRoutes create workout' });
+
+    // ── Proactive progression suggestions ─────────────────────────────────────
+    // Fires per exercise when: done 3+ sessions, weight held for exactly 2 sessions
+    // (not 3+ — stagnation engine handles those), readiness >= 6.
+    // This tells the user "you're ready to add weight NEXT session" — not a warning, a nudge.
+    const progressionSuggestions = [];
+
+    // Fetch recent workouts for progression + deload analysis (reuse priorWorkouts data)
+    const recentWorkoutsForAnalysis = await Workout.find({
+      user: req.userId,
+      _id: { $ne: workout._id },
+    }).sort({ date: -1 }).limit(12).lean();
+
+    // Readiness check once — gate all suggestions on recovery
+    const readinessForProg = await calculateReadiness(req.userId).catch(() => null);
+    const readinessScore = readinessForProg?.readinessScore ?? 7;
+
+    if (readinessScore >= 6) {
+      for (const ex of workout.exercises || []) {
+        if (!ex.name) continue;
+        const key = ex.name.toLowerCase().trim();
+
+        const exHistory = recentWorkoutsForAnalysis
+          .flatMap(w => (w.exercises || [])
+            .filter(e => e.name?.toLowerCase().trim() === key)
+            .map(e => ({
+              maxWeight: Math.max(0, ...(e.sets || []).map(s => s.weight || 0)),
+            }))
+          )
+          .filter(s => s.maxWeight > 0)
+          .slice(0, 3);
+
+        if (exHistory.length < 2) continue;
+
+        const [s1, s2] = exHistory;
+        // Only suggest when held for exactly 2 sessions — 3+ is stagnation, not progression readiness
+        const heldExactlyTwice = s1.maxWeight === s2.maxWeight && (exHistory[2]?.maxWeight !== s1.maxWeight);
+        if (!heldExactlyTwice) continue;
+
+        const currentWeight = s1.maxWeight;
+        const isCompound = (ex.metadata?.type === 'compound') || currentWeight >= 40;
+        const increment = isCompound ? 2.5 : 1.25;
+
+        progressionSuggestions.push({
+          exercise: ex.name,
+          currentWeight,
+          suggestedWeight: currentWeight + increment,
+          reason: `You've hit ${currentWeight}kg on ${ex.name} for 2 sessions — your body has adapted. Next session, try ${currentWeight + increment}kg.`,
+        });
+      }
+    }
+
+    // ── Deload auto-detection ─────────────────────────────────────────────────
+    // If this workout's volume is < 65% of the user's 4-week average, it looks like
+    // a deload session. Auto-stamp lastDeloadDate so the AI coach resets the deload clock.
+    let deloadStamped = false;
+    if (recentWorkoutsForAnalysis.length >= 4) {
+      const calcVol = (w) => (w.exercises || []).reduce((sum, ex) =>
+        sum + (ex.sets || []).reduce((s, set) => s + (set.weight || 0) * (set.reps || 0), 0), 0);
+
+      const thisVolume = calcVol(workout);
+      const recentVols = recentWorkoutsForAnalysis.slice(0, 8).map(w => calcVol(w)).filter(v => v > 0);
+      const trailingAvg = recentVols.reduce((a, b) => a + b, 0) / Math.max(1, recentVols.length);
+
+      if (thisVolume > 0 && trailingAvg > 0 && thisVolume < trailingAvg * 0.65) {
+        await require('../models/User').updateOne(
+          { _id: req.userId },
+          { $set: { 'biologicalProfile.lastDeloadDate': workout.date } }
+        );
+        deloadStamped = true;
+      }
+    }
+
+    res.status(201).json({ workout, prsHit, progressionSuggestions, deloadStamped });
   } catch (err) {
     console.error('Failed to create workout:', err);
     res.status(500).json({ error: 'Failed to create workout' });

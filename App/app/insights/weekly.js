@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, TextInput, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import api from '../../services/api';
 import { useTheme } from '../../constants/Theme';
-import { 
-  ChevronLeft, ChevronRight, Award, TrendingUp, 
-  Moon, Battery, Brain, Utensils, Info 
+import {
+  ChevronLeft, ChevronRight, Award, TrendingUp,
+  Moon, Battery, Brain, Utensils, Info, CheckCircle, Edit2, Check
 } from 'lucide-react-native';
 
 // UI Components
@@ -34,6 +34,19 @@ export default function WeeklyReviewScreen() {
   const [weekKey, setWeekKey] = useState(params.weekKey || getWeekKey());
   const [review, setReview] = useState(null);
 
+  // Weekly contract for NEXT week — proposed on Sunday
+  const [contract, setContract] = useState(null);
+  const [contractSaving, setContractSaving] = useState(false);
+  const [contractEditing, setContractEditing] = useState(false);
+  const [editedTargets, setEditedTargets] = useState([]);
+
+  const nextWeekKey = (() => {
+    const [y, w] = weekKey.split('-W').map(Number);
+    const nw = w + 1 > 52 ? 1 : w + 1;
+    const ny = w + 1 > 52 ? y + 1 : y;
+    return `${ny}-W${String(nw).padStart(2, '0')}`;
+  })();
+
   const fetchReview = async (key) => {
     setLoading(true);
     try {
@@ -46,8 +59,33 @@ export default function WeeklyReviewScreen() {
     }
   };
 
+  const fetchContract = async (forWeekKey) => {
+    try {
+      const res = await api.get(`/insights/weekly-contract?weekKey=${forWeekKey}`);
+      setContract(res.data);
+      setEditedTargets(res.data?.targets || []);
+    } catch (_) {}
+  };
+
+  const saveContract = async () => {
+    setContractSaving(true);
+    try {
+      const res = await api.post('/insights/weekly-contract', {
+        weekKey: nextWeekKey,
+        targets: editedTargets,
+      });
+      setContract(res.data);
+      setContractEditing(false);
+    } catch (_) {
+      Alert.alert('Error', 'Failed to save contract');
+    } finally {
+      setContractSaving(false);
+    }
+  };
+
   useEffect(() => {
     fetchReview(weekKey);
+    fetchContract(nextWeekKey);
   }, [weekKey]);
 
   const changeWeek = (direction) => {
@@ -162,12 +200,94 @@ export default function WeeklyReviewScreen() {
           </View>
         )}
 
-        <Card style={styles.goalCard} padding={20}>
-          <H3 style={{ color: COLORS.primaryContrast }}>Next Week's Focus</H3>
-          <Body style={{ color: COLORS.primaryContrast, marginTop: 8, lineHeight: 22 }}>
-            {review?.nextWeekGoal}
-          </Body>
-        </Card>
+        {/* ── Weekly Contract ──────────────────────────────────── */}
+        <View style={styles.section}>
+          <Caption secondary style={styles.sectionLabel}>NEXT WEEK'S CONTRACT</Caption>
+
+          {!contract ? (
+            <Card padding={16}>
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            </Card>
+          ) : (
+            <Card padding={16}>
+              <View style={styles.contractHeader}>
+                <H3 style={{ fontSize: 14 }}>
+                  {nextWeekKey} — {contract.status === 'scored' ? `${contract.score}/3 targets met` : '3 targets'}
+                </H3>
+                {contract.status !== 'scored' && (
+                  <TouchableOpacity
+                    onPress={() => setContractEditing(e => !e)}
+                    style={styles.editBtn}
+                  >
+                    {contractEditing
+                      ? <Check size={15} color={COLORS.success} />
+                      : <Edit2 size={15} color={COLORS.textSecondary} />
+                    }
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {(contractEditing ? editedTargets : contract.targets).map((target, i) => {
+                const met = contract.status === 'scored' ? target.met : null;
+                const domainColor = target.domain === 'nutrition' ? COLORS.nutrition : target.domain === 'training' ? COLORS.training : COLORS.wellness;
+
+                return (
+                  <View key={i} style={[styles.targetRow, { borderLeftColor: domainColor }]}>
+                    <View style={styles.targetTop}>
+                      <View style={[styles.domainPill, { backgroundColor: domainColor + '20' }]}>
+                        <Caption style={{ color: domainColor, fontWeight: '700', fontSize: 9, textTransform: 'uppercase' }}>
+                          {target.domain}
+                        </Caption>
+                      </View>
+                      {met === true && <CheckCircle size={14} color={COLORS.success} />}
+                      {met === false && <Caption style={{ color: COLORS.error, fontSize: 10 }}>✗ {target.actualValue}{target.unit}</Caption>}
+                    </View>
+
+                    {contractEditing ? (
+                      <TextInput
+                        style={[styles.targetEditInput, { color: COLORS.text, borderColor: COLORS.border }]}
+                        value={editedTargets[i]?.label || ''}
+                        onChangeText={text => {
+                          const updated = [...editedTargets];
+                          updated[i] = { ...updated[i], label: text };
+                          setEditedTargets(updated);
+                        }}
+                        multiline
+                      />
+                    ) : (
+                      <Body style={styles.targetLabel}>{target.label}</Body>
+                    )}
+
+                    {!contractEditing && target.why ? (
+                      <Caption secondary style={styles.targetWhy}>{target.why}</Caption>
+                    ) : null}
+                  </View>
+                );
+              })}
+
+              {contract.status !== 'scored' && (
+                <TouchableOpacity
+                  style={[styles.commitBtn, { backgroundColor: COLORS.primary }]}
+                  onPress={saveContract}
+                  disabled={contractSaving}
+                >
+                  {contractSaving
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Body style={{ color: '#fff', fontWeight: '700', textAlign: 'center' }}>
+                        {contract.status === 'active' ? 'Update Contract' : 'Commit to These Targets'}
+                      </Body>
+                  }
+                </TouchableOpacity>
+              )}
+
+              {contract.status === 'active' && (
+                <Caption secondary style={{ textAlign: 'center', marginTop: 8 }}>
+                  Contract active — scored automatically at end of week.
+                </Caption>
+              )}
+            </Card>
+          )}
+        </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -204,6 +324,15 @@ const styles = StyleSheet.create({
   sectionLabel: { marginBottom: 12, fontWeight: '800', marginLeft: 4 },
   insightCard: { marginBottom: 8, borderLeftWidth: 4 },
   insightRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  contractHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  editBtn: { padding: 6 },
+  targetRow: { borderLeftWidth: 3, paddingLeft: 10, marginBottom: 14 },
+  targetTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  domainPill: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  targetLabel: { fontSize: 13, fontWeight: '600', lineHeight: 20 },
+  targetWhy: { fontSize: 11, lineHeight: 17, marginTop: 2 },
+  targetEditInput: { borderWidth: 1, borderRadius: 8, padding: 8, fontSize: 13, marginTop: 4 },
+  commitBtn: { borderRadius: 12, padding: 13, marginTop: 8, alignItems: 'center' },
   liftCard: { alignItems: 'flex-start' },
   bioGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   bioCard: { flex: 1, minWidth: '45%' },

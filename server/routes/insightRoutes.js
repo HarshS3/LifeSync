@@ -10,6 +10,9 @@ const { generateLLMReply } = require('../aiClient');
 const { buildNutritionReview } = require('../services/nutritionReview/buildNutritionReview');
 const { generateWeeklyReview } = require('../services/insights/weeklyReviewGenerator');
 const { analyzeProgressNarrative } = require('../services/insights/progressEngine');
+const { computeDiagnostic } = require('../services/insights/diagnosticEngine');
+const { getOrCreateContract, saveContract, scoreContract, weekKeyFromDate, nextWeekKey } = require('../services/insights/weeklyContractService');
+const { computeCompoundEffect } = require('../services/nutritionPipeline/compoundEffectEngine');
 const { analyzeNutritionalDNA } = require('../services/insights/nutritionalToleranceEngine');
 const { analyzeRecoveryCapacity } = require('../services/insights/recoveryCapacityEngine');
 const { analyzeSleepArchitecture } = require('../services/insights/sleepArchitectureEngine');
@@ -393,6 +396,73 @@ router.get('/progress', auth, async (req, res) => {
   } catch (err) {
     console.error('[InsightRoutes] progress narrative error:', err);
     res.status(500).json({ error: 'Failed to generate progress narrative' });
+  }
+});
+
+// ── Diagnostic — "Why am I tired?" ────────────────────────────────────────────
+// GET /api/insights/diagnostic
+// Returns ranked root causes + same-day protocol when readiness is low.
+router.get('/diagnostic', auth, async (req, res) => {
+  try {
+    const result = await computeDiagnostic(req.userId);
+    res.json(result);
+  } catch (err) {
+    console.error('[InsightRoutes] diagnostic error:', err);
+    res.status(500).json({ error: 'Failed to compute diagnostic' });
+  }
+});
+
+// ── Compound Effect ────────────────────────────────────────────────────────────
+// GET /api/insights/compound-effect
+router.get('/compound-effect', auth, async (req, res) => {
+  try {
+    const result = await computeCompoundEffect(req.userId);
+    res.json(result);
+  } catch (err) {
+    console.error('[InsightRoutes] compound-effect error:', err);
+    res.status(500).json({ error: 'Failed to compute compound effect' });
+  }
+});
+
+// ── Weekly Contract ───────────────────────────────────────────────────────────
+// GET /api/insights/weekly-contract?weekKey=YYYY-Www
+// Returns (or auto-creates) the contract for that week.
+router.get('/weekly-contract', auth, async (req, res) => {
+  try {
+    const weekKey = req.query.weekKey || nextWeekKey(weekKeyFromDate());
+    if (!/^\d{4}-W\d{2}$/.test(weekKey)) return res.status(400).json({ error: 'Invalid weekKey' });
+    const doc = await getOrCreateContract(req.userId, weekKey);
+    res.json(doc);
+  } catch (err) {
+    console.error('[InsightRoutes] weekly-contract GET error:', err);
+    res.status(500).json({ error: 'Failed to get weekly contract' });
+  }
+});
+
+// POST /api/insights/weekly-contract — save user-edited targets
+router.post('/weekly-contract', auth, async (req, res) => {
+  try {
+    const { weekKey, targets } = req.body;
+    if (!weekKey || !/^\d{4}-W\d{2}$/.test(weekKey)) return res.status(400).json({ error: 'Invalid weekKey' });
+    if (!Array.isArray(targets) || targets.length === 0) return res.status(400).json({ error: 'targets required' });
+    const doc = await saveContract(req.userId, weekKey, targets);
+    res.json(doc);
+  } catch (err) {
+    console.error('[InsightRoutes] weekly-contract POST error:', err);
+    res.status(500).json({ error: 'Failed to save weekly contract' });
+  }
+});
+
+// POST /api/insights/weekly-contract/score — score a completed week
+router.post('/weekly-contract/score', auth, async (req, res) => {
+  try {
+    const { weekKey } = req.body;
+    if (!weekKey || !/^\d{4}-W\d{2}$/.test(weekKey)) return res.status(400).json({ error: 'Invalid weekKey' });
+    const doc = await scoreContract(req.userId, weekKey);
+    res.json(doc);
+  } catch (err) {
+    console.error('[InsightRoutes] weekly-contract score error:', err);
+    res.status(500).json({ error: 'Failed to score weekly contract' });
   }
 });
 

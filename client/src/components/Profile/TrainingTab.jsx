@@ -15,9 +15,46 @@ const SectionTitle = ({ children }) => {
   )
 }
 
+const TRAINING_PHASES = [
+  { value: 'bulk',        label: 'Bulk',    caption: 'Building muscle — calorie surplus applied to nutrition targets.' },
+  { value: 'cut',         label: 'Cut',     caption: 'Losing fat — calorie deficit applied to nutrition targets.' },
+  { value: 'maintenance', label: 'Maintain', caption: 'Maintaining weight — targets set to TDEE calories.' },
+  { value: 'recomp',      label: 'Recomp',  caption: 'Body recomposition — simultaneous fat loss and muscle gain.' },
+]
+
 export default function TrainingTab({ profile, updateField }) {
+  const currentPhase = profile.biologicalProfile?.trainingPhase || 'maintenance'
+  const sessionDuration = profile.biologicalProfile?.sessionDurationMinutes || 60
+  const activePhase = TRAINING_PHASES.find((p) => p.value === currentPhase)
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <Box>
+        <SectionTitle>Training Phase</SectionTitle>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          {TRAINING_PHASES.map((phase) => (
+            <Chip
+              key={phase.value}
+              label={phase.label}
+              onClick={() => {
+                updateField('biologicalProfile.trainingPhase', phase.value)
+                updateField('biologicalProfile.trainingPhaseStartDate', new Date().toISOString())
+              }}
+              sx={{
+                bgcolor: currentPhase === phase.value ? 'text.primary' : 'action.selected',
+                color: currentPhase === phase.value ? 'background.paper' : 'text.secondary',
+                '&:hover': { bgcolor: currentPhase === phase.value ? 'text.primary' : 'divider' },
+              }}
+            />
+          ))}
+        </Box>
+        {activePhase && (
+          <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'text.secondary' }}>
+            {activePhase.caption}
+          </Typography>
+        )}
+      </Box>
+
       <Box>
         <SectionTitle>Experience Level</SectionTitle>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -62,6 +99,23 @@ export default function TrainingTab({ profile, updateField }) {
           step={15}
           sx={{ color: 'text.primary' }}
         />
+      </Box>
+
+      <Box>
+        <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+          AI Session Length: {sessionDuration} min
+        </Typography>
+        <Slider
+          value={sessionDuration}
+          onChange={(e, v) => updateField('biologicalProfile.sessionDurationMinutes', v)}
+          min={20}
+          max={120}
+          step={5}
+          sx={{ color: 'text.primary' }}
+        />
+        <Typography variant="caption" sx={{ mt: 0.5, display: 'block', color: 'text.secondary' }}>
+          Workout suggestions will be scaled to this length
+        </Typography>
       </Box>
 
       <FormControlLabel

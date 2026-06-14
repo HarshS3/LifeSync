@@ -115,6 +115,40 @@ function ReadinessRing({ readiness }) {
   );
 }
 
+// ── Phase Banner ──────────────────────────────────────────────────────────────
+function PhaseBanner({ phase, phaseStartDate }) {
+  const { COLORS } = useTheme();
+  if (!phase || phase === 'maintenance') return null;
+
+  const weeksInPhase = phaseStartDate
+    ? Math.floor((Date.now() - new Date(phaseStartDate)) / (7 * 86400000))
+    : null;
+
+  const config = {
+    bulk:   { emoji: '💪', label: 'Bulk',   bg: '#16a34a18', border: '#16a34a40', text: '#15803d' },
+    cut:    { emoji: '🔥', label: 'Cut',    bg: '#d9770618', border: '#d9770640', text: '#b45309' },
+    recomp: { emoji: '⚡', label: 'Recomp', bg: '#2563eb18', border: '#2563eb40', text: '#1d4ed8' },
+  };
+  const c = config[phase];
+  if (!c) return null;
+
+  return (
+    <View style={{ backgroundColor: c.bg, borderWidth: 1.5, borderColor: c.border, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 20, flexDirection: 'row', alignItems: 'center' }}>
+      <Body style={{ fontSize: 20, marginRight: 10 }}>{c.emoji}</Body>
+      <View>
+        <Body style={{ fontWeight: '800', color: c.text, fontSize: 14 }}>
+          {c.label} Phase{weeksInPhase !== null ? ` — Week ${weeksInPhase + 1}` : ''}
+        </Body>
+        {weeksInPhase !== null && (
+          <Caption style={{ color: c.text, opacity: 0.8, marginTop: 1 }}>
+            {weeksInPhase === 0 ? 'Started this week' : `${weeksInPhase} week${weeksInPhase !== 1 ? 's' : ''} in`}
+          </Caption>
+        )}
+      </View>
+    </View>
+  );
+}
+
 export default function TrainingScreen() {
   const { COLORS, TYPOGRAPHY } = useTheme();
   const router = useRouter();
@@ -129,6 +163,12 @@ export default function TrainingScreen() {
   const [readiness, setReadiness] = useState(null);
   const [insights, setInsights]   = useState([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [autoSuggestion, setAutoSuggestion] = useState(null);
+  const [autoSuggestionType, setAutoSuggestionType] = useState(null);
+  const [trainingPhase, setTrainingPhase] = useState(null);
+  const [trainingPhaseStartDate, setTrainingPhaseStartDate] = useState(null);
+  const [weeklyVolumeStatus, setWeeklyVolumeStatus] = useState({});
+  const [neglectedMuscles, setNeglectedMuscles] = useState([]);
 
   const [aiWorkout, setAiWorkout]     = useState('');
   const [aiRecovery, setAiRecovery]   = useState('');
@@ -152,14 +192,39 @@ export default function TrainingScreen() {
 
   const fetchData = async () => {
     try {
-      const res = await api.get('/gym/summary');
-      const data = res.data;
+      const [gymRes, profileRes] = await Promise.all([
+        api.get('/gym/summary'),
+        api.get('/users/profile').catch(() => null),
+      ]);
+      const data = gymRes.data;
 
       setWorkouts(data.recentWorkouts || []);
       setStats(data.stats || {});
       setTemplates(data.templates || []);
       setReadiness(data.readiness || null);
       setInsights(Array.isArray(data.correlations) ? data.correlations : []);
+      setWeeklyVolumeStatus(data.stats?.weeklyVolumeStatus || {});
+      setNeglectedMuscles(data.stats?.neglectedMuscles || []);
+
+      if (profileRes?.data?.biologicalProfile) {
+        const bp = profileRes.data.biologicalProfile;
+        setTrainingPhase(bp.trainingPhase || null);
+        setTrainingPhaseStartDate(bp.trainingPhaseStartDate || null);
+      }
+
+      // Auto-fetch readiness-triggered suggestion — fire and forget, never blocks UI
+      const score = data.readiness?.readinessScore;
+      if (score >= 7.5) {
+        setAutoSuggestionType('workout');
+        api.post('/gym/ai-suggestion', { type: 'workout' })
+          .then(r => setAutoSuggestion(r.data?.suggestion || null))
+          .catch(() => {});
+      } else if (score <= 4.5) {
+        setAutoSuggestionType('recovery');
+        api.post('/gym/ai-suggestion', { type: 'recovery' })
+          .then(r => setAutoSuggestion(r.data?.suggestion || null))
+          .catch(() => {});
+      }
 
       fetchCoachTip();
     } catch (err) {
@@ -237,6 +302,8 @@ export default function TrainingScreen() {
           <TrainingStatCard emoji="🎯" label="Streak" value={stats.currentStreak} sublabel="days" color={COLORS.load} />
         </View>
 
+        <PhaseBanner phase={trainingPhase} phaseStartDate={trainingPhaseStartDate} />
+
         <TouchableOpacity 
           style={[styles.startBtn, { backgroundColor: COLORS.primary }]} 
           onPress={() => nav('/training/active')} 
@@ -277,6 +344,96 @@ export default function TrainingScreen() {
             </Card>
           ))}
         </View>
+
+        {!!autoSuggestion && (
+          <Card
+            style={[
+              styles.autoSuggestionCard,
+              {
+                backgroundColor: autoSuggestionType === 'workout'
+                  ? COLORS.success + '18'
+                  : COLORS.warning + '18',
+                borderColor: autoSuggestionType === 'workout'
+                  ? COLORS.success + '50'
+                  : COLORS.warning + '50',
+              },
+            ]}
+          >
+            <View style={styles.cardHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <Body style={{ fontSize: 18, marginRight: 8 }}>
+                  {autoSuggestionType === 'workout' ? '⚡' : '🌿'}
+                </Body>
+                <H3 style={{ flex: 1 }}>Today's Recommendation</H3>
+              </View>
+              <TouchableOpacity
+                onPress={() => setAutoSuggestion(null)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={styles.autoSuggestionDismiss}
+              >
+                <Caption style={{ fontWeight: '800', fontSize: 16 }}>×</Caption>
+              </TouchableOpacity>
+            </View>
+            <Body secondary style={{ lineHeight: 22 }}>{autoSuggestion}</Body>
+          </Card>
+        )}
+
+        {/* ── Weekly Volume Tracker ────────────────────────────────── */}
+        {Object.keys(weeklyVolumeStatus).length > 0 && (
+          <Card style={{ marginBottom: 16 }}>
+            <View style={styles.cardHeader}>
+              <H3>📊 Weekly Volume</H3>
+              <Caption secondary style={{ fontSize: 10 }}>Hard sets per muscle</Caption>
+            </View>
+            <View style={{ gap: 8 }}>
+              {Object.entries(weeklyVolumeStatus).map(([muscle, v]) => {
+                const barColor = v.status === 'maxed' ? COLORS.success
+                  : v.status === 'sufficient' ? COLORS.primary
+                  : v.status === 'building' ? COLORS.warning
+                  : COLORS.gray200;
+                return (
+                  <View key={muscle}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
+                      <Caption style={{ textTransform: 'capitalize', fontWeight: '600' }}>{muscle}</Caption>
+                      <Caption secondary>{v.sets}/{v.min} sets{v.status === 'maxed' ? ' ✓' : ''}</Caption>
+                    </View>
+                    <ProgressBar
+                      progress={Math.min(1, v.sets / v.min)}
+                      color={barColor}
+                      height={5}
+                      style={{ borderRadius: 3 }}
+                    />
+                  </View>
+                );
+              })}
+            </View>
+          </Card>
+        )}
+
+        {/* ── Neglected Muscle Nudge ───────────────────────────────── */}
+        {neglectedMuscles.length > 0 && (
+          <Card style={{ marginBottom: 16, borderLeftWidth: 4, borderLeftColor: COLORS.warning }}>
+            <View style={styles.cardHeader}>
+              <H3>⚠️ Under-trained This Week</H3>
+            </View>
+            <Body secondary style={{ marginBottom: 8 }}>
+              These muscle groups haven't hit minimum effective volume and haven't been trained in 5+ days:
+            </Body>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {neglectedMuscles.map(m => (
+                <View key={m} style={{ backgroundColor: COLORS.warning + '20', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: COLORS.warning + '50' }}>
+                  <Caption style={{ fontWeight: '700', color: COLORS.warning, textTransform: 'capitalize' }}>{m}</Caption>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity
+              onPress={generateAiWorkout}
+              style={{ marginTop: 12, paddingVertical: 8, paddingHorizontal: 14, backgroundColor: COLORS.warning + '15', borderRadius: 10, alignSelf: 'flex-start', borderWidth: 1, borderColor: COLORS.warning + '40' }}
+            >
+              <Caption style={{ fontWeight: '800', color: COLORS.warning }}>Get a session for these muscles →</Caption>
+            </TouchableOpacity>
+          </Card>
+        )}
 
         {readiness
           ? <ReadinessRing readiness={readiness} />
@@ -464,5 +621,7 @@ const styles = StyleSheet.create({
   outlinedBtn:     { borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10 },
   aiResult:        { padding: 16, marginTop: 8 },
   hypertrophyRow:  { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  targetBadge:     { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  targetBadge:          { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  autoSuggestionCard:   { marginBottom: 20, borderWidth: 1.5 },
+  autoSuggestionDismiss:{ paddingHorizontal: 6, paddingVertical: 2 },
 });

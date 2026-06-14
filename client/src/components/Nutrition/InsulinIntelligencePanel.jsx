@@ -42,15 +42,19 @@ function CollapsibleSection({ title, badge, badgeColor, children, defaultOpen = 
   )
 }
 
-function SpikeBar({ level, peakGlucose }) {
-  const pct = Math.min(100, Math.round(((peakGlucose - 70) / 110) * 100))
+function SpikeBar({ level, glycemicLoad }) {
+  // GL scale: low < 10, medium 10-20, high > 20. Cap bar at GL 30.
+  const pct = Math.min(100, Math.round(((glycemicLoad || 0) / 30) * 100))
   const color = level === 'high' ? '#ef4444' : level === 'moderate' ? '#f59e0b' : '#10b981'
+  const label = level === 'high' ? 'High GL' : level === 'moderate' ? 'Moderate GL' : 'Low GL'
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
       <Box sx={{ flex: 1, height: 8, bgcolor: 'action.selected', borderRadius: 99, overflow: 'hidden' }}>
         <Box sx={{ height: '100%', width: `${pct}%`, bgcolor: color, borderRadius: 99, transition: 'width 0.6s' }} />
       </Box>
-      <Typography variant="caption" sx={{ fontWeight: 700, color, minWidth: 52 }}>~{peakGlucose} mg/dL</Typography>
+      <Typography variant="caption" sx={{ fontWeight: 700, color, minWidth: 60 }}>
+        {label}{glycemicLoad != null ? ` (${glycemicLoad})` : ''}
+      </Typography>
     </Box>
   )
 }
@@ -253,47 +257,85 @@ function HowToReduceSpikes({ analysis }) {
 export default function InsulinIntelligencePanel({ analysis }) {
   if (!analysis) return null
 
-  const { mealAnalyses, overallLevel, avgPeak, fiberCoverage, totalDailyFiber } = analysis
+  const { mealAnalyses = [], overallLevel, totalDailyFiber, patternSummary, bestCounterfactual } = analysis
 
-  const levelColor = overallLevel === 'high' ? '#ef4444' : overallLevel === 'moderate' ? '#f59e0b' : '#10b981'
-  const levelLabel = overallLevel === 'high' ? 'High Spike Day' : overallLevel === 'moderate' ? 'Moderate Spikes' : 'Well-Controlled'
-  const headerBg   = overallLevel === 'high' ? '#fef2f2' : overallLevel === 'moderate' ? '#fffbeb' : '#f0fdf4'
+  const levelColor  = overallLevel === 'high' ? '#ef4444' : overallLevel === 'moderate' ? '#f59e0b' : '#10b981'
+  const levelLabel  = overallLevel === 'high' ? 'High-GL Day' : overallLevel === 'moderate' ? 'Moderate GL' : 'Well-Controlled'
+  const headerBg    = overallLevel === 'high' ? '#fef2f2' : overallLevel === 'moderate' ? '#fffbeb' : '#f0fdf4'
   const headerBorder = overallLevel === 'high' ? '#fecaca' : overallLevel === 'moderate' ? '#fde68a' : '#bbf7d0'
+
+  // Derive highSpikeMeals for backwards-compat with HowToReduceSpikes and FatStorageExplainer
+  const highSpikeMeals = mealAnalyses.filter(m => m.spikeLevel === 'high')
+  const analysisWithCompat = { ...analysis, highSpikeMeals, fiberCoverage: totalDailyFiber >= 25 ? 'good' : totalDailyFiber >= 15 ? 'moderate' : 'low' }
 
   return (
     <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
 
       {/* Header */}
       <Box sx={{ p: 2.5, bgcolor: headerBg, borderBottom: `1px solid ${headerBorder}` }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 1 }}>
           <Box>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', mb: 0.25 }}>
-              Insulin Intelligence
+              Glycemic Pattern
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              Dynamic analysis based on today's meals
+              GL-based model · Not CGM data
             </Typography>
           </Box>
-          <Chip
-            label={levelLabel}
-            size="small"
-            sx={{ bgcolor: levelColor, color: 'white', fontWeight: 700, fontSize: '0.7rem' }}
-          />
+          <Chip label={levelLabel} size="small" sx={{ bgcolor: levelColor, color: 'white', fontWeight: 700, fontSize: '0.7rem' }} />
         </Box>
 
-        {/* Per-meal spike bars */}
-        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+        {/* Pattern summary */}
+        {patternSummary && (
+          <Typography variant="caption" sx={{ color: '#374151', lineHeight: 1.6, display: 'block', mb: 1.5 }}>
+            {patternSummary}
+          </Typography>
+        )}
+
+        {/* Counterfactual — best improvement tip */}
+        {bestCounterfactual && (
+          <Box sx={{ bgcolor: '#fffbeb', border: '1px solid #fde68a', borderRadius: 1.5, p: 1.25, mb: 1.5 }}>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: '#92400e', display: 'block', mb: 0.25 }}>
+              💡 Best change for tomorrow
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#78350f', fontWeight: 600, display: 'block' }}>
+              {bestCounterfactual.action}
+            </Typography>
+            <Typography variant="caption" sx={{ color: '#a16207' }}>
+              Estimated ~{bestCounterfactual.reduction} point improvement in glycemic response
+            </Typography>
+          </Box>
+        )}
+
+        {/* Per-meal breakdown */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
           {mealAnalyses.map((meal, i) => (
             <Box key={i}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.4 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.4, flexWrap: 'wrap', gap: 0.5 }}>
                 <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                  {meal.name} {meal.time && <span style={{ opacity: 0.5, fontWeight: 400 }}>· {meal.time}</span>}
+                  {meal.name}
+                  {meal.time && <span style={{ opacity: 0.5, fontWeight: 400 }}> · {meal.time}</span>}
+                  {meal.gi != null && <span style={{ opacity: 0.6, fontWeight: 400 }}> · GI ~{meal.gi}</span>}
                 </Typography>
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  {meal.carbs}g carbs · {meal.fiber}g fiber · {meal.protein}g protein
+                  {meal.carbs}g C · {meal.protein}g P · {meal.fiber}g F
                 </Typography>
               </Box>
-              <SpikeBar level={meal.spikeLevel} peakGlucose={meal.peakGlucose} />
+              <SpikeBar level={meal.spikeLevel} glycemicLoad={meal.glycemicLoad} />
+              {/* Modifier tags */}
+              {meal.modifiersApplied && (
+                <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
+                  {meal.modifiersApplied.mealSequence && <Chip label="↓ meal sequence" size="small" sx={{ height: 16, fontSize: '0.55rem', bgcolor: '#dbeafe', color: '#1e40af' }} />}
+                  {meal.modifiersApplied.postWorkout && <Chip label="↓ post-workout" size="small" sx={{ height: 16, fontSize: '0.55rem', bgcolor: '#dcfce7', color: '#166534' }} />}
+                  {meal.modifiersApplied.circadian === 'elevated' && <Chip label="↑ evening" size="small" sx={{ height: 16, fontSize: '0.55rem', bgcolor: '#fef3c7', color: '#92400e' }} />}
+                  {meal.modifiersApplied.cumulativeFiber && <Chip label="↓ fiber buffer" size="small" sx={{ height: 16, fontSize: '0.55rem', bgcolor: '#ede9fe', color: '#5b21b6' }} />}
+                </Box>
+              )}
+              {meal.counterfactual && (
+                <Typography variant="caption" sx={{ color: '#7c3aed', fontStyle: 'italic', display: 'block', mt: 0.25 }}>
+                  💡 {meal.counterfactual.action} → ~{meal.counterfactual.reduction} pt improvement
+                </Typography>
+              )}
             </Box>
           ))}
         </Box>
@@ -301,10 +343,9 @@ export default function InsulinIntelligencePanel({ analysis }) {
         {/* Summary stats */}
         <Box sx={{ display: 'flex', gap: 2, mt: 2, flexWrap: 'wrap' }}>
           {[
-            { label: 'Avg Peak', val: `~${avgPeak} mg/dL`, color: levelColor },
-            { label: 'Daily Fiber', val: `${totalDailyFiber}g`, color: fiberCoverage === 'good' ? '#10b981' : fiberCoverage === 'moderate' ? '#f59e0b' : '#ef4444' },
-            { label: 'Total Carbs', val: `${analysis.totalDailyCarbs}g`, color: 'text.secondary' },
-            { label: 'Total Sugar', val: `${analysis.totalDailySugar}g`, color: analysis.totalDailySugar > 50 ? '#ef4444' : '#10b981' },
+            { label: 'Daily Fiber', val: `${totalDailyFiber || 0}g`, color: (totalDailyFiber || 0) >= 25 ? '#10b981' : '#f59e0b' },
+            { label: 'Total Carbs', val: `${analysis.totalDailyCarbs || 0}g`, color: 'text.secondary' },
+            { label: 'Total Sugar', val: `${analysis.totalDailySugar || 0}g`, color: (analysis.totalDailySugar || 0) > 50 ? '#ef4444' : '#10b981' },
           ].map((stat, i) => (
             <Box key={i} sx={{ textAlign: 'center' }}>
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{stat.label}</Typography>
@@ -325,7 +366,7 @@ export default function InsulinIntelligencePanel({ analysis }) {
         badgeColor={overallLevel === 'high' ? '#ef4444' : null}
         defaultOpen={overallLevel === 'high'}
       >
-        <FatStorageExplainer analysis={analysis} />
+        <FatStorageExplainer analysis={analysisWithCompat} />
       </CollapsibleSection>
 
       <CollapsibleSection title="GI · GL · Insulin Index · Insulin Resistance" badge="Science" defaultOpen={false}>
@@ -334,16 +375,16 @@ export default function InsulinIntelligencePanel({ analysis }) {
 
       <CollapsibleSection
         title="How to Reduce Spikes"
-        badge={`${analysis.highSpikeMeals.length} fixes today`}
-        badgeColor={analysis.highSpikeMeals.length > 0 ? '#f97316' : '#10b981'}
-        defaultOpen={analysis.highSpikeMeals.length > 0}
+        badge={highSpikeMeals.length > 0 ? `${highSpikeMeals.length} fixes today` : 'Tips'}
+        badgeColor={highSpikeMeals.length > 0 ? '#f97316' : '#10b981'}
+        defaultOpen={highSpikeMeals.length > 0}
       >
-        <HowToReduceSpikes analysis={analysis} />
+        <HowToReduceSpikes analysis={analysisWithCompat} />
       </CollapsibleSection>
 
       <Box sx={{ px: 2, py: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
         <Typography sx={{ fontSize: '0.6rem', color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          * Glucose values are simulated using glycemic pressure modelling — not continuous glucose monitor data.
+          Pattern model using Glycemic Load — not CGM data. Shows relative patterns for guidance only.
         </Typography>
       </Box>
     </Box>

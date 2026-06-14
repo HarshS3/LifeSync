@@ -5,19 +5,99 @@ import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import Slider from '@mui/material/Slider'
 import CircularProgress from '@mui/material/CircularProgress'
+import Collapse from '@mui/material/Collapse'
 import BoltIcon from '@mui/icons-material/Bolt'
 import MoodIcon from '@mui/icons-material/Mood'
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter'
 import NightsStayIcon from '@mui/icons-material/NightsStay'
 import TipsAndUpdatesIcon from '@mui/icons-material/TipsAndUpdates'
-
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
-
 import RestaurantIcon from '@mui/icons-material/Restaurant'
+import MedicalServicesOutlinedIcon from '@mui/icons-material/MedicalServicesOutlined'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../config'
 import { GlowingEffect } from './ui/glowing-effect.jsx'
 import ProgressNarrative from './ProgressNarrative'
+
+// ── Diagnostic Card ───────────────────────────────────────────────────────────
+const SEV_COLOR = { high: '#dc2626', moderate: '#d97706', low: '#6366f1' }
+const SEV_BG    = { high: '#fef2f2', moderate: '#fffbeb', low: '#f5f3ff' }
+
+function DiagnosticCard({ readiness, token }) {
+  const [data, setData] = useState(null)
+  const [open, setOpen] = useState(true)
+
+  useEffect(() => {
+    if (!token || readiness >= 7) return
+    fetch(`${API_BASE}/api/insights/diagnostic`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setData(d))
+      .catch(() => {})
+  }, [readiness, token])
+
+  if (readiness >= 7 || !data?.hasDiagnosis) return null
+
+  return (
+    <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+      <Box
+        onClick={() => setOpen(o => !o)}
+        sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.5, cursor: 'pointer' }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <MedicalServicesOutlinedIcon sx={{ fontSize: 18, color: '#f59e0b' }} />
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>Why you feel like this</Typography>
+        </Box>
+        {open ? <ExpandLessIcon sx={{ fontSize: 16, color: 'text.secondary' }} /> : <ExpandMoreIcon sx={{ fontSize: 16, color: 'text.secondary' }} />}
+      </Box>
+
+      <Collapse in={open}>
+        <Box sx={{ px: 2, pb: 2 }}>
+          {data.topCauses.map((cause) => {
+            const color = SEV_COLOR[cause.severity] || '#888'
+            const bg    = SEV_BG[cause.severity]   || '#f9fafb'
+            return (
+              <Box key={cause.id} sx={{ borderLeft: `3px solid ${color}`, bgcolor: bg, borderRadius: '0 8px 8px 0', p: 1.5, mb: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                  <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
+                  <Typography variant="body2" sx={{ fontWeight: 700, flex: 1 }}>{cause.title}</Typography>
+                  <Chip label={`${Math.round(cause.confidence * 100)}%`} size="small"
+                    sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, bgcolor: color + '20', color }} />
+                </Box>
+                <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.6, display: 'block', mb: 0.75 }}>
+                  {cause.mechanism}
+                </Typography>
+                <Box sx={{ bgcolor: 'rgba(0,0,0,0.04)', borderRadius: 1, p: 1 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 800, fontSize: '0.6rem', letterSpacing: '0.5px', color: 'text.secondary', display: 'block', mb: 0.25 }}>
+                    TODAY'S PROTOCOL
+                  </Typography>
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: '#1f2937' }}>{cause.protocol}</Typography>
+                </Box>
+              </Box>
+            )
+          })}
+
+          {data.compoundProtocol?.length > 1 && (
+            <Box sx={{ mt: 1, bgcolor: '#f9fafb', borderRadius: 1.5, p: 1.25 }}>
+              <Typography variant="caption" sx={{ fontWeight: 800, fontSize: '0.6rem', letterSpacing: '0.5px', color: 'text.secondary', display: 'block', mb: 0.75 }}>
+                COMBINED PROTOCOL
+              </Typography>
+              {data.compoundProtocol.map((step, i) => (
+                <Box key={i} sx={{ display: 'flex', gap: 1, mb: 0.5 }}>
+                  <Box sx={{ width: 16, height: 16, borderRadius: '50%', bgcolor: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Typography sx={{ fontSize: '0.6rem', color: '#fff', fontWeight: 800 }}>{i + 1}</Typography>
+                  </Box>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.6, flex: 1 }}>{step}</Typography>
+                </Box>
+              ))}
+            </Box>
+          )}
+        </Box>
+      </Collapse>
+    </Box>
+  )
+}
 
 // Global cache to prevent re-fetching on tab switch
 let dashboardCache = {
@@ -698,6 +778,8 @@ function Dashboard() {
           alignItems: 'stretch',
         }}
       >
+        {hasCheckedIn && <DiagnosticCard readiness={readiness} token={token} />}
+
         {topInsights.length > 0 && (
           <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>

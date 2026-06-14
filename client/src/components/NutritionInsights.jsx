@@ -1,26 +1,70 @@
 import React, { useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import LinearProgress from '@mui/material/LinearProgress';
+import Chip from '@mui/material/Chip';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Grid from '@mui/material/Grid';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
+import RestaurantIcon from '@mui/icons-material/Restaurant';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import EditIcon from '@mui/icons-material/Edit';
+import CheckIcon from '@mui/icons-material/Check';
+import { fmt, percent, TARGET_KEY_TO_TOTAL_KEY, SUMMARY_MICRO_META, MICRO_TO_TARGET_KEY } from '../lib/nutritionHelpers';
 import { API_BASE } from '../config';
 import { useAuth } from '../context/AuthContext';
 import DeficiencyRadar from './Nutrition/DeficiencyRadar';
 
-// ----------------------------------------------------------------------
-// NEW DAILYLIFESTATE-ALIGNED NUTRITION INSIGHTS (Brutalist/Editorial UI)
-// ----------------------------------------------------------------------
+// ── Utility ──────────────────────────────────────────────────────────────────
+function getWeekKey(dateObj) {
+  const istDateStr = new Date(dateObj).toLocaleString('en-CA', {
+    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).substring(0, 10).replace(/\//g, '-');
+  const [y, m, dDay] = istDateStr.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1, dDay, 0, 0, 0));
+  const dayNum = d.getUTCDay();
+  d.setUTCDate(d.getUTCDate() - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const yearStartDay = yearStart.getUTCDay();
+  yearStart.setUTCDate(yearStart.getUTCDate() - yearStartDay);
+  const weekNum = Math.floor(((d - yearStart) / 86400000) / 7) + 1;
+  return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+}
 
-const NutritionInsights = ({ selectedDate }) => {
+function nextWeekKeyFrom(wk) {
+  const [y, w] = wk.split('-W').map(Number);
+  return w + 1 > 52 ? `${y + 1}-W01` : `${y}-W${String(w + 1).padStart(2, '0')}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+const NutritionInsights = ({ selectedDate, clinicalTargets, weeklyTotals, monthlyTotals, user, dynamicTargets }) => {
   const { token } = useAuth();
   const [macroData, setMacroData] = useState(null);
   const [microData, setMicroData] = useState(null);
   const [metabolicMap, setMetabolicMap] = useState(null);
   const [reviewData, setReviewData] = useState(null);
+  const [weeklyReview, setWeeklyReview] = useState(null);
   const [hypotheses, setHypotheses] = useState([]);
+  const [contract, setContract] = useState(null);
+  const [contractEditing, setContractEditing] = useState(false);
+  const [editedTargets, setEditedTargets] = useState([]);
+  const [contractSaving, setContractSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('macro');
 
-  const feedbackHypothesis = async (id, isPositive) => {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+  const feedbackHypothesis = async (id, outcome) => {
+    // outcome: 'support' | 'refute'
     try {
       const res = await fetch(`${API_BASE}/api/nutrition/hypotheses/${id}/feedback`, {
         method: 'PATCH',
@@ -28,49 +72,27 @@ const NutritionInsights = ({ selectedDate }) => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ isPositive }),
+        body: JSON.stringify({ outcome }),
       });
       if (res.ok) {
-        setHypotheses(prev => prev.map(h => h._id === id ? { ...h, feedback: isPositive ? 1 : -1 } : h));
+        setHypotheses(prev => prev.map(h => h._id === id ? { ...h, _lastFeedback: outcome } : h));
       }
     } catch (err) {
       console.error('Failed to save feedback:', err);
     }
   };
 
-  const getWeekKey = (dateObj) => {
-    const istDateStr = new Date(dateObj).toLocaleString('en-CA', {
-      timeZone: 'Asia/Kolkata',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).substring(0, 10).replace(/\//g, '-');
-    const [y, m, dDay] = istDateStr.split('-').map(Number);
-    const d = new Date(Date.UTC(y, m - 1, dDay, 0, 0, 0));
-    const dayNum = d.getUTCDay();
-    d.setUTCDate(d.getUTCDate() - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    const yearStartDay = yearStart.getUTCDay();
-    yearStart.setUTCDate(yearStart.getUTCDate() - yearStartDay);
-    const weekNum = Math.floor(((d - yearStart) / 86400000) / 7) + 1;
-    return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
-  };
-
-  const getWeekRangeDisplay = (dateObj) => {
-    const istDateStr = new Date(dateObj).toLocaleString('en-CA', {
-      timeZone: 'Asia/Kolkata',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).substring(0, 10).replace(/\//g, '-');
-    const [y, m, dDay] = istDateStr.split('-').map(Number);
-    const d = new Date(Date.UTC(y, m - 1, dDay, 0, 0, 0));
-    const dayNum = d.getUTCDay();
-    const start = new Date(d);
-    start.setUTCDate(start.getUTCDate() - dayNum); // Sunday
-    const end = new Date(start);
-    end.setUTCDate(end.getUTCDate() + 6); // Saturday
-    return `${start.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', timeZone: 'UTC' })} - ${end.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`;
+  const saveContract = async () => {
+    setContractSaving(true);
+    try {
+      const nwk = nextWeekKeyFrom(getWeekKey(selectedDate));
+      const res = await fetch(`${API_BASE}/api/insights/weekly-contract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ weekKey: nwk, targets: editedTargets }),
+      });
+      if (res.ok) { setContract(await res.json()); setContractEditing(false); }
+    } finally { setContractSaving(false); }
   };
 
   useEffect(() => {
@@ -83,18 +105,21 @@ const NutritionInsights = ({ selectedDate }) => {
   }, []);
 
   useEffect(() => {
-    const fetchAggregationData = async () => {
+    const fetchAll = async () => {
       try {
         setLoading(true);
-        const weekKey = getWeekKey(selectedDate);
+        const wk = getWeekKey(selectedDate);
+        const nwk = nextWeekKeyFrom(wk);
         const dayKey = new Date(selectedDate).toISOString().split('T')[0];
 
-        const [macroRes, microRes, metabolicRes, hypoRes, reviewRes] = await Promise.all([
-          fetch(`${API_BASE}/api/nutrition/aggregation/weekly-macros/${weekKey}`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_BASE}/api/nutrition/aggregation/weekly-micros/${weekKey}`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_BASE}/api/nutrition/metabolic-map?daysBack=60`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_BASE}/api/nutrition/hypotheses`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_BASE}/api/insights/nutrition/review?dayKey=${dayKey}`, { headers: { Authorization: `Bearer ${token}` } }),
+        const [macroRes, microRes, metabolicRes, hypoRes, reviewRes, weeklyRevRes, contractRes] = await Promise.all([
+          fetch(`${API_BASE}/api/nutrition/aggregation/weekly-macros/${wk}`, { headers }),
+          fetch(`${API_BASE}/api/nutrition/aggregation/weekly-micros/${wk}`, { headers }),
+          fetch(`${API_BASE}/api/nutrition/metabolic-map?daysBack=60`, { headers }),
+          fetch(`${API_BASE}/api/nutrition/hypotheses`, { headers }),
+          fetch(`${API_BASE}/api/insights/nutrition/review?dayKey=${dayKey}`, { headers }),
+          fetch(`${API_BASE}/api/insights/weekly-review?weekKey=${wk}`, { headers }),
+          fetch(`${API_BASE}/api/insights/weekly-contract?weekKey=${nwk}`, { headers }),
         ]);
 
         if (!macroRes.ok || !microRes.ok) throw new Error('Failed to fetch aggregation data');
@@ -102,10 +127,9 @@ const NutritionInsights = ({ selectedDate }) => {
         setMicroData(await microRes.json());
         if (metabolicRes.ok) setMetabolicMap(await metabolicRes.json());
         if (hypoRes.ok) setHypotheses(await hypoRes.json());
-        if (reviewRes.ok) {
-          const r = await reviewRes.json();
-          setReviewData(r.review);
-        }
+        if (reviewRes.ok) { const r = await reviewRes.json(); setReviewData(r.review); }
+        if (weeklyRevRes.ok) { const wr = await weeklyRevRes.json(); setWeeklyReview(wr); }
+        if (contractRes.ok) { const c = await contractRes.json(); setContract(c); setEditedTargets(c.targets || []); }
         setError(null);
       } catch (err) {
         setError(err.message);
@@ -113,7 +137,7 @@ const NutritionInsights = ({ selectedDate }) => {
         setLoading(false);
       }
     };
-    fetchAggregationData();
+    fetchAll();
   }, [selectedDate, token]);
 
   if (loading) return <Box sx={{ p: 10, textAlign: 'center', fontFamily: 'monospace', textTransform: 'uppercase', color: 'var(--ls-text-muted)' }}>Assessing State...</Box>;
@@ -127,26 +151,35 @@ const NutritionInsights = ({ selectedDate }) => {
             LifeState / Nutrition
           </Typography>
           <Typography sx={{ fontFamily: 'monospace', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--ls-text-muted)' }}>
-            {getWeekRangeDisplay(selectedDate)} ({getWeekKey(selectedDate)})
+            {getWeekKey(selectedDate)}
           </Typography>
         </Box>
-        <Box sx={{ 
-          display: 'flex', 
-          gap: { xs: 2, md: 3 }, 
-          overflowX: 'auto', 
-          width: '100%', 
+        <Box sx={{
+          display: 'flex',
+          gap: { xs: 2, md: 3 },
+          overflowX: 'auto',
+          width: '100%',
           pb: 1,
           '&::-webkit-scrollbar': { display: 'none' },
           scrollbarWidth: 'none'
         }}>
-          {['macro', 'micro', 'radar', 'metabolic', 'hypo'].map(tab => (
-            <Typography key={tab} component="button" onClick={() => setActiveTab(tab)} sx={{
-              background: 'none', border: 'none', borderBottom: activeTab === tab ? '2px solid var(--ls-text)' : '2px solid transparent',
+          {[
+            { id: 'macro', label: 'Macros' },
+            { id: 'micro', label: 'Micronutrients' },
+            { id: 'period', label: 'Weekly / Monthly' },
+            { id: 'radar', label: 'Deficiency Radar' },
+            { id: 'metabolic', label: 'Metabolic Map' },
+            { id: 'hypo', label: 'AI Hypotheses' },
+            { id: 'review', label: 'Weekly Review' },
+            { id: 'contract', label: 'Next Week Contract' },
+          ].map(({ id, label }) => (
+            <Typography key={id} component="button" onClick={() => setActiveTab(id)} sx={{
+              background: 'none', border: 'none', borderBottom: activeTab === id ? '2px solid var(--ls-text)' : '2px solid transparent',
               pb: 0.5, cursor: 'pointer', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.85rem',
-              color: activeTab === tab ? 'var(--ls-text)' : 'var(--ls-text-muted)', transition: 'all 0.2s', '&:hover': { color: 'var(--ls-text)' },
+              color: activeTab === id ? 'var(--ls-text)' : 'var(--ls-text-muted)', transition: 'all 0.2s', '&:hover': { color: 'var(--ls-text)' },
               whiteSpace: 'nowrap'
             }}>
-              {tab === 'macro' ? 'Macros' : tab === 'micro' ? 'Micronutrients' : tab === 'radar' ? 'Deficiency Radar' : tab === 'metabolic' ? 'Metabolic Map' : 'AI Hypotheses'}
+              {label}
             </Typography>
           ))}
         </Box>
@@ -155,8 +188,11 @@ const NutritionInsights = ({ selectedDate }) => {
       <Box sx={{ animation: 'fadeIn 0.5s ease-out' }}>
         {activeTab === 'macro' && macroData && <MacroEditorialView data={macroData} />}
         {activeTab === 'micro' && microData && <MicroEditorialView data={microData} />}
+        {activeTab === 'period' && <PeriodSummaryView clinicalTargets={clinicalTargets} weeklyTotals={weeklyTotals} monthlyTotals={monthlyTotals} user={user} dynamicTargets={dynamicTargets} />}
         {activeTab === 'radar' && reviewData && <DeficiencyRadar risks={reviewData.deficiencyRisks} />}
         {activeTab === 'metabolic' && <MetabolicMapView data={metabolicMap} />}
+        {activeTab === 'review' && <WeeklyReviewView data={weeklyReview} weekKey={getWeekKey(selectedDate)} />}
+        {activeTab === 'contract' && <ContractView contract={contract} editedTargets={editedTargets} setEditedTargets={setEditedTargets} contractEditing={contractEditing} setContractEditing={setContractEditing} saveContract={saveContract} contractSaving={contractSaving} nextWeekKey={nextWeekKeyFrom(getWeekKey(selectedDate))} />}
 
         {activeTab === 'hypo' && (
           <Box sx={{ mt: 4 }}>
@@ -176,14 +212,14 @@ const NutritionInsights = ({ selectedDate }) => {
                     <Typography sx={{ fontFamily: 'monospace', fontSize: '0.75rem', fontWeight: 600 }}>Confidence: {Math.round((h.confidence || 0) * 100)}%</Typography>
                     <Box sx={{ display: 'flex', gap: 2 }}>
                       <Box 
-                        onClick={() => feedbackHypothesis(h._id, true)}
-                        sx={{ cursor: 'pointer', opacity: h.feedback === 1 ? 1 : 0.3, '&:hover': { opacity: 1 }, fontFamily: 'monospace', fontWeight: 700 }}
+                        onClick={() => feedbackHypothesis(h._id, 'support')}
+                        sx={{ cursor: 'pointer', opacity: h._lastFeedback === 'support' ? 1 : 0.3, '&:hover': { opacity: 1 }, fontFamily: 'monospace', fontWeight: 700 }}
                       >
                         [YES]
                       </Box>
-                      <Box 
-                        onClick={() => feedbackHypothesis(h._id, false)}
-                        sx={{ cursor: 'pointer', opacity: h.feedback === -1 ? 1 : 0.3, '&:hover': { opacity: 1 }, fontFamily: 'monospace', fontWeight: 700 }}
+                      <Box
+                        onClick={() => feedbackHypothesis(h._id, 'refute')}
+                        sx={{ cursor: 'pointer', opacity: h._lastFeedback === 'refute' ? 1 : 0.3, '&:hover': { opacity: 1 }, fontFamily: 'monospace', fontWeight: 700 }}
                       >
                         [NO]
                       </Box>
@@ -512,6 +548,244 @@ const MetabolicMapView = ({ data }) => {
       <Box sx={{ fontFamily: 'monospace', fontSize: '0.7rem', opacity: 0.4, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.1em', pb: 4 }}>
         * Stress modifier: Dallman et al., 2004 · Training modifier: Schuenke et al., 2002 · Adaptation: Rosenbaum & Leibel, 2010
       </Box>
+    </Box>
+  );
+};
+
+// ── Period Summary View (formerly SummaryTab) ─────────────────────────────────
+// Preserves the unique dynamic-target-per-day bar logic from SummaryTab.
+const PeriodSummaryView = ({ clinicalTargets, weeklyTotals, monthlyTotals, user, dynamicTargets }) => {
+  const getRequiredForPeriod = (targetKey, days) => {
+    const pEnd = new Date(); pEnd.setHours(23, 59, 59, 999);
+    const pStart = new Date(pEnd); pStart.setDate(pStart.getDate() - (days - 1)); pStart.setHours(0, 0, 0, 0);
+    const staticTargets = clinicalTargets?.targets || {};
+    const staticMicros = staticTargets.micronutrients || {};
+    let staticVal = (targetKey in staticTargets) ? staticTargets[targetKey] : staticMicros[targetKey];
+    if (!staticVal) {
+      const defaults = { calories: 2100, protein: 150, carbs: 250, fat: 70, saturatedFat: 22, monounsaturatedFat: 30, polyunsaturatedFat: 15, cholesterol: 300 };
+      staticVal = defaults[targetKey];
+    }
+    let total = 0;
+    for (let d = new Date(pStart); d <= pEnd; d.setDate(d.getDate() + 1)) {
+      const dateKey = d.toISOString().split('T')[0];
+      const dyn = dynamicTargets?.[dateKey];
+      const val = dyn ? ((dyn.targets || {})[targetKey] ?? (dyn.targets?.micronutrients || {})[targetKey]) : null;
+      total += Number(val ?? staticVal ?? 0);
+    }
+    return total;
+  };
+
+  const buildRows = (totalsForPeriod, days) => {
+    const rowMap = new Map();
+    Object.entries(TARGET_KEY_TO_TOTAL_KEY).forEach(([targetKey, totalKey]) => {
+      const required = getRequiredForPeriod(targetKey, days);
+      const consumed = Number(totalsForPeriod?.[totalKey] || 0);
+      const unit = targetKey === 'calories' ? 'kcal' : ['protein','fat','carbs','fiber','sugar','saturatedFat','monounsaturatedFat','polyunsaturatedFat'].includes(targetKey) ? 'g' : ['vitaminD','vitaminA','folate','selenium'].includes(targetKey) ? 'µg' : 'mg';
+      rowMap.set(totalKey, { label: targetKey.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()), consumed, required: required > 0 ? required : null, unit });
+    });
+    SUMMARY_MICRO_META.forEach(({ key, label, unit }) => {
+      if (rowMap.has(key)) return;
+      const required = getRequiredForPeriod(MICRO_TO_TARGET_KEY[key], days);
+      rowMap.set(key, { label, consumed: Number(totalsForPeriod?.[key] || 0), required: required > 0 ? required : null, unit });
+    });
+    return Array.from(rowMap.values());
+  };
+
+  return (
+    <Box sx={{ mt: 4 }}>
+      {[{ label: 'Weekly', days: 7, totals: weeklyTotals }, { label: 'Monthly', days: 30, totals: monthlyTotals }].map(({ label, days, totals }) => (
+        <Box key={label} sx={{ mb: 6 }}>
+          <Typography sx={{ fontFamily: 'var(--font-serif, Georgia, serif)', fontSize: '1.75rem', fontWeight: 700, textTransform: 'uppercase', mb: 4, color: 'var(--ls-text)' }}>{label}</Typography>
+          {!clinicalTargets?.targets && (
+            <Box sx={{ fontFamily: 'monospace', color: '#b45309', mb: 3 }}>⚠ Clinical targets required. Complete Body + Clinical Profile.</Box>
+          )}
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+            {buildRows(totals, days).map((row, i) => (
+              <Box key={i}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>{row.label}</Typography>
+                  <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                    {fmt(row.consumed, row.unit === 'kcal' ? 0 : 1)} / {row.required == null ? '—' : fmt(row.required, row.unit === 'kcal' ? 0 : 1)} {row.unit}
+                  </Typography>
+                </Box>
+                <LinearProgress variant="determinate" value={row.required == null ? 0 : percent(row.consumed, row.required)}
+                  sx={{ height: 6, borderRadius: 99, bgcolor: 'action.selected', '& .MuiLinearProgress-bar': { bgcolor: row.required == null ? '#d1d5db' : '#2563eb' } }} />
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  );
+};
+
+// ── Weekly Review View (from WeeklyReview.jsx, no duplication) ─────────────────
+const WeeklyReviewView = ({ data, weekKey }) => {
+  if (!data) return <Box sx={{ fontFamily: 'monospace', color: 'var(--ls-text-muted)', p: 8, textAlign: 'center' }}>No review data for this week yet.</Box>;
+  const { weightTrend = [], strongestLift, bestDay, worstDay, insights = [], nextWeekGoal } = data;
+  return (
+    <Box sx={{ mt: 4 }}>
+      <Box sx={{ textAlign: 'center', mb: 6 }}>
+        <EmojiEventsIcon sx={{ fontSize: '3rem', color: '#f59e0b', mb: 1 }} />
+        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>Week {weekKey?.split('-W')[1]} Review</Typography>
+      </Box>
+      <Grid container spacing={4}>
+        <Grid item xs={12} md={8}>
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <TrendingUpIcon sx={{ color: '#3b82f6' }} /> Weight Trajectory
+              </Typography>
+              <Box sx={{ height: 240 }}>
+                {weightTrend.length > 0 ? (
+                  <ResponsiveContainer>
+                    <LineChart data={weightTrend}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="date" tickFormatter={s => new Date(s).toLocaleDateString('en-IN', { weekday: 'short' })} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} />
+                      <YAxis hide domain={['auto', 'auto']} />
+                      <Tooltip contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} formatter={val => [`${val} kg`, 'Weight']} />
+                      <Line type="monotone" dataKey="weight" stroke="#3b82f6" strokeWidth={3} dot={{ r: 5, fill: '#3b82f6' }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <Box sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">Log weight daily to see trends here.</Typography>
+                  </Box>
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Card sx={{ height: '100%', borderRadius: 3, bgcolor: '#111827', color: '#fff' }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <FitnessCenterIcon sx={{ color: '#10b981' }} /> Weekly Peak
+              </Typography>
+              {strongestLift ? (
+                <Box>
+                  <Typography variant="h3" sx={{ fontWeight: 900 }}>{strongestLift.weight}kg</Typography>
+                  <Typography variant="h6" sx={{ color: '#10b981', fontWeight: 600 }}>{strongestLift.exercise}</Typography>
+                  <Typography variant="body2" sx={{ opacity: 0.6, mt: 1 }}>{new Date(strongestLift.date).toLocaleDateString()} · {strongestLift.reps} reps</Typography>
+                </Box>
+              ) : <Typography sx={{ opacity: 0.5, fontStyle: 'italic' }}>No workout data this week.</Typography>}
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Card sx={{ borderRadius: 3 }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <RestaurantIcon sx={{ color: '#f59e0b' }} /> Nutrition Extremes
+              </Typography>
+              {bestDay && (
+                <Box sx={{ mb: 2, p: 2, bgcolor: '#ecfdf5', borderRadius: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>Best: {new Date(bestDay.date).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}</Typography>
+                    <Chip label={`${bestDay.proteinPercent}% protein`} size="small" sx={{ bgcolor: '#059669', color: '#fff', height: 20, fontSize: '0.65rem' }} />
+                  </Box>
+                  <Typography variant="caption" color="text.secondary">{bestDay.calories} kcal</Typography>
+                </Box>
+              )}
+              {worstDay && (
+                <Box sx={{ p: 2, bgcolor: '#fef2f2', borderRadius: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>Lowest: {new Date(worstDay.date).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}</Typography>
+                    <Chip label={`${worstDay.proteinPercent}% protein`} size="small" sx={{ bgcolor: '#dc2626', color: '#fff', height: 20, fontSize: '0.65rem' }} />
+                  </Box>
+                  <Typography variant="caption" color="text.secondary">{worstDay.explanation}</Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {insights.length > 0 && (
+              <Card sx={{ borderRadius: 3, bgcolor: '#eff6ff', border: '1px solid #dbeafe' }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5, display: 'flex', alignItems: 'center', gap: 1, color: '#1e40af' }}>
+                    <LightbulbIcon /> The One Thing
+                  </Typography>
+                  {insights.map((ins, i) => <Typography key={i} variant="body2" sx={{ color: '#1e3a8a', mb: 1 }}>• {ins}</Typography>)}
+                </CardContent>
+              </Card>
+            )}
+            {nextWeekGoal && (
+              <Card sx={{ borderRadius: 3, bgcolor: '#f5f3ff', border: '1px solid #ddd6fe' }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, display: 'flex', alignItems: 'center', gap: 1, color: '#5b21b6' }}>
+                    <CheckCircleOutlineIcon /> Next Week's Focus
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#4c1d95', fontWeight: 600 }}>{nextWeekGoal}</Typography>
+                </CardContent>
+              </Card>
+            )}
+          </Box>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
+// ── Contract View (next week targets, propose/edit/commit) ────────────────────
+const ContractView = ({ contract, editedTargets, setEditedTargets, contractEditing, setContractEditing, saveContract, contractSaving, nextWeekKey }) => {
+  const DOMAIN_COLOR = { nutrition: '#10b981', training: '#3b82f6', wellness: '#8b5cf6' };
+  if (!contract) return <Box sx={{ p: 6, textAlign: 'center', fontFamily: 'monospace', color: 'var(--ls-text-muted)' }}>Loading contract…</Box>;
+  return (
+    <Box sx={{ mt: 4, maxWidth: 640, mx: 'auto' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          {nextWeekKey} — {contract.status === 'scored' ? `${contract.score}/3 met` : '3 targets for next week'}
+        </Typography>
+        {contract.status !== 'scored' && (
+          <Button size="small" variant="outlined" startIcon={contractEditing ? <CheckIcon /> : <EditIcon />}
+            onClick={() => setContractEditing(e => !e)} sx={{ textTransform: 'none' }}>
+            {contractEditing ? 'Done editing' : 'Edit targets'}
+          </Button>
+        )}
+      </Box>
+
+      {(contractEditing ? editedTargets : contract.targets).map((t, i) => {
+        const color = DOMAIN_COLOR[t.domain] || '#888';
+        const met = contract.status === 'scored' ? t.met : null;
+        return (
+          <Box key={i} sx={{ borderLeft: `4px solid ${color}`, pl: 2, mb: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <Chip label={t.domain} size="small" sx={{ bgcolor: color + '20', color, fontWeight: 700, height: 18, fontSize: '0.6rem' }} />
+              {met === true && <CheckCircleOutlineIcon sx={{ fontSize: 16, color: '#10b981' }} />}
+              {met === false && <Typography variant="caption" sx={{ color: '#ef4444' }}>✗ actual: {t.actualValue}{t.unit}</Typography>}
+            </Box>
+            {contractEditing ? (
+              <TextField size="small" fullWidth value={editedTargets[i]?.label || ''} multiline
+                onChange={e => { const u = [...editedTargets]; u[i] = { ...u[i], label: e.target.value }; setEditedTargets(u); }}
+                sx={{ mb: 0.5 }} />
+            ) : (
+              <Typography variant="body1" sx={{ fontWeight: 600 }}>{t.label}</Typography>
+            )}
+            {!contractEditing && t.why && <Typography variant="caption" color="text.secondary">{t.why}</Typography>}
+          </Box>
+        );
+      })}
+
+      {contract.status !== 'scored' && (
+        <Button fullWidth variant="contained" onClick={saveContract} disabled={contractSaving}
+          sx={{ mt: 1, textTransform: 'none', fontWeight: 700, py: 1.5, borderRadius: 2 }}>
+          {contractSaving ? 'Saving…' : contract.status === 'active' ? 'Update Contract' : 'Commit to These Targets'}
+        </Button>
+      )}
+      {contract.status === 'active' && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
+          Contract active — automatically scored at week end.
+        </Typography>
+      )}
+      {contract.status === 'scored' && (
+        <Box sx={{ mt: 2, p: 2, bgcolor: contract.score >= 2 ? '#f0fdf4' : '#fef2f2', borderRadius: 2 }}>
+          <Typography variant="body1" sx={{ fontWeight: 700, color: contract.score >= 2 ? '#065f46' : '#b91c1c' }}>
+            {contract.score === 3 ? 'Perfect week — all 3 targets met.' : contract.score === 2 ? '2 of 3 targets met. Strong week.' : contract.score === 1 ? '1 of 3 met. Something to build on.' : 'No targets met this week. Review and reset.'}
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 };

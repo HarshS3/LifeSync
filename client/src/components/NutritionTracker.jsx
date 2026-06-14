@@ -350,6 +350,10 @@ function NutritionTracker() {
   const [clinicalTargetsRequiresSetup, setClinicalTargetsRequiresSetup] = useState(false)
   const [clinicalTargetsMissingFields, setClinicalTargetsMissingFields] = useState([])
   const [clinicalTargetsDebug, setClinicalTargetsDebug] = useState(null)
+  const [priorityGaps, setPriorityGaps] = useState([])
+  const [priorityGapsLoading, setPriorityGapsLoading] = useState(false)
+  const [tdeeSource, setTdeeSource] = useState(null)
+  const [adaptiveTdeeValue, setAdaptiveTdeeValue] = useState(null)
   const [savedTemplates, setSavedTemplates] = useState([])
   const [savedTemplatesLoading, setSavedTemplatesLoading] = useState(false)
   const [frequentMeals, setFrequentMeals] = useState([])
@@ -416,9 +420,8 @@ function NutritionTracker() {
       if (!tabLabel) return
 
       const tabLabels = [
-        'Today', 'Log Meal', 'Weight', "Today's Details", 
-        'Summary', 'Scan Product', 'Insights', 'Recipes', 
-        'Kitchen', 'Review', 'Add Food to DB'
+        'Today', 'Log Meal', 'Weight', 'Details',
+        'Deep Analysis', 'Food Library'
       ]
       
       const idx = tabLabels.findIndex(l => l.toLowerCase() === tabLabel.toLowerCase())
@@ -446,6 +449,9 @@ function NutritionTracker() {
     loadClinicalTargets()
     if (activeTab === 3 || activeTab === 4) {
       loadSummaryStats()
+    }
+    if (activeTab === 3) {
+      loadPriorityGaps()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, activeTab])
@@ -614,14 +620,29 @@ function NutritionTracker() {
     }
   }
 
+  const loadPriorityGaps = async () => {
+    setPriorityGapsLoading(true)
+    try {
+      const headers = getAuthHeaders()
+      const res = await fetch(`${API_BASE}/api/nutrition/priority-gaps`, { headers })
+      if (res.ok) {
+        const data = await res.json()
+        setPriorityGaps(data.gaps || [])
+      }
+    } catch (_) {}
+    finally { setPriorityGapsLoading(false) }
+  }
+
   const loadClinicalTargets = async () => {
     try {
       const headers = getAuthHeaders()
       const res = await fetch(`${API_BASE}/api/nutrition/clinical-targets`, { headers })
-      
+
       if (res.status === 200) {
         const data = await res.json()
         setClinicalTargets(data)
+        if (data.tdeeSource) setTdeeSource(data.tdeeSource)
+        if (data.adaptiveTdee) setAdaptiveTdeeValue(data.adaptiveTdee)
         setClinicalTargetsRequiresSetup(false)
         setClinicalTargetsMissingFields([])
         setClinicalTargetsDebug(null)
@@ -1844,13 +1865,9 @@ function NutritionTracker() {
         <Tab label="Today" />
         <Tab label="Log Meal" />
         <Tab label="Weight" />
-        <Tab label="Today's Details" />
-        <Tab label="Summary" />
-        <Tab label="Scan Product" />
-        <Tab label="Insights" />
-        <Tab label="Recipes" />
-        <Tab label="Review" />
-        <Tab label="Add Food to DB" />
+        <Tab label="Details" />
+        <Tab label="Deep Analysis" />
+        <Tab label="Food Library" />
       </Tabs>
 
       {activeTab === 0 && (
@@ -1879,6 +1896,7 @@ function NutritionTracker() {
           SupplementSection={SupplementSection}
           onSupplementUpdate={handleSupplementUpdate}
           autoSaveLog={autoSaveLog}
+          getAuthHeaders={getAuthHeaders}
         />
       )}
       {/* ─── TAB 1: LOG MEAL ─── */}
@@ -1916,48 +1934,6 @@ function NutritionTracker() {
           log={log}
           handleWaterChange={handleWaterChange}
           handleTotalWaterChange={handleTotalWaterChange}
-        />
-      )}
-
-      {/* ─── TAB 3: DETAILS ─── */}
-      {activeTab === 3 && (
-        <DetailsTab
-          log={log}
-          setLog={setLog}
-          totals={totals}
-          calorieTarget={calorieTarget}
-          proteinTarget={proteinTarget}
-          clinicalTargetsRequiresSetup={clinicalTargetsRequiresSetup}
-          clinicalTargetsMissingFields={clinicalTargetsMissingFields}
-          microTargetLookup={microTargetLookup}
-          clinicalTargetRows={clinicalTargetRows}
-          macroCalories={macroCalories}
-          totalMacroCalories={totalMacroCalories}
-          nutritionStats={nutritionStats}
-          nutritionStatsLoading={nutritionStatsLoading}
-          rangeDaysLogged={rangeDaysLogged}
-          autoSaveLog={autoSaveLog}
-          formatDate={(d) => d.toISOString().split('T')[0]}
-          selectedDate={selectedDate}
-        />
-      )}
-
-      {/* ─── TAB 4: SUMMARY ─── */}
-      {activeTab === 4 && (
-        <SummaryTab
-          log={log}
-          totals={totals}
-          clinicalTargets={clinicalTargets}
-          periodSummaryLoading={periodSummaryLoading}
-          weeklyTotals={weeklyTotals}
-          monthlyTotals={monthlyTotals}
-          user={user}
-          dynamicTargets={{}}
-        />
-      )}
-      {/* ─── TAB 5: SCAN PRODUCT ─── */}
-      {activeTab === 5 && (
-        <ScanProductTab
           barcodeInput={barcodeInput}
           setBarcodeInput={setBarcodeInput}
           lookupBarcode={lookupBarcode}
@@ -1970,29 +1946,58 @@ function NutritionTracker() {
           scanVideoRef={scanVideoRef}
         />
       )}
+
+      {/* ─── TAB 3: DETAILS ─── */}
+      {activeTab === 3 && (
+        <DetailsTab
+          log={log}
+          setLog={setLog}
+          totals={totals}
+          calorieTarget={calorieTarget}
+          proteinTarget={proteinTarget}
+          clinicalTargets={clinicalTargets}
+          clinicalTargetsRequiresSetup={clinicalTargetsRequiresSetup}
+          clinicalTargetsMissingFields={clinicalTargetsMissingFields}
+          microTargetLookup={microTargetLookup}
+          clinicalTargetRows={clinicalTargetRows}
+          macroCalories={macroCalories}
+          totalMacroCalories={totalMacroCalories}
+          nutritionStats={nutritionStats}
+          nutritionStatsLoading={nutritionStatsLoading}
+          rangeDaysLogged={rangeDaysLogged}
+          autoSaveLog={autoSaveLog}
+          formatDate={(d) => d.toISOString().split('T')[0]}
+          selectedDate={selectedDate}
+          priorityGaps={priorityGaps}
+          priorityGapsLoading={priorityGapsLoading}
+          tdeeSource={tdeeSource}
+          adaptiveTdee={adaptiveTdeeValue}
+        />
+      )}
+
+      {/* ─── TAB 2: WEIGHT ─── */}
       {activeTab === 2 && (
         <WeightTracker selectedDate={selectedDate} />
       )}
 
-      {activeTab === 6 && (
+      {/* ─── TAB 4: DEEP ANALYSIS ─── */}
+      {/* Merges old Insights (6) + Summary (4) + Review (8). */}
+      {/* Scan Product (5) and Recipes (7) accessible from Log Meal tab. */}
+      {activeTab === 4 && (
         <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-          <NutritionInsights selectedDate={selectedDate} />
+          <NutritionInsights
+            selectedDate={selectedDate}
+            clinicalTargets={clinicalTargets}
+            weeklyTotals={weeklyTotals}
+            monthlyTotals={monthlyTotals}
+            user={user}
+            dynamicTargets={{}}
+          />
         </Box>
       )}
 
-      {activeTab === 7 && (
-        <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb', p: 3 }}>
-          <RecipeExplorer token={token} />
-        </Box>
-      )}
-
-      {activeTab === 8 && (
-        <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-          <WeeklyReview weekKey={`${selectedDate.getFullYear()}-W${String(Math.ceil((((selectedDate - new Date(selectedDate.getFullYear(), 0, 1)) / 86400000) + new Date(selectedDate.getFullYear(), 0, 1).getDay() + 1) / 7)).padStart(2, '0')}`} />
-        </Box>
-      )}
-
-      {activeTab === 9 && (
+      {/* ─── TAB 5: FOOD LIBRARY (formerly Add Food to DB) ─── */}
+      {activeTab === 5 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>

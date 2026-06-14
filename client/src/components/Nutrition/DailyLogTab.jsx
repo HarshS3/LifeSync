@@ -1,18 +1,160 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
 import IconButton from '@mui/material/IconButton'
 import Chip from '@mui/material/Chip'
 import LinearProgress from '@mui/material/LinearProgress'
+import Collapse from '@mui/material/Collapse'
 import RestaurantIcon from '@mui/icons-material/Restaurant'
 import WaterDropIcon from '@mui/icons-material/WaterDrop'
 import EditIcon from '@mui/icons-material/Edit'
 import CloseIcon from '@mui/icons-material/Close'
+import TrendingDownIcon from '@mui/icons-material/TrendingDown'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import ExpandableSection from '../ExpandableSection'
 import InsulinIntelligencePanel from './InsulinIntelligencePanel'
+import DailyIntelligencePanel from './DailyIntelligencePanel'
 import { fmt, percent, generateCGMData } from '../../lib/nutritionHelpers'
+import { API_BASE } from '../../config'
+
+// ── Over-Intake Recovery Banner ───────────────────────────────────────────────
+function OverIntakeBanner({ calories, targetCalories, getAuthHeaders }) {
+  const [dismissed, setDismissed] = useState(false)
+  const [open, setOpen] = useState(true)
+  const today = new Date().toISOString().split('T')[0]
+  const key = `over_intake_dismissed_${today}`
+
+  useEffect(() => {
+    if (sessionStorage.getItem(key) === '1') setDismissed(true)
+  }, [key])
+
+  const dismiss = () => { sessionStorage.setItem(key, '1'); setDismissed(true) }
+
+  if (dismissed || !calories || !targetCalories || calories <= targetCalories * 1.20) return null
+
+  const surplus = Math.round(calories - targetCalories)
+
+  return (
+    <Box sx={{ bgcolor: '#fffbeb', border: '1px solid #fde68a', borderRadius: 2, overflow: 'hidden', mb: 0 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <WarningAmberIcon sx={{ fontSize: 16, color: '#f59e0b' }} />
+          <Typography variant="body2" sx={{ fontWeight: 600, color: '#92400e' }}>
+            High intake day — +{surplus} kcal over target
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {open ? <ExpandLessIcon sx={{ fontSize: 16, color: '#a16207' }} /> : <ExpandMoreIcon sx={{ fontSize: 16, color: '#a16207' }} />}
+          <IconButton size="small" onClick={e => { e.stopPropagation(); dismiss(); }}><CloseIcon sx={{ fontSize: 14, color: '#a16207' }} /></IconButton>
+        </Box>
+      </Box>
+      <Collapse in={open}>
+        <Box sx={{ px: 2, pb: 2 }}>
+          <Typography variant="caption" sx={{ color: '#78350f', display: 'block', mb: 1.5 }}>
+            One day over doesn't matter. How the next 3 days go does.
+          </Typography>
+          {[
+            { label: 'Today', text: 'No further eating today unless genuinely hungry.' },
+            { label: 'Tomorrow', text: `Eat at maintenance (${targetCalories} kcal). Not a deficit — cortisol is already elevated. Hit protein target.` },
+            { label: 'Day after', text: 'Back to normal. The surplus will be physiologically neutral if the next two days are clean.' },
+          ].map((s, i) => (
+            <Box key={i} sx={{ display: 'flex', gap: 1.5, mb: 1 }}>
+              <Box sx={{ bgcolor: '#f59e0b', borderRadius: 1, px: 0.75, py: 0.25, minWidth: 52, textAlign: 'center' }}>
+                <Typography variant="caption" sx={{ color: '#fff', fontWeight: 700, fontSize: '0.6rem' }}>{s.label}</Typography>
+              </Box>
+              <Typography variant="caption" sx={{ color: '#78350f', lineHeight: 1.6, flex: 1 }}>{s.text}</Typography>
+            </Box>
+          ))}
+          <Box sx={{ bgcolor: '#fef2f2', borderRadius: 1.5, p: 1.25, mt: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: '#b91c1c', display: 'block', mb: 0.5, textTransform: 'uppercase', fontSize: '0.6rem' }}>What doesn't help</Typography>
+            <Typography variant="caption" sx={{ color: '#b91c1c', display: 'block' }}>• Skipping tomorrow's meals — amplifies cortisol and muscle loss</Typography>
+            <Typography variant="caption" sx={{ color: '#b91c1c', display: 'block' }}>• Extra cardio to "burn it off" — adds stress on top of stress</Typography>
+          </Box>
+        </Box>
+      </Collapse>
+    </Box>
+  )
+}
+
+// ── Compound Effect Card ──────────────────────────────────────────────────────
+function CompoundEffectCard({ getAuthHeaders }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [open, setOpen] = useState(false)
+  const [horizon, setHorizon] = useState(90)
+
+  useEffect(() => {
+    const headers = getAuthHeaders ? getAuthHeaders() : {}
+    fetch(`${API_BASE}/api/insights/compound-effect`, { headers })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setData(d))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading || !data || data.status === 'insufficient_data') return null
+
+  const isLoss = data.metabolicGoal?.includes('loss')
+  const isFat = data.metric === 'body_fat'
+  const currentH = data.currentTrajectory?.find(t => t.days === horizon)
+  const targetH = data.targetTrajectory?.find(t => t.days === horizon)
+  const currentVal = isFat ? (isLoss ? currentH?.fatChange : currentH?.leanChange) : currentH?.weightChange
+  const targetVal = isFat ? (isLoss ? targetH?.fatChange : targetH?.leanChange) : targetH?.weightChange
+  const metricLabel = isFat ? (isLoss ? 'fat' : 'lean mass') : 'weight'
+  const sign = n => n > 0 ? `+${n?.toFixed(1)}` : n?.toFixed(1)
+
+  return (
+    <Box sx={{ bgcolor: 'background.paper', border: '1px solid #e5e7eb', borderRadius: 2, overflow: 'hidden' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 1.25, cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <TrendingDownIcon sx={{ fontSize: 16, color: '#6366f1' }} />
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>Compound Effect</Typography>
+          {!open && currentVal != null && (
+            <Chip label={`${sign(currentVal)}kg ${metricLabel} in ${horizon === 30 ? '1 mo' : horizon === 90 ? '3 mo' : '6 mo'}`} size="small"
+              sx={{ height: 20, fontSize: '0.65rem', bgcolor: '#f5f3ff', color: '#6366f1', fontWeight: 700 }} />
+          )}
+        </Box>
+        {open ? <ExpandLessIcon sx={{ fontSize: 16 }} /> : <ExpandMoreIcon sx={{ fontSize: 16 }} />}
+      </Box>
+      <Collapse in={open}>
+        <Box sx={{ px: 2, pb: 2 }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1.5 }}>{data.gapNarrative}</Typography>
+          <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
+            {[30, 90, 180].map(h => (
+              <Button key={h} size="small" variant={horizon === h ? 'contained' : 'outlined'}
+                onClick={() => setHorizon(h)} sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0.25, minWidth: 'auto', px: 1.5 }}>
+                {h === 30 ? '1 mo' : h === 90 ? '3 mo' : '6 mo'}
+              </Button>
+            ))}
+          </Box>
+          {currentH && targetH && (
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, mb: 1.5 }}>
+              <Box sx={{ bgcolor: '#f9fafb', borderRadius: 1.5, p: 1.5, textAlign: 'center' }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.6rem', color: 'text.secondary' }}>Current pace</Typography>
+                <Typography variant="h5" sx={{ fontWeight: 900, color: '#f59e0b' }}>{sign(currentVal)}kg</Typography>
+                <Typography variant="caption" color="text.secondary">{metricLabel}</Typography>
+              </Box>
+              <Box sx={{ bgcolor: '#f0fdf4', borderRadius: 1.5, p: 1.5, textAlign: 'center' }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.6rem', color: 'text.secondary' }}>At targets</Typography>
+                <Typography variant="h5" sx={{ fontWeight: 900, color: '#10b981' }}>{sign(targetVal)}kg</Typography>
+                <Typography variant="caption" color="text.secondary">{metricLabel}</Typography>
+              </Box>
+            </Box>
+          )}
+          <Typography variant="caption" sx={{ color: '#9ca3af', display: 'block', textAlign: 'center' }}>
+            Adaptive TDEE model · not a guarantee
+          </Typography>
+        </Box>
+      </Collapse>
+    </Box>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function DailyLogTab({
   log,
@@ -33,10 +175,20 @@ function DailyLogTab({
   setActiveTab,
   SupplementSection,
   onSupplementUpdate,
-  clinicalTargets
+  clinicalTargets,
+  getAuthHeaders
 }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {/* Daily Intelligence Panel */}
+      <DailyIntelligencePanel getAuthHeaders={getAuthHeaders} />
+
+      {/* Over-intake recovery banner — appears when 20%+ over target */}
+      <OverIntakeBanner calories={totals?.calories} targetCalories={clinicalTargets?.targets?.calories} getAuthHeaders={getAuthHeaders} />
+
+      {/* Compound effect — collapsed by default */}
+      <CompoundEffectCard getAuthHeaders={getAuthHeaders} />
+
       {/* Meals list */}
       <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>

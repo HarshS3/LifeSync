@@ -1,17 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run *)",
-      "Bash(netstat -ano)",
-      "Bash(findstr :5173)",
-      "Bash(taskkill *)",
-      "Bash(node server/scripts/seed_cross_domain_demo.js)",
-      "Bash(node -e \"const e = require\\('./server/services/insights/correlationEngine'\\); console.log\\('loaded, export:', Object.keys\\(e\\)\\);\")",
-      "Bash(node -e \"require\\('@babel/parser'\\).parse\\(require\\('fs'\\).readFileSync\\('src/components/Dashboard.jsx','utf8'\\), {sourceType:'module', plugins:['jsx']}\\); console.log\\('OK'\\)\")",
-      "Bash(node -e \"const p=require\\('@babel/parser'\\); p.parse\\(require\\('fs'\\).readFileSync\\('src/components/Dashboard.jsx','utf8'\\), {sourceType:'module', plugins:['jsx']}\\); p.parse\\(require\\('fs'\\).readFileSync\\('src/components/ProgressNarrative.jsx','utf8'\\), {sourceType:'module', plugins:['jsx']}\\); console.log\\('OK'\\);\")",
-      "Bash(node -e \"const p=require\\('@babel/parser'\\); p.parse\\(require\\('fs'\\).readFileSync\\('src/components/Dashboard.jsx','utf8'\\), {sourceType:'module', plugins:['jsx']}\\); console.log\\('OK'\\);\")",
-      "Bash(node -e \"require\\('@babel/parser'\\).parse\\(require\\('fs'\\).readFileSync\\('src/components/ProgressNarrative.jsx','utf8'\\), {sourceType:'module', plugins:['jsx']}\\); console.log\\('OK'\\)\")",
-      "Bash(node -e \"const e = require\\('./server/services/insights/progressEngine'\\); console.log\\('loaded:', Object.keys\\(e\\)\\);\")"
+      "Bash(awk 'NR>=2019 && /^\\\\s*\\\\}\\\\\\)}/ { print NR; exit }' C:/D/LifeSync/client/src/components/NutritionTracker.jsx)",
+      "Bash(awk 'NR>=2160' C:/D/LifeSync/client/src/components/NutritionTracker.jsx)",
+      "Bash(python3 *)"
     ]
   }
 }

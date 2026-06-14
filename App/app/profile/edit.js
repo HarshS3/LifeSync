@@ -46,6 +46,8 @@ export default function EditProfileScreen() {
     workoutFrequency: 4,
     workoutDuration: 60,
     gymAccess: true,
+    trainingPhase: '',
+    trainingPhaseStartDate: '',
     chronotype: 'neutral',
     averageSleep: 7,
     defaultSleepTime: '22:30',
@@ -87,6 +89,8 @@ export default function EditProfileScreen() {
         dietType: data.biologicalProfile?.dietaryPreference || data.dietType || 'omnivore',
         activityLevel: data.biologicalProfile?.activityLevel || prev.activityLevel || 'moderately_active',
         metabolicGoal: data.biologicalProfile?.metabolicGoal || prev.metabolicGoal || 'maintenance',
+        trainingPhase: data.biologicalProfile?.trainingPhase || '',
+        trainingPhaseStartDate: data.biologicalProfile?.trainingPhaseStartDate || '',
       }));
     } catch (err) {
       console.error('Failed to load profile', err);
@@ -114,6 +118,8 @@ export default function EditProfileScreen() {
           dietaryPreference: profile.dietType,
           activityLevel: profile.activityLevel,
           metabolicGoal: profile.metabolicGoal,
+          trainingPhase: profile.trainingPhase || undefined,
+          trainingPhaseStartDate: profile.trainingPhaseStartDate || undefined,
         }
       };
 
@@ -542,6 +548,30 @@ export default function EditProfileScreen() {
                 thumbColor="#fff"
               />
             </View>
+
+            <InputLabel text="Training Phase" />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8, marginTop: 8 }}>
+              {[
+                { key: 'bulk', label: 'Bulk' },
+                { key: 'cut', label: 'Cut' },
+                { key: 'maintenance', label: 'Maintenance' },
+                { key: 'recomp', label: 'Recomp' },
+              ].map(ph => (
+                <TouchableOpacity
+                  key={ph.key}
+                  style={[styles.outlineChip, profile.trainingPhase === ph.key && { backgroundColor: '#8b5cf6', borderColor: '#8b5cf6' }]}
+                  onPress={() => setProfile(p => ({
+                    ...p,
+                    trainingPhase: ph.key,
+                    trainingPhaseStartDate: new Date().toISOString(),
+                  }))}
+                >
+                  <Text style={[styles.outlineChipText, profile.trainingPhase === ph.key && { color: '#fff' }]}>
+                    {ph.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         )}
 

@@ -43,7 +43,7 @@ export default function BodyStatsTab({ profile, updateField }) {
 
       <Box sx={{ display: 'flex', gap: 2 }}>
         <TextField
-          label="Body Fat %"
+          label="Body Fat % (Optional)"
           type="number"
           value={profile.bodyFat}
           onChange={(e) => updateField('bodyFat', e.target.value)}

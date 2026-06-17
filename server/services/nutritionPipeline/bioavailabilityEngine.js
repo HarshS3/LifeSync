@@ -130,10 +130,10 @@ function calculateIron(ctx) {
   if (consumed < 0.5) return null; // Below meaningful threshold
 
   const interactions = [];
-  let multiplier = 1.0;
 
   if (ctx.isHemeSource) {
-    // Heme iron — minimal inhibitor effect
+    // Heme iron — minimal inhibitor effect; baseline ~25%
+    let multiplier = 0.25;
     if (ctx.hasTannins) {
       multiplier *= 0.90; // ~10% reduction for heme
       interactions.push({ type: 'blocker', agent: 'tannins', effect: '−10%', note: 'Heme iron is largely resistant to tannins.' });
@@ -143,14 +143,15 @@ function calculateIron(ctx) {
       'Heme iron (from animal foods) absorbs well at ~25% baseline.');
 
   } else {
-    // Non-heme iron — heavily affected
+    // Non-heme iron — heavily affected; baseline ~10%
+    let multiplier = 0.10;
     if (ctx.hasTannins) {
       multiplier *= 0.50; // −50%
       interactions.push({ type: 'blocker', agent: 'tannins', effect: '−50%', note: ctx.foodNames.find(n => TANNIN_FLAGS.some(f => n.includes(f))) || 'tea/coffee' });
     }
     const calcium = ctx.totals.calcium || 0;
-    if (calcium >= 150) {
-      const calReduction = calcium >= 300 ? 0.50 : 0.72; // stronger at high doses
+    if (calcium >= 300) {
+      const calReduction = calcium >= 600 ? 0.50 : 0.70; // Hallberg 1991: 300-600mg → 0.70; >600mg → 0.50
       multiplier *= calReduction;
       const pct = Math.round((1 - calReduction) * 100);
       interactions.push({ type: 'blocker', agent: 'calcium', effect: `−${pct}%`, note: `${Math.round(calcium)}mg calcium in meal` });
@@ -163,17 +164,16 @@ function calculateIron(ctx) {
     // Enhancers
     const vitC = ctx.totals.vitaminC || 0;
     if (vitC >= 15) {
-      const vitCBoost = Math.min(vitC / 25, 3.0); // caps at 3×
+      const vitCBoost = Math.min(vitC / 25, 3.0); // caps at 3× enhancement factor
       multiplier *= vitCBoost;
+      // Absolute cap: non-heme with optimal VitC should not exceed 0.30 (30%)
+      multiplier = Math.min(multiplier, 0.30);
       interactions.push({ type: 'booster', agent: 'vitamin_c', effect: `+${vitCBoost.toFixed(1)}×`, note: `${Math.round(vitC)}mg Vit C partially offsets inhibitors.` });
     }
     if (ctx.hasAlliums) {
       multiplier *= 1.20; // +20%
       interactions.push({ type: 'booster', agent: 'alliums', effect: '+20%', note: 'Onion/garlic sulfur compounds improve mineral uptake.' });
     }
-
-    // Non-heme can't exceed ~25% absolute absorption (physiological ceiling)
-    multiplier = Math.min(multiplier, 2.5); // generous cap for enhanced scenarios
 
     const confidence = (ctx.hasTannins || ctx.hasPhytates || vitC >= 15) ? 'high' : 'medium';
     return buildResult('iron', consumed, multiplier, interactions, confidence, 'mg',
@@ -195,22 +195,18 @@ function calculateCalcium(ctx) {
   if (consumed < 50) return null;
 
   const interactions = [];
-  let multiplier = 0.32; // baseline with adequate D (Nordin 1997)
+  // Baseline 30% regardless of meal Vit D (Vit D status is serum-based, not per-meal)
+  let multiplier = 0.30;
 
   const vitD = ctx.totals.vitaminD || 0;
-  if (vitD < 1) {
-    multiplier = 0.12; // passive diffusion only without D
-    interactions.push({ type: 'blocker', agent: 'low_vitamin_d', effect: '−63% vs optimal', note: 'Vitamin D is required for active calcium transport. Without it only ~12% absorbs.' });
-  } else if (vitD >= 5) {
-    multiplier = 0.38; // optimal
-    interactions.push({ type: 'booster', agent: 'vitamin_d', effect: '3× vs no-D absorption', note: `${vitD.toFixed(1)}µg Vitamin D present.` });
-  } else {
-    interactions.push({ type: 'booster', agent: 'vitamin_d', effect: 'partial boost', note: `${vitD.toFixed(1)}µg Vit D present (5µg+ is optimal).` });
+  if (vitD >= 5) {
+    multiplier *= 1.15; // small bonus when meal itself provides meaningful Vit D
+    interactions.push({ type: 'booster', agent: 'vitamin_d', effect: '+15% vs baseline', note: `${vitD.toFixed(1)}µg Vitamin D present in meal.` });
   }
 
-  const confidence = vitD > 0 ? 'high' : 'medium';
+  const confidence = vitD >= 5 ? 'high' : 'medium';
   return buildResult('calcium', consumed, multiplier, interactions, confidence, 'mg',
-    'Calcium absorption is tightly regulated by Vitamin D.');
+    'Calcium absorption baseline ~30%. Vitamin D status (serum) is the primary regulator, not per-meal intake.');
 }
 
 /**
@@ -425,14 +421,19 @@ function calculateZinc(ctx) {
  *
  * Threshold: ≥30µg in a meal.
  */
-function calculateFolate(ctx) {
+function calculateFolate(ctx, foods) {
   const consumed = (ctx.totals.folate || 0) + (ctx.totals.vitaminB9 || 0);
   if (consumed < 30) return null;
 
   const interactions = [];
   let multiplier = 0.50; // food folate baseline
 
-  if (ctx.hasHighHeat) {
+  // Only apply high-heat penalty when the meal actually contains folate-rich foods;
+  // prevents false positives (e.g. "baked chicken" triggering a folate penalty).
+  const hasFolateRichFood = (foods || []).some(f =>
+    /spinach|kale|broccoli|lentil|bean|pea|asparagus|lettuce|chickpea|edamame/i.test(String(f.name || ''))
+  );
+  if (ctx.hasHighHeat && hasFolateRichFood) {
     multiplier *= 0.30; // −70% from boiling
     interactions.push({ type: 'blocker', agent: 'high_heat', effect: '−70%', note: 'Boiling/frying destroys most folate. Prefer steaming or raw.' });
   }
@@ -446,7 +447,7 @@ function calculateFolate(ctx) {
     interactions.push({ type: 'booster', agent: 'vitamin_c', effect: '+15%', note: 'Vitamin C reduces folate oxidation.' });
   }
 
-  return buildResult('folate', consumed, multiplier, interactions, ctx.hasHighHeat ? 'high' : 'medium', 'µg', '');
+  return buildResult('folate', consumed, multiplier, interactions, (ctx.hasHighHeat && hasFolateRichFood) ? 'high' : 'medium', 'µg', '');
 }
 
 /**
@@ -466,24 +467,40 @@ function calculateVitaminB12(ctx) {
   if (consumed < 0.5) return null;
 
   const interactions = [];
-  let multiplier = 0.50; // baseline with intrinsic factor
+
+  // B12 absorption is saturated via intrinsic factor (IF) at ~1.5µg per meal;
+  // the remainder enters via passive diffusion at ~1%.
+  let ifAbsorbed = Math.min(consumed * 0.50, 1.5);
+  let passiveAbsorbed = consumed * 0.01;
 
   if (ctx.hasAlcohol) {
-    multiplier *= 0.70;
+    ifAbsorbed *= 0.70;
     interactions.push({ type: 'blocker', agent: 'alcohol', effect: '−30%', note: 'Alcohol damages stomach parietal cells that produce intrinsic factor.' });
   }
   // Coffee/tannins mildly reduce B12 by reducing acid
   if (ctx.hasTannins) {
-    multiplier *= 0.85;
+    ifAbsorbed *= 0.85;
     interactions.push({ type: 'blocker', agent: 'tannins', effect: '−15%', note: 'Tannins reduce gastric acid slightly, impairing B12 release from protein.' });
   }
   const protein = ctx.totals.protein || 0;
   if (protein >= 15) {
-    multiplier *= 1.10;
+    ifAbsorbed *= 1.10;
     interactions.push({ type: 'booster', agent: 'protein', effect: '+10%', note: 'Protein stimulates gastric acid, improving B12 release from food.' });
   }
 
-  return buildResult('vitaminB12', consumed, multiplier, interactions, 'medium', 'µg', '');
+  const effectiveAmount = parseFloat((ifAbsorbed + passiveAbsorbed).toFixed(3));
+  const multiplier = consumed > 0 ? effectiveAmount / consumed : 0;
+
+  return {
+    nutrient: 'vitaminB12',
+    consumed_amount: parseFloat(consumed.toFixed(3)),
+    effective_amount: effectiveAmount,
+    multiplier: parseFloat(multiplier.toFixed(3)),
+    unit: 'µg',
+    confidence: 'medium',
+    interactions,
+    note: 'B12 absorbs via intrinsic factor (saturates at ~1.5µg/meal) plus 1% passive diffusion.',
+  };
 }
 
 /**
@@ -610,7 +627,6 @@ function calculateEffectiveNutrients(foods) {
     calculateVitaminK,
     calculateVitaminE,
     calculateZinc,
-    calculateFolate,
     calculateVitaminB12,
     calculateMagnesium,
   ];
@@ -625,6 +641,13 @@ function calculateEffectiveNutrients(foods) {
       confidenceLevels.push(result.confidence);
     }
   });
+
+  // calculateFolate needs the raw foods array for folate-rich food detection
+  const folateResult = calculateFolate(ctx, foods);
+  if (folateResult) {
+    results[folateResult.nutrient] = folateResult;
+    confidenceLevels.push(folateResult.confidence);
+  }
 
   const narratives = generateNarratives(results);
 

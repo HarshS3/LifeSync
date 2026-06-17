@@ -245,15 +245,10 @@ const UserSchema = new mongoose.Schema(
         enum: ['sedentary', 'lightly_active', 'moderately_active', 'very_active', 'extra_active'], 
         default: 'sedentary' 
       },
-      metabolicGoal: { 
-        type: String, 
-        enum: ['aggressive_loss', 'mild_loss', 'maintenance', 'lean_gain', 'aggressive_gain'], 
-        default: 'maintenance' 
-      },
-      pregnancyStatus: { 
-        type: String, 
-        enum: ['none', 'pregnant_trimester_1', 'pregnant_trimester_2', 'pregnant_trimester_3', 'lactating'], 
-        default: 'none' 
+      metabolicGoal: {
+        type: String,
+        enum: ['aggressive_loss', 'mild_loss', 'maintenance', 'lean_gain', 'aggressive_gain'],
+        default: 'maintenance'
       },
       dietaryPreference: { 
         type: String, 
@@ -266,6 +261,7 @@ const UserSchema = new mongoose.Schema(
         enum: ['high', 'normal', 'low', 'insulin_resistant', 'diabetic'], 
         default: 'normal' 
       },
+      goalWeightKg: { type: Number, default: null },
       defaultSleepTime: { type: String, default: '22:30' },
       useAdaptiveTdee: { type: Boolean, default: true },
       trainingPhase: { type: String, enum: ["bulk","cut","maintenance","recomp"], default: "maintenance" },

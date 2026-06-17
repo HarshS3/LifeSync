@@ -5,6 +5,8 @@ const DailyLifeState = require('../models/DailyLifeState');
 const User = require('../models/User');
 const auth = require('../middleware/authMiddleware');
 const { selectTopInsights } = require('../services/insightSelector/crossDomainInsightSelector');
+const { weekKeyFromDate, scoreContract } = require('../services/insights/weeklyContractService');
+const WeeklyContract = require('../models/WeeklyContract');
 
 const router = express.Router();
 
@@ -19,7 +21,15 @@ router.get('/summary', auth, async (req, res) => {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     // Fetch all needed data in parallel
-    const [fitness, mental, nutrition, gymWorkouts, totalWorkouts, dls, user, topInsights] = await Promise.all([
+    const currentWeekKey = weekKeyFromDate(today);
+    const prevWeekKey = (() => {
+      const [y, w] = currentWeekKey.split('-W').map(Number);
+      const pw = w - 1 < 1 ? 52 : w - 1;
+      const py = w - 1 < 1 ? y - 1 : y;
+      return `${py}-W${String(pw).padStart(2, '0')}`;
+    })();
+
+    const [fitness, mental, nutrition, gymWorkouts, totalWorkouts, dls, user, topInsights, weeklyContract] = await Promise.all([
       FitnessLog.find({ user: userId, date: { $gte: thirtyDaysAgo } }).sort({ date: -1 }).lean(),
       MentalLog.find({ user: userId, date: { $gte: thirtyDaysAgo } }).sort({ date: -1 }).lean(),
       NutritionLog.find({ user: userId, date: { $gte: thirtyDaysAgo } }).sort({ date: -1 }).lean(),
@@ -31,6 +41,20 @@ router.get('/summary', auth, async (req, res) => {
         console.warn('[DashboardSummary] selectTopInsights failed:', err.message);
         return [];
       }),
+      // Get current week contract, or try to score last week's if it's Monday
+      (async () => {
+        try {
+          // If today is Mon-Thu, show last week's scored contract; Fri-Sun show current
+          const dayOfWeek = today.getDay();
+          const lookupKey = dayOfWeek >= 1 && dayOfWeek <= 4 ? prevWeekKey : currentWeekKey;
+          let contract = await WeeklyContract.findOne({ user: userId, weekKey: lookupKey }).lean();
+          // Auto-score last week's contract on Monday if not yet scored
+          if (!contract?.score && dayOfWeek === 1) {
+            contract = await scoreContract(userId, prevWeekKey).catch(() => null);
+          }
+          return contract;
+        } catch { return null; }
+      })(),
     ]);
 
     // Calculate Weekly Stats (last 7 days)
@@ -100,6 +124,12 @@ router.get('/summary', auth, async (req, res) => {
       dailyLifeState: dls || null,
       stateReflection: dls?.lastReflection || null,
       topInsights: topInsights || [],
+      weeklyContract: weeklyContract ? {
+        weekKey: weeklyContract.weekKey,
+        status: weeklyContract.status,
+        score: weeklyContract.score ?? null,
+        targets: weeklyContract.targets || [],
+      } : null,
       // Include limited logs for cache compatibility if needed
       logs: {
         fitness: fitness.slice(0, 10),

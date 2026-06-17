@@ -1,5 +1,6 @@
 const { WeightLog, NutritionLog, MentalLog } = require('../../models/Logs');
 const Workout = require('../../models/Workout');
+const User = require('../../models/User');
 
 /**
  * Analyzes multi-domain progress to surface "Perspective Shift" narratives —
@@ -14,14 +15,20 @@ async function analyzeProgressNarrative(userId) {
   const thirtyDaysAgo = new Date(now); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const fourteenDaysAgo = new Date(now); fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-  const [weights, workouts, nutrition, mental] = await Promise.all([
+  const [weights, workouts, nutrition, mental, user] = await Promise.all([
     WeightLog.find({ user: userId, date: { $gte: thirtyDaysAgo } }).sort({ date: 1 }).lean(),
     Workout.find({ user: userId, date: { $gte: thirtyDaysAgo } }).sort({ date: 1 }).lean(),
     NutritionLog.find({ user: userId, date: { $gte: thirtyDaysAgo } }).sort({ date: 1 }).lean(),
     MentalLog.find({ user: userId, date: { $gte: thirtyDaysAgo } }).sort({ date: 1 }).lean(),
+    // TASK 9: Fetch user data for dynamic protein target
+    User.findById(userId).select('weight biologicalProfile clinicalTargets').lean(),
   ]);
 
-  const ctx = { weights, workouts, nutrition, mental, fourteenDaysAgo, now };
+  // TASK 9: Compute dynamic protein target from clinicalTargets or 1.6g/kg body weight
+  const dynamicProteinTarget = user?.clinicalTargets?.targets?.protein
+    || Math.round((user?.biologicalProfile?.weightKg || user?.weight || 70) * 1.6);
+
+  const ctx = { weights, workouts, nutrition, mental, fourteenDaysAgo, now, proteinTarget: dynamicProteinTarget };
 
   const ANALYZERS = [
     scaleVsStrength,
@@ -184,14 +191,15 @@ function sleepRecoveryPattern({ mental }) {
   return null;
 }
 
-function proteinAdherence({ nutrition }) {
+function proteinAdherence({ nutrition, proteinTarget }) {
   const days = nutrition
     .map(n => n.dailyTotals?.protein)
     .filter(p => Number.isFinite(p) && p > 0);
   if (days.length < 7) return null;
 
   const avg = days.reduce((s, x) => s + x, 0) / days.length;
-  const target = 130;          // ~1.6g/kg for an 80kg user — could be derived from User.weight later
+  // TASK 9: Use dynamic per-user target instead of hardcoded 130g
+  const target = proteinTarget;
   const onTargetDays = days.filter(p => p >= target * 0.9).length;
   const ratio = onTargetDays / days.length;
 

@@ -1,4 +1,6 @@
 const { NutritionLog } = require('../../models/Logs');
+const Workout = require('../../models/Workout');
+const User = require('../../models/User');
 const { triggerDailyLifeStateRecompute } = require('../dailyLifeState/triggerDailyLifeStateRecompute');
 const { getEmbedding } = require('./embeddingService');
 const { toSearchResult } = require('../nutritionSources/indbMongo');
@@ -130,14 +132,14 @@ const nutritionTools = [
   },
 ];
 
-const NUTRITION_SYSTEM_PROMPT = `
+const NUTRITION_SYSTEM_PROMPT_BASE = `
 You are a highly precise nutrition logging assistant for an Indian health app.
 
 !! CRITICAL RULES — NEVER BREAK THESE:
 1. NEVER invent food or nutrition data. NEVER estimate. NEVER commit food not found in DB.
 2. ALWAYS show DB food variants to the user before asking for quantity.
 3. ALWAYS confirm with the user before calling commit_to_ledger.
-4. ONLY log items explicitly mentioned or confirmed in the CURRENT interaction. 
+4. ONLY log items explicitly mentioned or confirmed in the CURRENT interaction.
 5. IGNORE and FORGET any unconfirmed food items from earlier in the session history once a new food is discussed.
 !!
 
@@ -180,18 +182,102 @@ MULTI-MEAL: Call commit_to_ledger ONCE PER MEAL TYPE with all its foods.
 KEEP MESSAGES SHORT. Do not read the internal unit-ID map aloud.
 `.trim();
 
+/**
+ * Build a training context block to append to the system prompt.
+ * This gives the LLM real data about what the user has done today so it can
+ * give workout-aware advice (post-workout protein windows, carb replenishment, etc.).
+ */
+async function buildTrainingContextBlock(userId) {
+  try {
+    const now = new Date();
+    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const sevenDaysAgo = new Date(now); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const [todayWorkouts, user, recentNutritionLogs] = await Promise.all([
+      Workout.find({ user: userId, date: { $gte: todayStart } }).sort({ date: -1 }).lean(),
+      User.findById(userId).select('biologicalProfile weight clinicalTargets eatingPattern').lean(),
+      NutritionLog.find({ user: userId, date: { $gte: sevenDaysAgo } }).select('dailyTotals date').lean(),
+    ]);
+
+    const profile = user?.biologicalProfile || {};
+    const weightKg = profile.weightKg || user?.weight || 75;
+    const proteinTarget = user?.clinicalTargets?.targets?.protein || Math.round(weightKg * 1.6);
+    const calTarget = user?.clinicalTargets?.targets?.calories || null;
+    const eatingPattern = user?.eatingPattern || profile.eatingPattern || 'traditional_3meal';
+    const metabolicGoal = profile.metabolicGoal || 'maintenance';
+    const trainingPhase = profile.trainingPhase || null;
+
+    // 7-day protein average
+    const logsWithData = recentNutritionLogs.filter(l => (l.dailyTotals?.calories || 0) > 300);
+    const avg7dProtein = logsWithData.length > 0
+      ? Math.round(logsWithData.reduce((s, l) => s + (l.dailyTotals?.protein || 0), 0) / logsWithData.length)
+      : null;
+
+    // Today's workout summary
+    let workoutSummary = 'No workout logged today.';
+    let postWorkoutWindowOpen = false;
+    if (todayWorkouts.length > 0) {
+      const w = todayWorkouts[0];
+      const exercises = (w.exercises || []).map(e => e.name).filter(Boolean);
+      const totalSets = (w.exercises || []).reduce((s, e) => s + (e.sets || []).length, 0);
+      const totalVolume = (w.exercises || []).reduce((sum, e) =>
+        sum + (e.sets || []).reduce((s, set) => s + ((set.weight || 0) * (set.reps || 0)), 0), 0);
+      const workoutTime = new Date(w.date);
+      const minsAgo = Math.round((now - workoutTime) / 60000);
+      postWorkoutWindowOpen = minsAgo <= 90;
+
+      workoutSummary = `Workout logged today: "${w.name || 'Unnamed'}" — ${exercises.slice(0, 5).join(', ')}${exercises.length > 5 ? ` + ${exercises.length - 5} more` : ''}. ${totalSets} sets, ~${Math.round(totalVolume / 1000)}k kg·reps total volume. Completed ${minsAgo} min ago.`;
+      if (postWorkoutWindowOpen) {
+        workoutSummary += ` POST-WORKOUT WINDOW IS OPEN (${90 - minsAgo} min remaining) — prioritise 25-40g protein now.`;
+      }
+    }
+
+    const lines = [
+      `\n\n--- USER TRAINING CONTEXT (live, do not share raw numbers unprompted) ---`,
+      `Body weight: ${weightKg}kg`,
+      `Protein target: ${proteinTarget}g/day${calTarget ? ` | Calorie target: ${calTarget} kcal/day` : ''}`,
+      `Metabolic goal: ${metabolicGoal}${trainingPhase ? ` (${trainingPhase} phase)` : ''}`,
+      `Eating pattern: ${eatingPattern}`,
+      avg7dProtein != null ? `7-day avg protein: ${avg7dProtein}g/day (target: ${proteinTarget}g)` : '',
+      workoutSummary,
+      ``,
+      `HOW TO USE THIS CONTEXT:`,
+      `- If the post-workout window is open, gently note it after logging food and suggest a protein source if the meal is low-protein.`,
+      `- If the user's 7-day avg protein is below 80% of target, mention it briefly when logging low-protein meals.`,
+      `- If eating pattern is IF/OMAD, do not flag lopsided protein distribution as a problem.`,
+      `- Do NOT lecture unprompted. One short sentence max when the context is relevant.`,
+      `--- END TRAINING CONTEXT ---`,
+    ].filter(Boolean);
+
+    return lines.join('\n');
+  } catch (err) {
+    console.warn('[NutritionAgent] Failed to build training context:', err.message);
+    return '';
+  }
+}
+
 
 // ── Session class ─────────────────────────────────────────────────────────────
 
 class NutritionAgentSession {
-  constructor(userId) {
+  constructor(userId, systemPrompt) {
     if (!GROQ_API_KEY) {
       throw new Error('GROQ_API_KEY is not set. Cannot run Nutrition Agent.');
     }
     this.userId = userId;
     this.userMealSchedule = null; // populated by caller
-    this.messageHistory = [{ role: 'system', content: NUTRITION_SYSTEM_PROMPT }];
+    this.messageHistory = [{ role: 'system', content: systemPrompt || NUTRITION_SYSTEM_PROMPT_BASE }];
     this.committedMealId = null; // track last committed meal for undo
+  }
+
+  /**
+   * Preferred construction path — injects live training context into the system prompt.
+   * Falls back to base prompt if context fetch fails so the agent always starts.
+   */
+  static async create(userId) {
+    const trainingCtx = await buildTrainingContextBlock(userId);
+    const fullPrompt = NUTRITION_SYSTEM_PROMPT_BASE + (trainingCtx || '');
+    return new NutritionAgentSession(userId, fullPrompt);
   }
 
   async handleVoiceInput(transcript) {
@@ -285,8 +371,8 @@ class NutritionAgentSession {
   // ── private methods ─────────────────────────────────────────────────────────
 
   async _searchDB(foodString) {
-    if (!foodString) return { status: 'no_input', message: 'Estimate all nutrients.' };
-    if (!IndbFood) return { status: 'db_unavailable', message: 'DB not connected. Estimate all nutrients.' };
+    if (!foodString) return { status: 'no_input', message: 'Database temporarily unavailable. Tell the user you cannot look up nutrition data right now and ask them to try again in a moment.' };
+    if (!IndbFood) return { status: 'db_unavailable', message: 'Database temporarily unavailable. Tell the user you cannot look up nutrition data right now and ask them to try again in a moment.' };
 
     try {
       const queryVector = await getCachedEmbedding(foodString);
@@ -435,12 +521,13 @@ Full unit-ID map (internal, DO NOT speak aloud): ${unitSummary}`,
     const start = startOfDay(now);
     const end = endOfDay(now);
 
-    // Resolve meal time: (1) LLM-extracted from message, (2) user profile schedule, (3) type-based default
+    // Resolve meal time: (1) LLM-extracted from message, (2) user profile schedule, (3) current wall-clock time
     const mealTypeKey = String(meal_type || 'snack').toLowerCase();
+    const fallbackTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
     const resolvedTime =
       meal_time ||
       (this.userMealSchedule && this.userMealSchedule[mealTypeKey]) ||
-      NutritionAgentSession.defaultMealTime(mealTypeKey);
+      fallbackTime;
 
     let log = await NutritionLog.findOne({
       user: this.userId,
@@ -601,6 +688,15 @@ Full unit-ID map (internal, DO NOT speak aloud): ${unitSummary}`,
       };
     }
 
+    // TASK 4: Zero-calorie commit guard
+    for (const item of foodsArray) {
+      const foodNameStr = String(item.name || '').toLowerCase();
+      const isKnownZeroCalorie = /^(water|black coffee|tea|plain tea|sparkling water|herbal tea)/.test(foodNameStr);
+      if (!isKnownZeroCalorie && (!item.calories || item.calories === 0)) {
+        return { success: false, error: `Nutrition data not found for "${item.name}". Please try a different name.` };
+      }
+    }
+
     const mealName = foodsArray.map(f => f.name).join(' + ');
     const newMeal = {
       name: mealName,
@@ -616,14 +712,29 @@ Full unit-ID map (internal, DO NOT speak aloud): ${unitSummary}`,
     newMeal.totalCarbs    = sumSafe(newMeal.foods, 'carbs');
     newMeal.totalFat      = sumSafe(newMeal.foods, 'fat');
 
+    // TASK 7: Duplicate meal guard — reject if same name+type was logged in the last 5 minutes
+    const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+    const isDuplicate = log.meals.some(m =>
+      m.name === newMeal.name &&
+      m.mealType === newMeal.mealType &&
+      new Date(m.mealTime || m.createdAt || 0).getTime() > fiveMinAgo
+    );
+    if (isDuplicate) {
+      return { success: false, alreadyLogged: true, message: 'This meal was already logged recently.' };
+    }
+
     log.meals.push(newMeal);
     log.dailyTotals = recalcDailyTotals(log);
 
-    const mongoose = require('mongoose');
     try {
       await log.save();
       console.log(`[NutritionAgent] DATABASE SAVE SUCCESSFUL for user ${this.userId} on ${start.toISOString()}`);
-      this.committedMealId = { logId: log._id.toString(), mealIndex: log.meals.length - 1 };
+      const savedMeal = log.meals[log.meals.length - 1];
+      this.committedMealId = {
+        logId: log._id.toString(),
+        mealId: (savedMeal && savedMeal._id ? savedMeal._id.toString() : ''),
+        mealIndex: log.meals.length - 1,
+      };
     } catch (saveErr) {
       console.error('[NutritionAgent] DATABASE SAVE FAILED:', saveErr);
       throw new Error(`Database save failed: ${saveErr.message}`);

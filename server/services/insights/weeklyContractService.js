@@ -22,18 +22,27 @@ function weekKeyFromDate(date = new Date()) {
   return `${w.year}-W${String(w.week).padStart(2, '0')}`;
 }
 
-function nextWeekKey(currentWeekKey) {
-  const [year, week] = currentWeekKey.split('-W').map(Number);
-  let nw = week + 1, ny = year;
-  if (nw > 52) { nw = 1; ny++; }
-  return `${ny}-W${String(nw).padStart(2, '0')}`;
+function isoWeeksInYear(year) {
+  const d = new Date(Date.UTC(year, 11, 28));
+  const dow = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dow);
+  const jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d - jan1) / 86400000 + 1) / 7);
 }
 
-function prevWeekKey(currentWeekKey) {
-  const [year, week] = currentWeekKey.split('-W').map(Number);
-  let pw = week - 1, py = year;
-  if (pw < 1) { pw = 52; py--; }
-  return `${py}-W${String(pw).padStart(2, '0')}`;
+function nextWeekKey(wk) {
+  const parts = wk.split('-W').map(Number);
+  const year = parts[0]; const week = parts[1];
+  const max = isoWeeksInYear(year);
+  if (week >= max) return (year + 1) + '-W01';
+  return year + '-W' + String(week + 1).padStart(2, '0');
+}
+
+function prevWeekKey(wk) {
+  const parts = wk.split('-W').map(Number);
+  const year = parts[0]; const week = parts[1];
+  if (week <= 1) return (year - 1) + '-W' + String(isoWeeksInYear(year - 1)).padStart(2, '0');
+  return year + '-W' + String(week - 1).padStart(2, '0');
 }
 
 async function getWeekDateRange(weekKey) {
@@ -45,10 +54,10 @@ async function getWeekDateRange(weekKey) {
   week1Start.setUTCDate(yearStart.getUTCDate() - yearStartDay);
   const weekStart = new Date(week1Start);
   weekStart.setUTCDate(week1Start.getUTCDate() + (week - 1) * 7);
-  weekStart.setUTCHours(-5, -30, 0, 0);
+  weekStart.setUTCHours(0, 0, 0, 0);
   const weekEnd = new Date(weekStart);
   weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
-  weekEnd.setUTCHours(18, 29, 59, 999);
+  weekEnd.setUTCHours(23, 59, 59, 999);
   return { weekStart, weekEnd };
 }
 
@@ -68,14 +77,22 @@ async function proposeTargets(userId, thisWeekKey) {
   };
   const calc = calculateDailyTargets(ep);
   const calTarget = user?.clinicalTargets?.targets?.calories || calc?.targets?.calories || 2000;
-  const proteinTarget = user?.clinicalTargets?.targets?.protein || calc?.targets?.protein || 120;
+  // Base protein from profile/clinical targets
+  const baseProteinTarget = user?.clinicalTargets?.targets?.protein || calc?.targets?.protein || 120;
 
-  // Get this week's macro aggregation
+  // Adjust protein target upward when actual training frequency is high.
+  // Profile activityLevel is static — actual workouts this week tell the real story.
+  // +5g per workout above 3/week, capped at +30g to stay conservative.
+  const { weekStart: wkStart, weekEnd: wkEnd } = await getWeekDateRange(thisWeekKey);
+  const thisWeekWorkouts = await Workout.countDocuments({ user: userId, date: { $gte: wkStart, $lte: wkEnd } });
+  const activityAdjustment = Math.min(30, Math.max(0, thisWeekWorkouts - 3) * 5);
+  const proteinTarget = Math.round(baseProteinTarget + activityAdjustment);
+
+  // Get this week's macro aggregation (reuse weekStart/weekEnd already computed above)
   const macros = await computeWeeklyMacroAggregation(userId, thisWeekKey);
-  const { weekStart, weekEnd } = await getWeekDateRange(thisWeekKey);
-
-  // Get this week's workout count
-  const workoutCount = await Workout.countDocuments({ user: userId, date: { $gte: weekStart, $lte: weekEnd } });
+  const weekStart = wkStart;
+  const weekEnd = wkEnd;
+  const workoutCount = thisWeekWorkouts; // already fetched above
 
   // Get this week's logging consistency
   const nutLogs = await NutritionLog.find({ user: userId, date: { $gte: weekStart, $lte: weekEnd } }).select('date dailyTotals').lean();
@@ -103,13 +120,16 @@ async function proposeTargets(userId, thisWeekKey) {
   // Most impactful single nutrition metric for body composition.
   if (avgProtein < proteinTarget * 0.90) {
     const gap = Math.round(proteinTarget - avgProtein);
-    const stretchTarget = Math.round(avgProtein + Math.min(gap * 0.6, 25)); // 60% of gap, max +25g
+    const baseProtein = Math.max(avgProtein, 40); // never start from below 40g
+    const stretchTarget = Math.min(baseProtein + gap * 0.4, proteinTarget); // 40% gap closure
+    const finalTarget = Math.max(stretchTarget, Math.round(proteinTarget * 0.5)); // at least 50% of target
+    const targetValue = Math.round(finalTarget);
     targets.push({
       domain: 'nutrition',
       metric: 'avg_protein_g',
-      label: `Average ${stretchTarget}g protein per day`,
+      label: `Average ${targetValue}g protein per day`,
       why: `This week you averaged ${Math.round(avgProtein)}g — ${gap}g below your ${proteinTarget}g target. Closing this gap is the single highest-leverage nutrition change for your goal.`,
-      targetValue: stretchTarget,
+      targetValue,
       unit: 'g/day',
     });
   } else if (avgProtein >= proteinTarget * 0.90) {
@@ -152,7 +172,7 @@ async function proposeTargets(userId, thisWeekKey) {
       domain: 'wellness',
       metric: 'check_in_days',
       label: 'Log readiness on 5+ days',
-      why: `High stress week (avg ${avgStress.toFixed(1)}/10). Tracking readiness during high-stress periods helps calibrate training intensity and prevents overreach.`,
+      why: `High stress week (avg ${avgStress.toFixed(1)}/10). Elevated cortisol increases muscle catabolism — tracking readiness AND keeping protein ≥ ${proteinTarget}g/day protects lean mass during stressful periods.`,
       targetValue: 5,
       unit: 'days',
     });
@@ -216,6 +236,7 @@ async function saveContract(userId, weekKey, targets) {
 async function scoreContract(userId, weekKey) {
   const doc = await WeeklyContract.findOne({ user: userId, weekKey });
   if (!doc || doc.status === 'scored') return doc;
+  if (doc.status !== 'active') return doc;
 
   const { weekStart, weekEnd } = await getWeekDateRange(weekKey);
 
@@ -241,9 +262,22 @@ async function scoreContract(userId, weekKey) {
   let metCount = 0;
   const scoredTargets = doc.targets.map(t => {
     const actual = actuals[t.metric] ?? null;
-    const met = actual != null ? actual >= t.targetValue : null;
+    let met = null;
+    if (actual != null) {
+      if (t.metric === 'avg_calories') {
+        // Calories target can be "hit X" (under-eater) or "stay at X" (over-eater).
+        // Pass if within ±10% of target — both under-eating and over-eating should fail.
+        const tolerance = t.targetValue * 0.10;
+        met = actual >= t.targetValue - tolerance && actual <= t.targetValue + tolerance;
+      } else {
+        // All other metrics (protein, workouts, days_logged, check_in): higher = better
+        met = actual >= t.targetValue;
+      }
+    }
     if (met) metCount++;
-    return { ...t.toObject(), actualValue: actual, met };
+    // toObject() guard — targets may be plain objects if stored without Mongoose subdoc
+    const base = typeof t.toObject === 'function' ? t.toObject() : { ...t };
+    return { ...base, actualValue: actual, met };
   });
 
   doc.targets = scoredTargets;

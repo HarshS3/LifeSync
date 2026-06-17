@@ -16,8 +16,9 @@ import TodayTab from '../../components/Nutrition/TodayTab';
 import LogMealTab from '../../components/Nutrition/LogMealTab';
 import WeightTab from '../../components/Nutrition/WeightTab';
 import DetailsTab from '../../components/Nutrition/DetailsTab';
+import InsightsTab from '../../components/Nutrition/InsightsTab';
 
-const TABS = ['Today', 'Log Meal', 'Weight', 'Details'];
+const TABS = ['Today', 'Log Meal', 'Weight', 'Details', 'Insights'];
 
 export default function NutritionScreen() {
   const router = useRouter();
@@ -201,10 +202,15 @@ export default function NutritionScreen() {
               />
             )}
             {activeTab === 3 && (
-              <DetailsTab 
-                log={log} 
+              <DetailsTab
+                log={log}
                 targets={targets}
                 COLORS={COLORS} SPACING={SPACING} BORDER_RADIUS={BORDER_RADIUS} SHADOWS={{}} TYPOGRAPHY={TYPOGRAPHY}
+              />
+            )}
+            {activeTab === 4 && (
+              <InsightsTab
+                COLORS={COLORS} SPACING={SPACING} BORDER_RADIUS={BORDER_RADIUS}
               />
             )}
           </>

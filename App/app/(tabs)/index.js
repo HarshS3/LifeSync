@@ -83,6 +83,7 @@ export default function DashboardScreen() {
     avgEnergy: '—', avgMood: '—', avgSleep: '—', workouts: 0, streak: 0,
     weight: '—',
   });
+  const [weeklyContract, setWeeklyContract] = useState(null);
 
   const scrollRef = useRef(null);
   useScrollToTop(scrollRef);
@@ -127,6 +128,7 @@ export default function DashboardScreen() {
 
       setStateReflection(summary.stateReflection);
       setTopInsights(Array.isArray(summary.topInsights) ? summary.topInsights : []);
+      if (summary.weeklyContract) setWeeklyContract(summary.weeklyContract);
       syncWidgetData(summary);
 
     } catch (err) {
@@ -422,6 +424,47 @@ export default function DashboardScreen() {
           <Caption style={{ color: COLORS.surface, opacity: 0.7, marginTop: 4 }}>Consistency builds insight.</Caption>
         </Card>
 
+        {/* Weekly contract score */}
+        {weeklyContract && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => nav('/insights/weekly')}
+            style={[s.contractCard, {
+              backgroundColor: weeklyContract.score != null
+                ? (weeklyContract.score >= 2 ? COLORS.success + '12' : COLORS.warning + '12')
+                : COLORS.surface,
+              borderColor: weeklyContract.score != null
+                ? (weeklyContract.score >= 2 ? COLORS.success + '40' : COLORS.warning + '40')
+                : COLORS.border,
+            }]}
+          >
+            <View style={{ flex: 1 }}>
+              <Caption secondary style={{ fontWeight: '700', textTransform: 'uppercase', fontSize: 10, marginBottom: 4 }}>
+                {weeklyContract.status === 'scored' ? 'LAST WEEK' : 'THIS WEEK'} · TARGETS
+              </Caption>
+              {weeklyContract.score != null ? (
+                <>
+                  <H2 style={{ color: weeklyContract.score >= 2 ? COLORS.success : COLORS.warning }}>
+                    {weeklyContract.score}/3
+                    <Body style={{ color: COLORS.textSecondary, fontSize: 14 }}> targets met</Body>
+                  </H2>
+                  <Caption secondary style={{ marginTop: 4 }}>
+                    {weeklyContract.score === 3 ? 'Perfect week. Keep the momentum.' : weeklyContract.score === 2 ? 'Strong week. One target missed.' : 'Room to improve — review targets →'}
+                  </Caption>
+                </>
+              ) : (
+                <>
+                  <Body style={{ fontWeight: '700' }}>{weeklyContract.targets?.length || 0} targets active</Body>
+                  <Caption secondary style={{ marginTop: 4 }}>
+                    {weeklyContract.targets?.[0]?.label || 'Tap to review your weekly contract'}
+                  </Caption>
+                </>
+              )}
+            </View>
+            <Body secondary style={{ fontSize: 18 }}>›</Body>
+          </TouchableOpacity>
+        )}
+
         <Card style={s.darkCard}>
           <View style={s.insightsHeader}>
             <Body style={{ fontSize: 18 }}>💡</Body>
@@ -474,6 +517,7 @@ const s = StyleSheet.create({
   tileLabel: { fontSize: 11, fontWeight: '600', textAlign: 'center' },
 
   statRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  contractCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 16 },
   chip:     { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
   chipText: { fontSize: 12, fontWeight: '700' },
 

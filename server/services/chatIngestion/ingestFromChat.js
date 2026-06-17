@@ -124,10 +124,19 @@ function detectFoodLogIntent(message) {
   // Quantity signals
   const hasQuantity = /\b(\d+\s*(g|kg|ml|l|cup|cups|bowl|bowls|plate|plates|roti|chapati|piece|pieces|slice|slices|serving|scoop)|\d+\s+\w+)\b/i.test(s);
 
-  // Lenient check: (Verb OR Context OR Quantity OR just a food name alone) 
+  // Indefinite article quantity (e.g. "a bowl of", "half a plate")
+  const hasIndefiniteQty = /\b(a|an|one|half|quarter)\s+(bowl|cup|plate|glass|slice|piece|scoop|serving|handful|portion)\b/i.test(s);
+
+  const combinedQuantity = hasQuantity || hasIndefiniteQty;
+
+  // Question guard: questions without a food verb are advisory, not logging
+  const isQuestion = hasQuestionStart || s.endsWith('?');
+  if (isQuestion && !hasFoodVerb) return false;
+
+  // Lenient check: (Verb OR Context OR Quantity OR just a food name alone)
   // We'll allow (Verb OR Context OR Quantity) AND (Food Word)
   // OR just (Verb AND Quantity)
-  return (hasFoodVerb || hasMealContext || hasQuantity) && hasFoodWord || (hasFoodVerb && hasQuantity);
+  return (hasFoodVerb || hasMealContext || combinedQuantity) && hasFoodWord || (hasFoodVerb && combinedQuantity);
 }
 
 // ── DB helpers ────────────────────────────────────────────────────────────────
@@ -179,17 +188,27 @@ async function upsertTodayWeightLog({ userId, now, weightKg }) {
 
 // ── Food logging via Nutrition Agent ─────────────────────────────────────────
 
+const SESSION_TTL = 15 * 60 * 1000; // 15 minutes
+
 async function tryLogFoodViaAgent({ userId, message }) {
   try {
     const { NutritionAgentSession } = require('../nutritionAI/nutritionAgent');
-    
+
     // Use a persistent session ID based on userId for chat-based logging
     const sessionId = `chat_session_${userId}`;
     if (!global.agentSessions) global.agentSessions = {};
-    
+
     let agent = global.agentSessions[sessionId];
+
+    // TTL check: expire sessions older than 15 minutes
+    if (agent && agent.createdAt && Date.now() - agent.createdAt > SESSION_TTL) {
+      delete global.agentSessions[sessionId];
+      agent = null;
+    }
+
     if (!agent) {
-      agent = new NutritionAgentSession(userId);
+      agent = await NutritionAgentSession.create(userId);
+      agent.createdAt = Date.now();
       global.agentSessions[sessionId] = agent;
     }
     
@@ -202,10 +221,11 @@ async function tryLogFoodViaAgent({ userId, message }) {
     }
 
     const result = await agent.handleVoiceInput(message);
-    
-    // If the agent is complete (logged or failed), we could clear it, 
-    // but better to keep it for a few turns in case of follow-ups.
-    // We'll let it persist for now.
+
+    // If the agent is complete (session ended), delete it to prevent sticky sessions
+    if (result.isComplete) {
+      delete global.agentSessions[sessionId];
+    }
 
     return {
       handled: true,
@@ -276,6 +296,13 @@ async function ingestFromChat({ userId, message, now = new Date() }) {
   // ── 2. Food intent detection → Nutrition Agent ────────────────────────────
   let foodIngestion = null;
   const sessionId = `chat_session_${userId}`;
+  // Expire stale sessions before checking for active session
+  if (global.agentSessions && global.agentSessions[sessionId]) {
+    const s = global.agentSessions[sessionId];
+    if (s.createdAt && Date.now() - s.createdAt > SESSION_TTL) {
+      delete global.agentSessions[sessionId];
+    }
+  }
   const hasActiveSession = global.agentSessions && global.agentSessions[sessionId];
   
   if (detectFoodLogIntent(message) || hasActiveSession) {

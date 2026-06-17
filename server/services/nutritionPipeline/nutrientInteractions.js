@@ -77,12 +77,12 @@ const interactionRules = {
       primary: 'iron_mg',
       secondary: 'calcium_mg',
       type: 'blocking',
-      effect: '50–60% reduction',
+      effect: '30–50% reduction',
       title: 'Iron blocked by Calcium',
-      description: 'Calcium and iron compete for the same intestinal transporter. Eating calcium-rich food with iron-rich food means much less iron is absorbed.',
+      description: 'Calcium and iron compete for the same intestinal transporter. Meaningful inhibition begins at ≥300mg calcium in the same meal (Hallberg 1991).',
       fix: 'Separate iron-rich and calcium-rich meals by 2 hours.',
       thresholdPrimary: 2, // notable iron
-      thresholdSecondary: 200, // high calcium
+      thresholdSecondary: 300, // Hallberg 1991: threshold for meaningful inhibition
     },
     {
       id: 'iron_tannins',

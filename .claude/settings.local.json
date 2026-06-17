@@ -3,7 +3,9 @@
     "allow": [
       "Bash(awk 'NR>=2019 && /^\\\\s*\\\\}\\\\\\)}/ { print NR; exit }' C:/D/LifeSync/client/src/components/NutritionTracker.jsx)",
       "Bash(awk 'NR>=2160' C:/D/LifeSync/client/src/components/NutritionTracker.jsx)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(cat)",
+      "Read(//tmp/**)"
     ]
   }
 }

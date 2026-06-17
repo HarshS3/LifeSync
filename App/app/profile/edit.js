@@ -308,7 +308,7 @@ export default function EditProfileScreen() {
             </View>
             <View style={styles.row}>
               <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-                <InputLabel text="Body Fat %" />
+                <InputLabel text="Body Fat % (Optional)" />
                 <TextInput
                   style={styles.input}
                   value={profile.bodyFat}

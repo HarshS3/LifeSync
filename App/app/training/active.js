@@ -130,6 +130,8 @@ export default function ActiveWorkoutScreen() {
   const [elapsed, setElapsed] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [preSessionTargets, setPreSessionTargets] = useState({}); // exerciseName -> target
+  const [startRecommendation, setStartRecommendation] = useState(null); // { neglectedMuscles, daysSinceLastWorkout }
   
   const [showPicker, setShowPicker] = useState(false);
   const [showCustomForm, setShowCustomForm] = useState(false);
@@ -246,11 +248,36 @@ export default function ActiveWorkoutScreen() {
               };
             }));
             setExercises(loadedEx);
+
+            // Fetch pre-session targets for all exercises in parallel
+            const names = t.exercises.map(e => e.name).filter(Boolean);
+            if (names.length > 0) {
+              api.post('/gym/pre-session-targets', { exercises: names })
+                .then(r => {
+                  const map = {};
+                  (r.data?.targets || []).forEach(t => { map[t.exercise] = t; });
+                  setPreSessionTargets(map);
+                })
+                .catch(() => {});
+            }
           }
           setIsReady(true);
           return;
         } catch(e) { console.error(e); }
       }
+
+      // Fetch workout start recommendation (neglected muscles, days since last workout)
+      api.get('/gym/summary').then(r => {
+        const data = r.data || {};
+        const neglected = data.stats?.neglectedMuscles || [];
+        const lastWorkout = data.recentWorkouts?.[0];
+        const daysSince = lastWorkout
+          ? Math.floor((Date.now() - new Date(lastWorkout.date).getTime()) / 86400000)
+          : null;
+        if (neglected.length > 0 || daysSince !== null) {
+          setStartRecommendation({ neglectedMuscles: neglected, daysSinceLastWorkout: daysSince, lastWorkoutName: lastWorkout?.name });
+        }
+      }).catch(() => {});
 
       try {
         const savedDraft = await AsyncStorage.getItem(STORAGE_KEY);
@@ -601,6 +628,34 @@ export default function ActiveWorkoutScreen() {
             />
           </View>
 
+          {/* Workout start recommendation — only shown when no exercises yet */}
+          {exercises.length === 0 && startRecommendation && (
+            <View style={[styles.startRec, { backgroundColor: COLORS.surface, borderColor: COLORS.border }]}>
+              {startRecommendation.daysSinceLastWorkout !== null && (
+                <Body style={{ fontSize: 12, color: COLORS.textSecondary, marginBottom: 6 }}>
+                  {startRecommendation.daysSinceLastWorkout === 0
+                    ? `Last trained today (${startRecommendation.lastWorkoutName || 'workout'})`
+                    : startRecommendation.daysSinceLastWorkout === 1
+                      ? `Last trained yesterday`
+                      : `Last trained ${startRecommendation.daysSinceLastWorkout} days ago`}
+                </Body>
+              )}
+              {startRecommendation.neglectedMuscles.length > 0 && (
+                <>
+                  <Body style={{ fontSize: 12, fontWeight: '700', color: COLORS.text, marginBottom: 4 }}>
+                    💡 Consider training today:
+                  </Body>
+                  <Body style={{ fontSize: 12, color: COLORS.primary }}>
+                    {startRecommendation.neglectedMuscles.map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(' · ')}
+                  </Body>
+                  <Body style={{ fontSize: 11, color: COLORS.textSecondary, marginTop: 4 }}>
+                    Not trained in 5+ days and below weekly volume target
+                  </Body>
+                </>
+              )}
+            </View>
+          )}
+
           {exercises.map((ex, exIdx) => (
             <Card key={ex.id} style={styles.exCard} padding={0}>
               <View style={styles.exHeader}>
@@ -609,6 +664,23 @@ export default function ActiveWorkoutScreen() {
                   <MoreHorizontal size={20} color={COLORS.gray400} />
                 </TouchableOpacity>
               </View>
+
+              {/* Pre-session target banner */}
+              {preSessionTargets[ex.name] && preSessionTargets[ex.name].status !== 'new' && preSessionTargets[ex.name].targetSets && (
+                <View style={[styles.preSessionBanner, {
+                  backgroundColor: preSessionTargets[ex.name].status === 'progress' ? COLORS.success + '12' : COLORS.gray100,
+                  borderLeftColor: preSessionTargets[ex.name].status === 'progress' ? COLORS.success : COLORS.primary,
+                }]}>
+                  <Body style={{ fontSize: 11, fontWeight: '700', color: preSessionTargets[ex.name].status === 'progress' ? COLORS.success : COLORS.primary }}>
+                    {preSessionTargets[ex.name].status === 'progress' ? '📈 ' : '🎯 '}
+                    Target: {preSessionTargets[ex.name].targetWeight}kg
+                    {preSessionTargets[ex.name].targetSets?.[0]?.reps ? ` × ${preSessionTargets[ex.name].targetSets[0].reps} reps` : ''}
+                  </Body>
+                  <Body style={{ fontSize: 10, color: COLORS.textSecondary, marginTop: 1 }}>
+                    {preSessionTargets[ex.name].note}
+                  </Body>
+                </View>
+              )}
 
               <View style={styles.setsTable}>
                 <View style={styles.tableHeader}>
@@ -940,6 +1012,8 @@ const styles = StyleSheet.create({
   
   exCard: { marginBottom: 16, overflow: 'hidden' },
   exHeader: { flexDirection: 'row', padding: 16, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
+  preSessionBanner: { paddingHorizontal: 14, paddingVertical: 8, borderLeftWidth: 3 },
+  startRec: { marginHorizontal: 0, marginBottom: 16, padding: 14, borderRadius: 12, borderWidth: 1 },
   
   setsTable: { width: '100%' },
   tableHeader: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8, backgroundColor: 'rgba(0,0,0,0.02)' },

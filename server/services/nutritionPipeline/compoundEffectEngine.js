@@ -11,13 +11,15 @@
  *   3. Calorie deficit projection only — fallback
  *
  * Math:
- *   - 7,700 kcal ≈ 1 kg fat
- *   - Protein synthesis: +10g/day above minimum ≈ +0.5g lean mass/day (simplified, capped)
+ *   - 7,000 kcal ≈ 1 kg tissue (evidence-based; 7700 is an overestimate)
+ *   - Protein synthesis: training-level capped rates (beginner 0.030, intermediate 0.015, advanced 0.008 kg/day)
  *   - Body fat change = (weight change) adjusted for estimated lean mass delta
+ *   - TDEE decays by 22 kcal/day per kg of weight change (metabolic adaptation)
  */
 
 const { NutritionLog, WeightLog } = require('../../models/Logs');
 const User = require('../../models/User');
+const Workout = require('../../models/Workout');
 const { calculateDailyTargets } = require('../nutritionEngine');
 const { calculateAdaptiveTDEE } = require('./adaptiveTdeeEngine');
 
@@ -25,12 +27,13 @@ async function computeCompoundEffect(userId) {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const [user, nutLogs, weightLogs] = await Promise.all([
+  const [user, nutLogs, weightLogs, recentWorkouts] = await Promise.all([
     User.findById(userId).select('biologicalProfile weight height gender dob clinicalTargets bodyComposition').lean(),
     NutritionLog.find({ user: userId, date: { $gte: thirtyDaysAgo } })
       .select('date dailyTotals').lean(),
     WeightLog.find({ user: userId, date: { $gte: thirtyDaysAgo } })
       .select('date weightKg').sort({ date: 1 }).lean(),
+    Workout.countDocuments({ user: userId, date: { $gte: thirtyDaysAgo } }),
   ]);
 
   // ── Resolve profile ────────────────────────────────────────────────────────
@@ -77,22 +80,50 @@ async function computeCompoundEffect(userId) {
   const currentDailyBalance = avgCurrentCal - tdee;   // negative = deficit
   const targetDailyBalance = calTarget - tdee;          // what target behavior achieves
 
-  // Weight change rate (kg/day)
-  const currentWeightChangePerDay = currentDailyBalance / 7700;
-  const targetWeightChangePerDay = targetDailyBalance / 7700;
+  // Derive effective training level from actual workout frequency over last 30 days
+  // (profile.trainingLevel is a static field set at onboarding — stale for active users)
+  // Heuristic: <4 sessions/mo = beginner, 4-12 = intermediate, >12 = advanced
+  const sessionsPerMonth = recentWorkouts || 0;
+  const effectiveTrainingLevel = sessionsPerMonth > 12 ? 'advanced'
+    : sessionsPerMonth >= 4 ? 'intermediate'
+    : 'beginner';
+  const leanCapByLevel = { beginner: 0.030, intermediate: 0.015, advanced: 0.008 };
+  const leanDayCap = leanCapByLevel[effectiveTrainingLevel] ?? 0.025;
 
   // Lean mass synthesis boost from protein
   // Simplified: every 10g above 1.6g/kg baseline adds ~0.4g lean mass/day
   const minProtein = currentWeightKg * 1.6;
   const currentProteinBonus = Math.max(0, avgCurrentProtein - minProtein);
   const targetProteinBonus = Math.max(0, proteinTarget - minProtein);
-  const currentLeanGainPerDay = Math.min(currentProteinBonus * 0.04, 0.05); // cap 50g lean/day
-  const targetLeanGainPerDay = Math.min(targetProteinBonus * 0.04, 0.05);
+  const currentLeanGainPerDay = Math.min(currentProteinBonus * 0.04, leanDayCap);
+  const targetLeanGainPerDay = Math.min(targetProteinBonus * 0.04, leanDayCap);
 
   // Project forward at 30 / 90 / 180 days
-  const project = (weightChangePerDay, leanGainPerDay, days) => {
-    const totalWeightKg = weightChangePerDay * days;
-    const leanMassKg = leanGainPerDay * days;
+  const project = (dailyBalance, leanGainPerDayBase, days) => {
+    // TASK 7: Metabolic adaptation — TDEE decays by 22 kcal/day per kg weight change.
+    // Approximate in monthly steps (~30-day chunks).
+    const TDEE_PER_KG = 22; // kcal/day TDEE change per kg body weight change
+    const KCAL_PER_KG_TISSUE = 7000;
+    const monthStep = 30;
+    const numMonths = Math.ceil(days / monthStep);
+
+    let totalWeightKg = 0;
+    let totalLeanMassKg = 0;
+    let effectiveBalance = dailyBalance;
+
+    for (let m = 0; m < numMonths; m++) {
+      const stepDays = Math.min(monthStep, days - m * monthStep);
+      // TASK 8: No lean gain in a caloric deficit
+      const leanGainPerDay = effectiveBalance < 0 ? 0 : leanGainPerDayBase;
+      const monthWeightKg = (effectiveBalance / KCAL_PER_KG_TISSUE) * stepDays;
+      const monthLeanKg = leanGainPerDay * stepDays;
+      totalWeightKg += monthWeightKg;
+      totalLeanMassKg += monthLeanKg;
+      // Adjust effective TDEE for next month based on cumulative weight change
+      effectiveBalance = dailyBalance + totalWeightKg * TDEE_PER_KG;
+    }
+
+    const leanMassKg = totalLeanMassKg;
     const fatKg = totalWeightKg - leanMassKg;
 
     if (hasBodyFat) {
@@ -120,8 +151,8 @@ async function computeCompoundEffect(userId) {
   };
 
   const horizons = [30, 90, 180];
-  const currentTrajectory = horizons.map(d => ({ days: d, ...project(currentWeightChangePerDay, currentLeanGainPerDay, d) }));
-  const targetTrajectory = horizons.map(d => ({ days: d, ...project(targetWeightChangePerDay, targetLeanGainPerDay, d) }));
+  const currentTrajectory = horizons.map(d => ({ days: d, ...project(currentDailyBalance, currentLeanGainPerDay, d) }));
+  const targetTrajectory = horizons.map(d => ({ days: d, ...project(targetDailyBalance, targetLeanGainPerDay, d) }));
 
   // ── Gap narrative ──────────────────────────────────────────────────────────
   const gap180Current = currentTrajectory[2];

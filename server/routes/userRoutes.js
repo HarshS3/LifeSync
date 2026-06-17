@@ -2,6 +2,8 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { calculateDailyTargets } = require('../services/nutritionEngine');
+const { triggerDailyLifeStateRecompute } = require('../services/dailyLifeState/triggerDailyLifeStateRecompute');
+const { resolveBestTdee } = require('../services/nutritionPipeline/resolveBestTdee');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'lifesync-secret-key-change-in-production';
@@ -21,14 +23,21 @@ router.put('/profile', auth, async (req, res) => {
 
     if (updateData.biologicalProfile) {
       const bmrOverride = user.bodyComposition?.bmrKcal;
-      const calculated = calculateDailyTargets(
-        {
-          ...(user.biologicalProfile?.toObject?.() || user.biologicalProfile),
-          ...updateData.biologicalProfile,
-        },
-        null,
+      const mergedProfile = {
+        ...(user.biologicalProfile?.toObject?.() || user.biologicalProfile || {}),
+        ...updateData.biologicalProfile,
+      };
+      let adaptiveTdee = null;
+      if (mergedProfile.useAdaptiveTdee !== false) {
+        const { tdee } = await resolveBestTdee(req.userId);
+        adaptiveTdee = tdee;
+      }
+      const calculated = await calculateDailyTargets(
+        mergedProfile,
+        adaptiveTdee,
         user.labMarkers,
-        bmrOverride
+        bmrOverride,
+        req.userId
       );
       if (calculated) {
         updateData.dailyCalorieTarget = calculated.targets.calories;
@@ -42,6 +51,8 @@ router.put('/profile', auth, async (req, res) => {
       { $set: updateData },
       { new: true, runValidators: true }
     ).select('-password');
+
+    triggerDailyLifeStateRecompute({ userId: req.userId, reason: 'profile_update_put' });
 
     res.json(updatedUser);
   } catch (err) {
@@ -78,11 +89,22 @@ router.patch('/profile', auth, async (req, res) => {
 
     if (updateData.biologicalProfile) {
       updatePayload.biologicalProfile = {
-        ...(user.biologicalProfile?.toObject?.() || user.biologicalProfile),
-        ...updateData.biologicalProfile
+        ...(user.biologicalProfile?.toObject?.() || user.biologicalProfile || {}),
+        ...updateData.biologicalProfile,
       };
       const bmrOverride = user.bodyComposition?.bmrKcal;
-      const calculated = calculateDailyTargets(updatePayload.biologicalProfile, null, user.labMarkers, bmrOverride);
+      let adaptiveTdee = null;
+      if (updatePayload.biologicalProfile.useAdaptiveTdee !== false) {
+        const { tdee } = await resolveBestTdee(req.userId);
+        adaptiveTdee = tdee;
+      }
+      const calculated = await calculateDailyTargets(
+        updatePayload.biologicalProfile,
+        adaptiveTdee,
+        user.labMarkers,
+        bmrOverride,
+        req.userId
+      );
       if (calculated) {
         updatePayload.dailyCalorieTarget = calculated.targets.calories;
         updatePayload.dailyProteinTarget = calculated.targets.protein;
@@ -95,6 +117,8 @@ router.patch('/profile', auth, async (req, res) => {
       { $set: updatePayload },
       { new: true, runValidators: true }
     ).select('-password');
+
+    triggerDailyLifeStateRecompute({ userId: req.userId, reason: 'profile_update_patch' });
 
     res.json(updatedUser);
   } catch (err) {

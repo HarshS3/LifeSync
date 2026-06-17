@@ -102,22 +102,37 @@ async function computeDailyIntelligence(userId) {
   const targetCals = staticTargets?.calories || 2000;
 
   // Deficit score: how far under target were they yesterday?
-  const yesterdayDeficit = yesterdayCalories > 0 ? Math.max(0, targetCals - yesterdayCalories) : 0;
+  // null = no log (missing day should not count as a deficit)
+  const yesterdayDeficit = yesterdayCalories > 0 ? Math.max(0, targetCals - yesterdayCalories) : null;
 
-  // Sleep data from mental logs
+  // Sleep data from mental logs — only use if fresh (within 2 days)
   const lastMental = recentMental[0];
-  const lastSleep = lastMental?.sleepHours ?? 7;
-  const lastStress = lastMental?.stressLevel ?? 5;
+  const mentalDaysAgo = lastMental?.date
+    ? Math.floor((Date.now() - new Date(lastMental.date).getTime()) / 86400000)
+    : 999;
+  const sleepDataFresh = mentalDaysAgo <= 2;
+  // If stale, treat sleep as neutral (7h) to avoid adding phantom debt
+  const lastSleep = sleepDataFresh ? (lastMental?.sleepHours ?? 7) : 7;
+  const lastStress = sleepDataFresh ? (lastMental?.stressLevel ?? 5) : 5;
 
-  // Recovery debt = heavy session + underfuel + poor sleep compounding
+  // Consecutive hard days: count how many of the last 7 days had hard workouts (intensity > 0.6)
+  // Each extra consecutive hard day beyond 2 multiplies debt (diminishing recovery capacity)
+  const hardTrainingDaysLast7 = recentWorkouts.filter(w => {
+    const age = Math.floor((now - new Date(w.date).getTime()) / 86400000);
+    return age < 7 && workoutIntensity(w) > 0.6;
+  }).length;
+  const consecutiveFatigueBonus = Math.max(0, hardTrainingDaysLast7 - 2); // 0 for ≤2, 1 for 3, 2 for 4, etc.
+
+  // Recovery debt = heavy session + underfuel + poor sleep + consecutive load compounding
   let debtScore = 0;
   if (yesterdayIntensity > 0.6) debtScore += 2;
-  if (yesterdayIntensity > 0.3) debtScore += 1;
-  if (yesterdayDeficit > 400) debtScore += 2;
-  if (yesterdayDeficit > 200) debtScore += 1;
+  else if (yesterdayIntensity > 0.3) debtScore += 1;
+  if (yesterdayDeficit != null && yesterdayDeficit > 400) debtScore += 2;
+  else if (yesterdayDeficit != null && yesterdayDeficit > 200) debtScore += 1;
   if (lastSleep < 6) debtScore += 2;
-  if (lastSleep < 7) debtScore += 1;
+  else if (lastSleep < 7) debtScore += 1;
   if (lastStress > 7) debtScore += 1;
+  debtScore += consecutiveFatigueBonus; // +1 per hard day beyond 2 in last week
   const recoveryDebt = Math.min(10, debtScore); // 0–10
 
   // ── 2. TODAY'S PLAN ───────────────────────────────────────────────────────
@@ -163,26 +178,36 @@ async function computeDailyIntelligence(userId) {
   let dynamicProteinDelta = 0;
   let targetReason = [];
 
+  // Compute how aggressive the current cut is — cap upward adjustments so we
+  // don't inadvertently flip a legitimate deficit into maintenance or surplus.
+  const baseDeficitDepth = baseTdee - targetCals; // positive = intentional deficit, negative = surplus
+  const isAggressiveCut = baseDeficitDepth > 500; // >500 kcal/day cut = aggressive
+
   if (recoveryDebt >= 5) {
-    // High recovery debt — eat at maintenance minimum regardless of cut
-    const maintCals = (adaptiveTdee || targetCals) + (staticTargets ? Math.abs(targetCals - baseTdee) : 0);
-    dynamicCalDelta = Math.max(0, maintCals - targetCals);
+    // High recovery debt — push toward maintenance to protect muscle, but cap the bump
+    // for users in an aggressive cut (they chose that deficit intentionally; don't erase it entirely)
+    const rawMaintBump = Math.max(0, baseTdee - targetCals);
+    dynamicCalDelta = isAggressiveCut ? Math.round(rawMaintBump * 0.6) : rawMaintBump;
     dynamicProteinDelta = 20;
-    targetReason.push(`Recovery debt ${recoveryDebt}/10 — minimum maintenance calories to protect muscle`);
+    targetReason.push(`Recovery debt ${recoveryDebt}/10 — ${isAggressiveCut ? 'partial' : 'full'} maintenance bump to protect muscle`);
   }
 
+  // Workout-day adjustments scale with training phase:
+  // In aggressive cut, use smaller deltas (50% of normal) to avoid erasing the deficit.
+  const phaseMultiplier = isAggressiveCut ? 0.5 : 1.0;
+
   if (todayIntensity > 0.6) {
-    dynamicCalDelta += 150;
-    dynamicProteinDelta += 15;
-    targetReason.push('Heavy session today — extra protein + carbs for repair');
+    dynamicCalDelta += Math.round(150 * phaseMultiplier);
+    dynamicProteinDelta += Math.round(15 * phaseMultiplier);
+    targetReason.push(`Heavy session today — extra protein + carbs for repair${isAggressiveCut ? ' (reduced for cut phase)' : ''}`);
   } else if (todayIntensity > 0.3) {
-    dynamicCalDelta += 75;
-    dynamicProteinDelta += 8;
-    targetReason.push('Moderate session today — slight uptick for muscle synthesis');
+    dynamicCalDelta += Math.round(75 * phaseMultiplier);
+    dynamicProteinDelta += Math.round(8 * phaseMultiplier);
+    targetReason.push(`Moderate session today — slight uptick for muscle synthesis${isAggressiveCut ? ' (reduced for cut phase)' : ''}`);
   }
 
   if (yesterdayIntensity > 0.6 && recoveryDebt < 5) {
-    dynamicProteinDelta += 10;
+    dynamicProteinDelta += Math.round(10 * phaseMultiplier);
     targetReason.push('Carry-over from yesterday\'s session — protein synthesis still elevated');
   }
 
@@ -251,7 +276,7 @@ async function computeDailyIntelligence(userId) {
       type: 'recovery_debt',
       urgency: 'medium',
       title: `High recovery debt (${recoveryDebt}/10)`,
-      body: `${lastSleep < 6.5 ? `Only ${lastSleep}h sleep + ` : ''}${yesterdayDeficit > 300 ? `${Math.round(yesterdayDeficit)} kcal under target yesterday + ` : ''}${yesterdayIntensity > 0.5 ? 'heavy session yesterday.' : 'accumulated fatigue.'}`,
+      body: `${lastSleep < 6.5 ? `Only ${lastSleep}h sleep + ` : ''}${yesterdayDeficit != null && yesterdayDeficit > 300 ? `${Math.round(yesterdayDeficit)} kcal under target yesterday + ` : ''}${yesterdayIntensity > 0.5 ? 'heavy session yesterday.' : 'accumulated fatigue.'}`,
       suggestion: `Eat at maintenance today (${baseTdee} kcal). Prioritise Magnesium + B vitamins. Light training only.`,
     });
   }
@@ -331,7 +356,7 @@ async function computeDailyIntelligence(userId) {
       workoutCompletedMinsAgo: workoutCompletedMinutesAgo,
       lastSleep,
       lastStress,
-      yesterdayDeficit: Math.round(yesterdayDeficit),
+      yesterdayDeficit: yesterdayDeficit != null ? Math.round(yesterdayDeficit) : null,
     },
   };
 }

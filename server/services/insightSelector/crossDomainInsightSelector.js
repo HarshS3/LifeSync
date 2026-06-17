@@ -18,6 +18,10 @@ const { analyzeMeals } = require('../insulinIntelligenceService');
 
 const IMPACT_WEIGHT = { high: 1.0, moderate: 0.6, low: 0.3 };
 
+function slugify(str) {
+  return String(str || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+}
+
 function clamp(n, lo, hi) {
   return Math.max(lo, Math.min(hi, n));
 }
@@ -50,8 +54,12 @@ function makeInsight({ id, kind, title, detail, action, impact, recencyDays, evi
     impact: impact || 'moderate',
     evidence: evidence || null,
   };
+  // High-impact insights get a recency floor of 0.6 so they aren't buried by age alone
+  const effectiveRecency = (String(impact || '').toLowerCase() === 'high')
+    ? Math.max(recencyWeight(recencyDays), 0.6)
+    : recencyWeight(recencyDays);
   const score = scoreImpact(impact)
-    * recencyWeight(recencyDays)
+    * effectiveRecency
     * actionabilityWeight(base);
   return { ...base, score: Math.round(score * 100) / 100 };
 }
@@ -60,14 +68,14 @@ async function fromCorrelationEngine(userId) {
   try {
     const arr = await analyzeCorrelations(userId, 30);
     if (!Array.isArray(arr)) return [];
-    return arr.map((c, idx) => makeInsight({
-      id: `corr:${c.type || 'unknown'}:${idx}`,
+    return arr.map((c) => makeInsight({
+      id: 'corr:' + (c.type || 'unknown') + ':' + slugify(c.title),
       kind: 'correlation',
       title: c.title,
       detail: c.detail,
       action: c.action,
       impact: c.impact,
-      recencyDays: 7, // correlation engine looks at 30d window — treat as week-recent
+      recencyDays: 14, // correlation engine looks at 30d window — treat as 2-week-recent
     }));
   } catch (err) {
     console.warn('[crossDomainInsightSelector] correlationEngine failed:', err.message);
@@ -106,10 +114,10 @@ async function fromReadinessEngine(userId) {
       }));
     }
     if (Array.isArray(r.stagnationAlerts)) {
-      r.stagnationAlerts.slice(0, 3).forEach((s, idx) => {
+      r.stagnationAlerts.slice(0, 3).forEach((s) => {
         const isRpеCreep = s.type === 'rpe_creep';
         out.push(makeInsight({
-          id: `readiness:stagnation:${idx}`,
+          id: 'readiness:stagnation:' + slugify(s.exercise),
           kind: isRpеCreep ? 'training_overreach' : 'training_progress',
           title: isRpеCreep
             ? `Overreaching signal: ${s.exercise}`
@@ -211,8 +219,45 @@ async function selectTopInsights(userId, { limit = 3 } = {}) {
     unique.push(ins);
   }
 
-  unique.sort((a, b) => b.score - a.score);
-  return unique.slice(0, clamp(Number(limit) || 3, 1, 10));
+  // ── Contradiction detection ────────────────────────────────────────────────
+  // When opposing signals exist (e.g. "strength up 50%" vs "muscle loss risk"),
+  // flag the contradiction rather than surfacing both at face value.
+  const strengthUpId = unique.findIndex(i => i.kind === 'correlation' && /performance gains/i.test(i.title));
+  const muscleLossId = unique.findIndex(i => i.type === 'muscle_loss_risk' || /muscle loss/i.test(i.title));
+  if (strengthUpId >= 0 && muscleLossId >= 0) {
+    // Merge into a single warning; muscle loss risk is the safety-critical signal
+    const merged = Object.assign({}, unique[muscleLossId], {
+      id: 'contradiction:strength_vs_muscle_loss',
+      title: 'Mixed signal: volume up but muscle loss risk detected',
+      detail: `${unique[muscleLossId].detail} Note: short-term performance metrics can still improve while muscle protein balance is negative — address nutrition first.`,
+      impact: 'high',
+      score: Math.max(unique[strengthUpId].score, unique[muscleLossId].score),
+    });
+    const filtered = unique.filter((_, i) => i !== strengthUpId && i !== muscleLossId);
+    filtered.push(merged);
+    unique.length = 0;
+    filtered.forEach(i => unique.push(i));
+  }
+
+  const sorted = [...unique].sort((a, b) => b.score - a.score);
+
+  // ── Diversity rotation ─────────────────────────────────────────────────────
+  // De-prioritise same-kind duplicates ONLY for non-critical insights.
+  // High-impact insights are never penalised — they always need to surface.
+  if (sorted.length > 1) {
+    const kindCount = {};
+    for (let i = 0; i < sorted.length; i++) {
+      const k = sorted[i].kind;
+      kindCount[k] = (kindCount[k] || 0) + 1;
+      const isFirst = kindCount[k] === 1;
+      const isHighImpact = String(sorted[i].impact || '').toLowerCase() === 'high';
+      if (!isFirst && !isHighImpact) {
+        sorted[i] = Object.assign({}, sorted[i], { score: sorted[i].score * 0.8 });
+      }
+    }
+    sorted.sort((a, b) => b.score - a.score);
+  }
+  return sorted.slice(0, clamp(Number(limit) || 3, 1, 10));
 }
 
 module.exports = { selectTopInsights };

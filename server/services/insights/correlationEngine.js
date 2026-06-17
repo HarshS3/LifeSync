@@ -1,7 +1,9 @@
 const Workout = require('../../models/Workout');
 const { NutritionLog } = require('../../models/Logs');
+const User = require('../../models/User');
 const { evaluateDayInteractions, interactionRules } = require('../nutritionPipeline/nutrientInteractions');
 const { analyzeGutTriggers } = require('./gutCorrelationEngine');
+const { calculateDailyTargets } = require('../nutritionEngine');
 
 // ── Nutrient deficiency config ────────────────────────────────────────────────
 // Add any nutrient that lives in NutritionLog.dailyTotals here. No other changes needed.
@@ -30,22 +32,40 @@ async function analyzeCorrelations(userId, days = 30) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
-  const [workouts, nutritionLogs] = await Promise.all([
+  const [workouts, nutritionLogs, user] = await Promise.all([
     Workout.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 }),
     NutritionLog.find({ user: userId, date: { $gte: startDate, $lte: endDate } }).sort({ date: 1 }),
+    User.findById(userId).select('biologicalProfile weight height gender dob clinicalTargets').lean(),
   ]);
+
+  const profile = user?.biologicalProfile || {};
+  const toNum = v => { const n = Number(v); return Number.isFinite(n) ? n : undefined; };
+  const ep = {
+    ...profile,
+    biologicalSex: profile.biologicalSex || user?.gender,
+    heightCm: toNum(profile.heightCm) ?? toNum(user?.height),
+    weightKg: toNum(profile.weightKg) ?? toNum(user?.weight),
+    dob: profile.dob || user?.dob,
+  };
+  const userWeightKg = ep.weightKg || 75;
+  const calc = calculateDailyTargets(ep);
+  const refCalories = user?.clinicalTargets?.targets?.calories || calc?.targets?.calories || 2000;
+  const refProtein = user?.clinicalTargets?.targets?.protein || calc?.targets?.protein || Math.round(userWeightKg * 1.6);
 
   const insights = [];
 
   insights.push(...analyzeInteractionHistory(nutritionLogs));
 
-  const perfInsight = analyzeNutritionPerformance(workouts, buildNutritionMap(nutritionLogs));
+  const perfInsight = analyzeNutritionPerformance(workouts, buildNutritionMap(nutritionLogs), userWeightKg, refProtein, refCalories);
   if (perfInsight) insights.push(perfInsight);
 
   const fuelWindowInsight = await analyzePreTrainingFuelWindow(workouts, nutritionLogs);
   if (fuelWindowInsight) insights.push(fuelWindowInsight);
 
   insights.push(...analyzeChronicDeficiencies(nutritionLogs));
+
+  const muscleLossInsight = analyzeMuscleLocRisk(workouts, nutritionLogs, userWeightKg, refCalories, refProtein);
+  if (muscleLossInsight) insights.push(muscleLossInsight);
 
   const gutInsights = await analyzeGutTriggers(userId, days);
   insights.push(...gutInsights);
@@ -95,8 +115,12 @@ function analyzeInteractionHistory(logs) {
 }
 
 // ── 2. Nutrition vs training performance (lagged) ────────────────────────────
-function analyzeNutritionPerformance(workouts, nutritionMap) {
+function analyzeNutritionPerformance(workouts, nutritionMap, userWeightKg, refProtein, refCalories) {
   if (workouts.length < 4) return null;
+
+  // Dynamic thresholds scale to the individual user — avoid false positives for heavy or light athletes
+  const proteinThreshold = Math.round((userWeightKg || 75) * 1.7); // ~1.7g/kg = solid training-day protein
+  const lowCalThreshold = Math.round((refCalories || 2000) * 0.80); // <80% of target = underfueled
 
   const volumes = workouts.map(w => ({
     date: new Date(w.date).toDateString(),
@@ -115,13 +139,13 @@ function analyzeNutritionPerformance(workouts, nutritionMap) {
   // ── Positive signal: volume up + high protein ─────────────────────────────
   const highProteinDays = recent.filter(rv => {
     const log = nutritionMap[rv.date];
-    return log && log.dailyTotals && log.dailyTotals.protein >= 140;
+    return log && log.dailyTotals && log.dailyTotals.protein >= proteinThreshold;
   }).length;
   if (avgRecent >= avgPrev * 1.1 && highProteinDays >= 2) {
     return {
       type: 'correlation',
       title: 'High protein driving performance gains',
-      detail: `Workout volume is up ${Math.round((avgRecent / avgPrev - 1) * 100)}% vs the prior 3 sessions. ${highProteinDays} of those days had protein >= 140g.`,
+      detail: `Workout volume is up ${Math.round((avgRecent / avgPrev - 1) * 100)}% vs the prior 3 sessions. ${highProteinDays} of those days had protein ≥ ${proteinThreshold}g (your body-weight-adjusted target).`,
       impact: 'moderate',
       action: 'Keep protein intake consistent — this pattern is directly supporting your performance gains.',
     };
@@ -136,14 +160,14 @@ function analyzeNutritionPerformance(workouts, nutritionMap) {
   for (const rv of recent) {
     const log = nutritionMap[rv.date];
     const cal = log?.dailyTotals?.calories;
-    if (cal != null && cal < 1700) lowCalDays++;
+    if (cal != null && cal < lowCalThreshold) lowCalDays++;
   }
 
   if (lowCalDays >= 1) {
     return {
       type: 'correlation',
       title: 'Training volume drop linked to low fuel',
-      detail: `Workout volume is down ${dropPct}% vs the prior 3 sessions. ${lowCalDays} of those days had calorie intake below 1700 kcal.`,
+      detail: `Workout volume is down ${dropPct}% vs the prior 3 sessions. ${lowCalDays} of those days had calorie intake below ${lowCalThreshold} kcal (80% of your target).`,
       impact: 'high',
       action: 'Eat a 300–400 kcal carbohydrate-rich snack 1–2 hours before your next session.',
     };
@@ -245,6 +269,64 @@ function analyzeChronicDeficiencies(logs) {
     impact: pct < 0.4 ? 'high' : 'moderate',
     action: fix,
   }));
+}
+
+// ── 5. Muscle loss risk — aggressive deficit + low protein + active training ───
+// Fires when all three conditions are true for 10+ days: calorie deficit > 500 kcal,
+// protein averaging below 80% of target, and at least 3 workouts in the window.
+// Thresholds are scaled to the individual user's TDEE and bodyweight — not hardcoded absolutes.
+function analyzeMuscleLocRisk(workouts, nutritionLogs, userWeightKg, refCalories, refProtein) {
+  if (nutritionLogs.length < 10 || workouts.length < 3) return null;
+
+  const wKg = userWeightKg || 75;
+  const calsFloor = Math.round((refCalories || 2000) * 0.75); // <75% of TDEE = aggressive deficit
+  const proteinFloor = Math.round(wKg * 1.2); // 1.2g/kg minimum for muscle retention during training
+  const safeProtein = Math.round(wKg * 1.6); // recommended floor
+
+  const recentLogs = nutritionLogs.slice(-14); // last 14 days
+  if (recentLogs.length < 10) return null;
+
+  let deficitDays = 0;
+  let lowProteinDays = 0;
+  let totalProtein = 0;
+  let totalCalories = 0;
+  let logsWithData = 0;
+
+  for (const log of recentLogs) {
+    const cal = log.dailyTotals?.calories;
+    const pro = log.dailyTotals?.protein;
+    if (!cal || !pro) continue;
+    logsWithData++;
+    totalCalories += cal;
+    totalProtein += pro;
+    if (cal < calsFloor) deficitDays++;
+    if (pro < proteinFloor) lowProteinDays++;
+  }
+
+  if (logsWithData < 8) return null;
+
+  const avgCal = totalCalories / logsWithData;
+  const avgProtein = totalProtein / logsWithData;
+  const deficitDaysFraction = deficitDays / logsWithData;
+  const lowProteinFraction = lowProteinDays / logsWithData;
+
+  // All three must be true: sustained deficit, low protein, active training
+  if (deficitDaysFraction < 0.6 || lowProteinFraction < 0.6) return null;
+
+  const recentWorkouts = workouts.filter(w => {
+    const d = new Date(w.date);
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 14);
+    return d >= cutoff;
+  });
+  if (recentWorkouts.length < 3) return null;
+
+  return {
+    type: 'muscle_loss_risk',
+    title: '⚠️ Muscle loss risk: aggressive deficit + low protein while training',
+    detail: `Over the last ${logsWithData} logged days: avg ${Math.round(avgCal)} kcal/day (${deficitDays} days under ${calsFloor} kcal — 75% of your TDEE), avg ${Math.round(avgProtein)}g protein/day (${lowProteinDays} days under ${proteinFloor}g — 1.2g/kg minimum), with ${recentWorkouts.length} training sessions. This combination drives muscle catabolism.`,
+    impact: 'high',
+    action: `Raise protein to at least ${safeProtein}g/day and calories above ${calsFloor} kcal on training days. You can still be in a deficit — just not this deep while training this frequently.`,
+  };
 }
 
 module.exports = { analyzeCorrelations, analyzePreTrainingFuelWindow };

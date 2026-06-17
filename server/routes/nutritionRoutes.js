@@ -1535,7 +1535,7 @@ router.delete('/logs/last-meal', auth, async (req, res) => {
     const start = new Date(now); start.setHours(0, 0, 0, 0);
     const end   = new Date(start); end.setDate(end.getDate() + 1);
 
-    const { logId, mealIndex } = req.body || {};
+    const { logId, mealIndex, mealId } = req.body || {};
 
     let log;
     if (logId) {
@@ -1549,9 +1549,17 @@ router.delete('/logs/last-meal', auth, async (req, res) => {
       return res.status(404).json({ error: 'No meals to undo for today.' });
     }
 
-    const idx = (typeof mealIndex === 'number' && mealIndex >= 0 && mealIndex < log.meals.length)
-      ? mealIndex
-      : log.meals.length - 1;
+    let idx = -1;
+    // Prefer stable mealId lookup over fragile index
+    if (mealId) {
+      idx = log.meals.findIndex(m => m._id && m._id.toString() === mealId);
+    }
+    // Fall back to mealIndex if mealId not found or not provided
+    if (idx === -1) {
+      idx = (typeof mealIndex === 'number' && mealIndex >= 0 && mealIndex < log.meals.length)
+        ? mealIndex
+        : log.meals.length - 1;
+    }
 
     const removed = log.meals.splice(idx, 1)[0];
 

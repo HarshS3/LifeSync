@@ -211,26 +211,39 @@ export default function TodayTab({
       {/* Compound Effect — collapsed by default */}
       <CompoundEffectCard COLORS={COLORS} />
 
-      {/* 2. Macro Summary Strip (Grid of 4) */}
+      {/* 2. Macro Summary Strip — consumed + remaining */}
       <View style={themedStyles.macroGrid}>
         {[
-          { label: 'Calories', val: fmt(totals.calories, 0), unit: 'kcal', pct: percent(totals.calories, targets.calories), color: COLORS.success },
-          { label: 'Protein',  val: fmt(totals.protein),     unit: 'g',    pct: percent(totals.protein, targets.protein),   color: COLORS.training },
-          { label: 'Carbs',    val: fmt(totals.carbs),       unit: 'g',    pct: null, color: COLORS.warning },
-          { label: 'Fat',      val: fmt(totals.fat),         unit: 'g',    pct: null, color: COLORS.error },
-        ].map((m) => (
-          <View key={m.label} style={themedStyles.macroCard}>
-            <Text style={themedStyles.macroLabel}>{m.label}</Text>
-            <Text style={themedStyles.macroValText}>
-              {m.val} <Text style={themedStyles.macroUnitText}>{m.unit}</Text>
-            </Text>
-            {m.pct != null && (
-              <View style={themedStyles.macroTrack}>
-                <View style={[themedStyles.macroFill, { width: `${m.pct}%`, backgroundColor: m.color }]} />
-              </View>
-            )}
-          </View>
-        ))}
+          { label: 'Calories', val: totals.calories,  target: targets.calories,  unit: 'kcal', color: COLORS.success },
+          { label: 'Protein',  val: totals.protein,   target: targets.protein,   unit: 'g',    color: COLORS.training },
+          { label: 'Carbs',    val: totals.carbs,     target: targets.carbs,     unit: 'g',    color: COLORS.warning },
+          { label: 'Fat',      val: totals.fat,       target: targets.fat,       unit: 'g',    color: COLORS.error },
+        ].map((m) => {
+          const consumed = Number(m.val) || 0;
+          const target = Number(m.target) || 0;
+          const pct = target > 0 ? Math.min(Math.round((consumed / target) * 100), 100) : 0;
+          const remaining = target > 0 ? Math.max(0, target - consumed) : null;
+          const over = target > 0 && consumed > target;
+          const barColor = over ? COLORS.error : m.color;
+          return (
+            <View key={m.label} style={themedStyles.macroCard}>
+              <Text style={themedStyles.macroLabel}>{m.label}</Text>
+              <Text style={themedStyles.macroValText}>
+                {fmt(consumed, 0)} <Text style={themedStyles.macroUnitText}>{m.unit}</Text>
+              </Text>
+              {remaining !== null && (
+                <Text style={[themedStyles.macroRemaining, { color: over ? COLORS.error : COLORS.textSecondary }]}>
+                  {over ? `+${fmt(consumed - target, 0)} over` : `${fmt(remaining, 0)}${m.unit} left`}
+                </Text>
+              )}
+              {target > 0 && (
+                <View style={themedStyles.macroTrack}>
+                  <View style={[themedStyles.macroFill, { width: `${pct}%`, backgroundColor: barColor }]} />
+                </View>
+              )}
+            </View>
+          );
+        })}
       </View>
 
       {/* Hydration Progress Section */}
@@ -440,7 +453,8 @@ const styles = (COLORS, SPACING, BORDER_RADIUS, SHADOWS, TYPOGRAPHY) => StyleShe
   macroLabel: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 4 },
   macroValText: { fontSize: 16, fontWeight: '700', color: COLORS.text },
   macroUnitText: { fontSize: 12, fontWeight: '400', color: COLORS.textSecondary },
-  macroTrack: { height: 4, backgroundColor: COLORS.gray100, borderRadius: 2, marginTop: 8, overflow: 'hidden' },
+  macroRemaining: { fontSize: 11, marginTop: 2 },
+  macroTrack: { height: 4, backgroundColor: COLORS.gray100, borderRadius: 2, marginTop: 6, overflow: 'hidden' },
   macroFill: { height: '100%', borderRadius: 2 },
 
   // Alerts

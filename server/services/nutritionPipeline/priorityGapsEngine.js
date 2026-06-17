@@ -41,6 +41,8 @@ const NUTRIENT_COLUMN_MAP = {
   omega3:     { indbKey: 'omega_3',      mfpKey: 'omega3',        tarlaKey: 'omega3',        unit: 'g',   perServing: 0.5 },
   vitaminE:   { indbKey: 'vite_mg',      mfpKey: 'vitamin_e',     tarlaKey: 'vitamin_e',     unit: 'mg',  perServing: 2 },
   selenium:   { indbKey: 'selenium_ug',  mfpKey: 'selenium',      tarlaKey: 'selenium',      unit: 'µg',  perServing: 5 },
+  iodine:     { indbKey: 'iodine',       mfpKey: 'iodine',        tarlaKey: 'iodine',        unit: 'ug',  perServing: 15 },
+  choline:    { indbKey: 'choline',      mfpKey: 'choline',       tarlaKey: 'choline',       unit: 'mg',  perServing: 50 },
 };
 
 // Human-readable names and why it matters
@@ -59,6 +61,8 @@ const NUTRIENT_META = {
   omega3:     { name: 'Omega-3',     why: 'Inflammation reduction, brain health, cardiovascular' },
   vitaminE:   { name: 'Vitamin E',   why: 'Antioxidant, immune function, skin health' },
   selenium:   { name: 'Selenium',    why: 'Thyroid function, antioxidant enzyme cofactor' },
+  iodine:     { name: 'Iodine',      why: 'Thyroid hormone synthesis, metabolism, brain development', fix: 'Add iodized salt, dairy, eggs, or seafood to your diet.' },
+  choline:    { name: 'Choline',     why: 'Neurotransmitter synthesis, liver function, membrane integrity', fix: 'Add eggs, liver, soybeans, or lean meat — one egg provides ~150mg choline.' },
 };
 
 function parseColumnValue(columns, key) {
@@ -77,15 +81,11 @@ async function getFoodSuggestionsForNutrient(nutrientKey, colMap, recentFoodName
   const pickBestFromCollection = async (model, colKey) => {
     if (!colKey) return [];
     try {
-      // Fetch top 40 by displayName (MongoDB can't sort on columns array elements directly)
-      // Then we pick top 3 by nutrient value in JS
-      const docs = await model.find({}).select('displayName columns').lean().limit(200);
+      // Only fetch documents that actually have this nutrient column (Task 12)
+      const docs = await model.find({ 'columns.key': colKey }).select('displayName columns').lean().limit(500);
       return docs
-        .map(d => {
-          const val = parseColumnValue(d.columns, colKey);
-          return { name: d.displayName, value: val };
-        })
-        .filter(d => d.value > 0 && !recentSet.has(d.name.toLowerCase()))
+        .map(d => ({ name: d.displayName, value: (d.columns || []).find(c => c.key === colKey)?.value || 0 }))
+        .filter(d => d.value > 0 && !recentSet.has(String(d.name || '').toLowerCase()))
         .sort((a, b) => b.value - a.value)
         .slice(0, 5);
     } catch {
@@ -162,9 +162,10 @@ async function computePriorityGaps(userId, clinicalTargets) {
     let daysWithData = 0;
 
     for (const log of logs) {
-      const intake = log.dailyTotals?.[nutrientKey] || 0;
-      if (intake === 0 && daysWithData > 0) continue; // skip days with no data at all
+      // Skip days where total calories < 200 — likely incomplete/no-log days (Task 11)
+      if ((log.dailyTotals?.calories || 0) < 200) continue;
       daysWithData++;
+      const intake = log.dailyTotals?.[nutrientKey] || 0;
       const ratio = intake / target;
       totalRatio += ratio;
       if (ratio < DEFICIENCY_THRESHOLD) deficientDays++;
@@ -182,7 +183,7 @@ async function computePriorityGaps(userId, clinicalTargets) {
       why: meta.why,
       avgPercent: Math.round(avgRatio * 100),
       deficientDays,
-      daysAnalyzed: logs.length,
+      daysAnalyzed: daysWithData,
       severity,
       target: Math.round(target),
       unit: colMap.unit,

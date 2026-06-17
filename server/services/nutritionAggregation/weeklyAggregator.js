@@ -1,5 +1,6 @@
 const { NutritionLog } = require('../../models/Logs');
 const User = require('../../models/User');
+const Workout = require('../../models/Workout');
 const { calculateDailyTargets } = require('../nutritionEngine');
 
 /**
@@ -172,7 +173,14 @@ async function computeWeeklyMacroAggregation(userId, weekKey) {
     calories: calculated?.targets?.calories || user.dailyCalorieTarget || user.preferences?.nutritionGoal?.calorieTarget || 2100,
   };
 
-  const dayLogs = await getWeekLogs(userId, weekKey);
+  const { weekStart: wkStart, weekEnd: wkEnd } = getWeekDateRange(weekKey);
+  const [dayLogs, weekWorkouts] = await Promise.all([
+    getWeekLogs(userId, weekKey),
+    Workout.find({ user: userId, date: { $gte: wkStart, $lte: wkEnd } }).select('date').lean(),
+  ]);
+
+  // Build a set of IST date strings when the user trained
+  const trainingDaySet = new Set(weekWorkouts.map(w => toISTDateString(w.date)));
 
   if (dayLogs.length === 0) {
     return {
@@ -189,9 +197,13 @@ async function computeWeeklyMacroAggregation(userId, weekKey) {
     weekTotalCarbs = 0,
     weekTotalFat = 0,
     weekTotalCalories = 0;
+  let trainingDayCalSum = 0, trainingDayCalCount = 0;
+  let restDayCalSum = 0, restDayCalCount = 0;
+  let trainingDayProteinSum = 0, restDayProteinSum = 0;
 
   dayLogs.forEach(({ date, meals }) => {
     const totals = calculateMealTotals(meals);
+    const isTrainingDay = trainingDaySet.has(date);
     dailyData[date] = {
       protein: Math.round(totals.protein),
       carbs: Math.round(totals.carbs),
@@ -202,12 +214,23 @@ async function computeWeeklyMacroAggregation(userId, weekKey) {
       fatPercent: Math.round((totals.fat / targets.fat) * 100),
       caloriesPercent: Math.round((totals.calories / targets.calories) * 100),
       saturatedFat: Math.round(totals.saturatedFat || 0),
+      isTrainingDay,
     };
 
     weekTotalProtein += totals.protein;
     weekTotalCarbs += totals.carbs;
     weekTotalFat += totals.fat;
     weekTotalCalories += totals.calories;
+
+    if (isTrainingDay) {
+      trainingDayCalSum += totals.calories;
+      trainingDayCalCount++;
+      trainingDayProteinSum += totals.protein;
+    } else {
+      restDayCalSum += totals.calories;
+      restDayCalCount++;
+      restDayProteinSum += totals.protein;
+    }
   });
 
   const weekAvg = {
@@ -224,23 +247,42 @@ async function computeWeeklyMacroAggregation(userId, weekKey) {
     fat: Object.values(dailyData).filter(d => d.fatPercent >= 95 && d.fatPercent <= 105).length,
   };
 
-  // Calculate carb excess conversion to fat (4 cal/g carb, 9 cal/g fat)
+  // Calculate carb excess conversion to fat (4 cal/g carb, 9 cal/g fat). Unit: g fat stored
   const weekCarbTarget = targets.carbs * dayLogs.length;
   const carbExcess = Math.max(0, weekTotalCarbs - weekCarbTarget);
-  const fatStoredFromCarbs = Math.round((carbExcess * 4) / 9);
+  const fatStoredFromCarbs = Math.round((carbExcess * 4) / 9); // unit: g fat stored
 
   // Calculate fat quality (saturated fat %)
   const weekTotalSatFat = Object.values(dailyData).reduce((sum, d) => sum + (d.saturatedFat || 0), 0);
   const satFatPercent = weekTotalFat > 0 ? Math.round((weekTotalSatFat / weekTotalFat) * 100) : 0;
 
   const weeklyCalorieSurplus = weekTotalCalories - targets.calories * dayLogs.length;
-  const weeklyWeightPrediction = weeklyCalorieSurplus / 7700; // lbs per day avg
+  // TASK 1 & 10: Use 7000 kcal/kg (evidence-based). Unit: kg (weekly weight change: positive = surplus, negative = deficit)
+  const weeklyWeightPrediction = weeklyCalorieSurplus / 7000;
+
+  // Training-day vs rest-day nutrition split
+  const trainingVsRestSplit = {
+    trainingDays: {
+      count: trainingDayCalCount,
+      avgCalories: trainingDayCalCount > 0 ? Math.round(trainingDayCalSum / trainingDayCalCount) : null,
+      avgProtein: trainingDayCalCount > 0 ? Math.round(trainingDayProteinSum / trainingDayCalCount) : null,
+    },
+    restDays: {
+      count: restDayCalCount,
+      avgCalories: restDayCalCount > 0 ? Math.round(restDayCalSum / restDayCalCount) : null,
+      avgProtein: restDayCalCount > 0 ? Math.round(restDayProteinSum / restDayCalCount) : null,
+    },
+    calorieGapKcal: (trainingDayCalCount > 0 && restDayCalCount > 0)
+      ? Math.round(trainingDayCalSum / trainingDayCalCount - restDayCalSum / restDayCalCount)
+      : null,
+  };
 
   return {
     weekKey,
     dayCount: dayLogs.length,
     targets,
     dailyData,
+    trainingVsRestSplit,
     weeklyTotals: {
       protein: weekTotalProtein,
       carbs: weekTotalCarbs,
@@ -266,11 +308,11 @@ async function computeWeeklyMacroAggregation(userId, weekKey) {
       status: satFatPercent <= 35 ? 'excellent' : satFatPercent <= 40 ? 'good' : 'caution',
     },
     estimatedWeeklyWeightChange: Math.round(weeklyWeightPrediction * 10) / 10,
-    insights: generateMacroInsights(dailyData, daysHitTarget, carbExcess, targets, dayLogs.length, weeklyWeightPrediction),
+    insights: generateMacroInsights(dailyData, daysHitTarget, carbExcess, targets, dayLogs.length, weeklyWeightPrediction, trainingVsRestSplit),
   };
 }
 
-function generateMacroInsights(dailyData, daysHitTarget, carbExcess, targets, dayCount, weeklyWeightPrediction) {
+function generateMacroInsights(dailyData, daysHitTarget, carbExcess, targets, dayCount, weeklyWeightPrediction, trainingVsRestSplit) {
   const insights = [];
 
   const proteinHitRate = (daysHitTarget.protein / dayCount) * 100;
@@ -288,6 +330,24 @@ function generateMacroInsights(dailyData, daysHitTarget, carbExcess, targets, da
     });
   }
 
+  // Training-day vs rest-day nutrition insight
+  if (trainingVsRestSplit?.calorieGapKcal != null && trainingVsRestSplit.trainingDays.count >= 2 && trainingVsRestSplit.restDays.count >= 1) {
+    const gap = trainingVsRestSplit.calorieGapKcal;
+    if (gap < 0) {
+      insights.push({
+        type: 'alert',
+        nutrient: 'calories',
+        message: `You ate ${Math.abs(gap)} kcal LESS on training days than rest days. Underfueling on workout days impairs performance and recovery.`,
+      });
+    } else if (gap > 300) {
+      insights.push({
+        type: 'positive',
+        nutrient: 'calories',
+        message: `Good training-day fueling: +${gap} kcal more on workout days vs rest days. Carb/calorie cycling is working.`,
+      });
+    }
+  }
+
   if (carbExcess > 100) {
     insights.push({
       type: 'alert',
@@ -300,7 +360,7 @@ function generateMacroInsights(dailyData, daysHitTarget, carbExcess, targets, da
   insights.push({
     type: 'info',
     nutrient: 'calories',
-    message: `At current intake, weight forecast: ${annualWeightChange > 0 ? '+' : ''}${annualWeightChange} lbs/year.`,
+    message: `At current intake, weight forecast: ${annualWeightChange > 0 ? '+' : ''}${annualWeightChange} kg/year.`,
   });
 
   return insights;

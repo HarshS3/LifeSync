@@ -1,5 +1,6 @@
 const { MentalLog, NutritionLog, StepsLog } = require('../../models/Logs');
 const Workout = require('../../models/Workout');
+const User_select = 'weight biologicalProfile clinicalTargets dailyCalorieTarget trainingExperience height gender dob';
 
 /**
  * ═══════════════════════════════════════════════════════════════
@@ -26,7 +27,7 @@ async function calculateReadiness(userId) {
     MentalLog.find({ user: userId, date: { $gte: sevenDaysAgo } }).sort({ date: -1 }).lean(),
     Workout.find({ user: userId, date: { $gte: twentyEightDaysAgo } }).sort({ date: 1 }).lean(),
     NutritionLog.findOne({ user: userId, date: { $gte: todayStart } }).lean(),
-    require('../../models/User').findById(userId).select('weight biologicalProfile dailyCalorieTarget trainingExperience').lean(),
+    require('../../models/User').findById(userId).select(User_select).lean(),
     StepsLog.findOne({ user: userId, date: { $gte: todayStart } }).lean(),
   ]);
 
@@ -88,13 +89,32 @@ async function calculateReadiness(userId) {
   const stressScore = Math.max(1, Math.min(10, 11 - avgStress));
 
   // ── 5. NUTRITION/FUEL SCORE (20% weight) ───────────────────────
-  // Use stored TDEE-adjusted target when available (avoids re-deriving what
-  // nutritionEngine + adaptiveTdeeEngine already computed). Fall back to
-  // body-weight heuristic only when the user hasn't set up their profile.
-  const userBodyWeight = user?.biologicalProfile?.weight || user?.weight || 75;
-  const storedTarget = user?.dailyCalorieTarget;
-  const calsTarget = storedTarget && storedTarget > 800 ? storedTarget : Math.round(userBodyWeight * 32);
-  const calsFloor = Math.round(calsTarget * 0.55); // < 55% of maintenance = genuinely underfueled
+  // Priority for calorie target:
+  //   1. clinicalTargets.targets.calories  — most accurate (computed from full profile + adaptive TDEE)
+  //   2. dailyCalorieTarget                — stored preference
+  //   3. biologicalProfile-derived estimate via PAL formula  — better than bodyweight*32
+  //   4. bodyweight * 32 fallback          — last resort only
+  const userBodyWeight = user?.biologicalProfile?.weightKg || user?.biologicalProfile?.weight || user?.weight || 75;
+  const storedTarget = user?.clinicalTargets?.targets?.calories || user?.dailyCalorieTarget;
+  let calsTarget;
+  if (storedTarget && storedTarget > 800) {
+    calsTarget = storedTarget;
+  } else {
+    // Derive from profile if possible (avoids systematic overestimate from bodyweight*32)
+    const { calculateDailyTargets } = require('../nutritionEngine');
+    const profile = user?.biologicalProfile || {};
+    const toNum = v => { const n = Number(v); return Number.isFinite(n) ? n : undefined; };
+    const ep = {
+      ...profile,
+      biologicalSex: profile.biologicalSex || user?.gender,
+      heightCm: toNum(profile.heightCm) ?? toNum(user?.height),
+      weightKg: toNum(profile.weightKg) ?? toNum(user?.weight),
+      dob: profile.dob || user?.dob,
+    };
+    const calc = calculateDailyTargets(ep);
+    calsTarget = calc?.targets?.calories || Math.round(userBodyWeight * 32);
+  }
+  const calsFloor = Math.round(calsTarget * 0.55); // < 55% of *personalized* target = genuinely underfueled
   const trainingToday = workoutsLast7.some(w => new Date(w.date) >= todayStart);
   const trainingPhase = user?.biologicalProfile?.trainingPhase;
   const isDeficitPhase = trainingPhase === "cut" || trainingPhase === "recomp";

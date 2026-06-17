@@ -389,24 +389,35 @@ function DailyLogTab({
         </Box>
       </Box>
 
-      {/* macro summary strip */}
+      {/* macro summary strip — consumed + remaining */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, 1fr)' }, gap: 2 }}>
         {[
-          { label: 'Calories', val: fmt(totals.calories, 0), unit: 'kcal', pct: percent(totals.calories, calorieTarget), color: '#16a34a' },
-          { label: 'Protein',  val: fmt(totals.protein),     unit: 'g',    pct: percent(totals.protein, proteinTarget),   color: '#2563eb' },
-          { label: 'Carbs',    val: fmt(totals.carbs),       unit: 'g',    pct: null, color: '#d97706' },
-          { label: 'Fat',      val: fmt(totals.fat),         unit: 'g',    pct: null, color: '#dc2626' },
-        ].map((m) => (
-          <Box key={m.label} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>{m.label}</Typography>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>
-              {m.val} <span style={{ fontWeight: 400, fontSize: '0.8em', color: '#9ca3af' }}>{m.unit}</span>
-            </Typography>
-            {m.pct != null && (
-              <LinearProgress variant="determinate" value={m.pct} sx={{ mt: 1, height: 4, borderRadius: 99, bgcolor: 'action.selected', '& .MuiLinearProgress-bar': { bgcolor: m.color } }} />
-            )}
-          </Box>
-        ))}
+          { label: 'Calories', val: fmt(totals.calories, 0), target: calorieTarget, unit: 'kcal', pct: percent(totals.calories, calorieTarget), color: '#16a34a' },
+          { label: 'Protein',  val: fmt(totals.protein),     target: proteinTarget, unit: 'g',    pct: percent(totals.protein, proteinTarget),   color: '#2563eb' },
+          { label: 'Carbs',    val: fmt(totals.carbs),       target: clinicalTargets?.targets?.carbs, unit: 'g', pct: percent(totals.carbs, clinicalTargets?.targets?.carbs), color: '#d97706' },
+          { label: 'Fat',      val: fmt(totals.fat),         target: clinicalTargets?.targets?.fat,   unit: 'g', pct: percent(totals.fat, clinicalTargets?.targets?.fat),     color: '#dc2626' },
+        ].map((m) => {
+          const remaining = m.target > 0 ? Math.max(0, m.target - parseFloat(m.val)) : null
+          const over = m.target > 0 && parseFloat(m.val) > m.target
+          return (
+            <Box key={m.label} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid #e5e7eb' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.25 }}>{m.label}</Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>
+                {m.val} <span style={{ fontWeight: 400, fontSize: '0.8em', color: '#9ca3af' }}>{m.unit}</span>
+              </Typography>
+              {m.target > 0 && (
+                <Typography variant="caption" sx={{ color: over ? '#dc2626' : '#6b7280', display: 'block', mt: 0.25 }}>
+                  {over
+                    ? `+${fmt(parseFloat(m.val) - m.target, 0)} over`
+                    : `${fmt(remaining, 0)}${m.unit} left`}
+                </Typography>
+              )}
+              {m.pct != null && (
+                <LinearProgress variant="determinate" value={Math.min(m.pct, 100)} sx={{ mt: 0.75, height: 4, borderRadius: 99, bgcolor: 'action.selected', '& .MuiLinearProgress-bar': { bgcolor: over ? '#dc2626' : m.color } }} />
+              )}
+            </Box>
+          )
+        })}
       </Box>
 
       {/* Daily Warnings & Insights */}

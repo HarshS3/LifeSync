@@ -2,13 +2,16 @@ const { NutritionLog, WeightLog, MentalLog, StepsLog } = require('../../models/L
 const Workout = require('../../models/Workout');
 const { EXERCISE_METADATA } = require('../../constants/exerciseMetadata');
 
+// TASK 1: Use evidence-based 7000 kcal/kg tissue (not 7700)
+const KCAL_PER_KG_TISSUE = 7000;
+
 /**
  * Calculates the running 7-day average of an array of data points.
  * Expects array of { date, value } sorted by date ascending.
  */
 function calculateSmoothTrend(dataPoints, windowSize = 7) {
   if (!dataPoints || dataPoints.length === 0) return [];
-  
+
   // To handle sparse data, we create a map of dates to values
   const dataMap = {};
   dataPoints.forEach(p => {
@@ -41,10 +44,16 @@ function calculateSmoothTrend(dataPoints, windowSize = 7) {
   return smoothed;
 }
 
+// TASK 5: median helper for water-weight-resistant anchors
+function medianVal(arr) {
+  const s = [...arr].sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)];
+}
+
 /**
  * Calculates Adaptive TDEE by comparing consumed calories vs actual weight change.
  * Requires at least 14 days of data to be somewhat accurate, ideally 30+.
- * @param {ObjectId} userId 
+ * @param {ObjectId} userId
  * @param {Number} daysBack - How many days to analyze (e.g., 30)
  * @param {Date} referenceDate - The end date for the analysis (defaults to today)
  */
@@ -61,10 +70,6 @@ async function calculateAdaptiveTDEE(userId, daysBack = 30, referenceDate = new 
     require('../../models/User').findById(userId).select('weight biologicalProfile').lean()
   ]);
 
-  if (weightLogsRaw.length < 3) {
-    return { status: 'insufficient_data', message: 'Need at least 3 weight logs to estimate Adaptive TDEE.' };
-  }
-
   // 2. Fetch Nutrition Logs to get calorie intake
   const nutritionLogs = await NutritionLog.find({
     user: userId,
@@ -74,23 +79,27 @@ async function calculateAdaptiveTDEE(userId, daysBack = 30, referenceDate = new 
   // Filter out days with < 800 calories (assume incomplete logging)
   const validNutriLogs = nutritionLogs.filter(log => (log.dailyTotals?.calories || 0) > 800);
 
-  if (validNutriLogs.length < 5) {
-    return { status: 'insufficient_logging', message: 'Need more days of accurate calorie tracking.' };
-  }
-
-  // Calculate average intake
-  const totalCalsConsumed = validNutriLogs.reduce((sum, log) => sum + (log.dailyTotals?.calories || 0), 0);
-  const avgDailyIntake = totalCalsConsumed / validNutriLogs.length;
-
   // 3. Smooth Weight Data to calculate trend
   const weightPoints = weightLogsRaw.map(w => ({ date: w.date, value: w.weightKg }));
   const smoothedWeights = calculateSmoothTrend(weightPoints, 7);
+
+  // TASK 2: Require at least 7 weight logs AND 14 days elapsed
+  const daysElapsedPreCheck = smoothedWeights.length >= 2
+    ? (new Date(smoothedWeights[smoothedWeights.length - 1].date).getTime() - new Date(smoothedWeights[0].date).getTime()) / (1000 * 60 * 60 * 24)
+    : 0;
+
+  if (weightLogsRaw.length < 7 || daysElapsedPreCheck < 14) {
+    return { status: 'insufficient_data', reason: 'Need at least 7 weight logs over 14 days for accurate TDEE.' };
+  }
+
+  if (validNutriLogs.length < 5) {
+    return { status: 'insufficient_logging', message: 'Need more days of accurate calorie tracking.' };
+  }
 
   if (smoothedWeights.length < 2) {
     return { status: 'insufficient_smoothed_data', message: 'Not enough data points after smoothing.' };
   }
 
-  // Compare first smoothed point and last smoothed point
   const firstPoint = smoothedWeights[0];
   const lastPoint = smoothedWeights[smoothedWeights.length - 1];
 
@@ -99,15 +108,31 @@ async function calculateAdaptiveTDEE(userId, daysBack = 30, referenceDate = new 
     return { status: 'insufficient_duration', message: 'Need at least a 5-day span between weight logs.' };
   }
 
-  const weightChangeKg = lastPoint.value - firstPoint.value;
-  
-  // 1 kg of fat/tissue is roughly 7700 kcal
-  const totalCalorieDelta = weightChangeKg * 7700;
-  
+  // TASK 4: Log coverage check — require 60% of days logged
+  if (validNutriLogs.length / daysElapsed < 0.6) {
+    return { status: 'insufficient_logging', reason: 'Log food consistently (60% of days) for accurate TDEE.' };
+  }
+
+  // Calculate average intake
+  const totalCalsConsumed = validNutriLogs.reduce((sum, log) => sum + (log.dailyTotals?.calories || 0), 0);
+  const avgDailyIntake = totalCalsConsumed / validNutriLogs.length;
+
+  // TASK 5: Use median of first 3 and last 3 smoothed points as anchors
+  const firstWeight = medianVal(smoothedWeights.slice(0, 3).map(p => p.value));
+  const lastWeight = medianVal(smoothedWeights.slice(-3).map(p => p.value));
+  const weightChangeKg = lastWeight - firstWeight;
+
+  // TASK 1: Use KCAL_PER_KG_TISSUE (7000) instead of 7700
+  const totalCalorieDelta = weightChangeKg * KCAL_PER_KG_TISSUE;
+
   // Daily deficit (or surplus if positive) = delta / days
   const dailyEnergyDelta = totalCalorieDelta / Math.max(1, daysElapsed);
 
-  const adaptiveTdee = avgDailyIntake - dailyEnergyDelta;
+  const rawTdee = avgDailyIntake - dailyEnergyDelta;
+
+  // TASK 3: Clamp adaptive TDEE to physiologically plausible range
+  const adaptiveTdee = Math.max(1000, Math.min(6000, rawTdee));
+  const lowConfidence = adaptiveTdee < 1200 || adaptiveTdee > 4500;
 
   // Check for Metabolic Adaptation stall:
   let isAdapted = false;
@@ -126,7 +151,8 @@ async function calculateAdaptiveTDEE(userId, daysBack = 30, referenceDate = new 
     daysAnalyzed: Math.round(daysElapsed),
     smoothedCurve: smoothedWeights,
     isAdapted,
-    recommendation
+    recommendation,
+    lowConfidence,
   };
 }
 
@@ -137,7 +163,7 @@ async function calculateAdaptiveTDEE(userId, daysBack = 30, referenceDate = new 
 async function calculateAdaptiveTDEEForRange(userId, startDate, endDate) {
   const start = new Date(startDate);
   const end = new Date(endDate);
-  
+
   // Fetch logs with 30-day buffer before start
   const bufferStart = new Date(start);
   bufferStart.setDate(bufferStart.getDate() - 40); // 40 days for safety
@@ -148,7 +174,7 @@ async function calculateAdaptiveTDEEForRange(userId, startDate, endDate) {
   ]);
 
   const results = {};
-  
+
   // Pre-process weights for smoothing
   const weightPoints = weights.map(w => ({ date: w.date, value: w.weightKg }));
   const smoothedWeightsMap = {};
@@ -159,7 +185,7 @@ async function calculateAdaptiveTDEEForRange(userId, startDate, endDate) {
   // Iterate through each day in the requested range
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const dayKey = d.toLocaleDateString('en-CA');
-    
+
     // Window: [d - 30, d]
     const winEnd = new Date(d);
     const winStart = new Date(d);
@@ -167,29 +193,35 @@ async function calculateAdaptiveTDEEForRange(userId, startDate, endDate) {
 
     const winNutri = nutrition.filter(n => n.date >= winStart && n.date <= winEnd && (n.dailyTotals?.calories || 0) > 800);
 
-    // Find first and last smoothed points in the 30-day window
+    // Find smoothed points in the 30-day window
     const windowDateKeys = Object.keys(smoothedWeightsMap)
       .filter(k => k >= winStart.toLocaleDateString('en-CA') && k <= dayKey)
       .sort();
 
     if (windowDateKeys.length >= 2 && winNutri.length >= 5) {
-      const firstKey = windowDateKeys[0];
-      const lastKey = windowDateKeys[windowDateKeys.length - 1];
-      
-      const firstVal = smoothedWeightsMap[firstKey];
-      const lastVal = smoothedWeightsMap[lastKey];
-      
-      const elapsed = (new Date(lastKey) - new Date(firstKey)) / 86400000;
-      
+      const elapsed = (new Date(windowDateKeys[windowDateKeys.length - 1]) - new Date(windowDateKeys[0])) / 86400000;
+
+      // TASK 4: Log coverage check
+      if (winNutri.length / Math.max(1, elapsed) < 0.6) continue;
+
+      // TASK 5: Use median of first 3 and last 3 smoothed points
+      const firstSlice = windowDateKeys.slice(0, 3).map(k => smoothedWeightsMap[k]);
+      const lastSlice = windowDateKeys.slice(-3).map(k => smoothedWeightsMap[k]);
+      const firstVal = medianVal(firstSlice);
+      const lastVal = medianVal(lastSlice);
+
       if (elapsed >= 5) {
         const totalCals = winNutri.reduce((sum, n) => sum + (n.dailyTotals.calories || 0), 0);
         const avgIntake = totalCals / winNutri.length;
-        const delta = ((lastVal - firstVal) * 7700) / elapsed;
-        results[dayKey] = Math.round(avgIntake - delta);
+        // TASK 1: Use KCAL_PER_KG_TISSUE
+        const delta = ((lastVal - firstVal) * KCAL_PER_KG_TISSUE) / elapsed;
+        const rawTdee = avgIntake - delta;
+        // TASK 3: Clamp output
+        results[dayKey] = Math.round(Math.max(1000, Math.min(6000, rawTdee)));
       }
     }
   }
-  
+
   return results;
 }
 
@@ -228,8 +260,9 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
 
   const validNutriLogs = nutritionLogs.filter(l => (l.dailyTotals?.calories || 0) > 800);
 
-  if (validNutriLogs.length < 5 || weightLogs.length < 3) {
-    return { status: 'insufficient_data', message: 'Need at least 5 nutrition logs and 3 weight logs for a metabolic map.', insulinSensitivity: user?.biologicalProfile?.insulinSensitivity || 'normal' };
+  // TASK 2: Require at least 7 weight logs
+  if (validNutriLogs.length < 5 || weightLogs.length < 7) {
+    return { status: 'insufficient_data', reason: 'Need at least 7 weight logs over 14 days for accurate TDEE.', insulinSensitivity: user?.biologicalProfile?.insulinSensitivity || 'normal' };
   }
 
   // ── 1. BASE TDEE (calorie-vs-weight method) ─────────────────────
@@ -238,9 +271,38 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
   const firstW = smoothedWeights[0];
   const lastW = smoothedWeights[smoothedWeights.length - 1];
   const daysElapsed = Math.max(1, (new Date(lastW.date) - new Date(firstW.date)) / 86400000);
-  const weightChangeKg = lastW.value - firstW.value;
-  const avgIntake = validNutriLogs.reduce((s, l) => s + (l.dailyTotals?.calories || 0), 0) / validNutriLogs.length;
-  const baseTDEE = Math.round(avgIntake - (weightChangeKg * 7700) / daysElapsed);
+
+  // TASK 2: Check 14 days elapsed
+  if (daysElapsed < 14) {
+    return { status: 'insufficient_data', reason: 'Need at least 7 weight logs over 14 days for accurate TDEE.', insulinSensitivity: user?.biologicalProfile?.insulinSensitivity || 'normal' };
+  }
+
+  // TASK 4: Log coverage check
+  if (validNutriLogs.length / daysElapsed < 0.6) {
+    return { status: 'insufficient_logging', reason: 'Log food consistently (60% of days) for accurate TDEE.', insulinSensitivity: user?.biologicalProfile?.insulinSensitivity || 'normal' };
+  }
+
+  // TASK 5: Use median of first 3 and last 3 smoothed points as anchors
+  const firstWeightVal = medianVal(smoothedWeights.slice(0, 3).map(p => p.value));
+  const lastWeightVal = medianVal(smoothedWeights.slice(-3).map(p => p.value));
+  const weightChangeKg = lastWeightVal - firstWeightVal;
+
+  // TASK 6: Long-run avg intake for baseTDEE; recent 7-14 days for dietPhase
+  const longRunLogs = validNutriLogs;
+  const recentCutoff = new Date(endDate);
+  recentCutoff.setDate(recentCutoff.getDate() - 14);
+  const recentLogs = validNutriLogs.filter(l => new Date(l.date) >= recentCutoff);
+
+  const longRunAvgIntake = longRunLogs.reduce((s, l) => s + (l.dailyTotals?.calories || 0), 0) / longRunLogs.length;
+  const recentAvgIntake = recentLogs.length > 0
+    ? recentLogs.reduce((s, l) => s + (l.dailyTotals?.calories || 0), 0) / recentLogs.length
+    : longRunAvgIntake;
+
+  // TASK 1: Use KCAL_PER_KG_TISSUE for baseTDEE
+  const rawBaseTDEE = longRunAvgIntake - (weightChangeKg * KCAL_PER_KG_TISSUE) / daysElapsed;
+  // TASK 3: Clamp baseTDEE
+  const baseTDEE = Math.round(Math.max(1000, Math.min(6000, rawBaseTDEE)));
+  const baseTDEELowConfidence = baseTDEE < 1200 || baseTDEE > 4500;
 
   // ── 2. STRESS MODIFIER ──────────────────────────────────────────
   // Recent 7-day stress vs historical baseline
@@ -340,8 +402,14 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
         if (meta?.type === 'cardio' && meta.met) {
           const setsBurn = (e.sets || []).reduce((s, set) => {
             const durationHrs = (set.duration || 0) / 3600;
-            // If duration 0 but reps exists, maybe reps is minutes? Heuristic:
-            const effectiveHrs = durationHrs || ((set.reps || 0) * 60) / 3600; 
+            // Only use reps-as-minutes heuristic for explicitly time-based cardio
+            // (e.g. treadmill, cycling) where duration field is missing but reps makes no sense.
+            // Cap at 2h to prevent absurd values from reps like "10 sets of 20 reps".
+            const repsAsMinutes = (meta.unit === 'time' || e.name?.toLowerCase().includes('treadmill') ||
+              e.name?.toLowerCase().includes('cycling') || e.name?.toLowerCase().includes('running') ||
+              e.name?.toLowerCase().includes('rowing') || e.name?.toLowerCase().includes('elliptical'))
+              ? Math.min(set.reps || 0, 120) : 0;
+            const effectiveHrs = durationHrs || (repsAsMinutes / 60);
             return s + (meta.met * userWeight * effectiveHrs);
           }, 0);
           dailyBurn[dayKey] += setsBurn;
@@ -355,7 +423,7 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
   const recentCardioCals = Object.keys(dailyCardioMap)
     .filter(k => (endDate - new Date(k)) / 86400000 <= 7)
     .map(k => dailyCardioMap[k]);
-  
+
   const olderCardioCals = Object.keys(dailyCardioMap)
     .filter(k => (endDate - new Date(k)) / 86400000 > 7)
     .map(k => dailyCardioMap[k]);
@@ -413,10 +481,14 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
   }
 
   // ── 5. DYNAMIC TDEE ─────────────────────────────────────────────
-  const dynamicTDEE = baseTDEE + stressModifier + trainingModifier + adaptationModifier + stepModifier + cardioModifier;
+  const rawDynamicTDEE = baseTDEE + stressModifier + trainingModifier + adaptationModifier + stepModifier + cardioModifier;
+  // TASK 3: Clamp dynamic TDEE
+  const dynamicTDEE = Math.max(1000, Math.min(6000, rawDynamicTDEE));
+  const dynamicTDEELowConfidence = dynamicTDEE < 1200 || dynamicTDEE > 4500;
 
   // ── 6. DIET PHASE DETECTION ─────────────────────────────────────
-  const intakeVsDynamic = avgIntake - dynamicTDEE;
+  // TASK 6: Use recentAvgIntake for dietPhase comparison (not long-run avg)
+  const intakeVsDynamic = recentAvgIntake - dynamicTDEE;
   const dietPhase =
     intakeVsDynamic < -400 ? 'aggressive_cut'
     : intakeVsDynamic < -100 ? 'moderate_cut'
@@ -428,8 +500,10 @@ async function calculateMetabolicMap(userId, daysBack = 60) {
     status: 'success',
     baseTDEE,
     dynamicTDEE: Math.round(dynamicTDEE),
-    avgDailyIntake: Math.round(avgIntake),
+    avgDailyIntake: Math.round(longRunAvgIntake),
+    recentAvgIntake: Math.round(recentAvgIntake),
     dietPhase,
+    lowConfidence: baseTDEELowConfidence || dynamicTDEELowConfidence,
     modifiers: {
       stress: {
         value: stressModifier,

@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
-const { StepsLog } = require('../models/Logs');
+const { StepsLog, NutritionLog } = require('../models/Logs');
 const Workout = require('../models/Workout');
 const WorkoutTemplate = require('../models/WorkoutTemplate');
 const { analyzeCorrelations } = require('../services/insights/correlationEngine');
@@ -322,7 +322,10 @@ router.post('/workouts', auth, async (req, res) => {
         const e1 = r > 0 ? w_ * (1 + r / 30) : 0;
         if (e1 > newBestEst1RM) newBestEst1RM = e1;
       }
-      if (newBestWeight > prior.weight && newBestWeight > 0) {
+      // Minimum meaningful PR increment: 1.25kg for isolations, 2.5kg for compounds
+      const isCompoundPR = (ex.metadata?.type === 'compound') || newBestWeight >= 40;
+      const prMinIncrement = isCompoundPR ? 1.25 : 0.5;
+      if (newBestWeight >= prior.weight + prMinIncrement && newBestWeight > 0) {
         prsHit.push({
           exercise: ex.name,
           type: 'weight',
@@ -348,10 +351,27 @@ router.post('/workouts', auth, async (req, res) => {
     const progressionSuggestions = [];
 
     // Fetch recent workouts for progression + deload analysis (reuse priorWorkouts data)
-    const recentWorkoutsForAnalysis = await Workout.find({
-      user: req.userId,
-      _id: { $ne: workout._id },
-    }).sort({ date: -1 }).limit(12).lean();
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [recentWorkoutsForAnalysis, recentNutritionLogs, userForProg] = await Promise.all([
+      Workout.find({ user: req.userId, _id: { $ne: workout._id } }).sort({ date: -1 }).limit(12).lean(),
+      NutritionLog.find({ user: req.userId, date: { $gte: sevenDaysAgo } }).select('dailyTotals').lean(),
+      require('../models/User').findById(req.userId).select('biologicalProfile weight clinicalTargets').lean(),
+    ]);
+
+    // Compute protein adequacy from last 7 days of logs
+    const proteinLogs = recentNutritionLogs.filter(l => (l.dailyTotals?.calories || 0) > 300);
+    const avgProtein7d = proteinLogs.length > 0
+      ? proteinLogs.reduce((s, l) => s + (l.dailyTotals?.protein || 0), 0) / proteinLogs.length
+      : null;
+    const userWeightKg = userForProg?.biologicalProfile?.weightKg || userForProg?.weight || 75;
+    const proteinTarget = userForProg?.clinicalTargets?.targets?.protein || Math.round(userWeightKg * 1.6);
+    // Protein is adequate when 7-day avg >= 80% of target AND we have enough data
+    const proteinAdequate = avgProtein7d == null
+      ? true // no data — don't penalise, just skip the warning
+      : avgProtein7d >= proteinTarget * 0.80;
+    const proteinWarning = (!proteinAdequate && avgProtein7d != null)
+      ? `Note: Your avg protein over the last ${proteinLogs.length} logged day${proteinLogs.length !== 1 ? 's' : ''} is ${Math.round(avgProtein7d)}g vs a ${proteinTarget}g target. Muscle protein synthesis will be sub-optimal — hit protein first, then chase load increases.`
+      : null;
 
     // Readiness check once — gate all suggestions on recovery
     const readinessForProg = await calculateReadiness(req.userId).catch(() => null);
@@ -388,6 +408,7 @@ router.post('/workouts', auth, async (req, res) => {
           currentWeight,
           suggestedWeight: currentWeight + increment,
           reason: `You've hit ${currentWeight}kg on ${ex.name} for 2 sessions — your body has adapted. Next session, try ${currentWeight + increment}kg.`,
+          proteinWarning,
         });
       }
     }
@@ -431,6 +452,7 @@ router.put('/workouts/:id', auth, async (req, res) => {
     if (!workout) {
       return res.status(404).json({ error: 'Workout not found' });
     }
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: workout.date, reason: 'gymRoutes update workout' });
     res.json(workout);
   } catch (err) {
     console.error('Failed to update workout:', err);
@@ -445,6 +467,7 @@ router.delete('/workouts/:id', auth, async (req, res) => {
     if (!workout) {
       return res.status(404).json({ error: 'Workout not found' });
     }
+    triggerDailyLifeStateRecompute({ userId: req.userId, date: workout.date, reason: 'gymRoutes delete workout' });
     res.json({ message: 'Workout deleted' });
   } catch (err) {
     console.error('Failed to delete workout:', err);
@@ -579,6 +602,82 @@ router.get('/exercise-names', auth, async (req, res) => {
   } catch (err) {
     console.error('Failed to fetch exercise names:', err);
     res.status(500).json({ error: 'Failed to fetch exercise names' });
+  }
+});
+
+// Pre-session targets: for each exercise in a template/list, return last session weight/reps
+// and the suggested target for today (same as last, or +increment if progression is due).
+// POST body: { exercises: ["Bench Press", "Squat", ...] }
+router.post('/pre-session-targets', auth, async (req, res) => {
+  try {
+    const { exercises = [] } = req.body;
+    if (!Array.isArray(exercises) || exercises.length === 0) {
+      return res.status(400).json({ error: 'exercises array required' });
+    }
+
+    const targets = await Promise.all(exercises.map(async (name) => {
+      const decodedName = String(name).toLowerCase().trim();
+      const recentWorkouts = await Workout.find({
+        user: req.userId,
+        'exercises.name': { $regex: new RegExp('^' + decodedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') },
+      }).sort({ date: -1 }).limit(5).lean();
+
+      if (recentWorkouts.length === 0) {
+        return { exercise: name, status: 'new', lastSets: null, targetSets: null, note: 'First time — start light and find your working weight.' };
+      }
+
+      // Build per-session history: max weight + total reps at that weight
+      const sessions = recentWorkouts.map(w => {
+        const ex = w.exercises.find(e => e.name.toLowerCase().trim() === decodedName);
+        if (!ex) return null;
+        const completedSets = (ex.sets || []).filter(s => s.reps > 0);
+        if (completedSets.length === 0) return null;
+        const maxWeight = Math.max(...completedSets.map(s => s.weight || 0));
+        const setsAtMax = completedSets.filter(s => (s.weight || 0) >= maxWeight * 0.95);
+        return {
+          date: w.date,
+          maxWeight,
+          sets: setsAtMax.map(s => ({ weight: s.weight, reps: s.reps })),
+          volume: completedSets.reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0),
+        };
+      }).filter(Boolean);
+
+      if (sessions.length === 0) return { exercise: name, status: 'no_data', lastSets: null, targetSets: null };
+
+      const last = sessions[0];
+      const metaKey = Object.keys(EXERCISE_METADATA).find(k => k.toLowerCase() === String(name).toLowerCase());
+      const isCompound = metaKey ? EXERCISE_METADATA[metaKey]?.type === 'compound' : last.maxWeight >= 40;
+      const increment = isCompound ? 2.5 : 1.25;
+
+      // Determine if progression is due: last 2 sessions at same weight
+      let progressionDue = false;
+      if (sessions.length >= 2) {
+        const prev = sessions[1];
+        if (last.maxWeight > 0 && last.maxWeight === prev.maxWeight) {
+          progressionDue = true;
+        }
+      }
+
+      const targetWeight = progressionDue ? last.maxWeight + increment : last.maxWeight;
+      const targetSets = last.sets.map(s => ({ weight: targetWeight, reps: s.reps }));
+
+      return {
+        exercise: name,
+        status: progressionDue ? 'progress' : 'hold',
+        lastSets: last.sets,
+        lastDate: last.date,
+        targetSets,
+        targetWeight,
+        note: progressionDue
+          ? `Same weight for 2 sessions — add ${increment}kg today`
+          : `Hold at ${last.maxWeight}kg — match or beat last session`,
+      };
+    }));
+
+    res.json({ targets });
+  } catch (err) {
+    console.error('[PreSessionTargets] Error:', err);
+    res.status(500).json({ error: 'Failed to compute pre-session targets' });
   }
 });
 

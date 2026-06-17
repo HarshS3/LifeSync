@@ -119,3 +119,5 @@ our main aim is cross domain link so focus on that also
 our target users are archetype 1,3,4,5 and beginners only or people woth 1 year type experience 
 nd add so a user can decide if he is bulking cutting or maintenance phase and integrate this into workout and also for nutrition understand that what needs to be done
 and also include that our app suggests user to change workouts exercises to add remove try something new, deload week suggestion, return from break can be also added, trainign day can be amlmost dauly so think proper, plateau detection with cause also needs to be done, nutrition performnce link and readiness score,cross domain patter nmeemry
+
+

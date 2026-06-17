@@ -110,13 +110,20 @@ function chooseSummaryState({ signals }) {
   const trainingHigh = training.value != null && training.value >= 0.7 && training.confidence >= 0.6;
   const nutritionLow = nutrition.value != null && nutrition.value <= 0.35 && nutrition.confidence >= 0.6;
 
-  if ((stressHigh && (sleepLow || energyLow)) || (stressHigh && trainingHigh)) {
+  if (stressHigh && (sleepLow || energyLow)) {
     if (stressHigh) reasons.push('elevated stress signal');
     if (sleepLow) reasons.push('low sleep signal');
     if (energyLow) reasons.push('low energy signal');
-    if (trainingHigh) reasons.push('high training load signal');
     return { label: 'overloaded', confidence: clamp01(meanConfidence), reasons: reasons.slice(0, 4) };
   }
+  if (stressHigh && trainingHigh && (sleepLow || energyLow)) {
+    if (stressHigh) reasons.push('elevated stress signal');
+    if (trainingHigh) reasons.push('high training load signal');
+    if (sleepLow) reasons.push('low sleep signal');
+    if (energyLow) reasons.push('low energy signal');
+    return { label: 'overloaded', confidence: clamp01(meanConfidence), reasons: reasons.slice(0, 4) };
+  }
+  // High stress + high training but no physiological signal degradation → recovering, not overloaded
 
   if ((energyLow && sleepLow) || (trainingHigh && energyLow) || (nutritionLow && energyLow)) {
     if (energyLow) reasons.push('low energy signal');
@@ -131,6 +138,15 @@ function chooseSummaryState({ signals }) {
     reasons.push('lower stress signal');
     return { label: 'recovering', confidence: clamp01(meanConfidence), reasons: reasons.slice(0, 4) };
   }
+
+  // Composite depleted check: 2+ bad signals even without a specific strong pattern match
+  const badCount = [
+    (signals.sleep?.value || 1) <= 0.5,
+    (signals.energy?.value || 1) <= 0.5,
+    (signals.stress?.value || 0) >= 0.55,
+    (signals.trainingLoad?.value || 0) >= 0.6,
+  ].filter(Boolean).length;
+  if (badCount >= 2) return { label: 'depleted', confidence: 0.6, reasons: ['Multiple stress signals elevated'] };
 
   return { label: 'stable', confidence: clamp01(meanConfidence), reasons: [] };
 }
@@ -222,9 +238,9 @@ async function computeDailyLifeState({ userId, dayKey }) {
           sSum + ((s.reps || 0) * (s.weight || 0)), 0), 0), 0);
     const totalDurationMin = dayWorkouts.reduce((s, w) => s + (w.duration || 0), 0);
 
-    // Normalize: 0 vol & 0 duration = 0.1 (rest), 15k vol = ~0.7, 25k+ = ~1.0
+    // Normalize: 0 vol & 0 duration = 0.1 (rest), 20k vol = ~0.5, 40k+ = ~1.0
     const volScore = totalVolume > 0
-      ? clamp01(totalVolume / 20000)
+      ? clamp01(totalVolume / 40000)
       : totalDurationMin > 0
         ? clamp01(totalDurationMin / 90) // fallback: 90min session = high load
         : 0.3; // workout logged but no sets recorded — treat as moderate
@@ -316,7 +332,8 @@ async function computeDailyLifeState({ userId, dayKey }) {
 
   const flagged = (labReports || []).flatMap((r) => (r?.results || []).filter((x) => x && (x.flag === 'high' || x.flag === 'low')));
   const flaggedCount = flagged.length;
-  const labsValue = flaggedCount ? clamp01(flaggedCount / 3) : 0;
+  // Invert: more flagged = worse (lower value), consistent with other signals where high = good
+  const labsValue = flaggedCount > 0 ? Math.max(0, 1 - flaggedCount / 3) : 1;
   const labsConfidence = labReports.length ? 0.55 : 0;
 
   const labsContext = buildSignal({
@@ -359,9 +376,25 @@ async function computeDailyLifeState({ userId, dayKey }) {
   const summaryState = chooseSummaryState({ signals });
 
   // Compute metrics (Readiness & Load)
-  const readinessValue = signals.sleep.value != null && signals.energy.value != null && signals.stress.value != null
-    ? (signals.sleep.value * 0.4 + signals.energy.value * 0.4 + (1 - signals.stress.value) * 0.2)
-    : (signals.energy.value || signals.sleep.value || 0.5);
+  // Weights: sleep 0.30, energy 0.30, stress-inverted 0.20, trainingLoad-inverted 0.10, nutrition 0.10
+  // Optional signals (trainingLoad, nutrition) are included only when present and confident,
+  // with the divisor adjusted so the result stays on a 0–1 scale regardless of which are available.
+  let readinessValue;
+  if (signals.sleep.value != null && signals.energy.value != null && signals.stress.value != null) {
+    let score = signals.sleep.value * 0.30 + signals.energy.value * 0.30 + (1 - signals.stress.value) * 0.20;
+    let divisor = 0.80;
+    if (signals.trainingLoad.value != null && signals.trainingLoad.confidence >= 0.5) {
+      score += (1 - signals.trainingLoad.value) * 0.10;
+      divisor += 0.10;
+    }
+    if (signals.nutrition.value != null && signals.nutrition.confidence >= 0.5) {
+      score += signals.nutrition.value * 0.10;
+      divisor += 0.10;
+    }
+    readinessValue = score / divisor;
+  } else {
+    readinessValue = signals.energy.value || signals.sleep.value || 0.5;
+  }
 
   const metrics = {
     readinessScore: readinessValue != null ? Math.round(readinessValue * 100) : null,

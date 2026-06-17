@@ -386,7 +386,7 @@ router.post('/nutrition-agent', async (req, res) => {
   if (!agentId || !global.agentSessions[agentId] || global.agentSessions[agentId].userId !== userId) {
     agentId = `session_${userId}_${nowTs}`;
     const { NutritionAgentSession } = require('../services/nutritionAI/nutritionAgent');
-    global.agentSessions[agentId] = new NutritionAgentSession(userId);
+    global.agentSessions[agentId] = await NutritionAgentSession.create(userId);
     global.agentSessions[agentId].userId = userId;
   }
 

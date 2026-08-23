@@ -2,7 +2,7 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash'
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
 
 const LLM_MAX_OUTPUT_TOKENS = (() => {
   const raw = Number.parseInt(String(process.env.LLM_MAX_OUTPUT_TOKENS || '700').trim(), 10)

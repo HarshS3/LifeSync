@@ -1,0 +1,35 @@
+# Root .dockerignore — applied when docker-compose builds client (context: .)
+# Keeps the build context lean; the client Dockerfile only needs client/ + root manifests.
+
+node_modules/
+.git/
+.gitignore
+
+# App (React Native — not needed for web build)
+App/
+App/node_modules/
+
+# Scraping scripts
+scraping/
+
+# Server source (server has its own context)
+server/
+
+# Docs / markdown
+*.md
+docs/
+graphify-out/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Env files (baked values come from docker-compose args, not files)
+.env
+.env.*
+!.env.docker.example

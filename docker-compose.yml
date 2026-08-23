@@ -1,0 +1,112 @@
+services:
+  # ── MongoDB ────────────────────────────────────────────────────────────────
+  mongo:
+    image: mongo:7.0
+    container_name: lifesync-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: lifesync
+      # Set credentials via .env (see .env.example)
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme}
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"      # expose for local tools (Compass, scripts); remove in prod
+    networks:
+      - lifesync-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Backend (Node.js / Express) ────────────────────────────────────────────
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: lifesync-server
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      # Mongo auth URI — references the mongo service by hostname
+      MONGO_URI: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongo:27017/lifesync?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      # AI provider (set whichever key(s) you have)
+      LLM_PROVIDER: ${LLM_PROVIDER:-auto}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      # Email / reminders
+      GMAIL_USER: ${GMAIL_USER:-}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:-}
+      REMINDER_EMAIL_DRY_RUN: ${REMINDER_EMAIL_DRY_RUN:-1}
+      REMINDER_DEBUG: ${REMINDER_DEBUG:-0}
+      # Speech-to-text (optional)
+      GOOGLE_STT_API_KEY: ${GOOGLE_STT_API_KEY:-}
+      GOOGLE_STT_LANGUAGE_CODE: ${GOOGLE_STT_LANGUAGE_CODE:-en-US}
+      # RAG microservice (optional — see ai_service)
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai_service:8000}
+      AI_SERVICE_TIMEOUT_MS: ${AI_SERVICE_TIMEOUT_MS:-2500}
+      MEDICAL_REQUIRE_RAG: ${MEDICAL_REQUIRE_RAG:-0}
+      MEDICAL_SUPPLEMENT_ADVISOR: ${MEDICAL_SUPPLEMENT_ADVISOR:-1}
+      # Client URL (used in password-reset emails)
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:80}
+    ports:
+      - "5000:5000"        # expose for direct API access / debugging; remove in prod
+    networks:
+      - lifesync-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/api/auth/health 2>/dev/null || exit 0"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── Frontend (Vite build → Nginx) ──────────────────────────────────────────
+  client:
+    build:
+      context: ./client       # standalone — Dockerfile installs its own node_modules
+      dockerfile: Dockerfile
+      args:
+        # Nginx proxies /api → server, so no base URL needs to be baked into the bundle.
+        VITE_API_BASE_URL: ""
+    container_name: lifesync-client
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "80:80"
+    networks:
+      - lifesync-net
+
+  # ── Optional: Python RAG / AI microservice ─────────────────────────────────
+  # Uncomment if you use the textbook RAG feature (server/routes that call AI_SERVICE_URL).
+  # ai_service:
+  #   build:
+  #     context: ./ai_service
+  #     dockerfile: Dockerfile
+  #   container_name: lifesync-ai
+  #   restart: unless-stopped
+  #   environment:
+  #     GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  #   ports:
+  #     - "8000:8000"
+  #   networks:
+  #     - lifesync-net
+
+volumes:
+  mongo_data:
+    driver: local
+
+networks:
+  lifesync-net:
+    driver: bridge

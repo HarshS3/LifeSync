@@ -6,6 +6,8 @@ import FitnessCenterIcon from '@mui/icons-material/FitnessCenter'
 import SpaIcon from '@mui/icons-material/Spa'
 import RestaurantIcon from '@mui/icons-material/Restaurant'
 import { API_BASE } from '../config'
+import { useAuth } from '../context/AuthContext'
+
 
 function buildEvents(fitness, mental, nutrition) {
   const events = []
@@ -47,12 +49,16 @@ const kindStyles = {
 }
 
 function LifeTimelinePanel() {
+  const { token } = useAuth()
   const [events, setEvents] = useState([])
 
   useEffect(() => {
+    if (!token) return
     const fetchJson = async (url) => {
       try {
-        const res = await fetch(url)
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
         if (!res.ok) return []
         const text = await res.text()
         try {
@@ -70,7 +76,7 @@ function LifeTimelinePanel() {
       fetchJson(`${API_BASE}/api/logs/mental`),
       fetchJson(`${API_BASE}/api/logs/nutrition`),
     ]).then(([f, m, n]) => setEvents(buildEvents(f || [], m || [], n || [])))
-  }, [])
+  }, [token])
 
   const formatDate = (d) => d?.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) || ''
 
